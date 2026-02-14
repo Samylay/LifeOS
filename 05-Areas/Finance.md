@@ -13,13 +13,13 @@
 | Fun | | |
 
 ## Accounts
-- Bank: 
-- Investments: 
-- Credit cards: 
+- Bank: Credit Agricole
+- Investments:
+- Credit cards: (recently activated)
 
 ## Goals
-- 
+- [ ] Learn about finance / financial literature
+- [ ] Set up proper budgeting system
 
 ## Net Worth
-
 

@@ -33,3 +33,6 @@ Your second brain for all aspects of life.
 ## Active Projects
 
 - [[LLM-Calendar]] - AI-powered calendar manager
+- [[JECT]] - Junior Enterprise (client work, ops, sales)
+- [[Personal-Brand]] - Content creation, mailing list, audience building
+- [[Tech-Setup]] - Device setup, security projects, side projects
