@@ -2,7 +2,7 @@
 
 **Status:** Design
 **Started:** 2026-02-14
-**Target:** Q2 2026 MVP
+**Target:** Early April 2026 MVP (~7 weeks, AI-powered development)
 
 ---
 
@@ -525,81 +525,138 @@ users/{userId}/
 
 ## Implementation Phases
 
-### Phase 0: Scaffold (Week 1)
+> **Development approach:** AI-powered development (Claude Code, Cursor, etc.). This compresses scaffolding, CRUD, UI components, and data model work from hours to minutes. The bottleneck shifts from "writing code" to **decision-making, integration debugging, and UX iteration**. Phases are restructured accordingly — what would take 19 weeks solo ships in ~8 weeks of focused sessions.
+>
+> **What AI accelerates:** Boilerplate, CRUD, component generation, data model setup, styling, test scaffolding, repetitive module builds, LLM prompt engineering.
+>
+> **What still takes human time:** OAuth/API credential setup, third-party integration debugging, UX decisions, design iteration, manual testing of real-time flows, deploy configuration, browser extension edge cases.
 
-- [ ] Init Next.js + Tailwind project
-- [ ] Firebase project setup (Firestore + Auth)
-- [ ] Basic auth flow (Google sign-in)
-- [ ] App shell with sidebar navigation (Dashboard, Focus, Areas, Projects, Quests, Journeys)
-- [ ] Deploy to Vercel
+### Phase 0: Foundation (Days 1-2)
 
-### Phase 1: Core Loop + Focus Timer (Weeks 2-4)
+AI generates the entire scaffold in a single session. You make config decisions.
 
-- [ ] **Dashboard** — Today view with static layout (including focus streak + journey cards)
-- [ ] **Quick capture bar** — Text input that creates tasks/notes in Firestore
-- [ ] **Task system** — CRUD for tasks, filter by area, mark complete
-- [ ] **Daily log** — Morning check-in (sleep, energy) + evening reflection
-- [ ] **Calendar view** — Basic weekly calendar rendering events from Firestore
-- [ ] **Focus timer** — Pomodoro timer with configurable durations (focus/break/long break)
-- [ ] **Session logging** — Save completed sessions to Firestore with area/project/task links
-- [ ] **Focus streak** — Track consecutive days with completed focus sessions
+- [ ] Init Next.js + Tailwind project (AI generates full boilerplate)
+- [ ] Firebase project setup — create project, enable Firestore + Auth (manual console work)
+- [ ] Auth flow (Google sign-in) — AI writes the code, you configure Firebase console
+- [ ] App shell with sidebar navigation (Dashboard, Focus, Areas, Projects, Quests, Journeys, Calendar, Settings)
+- [ ] Full Firestore data model — AI generates all collections, types, and helper functions from the spec above
+- [ ] Deploy to Vercel (manual: link repo, set env vars)
 
-### Phase 2: Life Areas + Focus Blocks (Weeks 5-7)
+**AI leverage:** ~90%. The scaffold, routing, types, auth wrapper, layout components, and Firestore helpers are all generated in one pass.
 
-- [ ] Area module layout (shared component)
-- [ ] **Health module** — Training log, bodyweight skill tracker, habit checklist
-- [ ] **Career module** — Skill tree, JECT project tracker
-- [ ] **Finance module** — Monthly budget table, subscription tracker
-- [ ] **Life Admin module** — Recurring tasks with due dates
-- [ ] **Personal Brand module** — Content calendar, publishing log
-- [ ] **Focus blocks** — Schedule time blocks with goals, auto-session chaining, buffer time
-- [ ] **Block templates** — Reusable focus block presets (e.g., "Morning Deep Work 2h")
+### Phase 1: Core Loop + Focus Engine (Days 3-7)
 
-### Phase 3: Google Calendar Integration (Weeks 8-9)
+The productivity core. AI builds the CRUD and UI fast; you iterate on UX feel.
 
-- [ ] OAuth2 flow for Google Calendar
-- [ ] Sync events bidirectionally (read external, write LifeOS events)
+- [ ] **Task system** — Full CRUD with area/project tagging, priority, status, due dates, filters
+- [ ] **Daily log** — Morning check-in (sleep, energy) + evening reflection + gratitude
+- [ ] **Quick capture bar** — Text input that creates tasks/notes (basic parsing, LLM upgrade later)
+- [ ] **Focus timer** — Pomodoro timer with configurable durations, progress ring, audio alerts, pause/resume
+- [ ] **Session logging** — Save completed sessions to Firestore with area/project/quest/task links
+- [ ] **Focus streak engine** — Consecutive-day tracking, streak display on dashboard
+- [ ] **Dashboard — Morning view** — Static layout with today's tasks, schedule, focus streak, energy check-in
+- [ ] **Dashboard — Evening view** — Day review, reflection prompt, tomorrow's top 3
+
+**AI leverage:** ~85%. CRUD and timer logic are ideal for AI generation. The timer UX (animations, feel of the countdown) needs human iteration.
+
+### Phase 2: Life Areas + Focus Blocks + Projects (Days 8-13)
+
+Five area modules share a layout — AI generates the first, you refine, then AI replicates across all five. Projects and focus blocks are mostly CRUD.
+
+- [ ] Shared area module layout component (metrics + habits + tasks + notes)
+- [ ] **Health module** — Training log, bodyweight skill tracker, joint health checklist, wellbeing pulse
+- [ ] **Career module** — Skill tree, JECT project tracker, learning queue, portfolio items
+- [ ] **Finance module** — Monthly snapshot, budget vs. actual, subscription tracker, goals
+- [ ] **Personal Brand module** — Content calendar, publishing log, ideas backlog
+- [ ] **Life Admin module** — Recurring tasks, admin inbox, document tracker with expiry dates
+- [ ] **Project tracker** — Kanban board with project cards, CRUD, link tasks, archive, weekly review prompt
+- [ ] **Focus blocks** — Schedule blocks with goals, session chaining, buffer time, block templates
+- [ ] **Calendar view** — Weekly calendar rendering events + focus blocks from Firestore
+
+**AI leverage:** ~90%. Repetitive module work is where AI shines hardest. Generate one module, review, then batch-generate the rest with consistent patterns.
+
+### Phase 3: Quests, Goals & Hero Journeys (Days 14-17)
+
+Data-driven features with visual progression. AI handles the logic and UI; you tune the gamification feel.
+
+- [ ] **Quest system** — CRUD with progress tracking (percentage + checklist modes), category, date range
+- [ ] **Annual goals view** — Year view with quarterly breakdown, link to quests and projects
+- [ ] **Hero Journey CRUD** — Create journeys, assign areas/tags, activate/deactivate
+- [ ] **Journey progression engine** — Auto-calculate hours from tagged focus sessions, tier-up logic
+- [ ] **Journey dashboard** — XP bars, tier badges, hour counters (total + 30-day rolling), milestone history
+- [ ] **Link quests to journeys** — Quest completion grants bonus journey hours
+- [ ] **Streaks system (enhanced)** — Area streaks, streak shields, milestone badges (7/30/60/100/365), streak recovery display
+- [ ] **Dashboard integration** — Quest progress bars, journey cards, streak display on Command Center
+
+**AI leverage:** ~85%. The progression math, tier logic, and XP calculations are straightforward for AI. Milestone celebration animations and gamification polish need human feel.
+
+### Phase 4: Google Calendar + LLM Integration (Days 18-24)
+
+The two integrations that require the most human attention — OAuth flows, API credentials, prompt engineering, and edge-case debugging. Run these in parallel.
+
+**Google Calendar (Days 18-21):**
+- [ ] OAuth2 flow for Google Calendar (manual: GCP console setup, consent screen)
+- [ ] Read events from Google Calendar API
+- [ ] Write LifeOS events + focus blocks to Google Calendar
+- [ ] Bidirectional sync strategy (webhook or polling)
 - [ ] Conflict detection on event creation
 - [ ] Merged calendar view (LifeOS + Google Calendar events)
-- [ ] Focus blocks as calendar events (sync to Google Calendar)
 
-### Phase 4: LLM Integration (Weeks 10-12)
-
-- [ ] Gemini 2.5 Flash API setup with function calling
+**LLM Integration (Days 20-24, overlaps with calendar):**
+- [ ] Gemini 2.5 Flash API setup with function calling (manual: API key, quota setup)
 - [ ] Upgrade quick capture to LLM-powered parsing (text → task/event/note/reminder/focus block)
-- [ ] Daily brief generation (morning summary, includes focus stats)
-- [ ] Weekly review generation (includes focus hours by area)
-- [ ] Quest progress check-ins
-- [ ] Focus coaching — "You focused 3.5 hours on web dev this week, 1.5 below your goal. Schedule a block?"
+- [ ] Daily brief generation (morning summary with schedule, focus stats, quest nudges)
+- [ ] Weekly review generation (completed tasks, focus hours by area, missed goals)
+- [ ] Quest progress check-ins and focus coaching suggestions
+- [ ] Prompt tuning and testing across real-world input patterns
 
-### Phase 5: Quests, Goals & Hero Journeys (Weeks 13-14)
+**AI leverage:** ~60%. AI writes the integration code fast, but OAuth debugging, API rate limits, webhook reliability, and prompt engineering require hands-on iteration. This is the phase where wall-clock time matters most.
 
-- [ ] Quest CRUD with progress tracking
-- [ ] Annual goals view with quarterly breakdown
-- [ ] Link quests to goals, goals to projects
-- [ ] Progress bars on dashboard
-- [ ] **Hero Journey CRUD** — Create journeys, assign areas/tags, set active
-- [ ] **Journey progression** — Auto-calculate hours from focus sessions, tier progression
-- [ ] **Journey dashboard** — XP bars, tier badges, hour counters, milestone history
-- [ ] **Link quests to journeys** — Quest completion grants bonus journey hours
+### Phase 5: Analytics, Shield & Polish (Days 25-30)
 
-### Phase 6: Focus Shield & Analytics (Weeks 15-16)
+Analytics charts are highly AI-generatable. Focus Shield has browser-level complexity. Polish is UX iteration.
 
-- [ ] **Focus Shield** — Blocklist/allowlist configuration per focus block profile
-- [ ] **Distraction overlay** — Full-screen reminder when navigating to blocked sites
-- [ ] **Focus analytics dashboard** — Daily/weekly/monthly charts (hours, by area, by time of day)
+- [ ] **Focus analytics dashboard** — Daily/weekly/monthly charts (hours, by area, completion rates)
 - [ ] **Focus heatmap** — Best focus times (hour of day × day of week)
-- [ ] **Session completion rate** — Track full vs. partial vs. abandoned sessions
+- [ ] **Session completion breakdown** — Full vs. partial vs. abandoned rates
+- [ ] **Focus Shield** — Blocklist/allowlist config per focus block profile
+- [ ] **Distraction overlay** — Full-screen reminder when navigating to blocked sites
+- [ ] **Notification system** — Browser notifications for reminders, due tasks, streak at risk
+- [ ] **Mobile-responsive pass** — Ensure all views work on phone/tablet
+- [ ] **Journey milestone celebrations** — Tier-up animations and badge awards
+- [ ] **Wellbeing dashboard** — Energy/sleep/mood trends over time
 
-### Phase 7: Polish & Integrations (Weeks 17-19)
+**AI leverage:** ~75%. Chart components and analytics queries are fast to generate. Focus Shield (Service Worker / browser extension interception) has platform edge cases that need manual testing.
 
-- [ ] Garmin Connect API integration (workouts, sleep → auto-log to Health journey)
-- [ ] n8n webhook endpoints for external automation triggers
-- [ ] Notification system (browser notifications for reminders, due tasks, streak at risk)
-- [ ] Mobile-responsive design pass
-- [ ] Wellbeing dashboard (energy/sleep/mood trends over time)
-- [ ] Streak shields and recovery mechanics
-- [ ] Journey milestone celebrations (animations, badges)
+### Phase 6: External Integrations & Hardening (Days 31-35)
+
+Third-party APIs and production readiness. Mostly human-gated by API access and testing.
+
+- [ ] **Garmin Connect API** — OAuth setup, pull workouts/sleep/heart rate, auto-log to Health journey
+- [ ] **n8n webhook endpoints** — Trigger external workflows (content pipeline, digests)
+- [ ] **Offline support** — Firestore offline persistence, Service Worker caching, sync-on-reconnect
+- [ ] **Error handling pass** — Edge cases, loading states, empty states, network failures
+- [ ] **Security review** — Firestore rules, API key scoping, auth edge cases
+- [ ] **Performance pass** — Lazy loading, code splitting, Firestore query optimization
+
+**AI leverage:** ~50%. AI writes the integration scaffolding, but Garmin OAuth, n8n configuration, and security hardening require manual verification and testing.
+
+---
+
+### Timeline Summary (AI-Powered)
+
+| Phase | Duration | Calendar | AI Leverage |
+|-------|----------|----------|-------------|
+| 0 — Foundation | 2 days | Days 1-2 | ~90% |
+| 1 — Core Loop + Focus Engine | 5 days | Days 3-7 | ~85% |
+| 2 — Areas + Blocks + Projects | 6 days | Days 8-13 | ~90% |
+| 3 — Quests, Goals & Journeys | 4 days | Days 14-17 | ~85% |
+| 4 — Calendar + LLM Integration | 7 days | Days 18-24 | ~60% |
+| 5 — Analytics, Shield & Polish | 6 days | Days 25-30 | ~75% |
+| 6 — Integrations & Hardening | 5 days | Days 31-35 | ~50% |
+| **Total** | **~35 working days** | **~7 weeks** | **~75% avg** |
+
+> **Compared to manual development:** 19 weeks → 7 weeks (~2.7x speedup). The compression is uneven — scaffold and CRUD phases collapse by 4-5x while integration and polish phases compress by ~1.5x. The bottleneck is no longer "how fast can I type code" but "how fast can I make decisions, test integrations, and iterate on UX."
 
 ---
 
