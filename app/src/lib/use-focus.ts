@@ -9,14 +9,14 @@ import { useAuth } from "./auth-context";
 
 export type TimerState = "idle" | "running" | "paused";
 
-interface FocusTimerConfig {
+export interface FocusTimerConfig {
   focusDuration: number; // minutes
   breakDuration: number;
   longBreakDuration: number;
   longBreakAfter: number; // sessions
 }
 
-const DEFAULT_CONFIG: FocusTimerConfig = {
+export const DEFAULT_CONFIG: FocusTimerConfig = {
   focusDuration: 25,
   breakDuration: 5,
   longBreakDuration: 15,
@@ -27,12 +27,12 @@ let localSessionId = 0;
 
 export function useFocusTimer() {
   const { user, isFirebaseConfigured } = useAuth();
-  const [config] = useState<FocusTimerConfig>(DEFAULT_CONFIG);
+  const [config, setConfig] = useState<FocusTimerConfig>(DEFAULT_CONFIG);
 
   // Timer state
   const [timerState, setTimerState] = useState<TimerState>("idle");
   const [sessionType, setSessionType] = useState<FocusSessionType>("focus");
-  const [timeRemaining, setTimeRemaining] = useState(config.focusDuration * 60); // seconds
+  const [timeRemaining, setTimeRemaining] = useState(config.focusDuration * 60);
   const [totalTime, setTotalTime] = useState(config.focusDuration * 60);
   const [completedSessions, setCompletedSessions] = useState(0);
   const [interruptions, setInterruptions] = useState(0);
@@ -44,6 +44,9 @@ export function useFocusTimer() {
   // Active session tracking
   const sessionStartRef = useRef<Date | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Use ref to avoid stale closures in the interval callback
+  const handleCompleteRef = useRef<() => Promise<void>>(undefined);
 
   // Today's sessions
   const [todaySessions, setTodaySessions] = useState<FocusSession[]>([]);
@@ -77,44 +80,9 @@ export function useFocusTimer() {
     return unsubscribe;
   }, [user, isFirebaseConfigured]);
 
-  // Timer tick
-  useEffect(() => {
-    if (timerState !== "running") {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
-      return;
-    }
-
-    intervalRef.current = setInterval(() => {
-      setTimeRemaining((prev) => {
-        if (prev <= 1) {
-          // Session complete
-          handleSessionComplete();
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
-  }, [timerState]);
-
-  const getDurationForType = (type: FocusSessionType): number => {
-    switch (type) {
-      case "focus": return config.focusDuration * 60;
-      case "break": return config.breakDuration * 60;
-      case "long_break": return config.longBreakDuration * 60;
-    }
-  };
-
   const handleSessionComplete = useCallback(async () => {
     setTimerState("idle");
 
-    // Play audio notification
     try {
       const audio = new Audio("data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbsGEcBj+a2teleR4DHZXQ0I9RA");
       audio.volume = 0.5;
@@ -122,7 +90,6 @@ export function useFocusTimer() {
     } catch {}
 
     if (sessionType === "focus") {
-      // Log completed focus session
       const endedAt = new Date();
       const startedAt = sessionStartRef.current || new Date(endedAt.getTime() - config.focusDuration * 60 * 1000);
       const actualDuration = Math.round((endedAt.getTime() - startedAt.getTime()) / 60000);
@@ -150,7 +117,6 @@ export function useFocusTimer() {
       setCompletedSessions(newCompleted);
       setInterruptions(0);
 
-      // Determine next: break or long break
       if (newCompleted % config.longBreakAfter === 0) {
         setSessionType("long_break");
         const dur = config.longBreakDuration * 60;
@@ -163,7 +129,6 @@ export function useFocusTimer() {
         setTotalTime(dur);
       }
     } else {
-      // Break complete, go back to focus
       setSessionType("focus");
       const dur = config.focusDuration * 60;
       setTimeRemaining(dur);
@@ -172,6 +137,44 @@ export function useFocusTimer() {
 
     sessionStartRef.current = null;
   }, [sessionType, completedSessions, config, linkedArea, linkedTaskId, interruptions, user, isFirebaseConfigured]);
+
+  // Keep the ref in sync with the latest handleSessionComplete
+  useEffect(() => {
+    handleCompleteRef.current = handleSessionComplete;
+  }, [handleSessionComplete]);
+
+  // Timer tick - uses ref to always call the latest handleSessionComplete
+  useEffect(() => {
+    if (timerState !== "running") {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+      return;
+    }
+
+    intervalRef.current = setInterval(() => {
+      setTimeRemaining((prev) => {
+        if (prev <= 1) {
+          handleCompleteRef.current?.();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, [timerState]);
+
+  const getDurationForType = (type: FocusSessionType): number => {
+    switch (type) {
+      case "focus": return config.focusDuration * 60;
+      case "break": return config.breakDuration * 60;
+      case "long_break": return config.longBreakDuration * 60;
+    }
+  };
 
   const start = useCallback(() => {
     sessionStartRef.current = new Date();
@@ -190,7 +193,6 @@ export function useFocusTimer() {
   }, []);
 
   const stop = useCallback(async () => {
-    // Log as partial/abandoned if was a focus session
     if (sessionType === "focus" && sessionStartRef.current) {
       const endedAt = new Date();
       const startedAt = sessionStartRef.current;
@@ -226,7 +228,6 @@ export function useFocusTimer() {
   }, [sessionType, config, linkedArea, linkedTaskId, interruptions, user, isFirebaseConfigured]);
 
   const skip = useCallback(() => {
-    // Skip break to start next focus
     setTimerState("idle");
     setSessionType("focus");
     const dur = config.focusDuration * 60;
@@ -234,6 +235,20 @@ export function useFocusTimer() {
     setTotalTime(dur);
     sessionStartRef.current = null;
   }, [config]);
+
+  // Apply new config (e.g., from focus blocks or settings)
+  const applyConfig = useCallback((newConfig: Partial<FocusTimerConfig>) => {
+    setConfig((prev) => {
+      const updated = { ...prev, ...newConfig };
+      // If idle, update the timer display too
+      if (timerState === "idle") {
+        const dur = updated.focusDuration * 60;
+        setTimeRemaining(dur);
+        setTotalTime(dur);
+      }
+      return updated;
+    });
+  }, [timerState]);
 
   const todayFocusMinutes = todaySessions
     .filter((s) => s.type === "focus" && s.status === "completed")
@@ -244,7 +259,6 @@ export function useFocusTimer() {
   ).length;
 
   return {
-    // Timer state
     timerState,
     sessionType,
     timeRemaining,
@@ -252,25 +266,22 @@ export function useFocusTimer() {
     completedSessions,
     interruptions,
 
-    // Context
     linkedArea,
     setLinkedArea,
     linkedTaskId,
     setLinkedTaskId,
 
-    // Actions
     start,
     pause,
     resume,
     stop,
     skip,
+    applyConfig,
 
-    // Today stats
     todaySessions,
     todayFocusMinutes,
     todayCompletedSessions,
 
-    // Config
     config,
   };
 }

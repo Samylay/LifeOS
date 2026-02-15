@@ -135,6 +135,7 @@ export interface DailyLog {
   focusSessions: number;
   focusMinutes: number;
   streakDay: number;
+  tomorrowTop3?: string[];
 }
 
 export interface FocusSession {

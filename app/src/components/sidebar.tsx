@@ -9,6 +9,8 @@ import {
   FolderKanban,
   Target,
   Sword,
+  Flag,
+  BookOpen,
   Calendar,
   Settings,
   ChevronsLeft,
@@ -22,7 +24,9 @@ const NAV_ITEMS = [
   { href: "/areas", label: "Areas", icon: Layers },
   { href: "/projects", label: "Projects", icon: FolderKanban },
   { href: "/quests", label: "Quests", icon: Target },
+  { href: "/goals", label: "Goals", icon: Flag },
   { href: "/journeys", label: "Journeys", icon: Sword },
+  { href: "/review", label: "Review", icon: BookOpen },
   { href: "/calendar", label: "Calendar", icon: Calendar },
 ];
 

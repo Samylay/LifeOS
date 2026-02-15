@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   LayoutDashboard,
   Flame,
@@ -11,29 +11,41 @@ import {
   Timer,
   CheckCircle,
   ArrowRight,
-  GripVertical,
 } from "lucide-react";
 import { useTasks } from "@/lib/use-tasks";
 import { useFocusTimer } from "@/lib/use-focus";
 import { useDailyLog } from "@/lib/use-daily-log";
 import { useStreaks } from "@/lib/use-streaks";
+import { useQuests } from "@/lib/use-quests";
+import { useJourneys } from "@/lib/use-journeys";
 import { MorningCheckIn, EveningReflection } from "@/components/daily-log";
 import { TaskItem } from "@/components/task-list";
 import Link from "next/link";
 import type { Task } from "@/lib/types";
+import { TIER_NAMES, AREAS } from "@/lib/types";
 import { useIntegrations } from "@/lib/integrations-context";
 import { useGoogleCalendar } from "@/lib/use-google-calendar";
-import { ExternalLink, Loader2, Clock } from "lucide-react";
+import { ExternalLink, Loader2, Clock, Zap, Calendar, FolderKanban, Settings } from "lucide-react";
+
+const SETUP_STEPS = [
+  { key: "calendar", icon: Calendar, label: "Connect Google Calendar", desc: "See your schedule on the dashboard", href: "/settings", color: "#4285F4" },
+  { key: "task", icon: Zap, label: "Capture your first task", desc: "Use the bar above or go to Capture", href: "/capture", color: "var(--accent)" },
+  { key: "focus", icon: Timer, label: "Run a focus session", desc: "Start a 25-minute Pomodoro", href: "/focus", color: "var(--accent)" },
+  { key: "project", icon: FolderKanban, label: "Create a project", desc: "Organize tasks into projects", href: "/projects", color: "#6366F1" },
+];
 
 export default function Dashboard() {
   const { tasks, updateTask, deleteTask, createTask } = useTasks();
   const { todayFocusMinutes, todayCompletedSessions } = useFocusTimer();
   const { log, updateLog } = useDailyLog();
   const { streaks } = useStreaks();
+  const { activeQuests } = useQuests();
+  const { activeJourneys } = useJourneys();
   const { gcal, connectGoogleCalendar } = useIntegrations();
   const { events: calEvents, hasToken: gcalHasToken } = useGoogleCalendar();
   const [view, setView] = useState<"morning" | "evening">("morning");
   const [gcalConnecting, setGcalConnecting] = useState(false);
+  const [setupDismissed, setSetupDismissed] = useState(false);
 
   const activeTasks = tasks.filter((t) => t.status === "todo" || t.status === "in_progress");
   const priorityTasks = activeTasks
@@ -50,8 +62,23 @@ export default function Dashboard() {
       new Date(t.updatedAt).toDateString() === new Date().toDateString()
   );
 
-  // Tomorrow's top 3 (for evening view)
+  // Tomorrow's Top 3 - persisted to daily log
   const [tomorrowTasks, setTomorrowTasks] = useState<string[]>([]);
+
+  // Load from daily log on mount
+  useEffect(() => {
+    if (log?.tomorrowTop3) {
+      setTomorrowTasks(log.tomorrowTop3);
+    }
+  }, [log]);
+
+  // Save tomorrow tasks to daily log when changed
+  const handleTomorrowChange = (index: number, value: string) => {
+    const updated = [...tomorrowTasks];
+    updated[index] = value;
+    setTomorrowTasks(updated);
+    updateLog({ tomorrowTop3: updated });
+  };
 
   return (
     <div>
@@ -90,6 +117,39 @@ export default function Dashboard() {
           </button>
         </div>
       </div>
+
+      {/* Getting Started Guide - shows for new users */}
+      {!setupDismissed && tasks.length === 0 && streaks.focus.current === 0 && todayCompletedSessions === 0 && (
+        <div className="rounded-xl p-6 mb-6" style={{ background: "var(--bg-secondary)", border: "1px solid var(--accent)", boxShadow: "var(--shadow-sm)" }}>
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-lg font-semibold" style={{ color: "var(--text-primary)" }}>Welcome to LifeOS</h2>
+              <p className="text-sm" style={{ color: "var(--text-secondary)" }}>Here are a few things to get you started.</p>
+            </div>
+            <button onClick={() => setSetupDismissed(true)} className="text-xs px-2 py-1 rounded-lg" style={{ color: "var(--text-tertiary)" }}>
+              Dismiss
+            </button>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            {SETUP_STEPS.map(({ key, icon: Icon, label, desc, href, color }) => {
+              const done = (key === "calendar" && gcal.connected) || (key === "task" && tasks.length > 0);
+              return (
+                <Link key={key} href={href}
+                  className="flex items-start gap-3 rounded-lg p-3 transition-colors hover:opacity-90"
+                  style={{ background: "var(--bg-tertiary)", border: done ? `1px solid var(--accent)` : "1px solid var(--border-primary)" }}>
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg" style={{ background: `${typeof color === "string" && color.startsWith("#") ? color : "var(--accent)"}15` }}>
+                    {done ? <CheckCircle size={16} style={{ color: "var(--accent)" }} /> : <Icon size={16} style={{ color }} />}
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>{label}</p>
+                    <p className="text-xs" style={{ color: "var(--text-tertiary)" }}>{desc}</p>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {view === "morning" ? (
         /* ========= MORNING VIEW ========= */
@@ -297,16 +357,37 @@ export default function Dashboard() {
                 Active Quests
               </h2>
             </div>
-            <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
-              No active quests yet. Create your first quarterly quest.
-            </p>
-            <Link
-              href="/quests"
-              className="flex items-center gap-1 mt-3 text-xs font-medium transition-colors"
-              style={{ color: "var(--accent)" }}
-            >
-              Go to Quests <ArrowRight size={12} />
-            </Link>
+            {activeQuests.length === 0 ? (
+              <>
+                <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
+                  No active quests. Create a 90-day quest.
+                </p>
+                <Link href="/quests" className="flex items-center gap-1 mt-3 text-xs font-medium" style={{ color: "var(--accent)" }}>
+                  Go to Quests <ArrowRight size={12} />
+                </Link>
+              </>
+            ) : (
+              <div className="space-y-2">
+                {activeQuests.slice(0, 3).map((q) => {
+                  const daysLeft = Math.max(0, Math.ceil((q.endDate.getTime() - Date.now()) / 86400000));
+                  return (
+                    <div key={q.id} className="rounded-lg p-2.5" style={{ background: "var(--bg-tertiary)" }}>
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-sm font-medium truncate" style={{ color: "var(--text-primary)" }}>{q.title}</span>
+                        <span className="text-xs font-mono shrink-0 ml-2" style={{ color: "var(--accent)" }}>{q.progress}%</span>
+                      </div>
+                      <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "var(--bg-primary)" }}>
+                        <div className="h-full rounded-full" style={{ width: `${q.progress}%`, background: "var(--accent)" }} />
+                      </div>
+                      <span className="text-xs mt-1 block" style={{ color: "var(--text-tertiary)" }}>{daysLeft}d left</span>
+                    </div>
+                  );
+                })}
+                <Link href="/quests" className="flex items-center gap-1 mt-1 text-xs font-medium" style={{ color: "var(--accent)" }}>
+                  View all <ArrowRight size={12} />
+                </Link>
+              </div>
+            )}
           </div>
 
           {/* Hero Journeys (span-8) */}
@@ -324,16 +405,37 @@ export default function Dashboard() {
                 Hero Journeys
               </h2>
             </div>
-            <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
-              Start a Hero Journey to track your long-term mastery.
-            </p>
-            <Link
-              href="/journeys"
-              className="flex items-center gap-1 mt-3 text-xs font-medium transition-colors"
-              style={{ color: "var(--accent)" }}
-            >
-              Go to Journeys <ArrowRight size={12} />
-            </Link>
+            {activeJourneys.length === 0 ? (
+              <>
+                <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
+                  Start a Hero Journey to track your long-term mastery.
+                </p>
+                <Link href="/journeys" className="flex items-center gap-1 mt-3 text-xs font-medium" style={{ color: "var(--accent)" }}>
+                  Go to Journeys <ArrowRight size={12} />
+                </Link>
+              </>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {activeJourneys.slice(0, 4).map((j) => (
+                  <div key={j.id} className="rounded-lg p-3" style={{ background: "var(--bg-tertiary)" }}>
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="text-sm font-medium truncate" style={{ color: "var(--text-primary)" }}>{j.title}</span>
+                      <span className="text-xs font-semibold px-1.5 py-0.5 rounded"
+                        style={{ background: "var(--accent-bg)", color: "var(--accent)" }}>
+                        {TIER_NAMES[j.currentTier]}
+                      </span>
+                    </div>
+                    <div className="flex items-baseline gap-1">
+                      <span className="text-lg font-bold font-mono" style={{ color: "var(--accent)" }}>{j.totalHours.toFixed(1)}</span>
+                      <span className="text-xs" style={{ color: "var(--text-tertiary)" }}>hours</span>
+                    </div>
+                  </div>
+                ))}
+                <Link href="/journeys" className="flex items-center gap-1 text-xs font-medium col-span-full" style={{ color: "var(--accent)" }}>
+                  View all <ArrowRight size={12} />
+                </Link>
+              </div>
+            )}
           </div>
 
           {/* Daily Brief (span-4) */}
@@ -375,45 +477,22 @@ export default function Dashboard() {
               </h2>
             </div>
             <div className="grid grid-cols-3 gap-4 mb-4">
-              <div
-                className="rounded-lg p-3 text-center"
-                style={{ background: "var(--bg-tertiary)" }}
-              >
-                <p className="text-2xl font-bold font-mono" style={{ color: "var(--accent)" }}>
-                  {todayCompletedSessions}
-                </p>
-                <p className="text-xs" style={{ color: "var(--text-tertiary)" }}>
-                  Focus sessions
-                </p>
+              <div className="rounded-lg p-3 text-center" style={{ background: "var(--bg-tertiary)" }}>
+                <p className="text-2xl font-bold font-mono" style={{ color: "var(--accent)" }}>{todayCompletedSessions}</p>
+                <p className="text-xs" style={{ color: "var(--text-tertiary)" }}>Focus sessions</p>
               </div>
-              <div
-                className="rounded-lg p-3 text-center"
-                style={{ background: "var(--bg-tertiary)" }}
-              >
-                <p className="text-2xl font-bold font-mono" style={{ color: "var(--accent)" }}>
-                  {todayFocusMinutes}
-                </p>
-                <p className="text-xs" style={{ color: "var(--text-tertiary)" }}>
-                  Focus minutes
-                </p>
+              <div className="rounded-lg p-3 text-center" style={{ background: "var(--bg-tertiary)" }}>
+                <p className="text-2xl font-bold font-mono" style={{ color: "var(--accent)" }}>{todayFocusMinutes}</p>
+                <p className="text-xs" style={{ color: "var(--text-tertiary)" }}>Focus minutes</p>
               </div>
-              <div
-                className="rounded-lg p-3 text-center"
-                style={{ background: "var(--bg-tertiary)" }}
-              >
-                <p className="text-2xl font-bold font-mono" style={{ color: "var(--accent)" }}>
-                  {completedToday.length}
-                </p>
-                <p className="text-xs" style={{ color: "var(--text-tertiary)" }}>
-                  Tasks done
-                </p>
+              <div className="rounded-lg p-3 text-center" style={{ background: "var(--bg-tertiary)" }}>
+                <p className="text-2xl font-bold font-mono" style={{ color: "var(--accent)" }}>{completedToday.length}</p>
+                <p className="text-xs" style={{ color: "var(--text-tertiary)" }}>Tasks done</p>
               </div>
             </div>
             {completedToday.length > 0 && (
               <div className="space-y-1.5">
-                <p className="text-xs font-medium mb-2" style={{ color: "var(--text-secondary)" }}>
-                  Completed today
-                </p>
+                <p className="text-xs font-medium mb-2" style={{ color: "var(--text-secondary)" }}>Completed today</p>
                 {completedToday.map((t) => (
                   <div key={t.id} className="flex items-center gap-2 text-sm" style={{ color: "var(--text-primary)" }}>
                     <CheckCircle size={14} style={{ color: "var(--accent)" }} />
@@ -440,20 +519,13 @@ export default function Dashboard() {
               </h2>
             </div>
             <div className="text-center py-4">
-              <span
-                className="text-4xl font-bold font-mono tabular-nums"
-                style={{ color: "var(--accent)" }}
-              >
+              <span className="text-4xl font-bold font-mono tabular-nums" style={{ color: "var(--accent)" }}>
                 {streaks.focus.current}
               </span>
-              <p className="text-xs mt-1 uppercase tracking-wider font-medium" style={{ color: "var(--text-tertiary)" }}>
-                Day streak
-              </p>
+              <p className="text-xs mt-1 uppercase tracking-wider font-medium" style={{ color: "var(--text-tertiary)" }}>Day streak</p>
             </div>
             {streaks.focus.current > 0 && streaks.focus.longest > streaks.focus.current && (
-              <p className="text-xs text-center" style={{ color: "var(--text-tertiary)" }}>
-                Best: {streaks.focus.longest} days
-              </p>
+              <p className="text-xs text-center" style={{ color: "var(--text-tertiary)" }}>Best: {streaks.focus.longest} days</p>
             )}
           </div>
 
@@ -484,11 +556,7 @@ export default function Dashboard() {
                   <input
                     type="text"
                     value={tomorrowTasks[i] || ""}
-                    onChange={(e) => {
-                      const updated = [...tomorrowTasks];
-                      updated[i] = e.target.value;
-                      setTomorrowTasks(updated);
-                    }}
+                    onChange={(e) => handleTomorrowChange(i, e.target.value)}
                     placeholder={`Priority ${i + 1}...`}
                     className="flex-1 rounded-lg px-3 py-2 text-sm outline-none"
                     style={{
