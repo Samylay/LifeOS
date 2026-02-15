@@ -5,11 +5,12 @@ import { Zap, Bell, Menu, Check } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { useAuth } from "@/lib/auth-context";
 import { useTasks } from "@/lib/use-tasks";
+import { VoiceCommandButton } from "@/components/voice-command-button";
 
 export function TopBar() {
   const { sidebarExpanded, toggleSidebar } = useAppStore();
   const { user, signOut } = useAuth();
-  const { createTask } = useTasks();
+  const { tasks, createTask, updateTask, deleteTask } = useTasks();
   const [input, setInput] = useState("");
   const [flash, setFlash] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
@@ -93,6 +94,13 @@ export function TopBar() {
             style={{ color: "var(--text-primary)" }}
           />
         </div>
+        <VoiceCommandButton
+          tasks={tasks}
+          onDelete={deleteTask}
+          onUpdate={updateTask}
+          onCreate={createTask}
+          compact
+        />
       </div>
 
       {/* Right side */}
