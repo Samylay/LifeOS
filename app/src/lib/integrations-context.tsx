@@ -9,8 +9,7 @@ import {
   ReactNode,
 } from "react";
 import {
-  signInWithRedirect,
-  getRedirectResult,
+  signInWithPopup,
   GoogleAuthProvider,
 } from "firebase/auth";
 import { doc, getDoc, setDoc } from "firebase/firestore";
@@ -53,7 +52,7 @@ export function IntegrationsProvider({ children }: { children: ReactNode }) {
   });
 
 
-  // Load saved connection state from Firestore and handle Calendar OAuth redirect
+  // Load saved connection state from Firestore
   useEffect(() => {
     if (!user || !db) {
       setGcal((prev) => ({ ...prev, loading: false }));
@@ -61,40 +60,6 @@ export function IntegrationsProvider({ children }: { children: ReactNode }) {
     }
 
     const load = async () => {
-      // Check if we're returning from a Google Calendar OAuth redirect
-      if (auth) {
-        try {
-          const result = await getRedirectResult(auth);
-          if (result) {
-            const credential = GoogleAuthProvider.credentialFromResult(result);
-            const token = credential?.accessToken ?? null;
-
-            if (token) {
-              const ref = doc(db!, "users", user.uid, "settings", "integrations");
-              await setDoc(
-                ref,
-                {
-                  gcal_connected: true,
-                  gcal_email: result.user.email,
-                  gcal_connected_at: new Date().toISOString(),
-                },
-                { merge: true }
-              );
-
-              setGcal({
-                connected: true,
-                accessToken: token,
-                email: result.user.email,
-                loading: false,
-              });
-              return;
-            }
-          }
-        } catch {
-          // Redirect result errors are non-fatal
-        }
-      }
-
       const ref = doc(db!, "users", user.uid, "settings", "integrations");
       const snap = await getDoc(ref);
       if (snap.exists()) {
@@ -120,7 +85,31 @@ export function IntegrationsProvider({ children }: { children: ReactNode }) {
     provider.addScope("https://www.googleapis.com/auth/calendar");
     provider.addScope("https://www.googleapis.com/auth/calendar.events");
 
-    await signInWithRedirect(auth, provider);
+    const result = await signInWithPopup(auth, provider);
+    if (result) {
+      const credential = GoogleAuthProvider.credentialFromResult(result);
+      const token = credential?.accessToken ?? null;
+
+      if (token) {
+        const ref = doc(db!, "users", user.uid, "settings", "integrations");
+        await setDoc(
+          ref,
+          {
+            gcal_connected: true,
+            gcal_email: result.user.email,
+            gcal_connected_at: new Date().toISOString(),
+          },
+          { merge: true }
+        );
+
+        setGcal({
+          connected: true,
+          accessToken: token,
+          email: result.user.email,
+          loading: false,
+        });
+      }
+    }
   }, [user]);
 
   const disconnectGoogleCalendar = useCallback(async () => {

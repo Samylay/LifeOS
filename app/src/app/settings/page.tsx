@@ -255,7 +255,7 @@ export default function SettingsPage() {
 
             {/* Garmin Connect */}
             <div
-              className="rounded-lg p-4"
+              className="rounded-lg p-4 opacity-75"
               style={{ background: "var(--bg-tertiary)" }}
             >
               <div className="flex items-center justify-between">
@@ -270,9 +270,17 @@ export default function SettingsPage() {
                     </svg>
                   </div>
                   <div>
-                    <p className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
-                      Garmin Connect
-                    </p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
+                        Garmin Connect
+                      </p>
+                      <span
+                        className="text-[10px] font-medium px-1.5 py-0.5 rounded"
+                        style={{ background: "var(--bg-secondary)", color: "var(--text-tertiary)", border: "1px solid var(--border-primary)" }}
+                      >
+                        Coming Soon
+                      </span>
+                    </div>
                     <p className="text-xs" style={{ color: "var(--text-tertiary)" }}>
                       Sync training, sleep, and health data automatically
                     </p>
@@ -321,7 +329,7 @@ export default function SettingsPage() {
 
             {/* n8n Webhooks */}
             <div
-              className="rounded-lg p-4"
+              className="rounded-lg p-4 opacity-75"
               style={{ background: "var(--bg-tertiary)" }}
             >
               <div className="flex items-center justify-between">
@@ -335,9 +343,17 @@ export default function SettingsPage() {
                     </svg>
                   </div>
                   <div>
-                    <p className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
-                      n8n Webhooks
-                    </p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
+                        n8n Webhooks
+                      </p>
+                      <span
+                        className="text-[10px] font-medium px-1.5 py-0.5 rounded"
+                        style={{ background: "var(--bg-secondary)", color: "var(--text-tertiary)", border: "1px solid var(--border-primary)" }}
+                      >
+                        Coming Soon
+                      </span>
+                    </div>
                     <p className="text-xs" style={{ color: "var(--text-tertiary)" }}>
                       Automate workflows with external services
                     </p>
