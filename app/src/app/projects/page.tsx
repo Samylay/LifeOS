@@ -4,6 +4,8 @@ import { useState } from "react";
 import { FolderKanban, Plus, X, ChevronRight, Archive, RotateCcw, MoreHorizontal, AlertCircle } from "lucide-react";
 import { useProjects } from "@/lib/use-projects";
 import { useTasks } from "@/lib/use-tasks";
+import { useToast } from "@/components/toast";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import type { Project, ProjectStatus, AreaId, Task } from "@/lib/types";
 import { AREAS } from "@/lib/types";
 import { TaskItem, TaskCreateForm } from "@/components/task-list";
@@ -135,6 +137,7 @@ function ProjectCard({
   const [expanded, setExpanded] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [showTaskForm, setShowTaskForm] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const projectTasks = tasks.filter((t) => t.projectId === project.id);
   const doneTasks = projectTasks.filter((t) => t.status === "done").length;
@@ -180,7 +183,7 @@ function ProjectCard({
                     <Archive size={12} /> Archive
                   </button>
                   <button
-                    onClick={(e) => { e.stopPropagation(); onDelete(project.id); setShowMenu(false); }}
+                    onClick={(e) => { e.stopPropagation(); setConfirmDelete(true); setShowMenu(false); }}
                     className="w-full text-left text-xs px-3 py-1.5 hover:opacity-80"
                     style={{ color: "#EF4444" }}>
                     Delete
@@ -251,6 +254,13 @@ function ProjectCard({
           </div>
         </div>
       )}
+      <ConfirmDialog
+        open={confirmDelete}
+        title="Delete Project"
+        message={`Delete "${project.title}" and all its data? This cannot be undone.`}
+        onConfirm={() => { onDelete(project.id); setConfirmDelete(false); }}
+        onCancel={() => setConfirmDelete(false)}
+      />
     </div>
   );
 }
@@ -260,6 +270,7 @@ function ProjectCard({
 export default function ProjectsPage() {
   const { projects, loading, createProject, updateProject, deleteProject } = useProjects();
   const { tasks, updateTask, deleteTask, createTask } = useTasks();
+  const { toast } = useToast();
   const [showForm, setShowForm] = useState(false);
   const [viewMode, setViewMode] = useState<"kanban" | "list">("kanban");
   const [reviewDismissed, setReviewDismissed] = useState(false);
@@ -303,7 +314,7 @@ export default function ProjectsPage() {
       {showForm && (
         <div className="mb-6">
           <ProjectCreateForm
-            onSubmit={(data) => { createProject(data); setShowForm(false); }}
+            onSubmit={(data) => { createProject(data); setShowForm(false); toast("Project created"); }}
             onCancel={() => setShowForm(false)}
           />
         </div>

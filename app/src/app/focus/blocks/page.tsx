@@ -1,13 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import { Clock, Plus, X, Play, Trash2, Calendar } from "lucide-react";
+import { Clock, Plus, X, Play, Trash2, Calendar, ExternalLink, Loader2 } from "lucide-react";
 import { useFocusBlocks, BLOCK_TEMPLATES } from "@/lib/use-focus-blocks";
 import { useIntegrations } from "@/lib/integrations-context";
 import { useAppStore } from "@/lib/store";
 import { useRouter } from "next/navigation";
+import { useToast } from "@/components/toast";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import type { FocusBlock, FocusBlockStatus, AreaId } from "@/lib/types";
 import { AREAS } from "@/lib/types";
+import Link from "next/link";
 
 const AREA_COLORS: Record<string, string> = {
   health: "#14B8A6",
@@ -178,70 +181,81 @@ function BlockCard({ block, onUpdate, onDelete, onStartSession, onSyncGCal, gcal
   onSyncGCal: (block: FocusBlock) => void;
   gcalConnected: boolean;
 }) {
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
   return (
-    <div className="rounded-xl p-4 transition-all group" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-primary)" }}>
-      <div className="flex items-start justify-between mb-2">
-        <div>
-          <h3 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>{block.title}</h3>
-          <div className="flex items-center gap-2 mt-1">
-            <span className="text-xs font-mono" style={{ color: "var(--text-tertiary)" }}>
-              {block.startTime} — {block.endTime}
-            </span>
-            {block.area && (
-              <span className="text-xs px-1.5 py-0.5 rounded"
-                style={{ background: `${AREA_COLORS[block.area] || "#64748B"}15`, color: AREA_COLORS[block.area] || "#64748B" }}>
-                {AREAS[block.area]?.name}
+    <>
+      <div className="rounded-xl p-4 transition-all group" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-primary)" }}>
+        <div className="flex items-start justify-between mb-2">
+          <div>
+            <h3 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>{block.title}</h3>
+            <div className="flex items-center gap-2 mt-1">
+              <span className="text-xs font-mono" style={{ color: "var(--text-tertiary)" }}>
+                {block.startTime} — {block.endTime}
               </span>
-            )}
+              {block.area && (
+                <span className="text-xs px-1.5 py-0.5 rounded"
+                  style={{ background: `${AREA_COLORS[block.area] || "#64748B"}15`, color: AREA_COLORS[block.area] || "#64748B" }}>
+                  {AREAS[block.area]?.name}
+                </span>
+              )}
+            </div>
+          </div>
+          <div className="flex items-center gap-1">
+            <span className="text-xs px-2 py-0.5 rounded-full capitalize"
+              style={{ background: `${STATUS_COLORS[block.status]}20`, color: STATUS_COLORS[block.status] }}>
+              {block.status}
+            </span>
           </div>
         </div>
-        <div className="flex items-center gap-1">
-          <span className="text-xs px-2 py-0.5 rounded-full capitalize"
-            style={{ background: `${STATUS_COLORS[block.status]}20`, color: STATUS_COLORS[block.status] }}>
-            {block.status}
+
+        {block.goal && (
+          <p className="text-xs mb-2" style={{ color: "var(--text-secondary)" }}>Goal: {block.goal}</p>
+        )}
+
+        <div className="flex items-center justify-between">
+          <span className="text-xs" style={{ color: "var(--text-tertiary)" }}>
+            {block.sessionCount} sessions x {block.sessionDuration}min
+            {block.bufferMinutes > 0 && ` | ${block.bufferMinutes}min buffer`}
           </span>
-        </div>
-      </div>
-
-      {block.goal && (
-        <p className="text-xs mb-2" style={{ color: "var(--text-secondary)" }}>Goal: {block.goal}</p>
-      )}
-
-      <div className="flex items-center justify-between">
-        <span className="text-xs" style={{ color: "var(--text-tertiary)" }}>
-          {block.sessionCount} sessions x {block.sessionDuration}min
-          {block.bufferMinutes > 0 && ` | ${block.bufferMinutes}min buffer`}
-        </span>
-        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-          {block.status === "scheduled" && (
-            <>
-              <button onClick={() => onStartSession(block)}
-                className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium transition-colors"
-                style={{ background: "#10B98120", color: "#10B981" }}>
-                <Play size={12} /> Start
-              </button>
-              {gcalConnected && (
-                <button onClick={() => onSyncGCal(block)}
-                  className="p-1.5 rounded-lg transition-colors" style={{ color: "#3B82F6" }}
-                  title="Sync to Google Calendar">
-                  <Calendar size={14} />
+          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            {block.status === "scheduled" && (
+              <>
+                <button onClick={() => onStartSession(block)}
+                  className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium transition-colors"
+                  style={{ background: "#10B98120", color: "#10B981" }}>
+                  <Play size={12} /> Start
                 </button>
-              )}
-            </>
-          )}
-          {block.status === "active" && (
-            <button onClick={() => onUpdate(block.id, { status: "done" })}
-              className="p-1.5 rounded-lg text-xs font-medium" style={{ color: "#6366F1" }}>
-              Done
+                {gcalConnected && (
+                  <button onClick={() => onSyncGCal(block)}
+                    className="p-1.5 rounded-lg transition-colors" style={{ color: "#3B82F6" }}
+                    title="Sync to Google Calendar">
+                    <Calendar size={14} />
+                  </button>
+                )}
+              </>
+            )}
+            {block.status === "active" && (
+              <button onClick={() => onUpdate(block.id, { status: "done" })}
+                className="p-1.5 rounded-lg text-xs font-medium" style={{ color: "#6366F1" }}>
+                Done
+              </button>
+            )}
+            <button onClick={() => setConfirmDelete(true)}
+              className="p-1.5 rounded-lg transition-colors" style={{ color: "var(--text-tertiary)" }}>
+              <Trash2 size={14} />
             </button>
-          )}
-          <button onClick={() => onDelete(block.id)}
-            className="p-1.5 rounded-lg transition-colors" style={{ color: "var(--text-tertiary)" }}>
-            <Trash2 size={14} />
-          </button>
+          </div>
         </div>
       </div>
-    </div>
+      <ConfirmDialog
+        open={confirmDelete}
+        title="Delete Focus Block"
+        message={`Delete "${block.title}"? This cannot be undone.`}
+        onConfirm={() => { onDelete(block.id); setConfirmDelete(false); }}
+        onCancel={() => setConfirmDelete(false)}
+      />
+    </>
   );
 }
 
@@ -249,10 +263,12 @@ function BlockCard({ block, onUpdate, onDelete, onStartSession, onSyncGCal, gcal
 
 export default function FocusBlocksPage() {
   const { blocks, loading, createBlock, updateBlock, deleteBlock } = useFocusBlocks();
-  const { gcal, createCalendarEvent } = useIntegrations();
+  const { gcal, connectGoogleCalendar, createCalendarEvent } = useIntegrations();
   const setPendingBlockConfig = useAppStore((s) => s.setPendingBlockConfig);
   const router = useRouter();
+  const { toast } = useToast();
   const [showForm, setShowForm] = useState(false);
+  const [gcalConnecting, setGcalConnecting] = useState(false);
 
   const today = new Date().toISOString().split("T")[0];
   const todayBlocks = blocks.filter((b) => b.date === today);
@@ -287,9 +303,16 @@ export default function FocusBlocksPage() {
     });
 
     if (success) {
-      // Visual feedback - could add a toast, for now update status
-      updateBlock(block.id, { status: "scheduled" });
+      toast("Block synced to Google Calendar");
+    } else {
+      toast("Failed to sync to Google Calendar", "error");
     }
+  };
+
+  const handleCreateBlock = (data: Omit<FocusBlock, "id" | "sessionIds" | "sessionCount">) => {
+    createBlock(data);
+    setShowForm(false);
+    toast("Focus block scheduled");
   };
 
   return (
@@ -302,10 +325,42 @@ export default function FocusBlocksPage() {
         </button>
       </div>
 
+      {/* Google Calendar connect prompt */}
+      {!gcal.connected && (
+        <div className="rounded-xl p-4 mb-6 flex items-center justify-between" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-primary)" }}>
+          <div>
+            <p className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>Sync blocks to Google Calendar</p>
+            <p className="text-xs" style={{ color: "var(--text-tertiary)" }}>Connect to add focus blocks to your calendar and avoid scheduling conflicts.</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={async () => {
+                setGcalConnecting(true);
+                try {
+                  await connectGoogleCalendar();
+                  toast("Google Calendar connected");
+                } catch {} finally {
+                  setGcalConnecting(false);
+                }
+              }}
+              disabled={gcalConnecting}
+              className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-white transition-colors hover:opacity-90 shrink-0"
+              style={{ background: "#4285F4" }}
+            >
+              {gcalConnecting ? <Loader2 size={12} className="animate-spin" /> : <ExternalLink size={12} />}
+              Connect
+            </button>
+            <Link href="/settings" className="text-xs shrink-0" style={{ color: "var(--text-tertiary)" }}>
+              Settings
+            </Link>
+          </div>
+        </div>
+      )}
+
       {showForm && (
         <div className="mb-6">
           <BlockCreateForm
-            onSubmit={(data) => { createBlock(data); setShowForm(false); }}
+            onSubmit={handleCreateBlock}
             onCancel={() => setShowForm(false)}
           />
         </div>
@@ -316,7 +371,11 @@ export default function FocusBlocksPage() {
           style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-primary)" }}>
           <Clock size={48} style={{ color: "var(--text-tertiary)" }} className="mb-4" />
           <p className="text-lg font-medium" style={{ color: "var(--text-primary)" }}>No focus blocks scheduled</p>
-          <p className="text-sm mt-1" style={{ color: "var(--text-secondary)" }}>Schedule time blocks for deep work sessions.</p>
+          <p className="text-sm mt-1 mb-4" style={{ color: "var(--text-secondary)" }}>Schedule time blocks for deep work sessions.</p>
+          <button onClick={() => setShowForm(true)}
+            className="flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium bg-emerald-500 text-white hover:bg-emerald-600 transition-colors">
+            <Plus size={16} /> Schedule Your First Block
+          </button>
         </div>
       ) : (
         <div className="space-y-8">

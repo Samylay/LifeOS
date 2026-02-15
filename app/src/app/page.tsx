@@ -25,7 +25,14 @@ import type { Task } from "@/lib/types";
 import { TIER_NAMES, AREAS } from "@/lib/types";
 import { useIntegrations } from "@/lib/integrations-context";
 import { useGoogleCalendar } from "@/lib/use-google-calendar";
-import { ExternalLink, Loader2, Clock } from "lucide-react";
+import { ExternalLink, Loader2, Clock, Zap, Calendar, FolderKanban, Settings } from "lucide-react";
+
+const SETUP_STEPS = [
+  { key: "calendar", icon: Calendar, label: "Connect Google Calendar", desc: "See your schedule on the dashboard", href: "/settings", color: "#4285F4" },
+  { key: "task", icon: Zap, label: "Capture your first task", desc: "Use the bar above or go to Capture", href: "/capture", color: "var(--accent)" },
+  { key: "focus", icon: Timer, label: "Run a focus session", desc: "Start a 25-minute Pomodoro", href: "/focus", color: "var(--accent)" },
+  { key: "project", icon: FolderKanban, label: "Create a project", desc: "Organize tasks into projects", href: "/projects", color: "#6366F1" },
+];
 
 export default function Dashboard() {
   const { tasks, updateTask, deleteTask, createTask } = useTasks();
@@ -38,6 +45,7 @@ export default function Dashboard() {
   const { events: calEvents, hasToken: gcalHasToken } = useGoogleCalendar();
   const [view, setView] = useState<"morning" | "evening">("morning");
   const [gcalConnecting, setGcalConnecting] = useState(false);
+  const [setupDismissed, setSetupDismissed] = useState(false);
 
   const activeTasks = tasks.filter((t) => t.status === "todo" || t.status === "in_progress");
   const priorityTasks = activeTasks
@@ -109,6 +117,39 @@ export default function Dashboard() {
           </button>
         </div>
       </div>
+
+      {/* Getting Started Guide - shows for new users */}
+      {!setupDismissed && tasks.length === 0 && streaks.focus.current === 0 && todayCompletedSessions === 0 && (
+        <div className="rounded-xl p-6 mb-6" style={{ background: "var(--bg-secondary)", border: "1px solid var(--accent)", boxShadow: "var(--shadow-sm)" }}>
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-lg font-semibold" style={{ color: "var(--text-primary)" }}>Welcome to LifeOS</h2>
+              <p className="text-sm" style={{ color: "var(--text-secondary)" }}>Here are a few things to get you started.</p>
+            </div>
+            <button onClick={() => setSetupDismissed(true)} className="text-xs px-2 py-1 rounded-lg" style={{ color: "var(--text-tertiary)" }}>
+              Dismiss
+            </button>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            {SETUP_STEPS.map(({ key, icon: Icon, label, desc, href, color }) => {
+              const done = (key === "calendar" && gcal.connected) || (key === "task" && tasks.length > 0);
+              return (
+                <Link key={key} href={href}
+                  className="flex items-start gap-3 rounded-lg p-3 transition-colors hover:opacity-90"
+                  style={{ background: "var(--bg-tertiary)", border: done ? `1px solid var(--accent)` : "1px solid var(--border-primary)" }}>
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg" style={{ background: `${typeof color === "string" && color.startsWith("#") ? color : "var(--accent)"}15` }}>
+                    {done ? <CheckCircle size={16} style={{ color: "var(--accent)" }} /> : <Icon size={16} style={{ color }} />}
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>{label}</p>
+                    <p className="text-xs" style={{ color: "var(--text-tertiary)" }}>{desc}</p>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {view === "morning" ? (
         /* ========= MORNING VIEW ========= */
