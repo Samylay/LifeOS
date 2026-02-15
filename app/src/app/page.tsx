@@ -21,13 +21,19 @@ import { MorningCheckIn, EveningReflection } from "@/components/daily-log";
 import { TaskItem } from "@/components/task-list";
 import Link from "next/link";
 import type { Task } from "@/lib/types";
+import { useIntegrations } from "@/lib/integrations-context";
+import { useGoogleCalendar } from "@/lib/use-google-calendar";
+import { ExternalLink, Loader2, Clock } from "lucide-react";
 
 export default function Dashboard() {
   const { tasks, updateTask, deleteTask, createTask } = useTasks();
   const { todayFocusMinutes, todayCompletedSessions } = useFocusTimer();
   const { log, updateLog } = useDailyLog();
   const { streaks } = useStreaks();
+  const { gcal, connectGoogleCalendar } = useIntegrations();
+  const { events: calEvents, hasToken: gcalHasToken } = useGoogleCalendar();
   const [view, setView] = useState<"morning" | "evening">("morning");
+  const [gcalConnecting, setGcalConnecting] = useState(false);
 
   const activeTasks = tasks.filter((t) => t.status === "todo" || t.status === "in_progress");
   const priorityTasks = activeTasks
@@ -112,9 +118,72 @@ export default function Dashboard() {
                 })}
               </span>
             </div>
-            <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
-              Connect Google Calendar in Settings to see your schedule here.
-            </p>
+            {!gcal.connected ? (
+              <div className="flex items-center justify-between">
+                <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
+                  Connect Google Calendar to see your schedule.
+                </p>
+                <button
+                  onClick={async () => {
+                    setGcalConnecting(true);
+                    try { await connectGoogleCalendar(); } catch {} finally { setGcalConnecting(false); }
+                  }}
+                  disabled={gcalConnecting}
+                  className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-white shrink-0"
+                  style={{ background: "#4285F4" }}
+                >
+                  {gcalConnecting ? <Loader2 size={12} className="animate-spin" /> : <ExternalLink size={12} />}
+                  Connect
+                </button>
+              </div>
+            ) : !gcalHasToken ? (
+              <div className="flex items-center justify-between">
+                <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
+                  Session expired — reconnect to sync.
+                </p>
+                <button
+                  onClick={async () => {
+                    setGcalConnecting(true);
+                    try { await connectGoogleCalendar(); } catch {} finally { setGcalConnecting(false); }
+                  }}
+                  disabled={gcalConnecting}
+                  className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium shrink-0"
+                  style={{ background: "var(--accent-bg)", color: "var(--accent)" }}
+                >
+                  {gcalConnecting ? <Loader2 size={12} className="animate-spin" /> : <ExternalLink size={12} />}
+                  Reconnect
+                </button>
+              </div>
+            ) : calEvents.length === 0 ? (
+              <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
+                No events today.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {calEvents
+                  .filter((e) => e.start.toDateString() === new Date().toDateString())
+                  .slice(0, 5)
+                  .map((event) => (
+                    <div key={event.id} className="flex items-center gap-2 text-sm">
+                      <div className="h-1.5 w-1.5 rounded-full shrink-0" style={{ background: "#4285F4" }} />
+                      <span className="font-medium truncate" style={{ color: "var(--text-primary)" }}>
+                        {event.title}
+                      </span>
+                      <span className="flex items-center gap-1 text-xs shrink-0 ml-auto" style={{ color: "var(--text-tertiary)" }}>
+                        <Clock size={10} />
+                        {event.allDay
+                          ? "All day"
+                          : event.start.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                      </span>
+                    </div>
+                  ))}
+                {calEvents.filter((e) => e.start.toDateString() === new Date().toDateString()).length > 5 && (
+                  <Link href="/calendar" className="text-xs font-medium" style={{ color: "var(--accent)" }}>
+                    View all events
+                  </Link>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Energy Check-in (span-4) */}

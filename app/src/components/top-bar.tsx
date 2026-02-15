@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { Zap, Bell, Menu, Check } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { useAuth } from "@/lib/auth-context";
@@ -12,6 +12,18 @@ export function TopBar() {
   const { createTask } = useTasks();
   const [input, setInput] = useState("");
   const [flash, setFlash] = useState(false);
+  const [notifOpen, setNotifOpen] = useState(false);
+  const notifRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
+        setNotifOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const handleCapture = useCallback(async () => {
     const text = input.trim();
@@ -85,12 +97,32 @@ export function TopBar() {
 
       {/* Right side */}
       <div className="flex items-center gap-3">
-        <button
-          className="rounded-lg p-2 transition-colors"
-          style={{ color: "var(--text-secondary)" }}
-        >
-          <Bell size={20} />
-        </button>
+        <div className="relative" ref={notifRef}>
+          <button
+            onClick={() => setNotifOpen((prev) => !prev)}
+            className="rounded-lg p-2 transition-colors"
+            style={{ color: "var(--text-secondary)" }}
+          >
+            <Bell size={20} />
+          </button>
+          {notifOpen && (
+            <div
+              className="absolute right-0 top-full mt-2 w-72 rounded-xl p-4 shadow-lg"
+              style={{
+                background: "var(--bg-secondary)",
+                border: "1px solid var(--border-primary)",
+                zIndex: 50,
+              }}
+            >
+              <p className="text-xs font-semibold mb-2" style={{ color: "var(--text-primary)" }}>
+                Notifications
+              </p>
+              <p className="text-xs" style={{ color: "var(--text-tertiary)" }}>
+                No notifications yet. Reminders and alerts will show up here.
+              </p>
+            </div>
+          )}
+        </div>
 
         {user && (
           <button

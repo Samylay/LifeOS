@@ -1,6 +1,36 @@
-import { Zap } from "lucide-react";
+"use client";
+
+import { useState, useCallback } from "react";
+import { Zap, Check } from "lucide-react";
+import { useTasks } from "@/lib/use-tasks";
 
 export default function CapturePage() {
+  const { createTask } = useTasks();
+  const [input, setInput] = useState("");
+  const [flash, setFlash] = useState(false);
+
+  const handleCapture = useCallback(async () => {
+    const text = input.trim();
+    if (!text) return;
+
+    await createTask({
+      title: text,
+      priority: "medium",
+      status: "todo",
+    });
+
+    setInput("");
+    setFlash(true);
+    setTimeout(() => setFlash(false), 600);
+  }, [input, createTask]);
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      handleCapture();
+    }
+  };
+
   return (
     <div className="max-w-2xl mx-auto">
       <h1 className="text-2xl font-semibold mb-6" style={{ color: "var(--text-primary)" }}>
@@ -15,16 +45,24 @@ export default function CapturePage() {
         }}
       >
         <div
-          className="flex items-center gap-3 rounded-xl px-4 py-3 mb-6"
+          className="flex items-center gap-3 rounded-xl px-4 py-3 mb-6 transition-all"
           style={{
             background: "var(--bg-tertiary)",
-            border: "1px solid var(--border-primary)",
+            border: flash ? "1px solid var(--accent)" : "1px solid var(--border-primary)",
+            boxShadow: flash ? "var(--shadow-glow)" : "none",
           }}
         >
-          <Zap size={20} style={{ color: "var(--accent)" }} />
+          {flash ? (
+            <Check size={20} style={{ color: "var(--accent)" }} />
+          ) : (
+            <Zap size={20} style={{ color: "var(--accent)" }} />
+          )}
           <input
             type="text"
-            placeholder="Type anything — task, event, note, reminder..."
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="Type anything — task, event, note, reminder... (Enter to save)"
             className="flex-1 bg-transparent text-base outline-none"
             style={{ color: "var(--text-primary)" }}
             autoFocus
