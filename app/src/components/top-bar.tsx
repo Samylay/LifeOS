@@ -1,12 +1,40 @@
 "use client";
 
-import { Zap, Bell, Menu } from "lucide-react";
+import { useState, useCallback } from "react";
+import { Zap, Bell, Menu, Check } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { useAuth } from "@/lib/auth-context";
+import { useTasks } from "@/lib/use-tasks";
 
 export function TopBar() {
   const { sidebarExpanded, toggleSidebar } = useAppStore();
   const { user, signOut } = useAuth();
+  const { createTask } = useTasks();
+  const [input, setInput] = useState("");
+  const [flash, setFlash] = useState(false);
+
+  const handleCapture = useCallback(async () => {
+    const text = input.trim();
+    if (!text) return;
+
+    // Basic parsing: for now, create a task. LLM upgrade later (Phase 4).
+    await createTask({
+      title: text,
+      priority: "medium",
+      status: "todo",
+    });
+
+    setInput("");
+    setFlash(true);
+    setTimeout(() => setFlash(false), 600);
+  }, [input, createTask]);
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      handleCapture();
+    }
+  };
 
   return (
     <header
@@ -31,16 +59,24 @@ export function TopBar() {
       {/* Quick Capture */}
       <div className="flex flex-1 items-center gap-2">
         <div
-          className="flex flex-1 max-w-xl items-center gap-2 rounded-xl px-4 py-2"
+          className="flex flex-1 max-w-xl items-center gap-2 rounded-xl px-4 py-2 transition-all"
           style={{
             background: "var(--bg-tertiary)",
-            border: "1px solid var(--border-primary)",
+            border: flash ? "1px solid var(--accent)" : "1px solid var(--border-primary)",
+            boxShadow: flash ? "var(--shadow-glow)" : "none",
           }}
         >
-          <Zap size={16} style={{ color: "var(--accent)" }} />
+          {flash ? (
+            <Check size={16} style={{ color: "var(--accent)" }} />
+          ) : (
+            <Zap size={16} style={{ color: "var(--accent)" }} />
+          )}
           <input
             type="text"
-            placeholder="Capture anything..."
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="Capture anything... (Enter to save as task)"
             className="flex-1 bg-transparent text-sm outline-none"
             style={{ color: "var(--text-primary)" }}
           />
