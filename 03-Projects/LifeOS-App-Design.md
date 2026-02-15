@@ -27,33 +27,118 @@ A personal operating system that turns your existing second brain (Obsidian vaul
 ## Architecture Overview
 
 ```
-┌─────────────────────────────────────────────────┐
-│                   LIFEOS APP                     │
-│                                                  │
-│  ┌───────────┐  ┌───────────┐  ┌───────────┐   │
-│  │  Command   │  │   Life    │  │  Project  │   │
-│  │  Center    │  │   Areas   │  │  Tracker  │   │
-│  │ (Dashboard)│  │ (Modules) │  │  (Board)  │   │
-│  └─────┬─────┘  └─────┬─────┘  └─────┬─────┘   │
-│        │               │               │         │
-│  ┌─────┴───────────────┴───────────────┴─────┐  │
-│  │           Core Engine                      │  │
-│  │  ┌────────┐ ┌────────┐ ┌────────────────┐ │  │
-│  │  │ Capture│ │ Review │ │  LLM Agent     │ │  │
-│  │  │ System │ │ Engine │ │  (Gemini 2.5)  │ │  │
-│  │  └────────┘ └────────┘ └────────────────┘ │  │
-│  └─────────────────┬─────────────────────────┘  │
-│                    │                             │
-│  ┌─────────────────┴─────────────────────────┐  │
-│  │           Integration Layer                │  │
-│  │  Google Cal │ Garmin │ n8n │ Obsidian Sync │  │
-│  └───────────────────────────────────────────┘  │
-│                                                  │
-│  ┌───────────────────────────────────────────┐  │
-│  │           Firebase (Firestore + Auth)      │  │
-│  └───────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────┐
+│                       LIFEOS APP                          │
+│                                                           │
+│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐   │
+│  │  Focus   │ │ Command  │ │   Life   │ │ Project  │   │
+│  │  Engine  │ │  Center  │ │  Areas   │ │ Tracker  │   │
+│  │ (Timer)  │ │(Dashboard│ │(Modules) │ │ (Board)  │   │
+│  └────┬─────┘ └────┬─────┘ └────┬─────┘ └────┬─────┘   │
+│       │             │            │             │          │
+│  ┌────┴─────────────┴────────────┴─────────────┴──────┐  │
+│  │              Core Engine                            │  │
+│  │  ┌────────┐ ┌────────┐ ┌──────────┐ ┌───────────┐ │  │
+│  │  │Capture │ │ Review │ │ LLM Agent│ │  Focus    │ │  │
+│  │  │ System │ │ Engine │ │(Gemini)  │ │  Shield   │ │  │
+│  │  └────────┘ └────────┘ └──────────┘ └───────────┘ │  │
+│  │  ┌────────────────┐ ┌──────────────────────────┐   │  │
+│  │  │ Hero Journeys  │ │  Session & Streak Engine │   │  │
+│  │  │ (Mastery)      │ │  (Analytics)             │   │  │
+│  │  └────────────────┘ └──────────────────────────┘   │  │
+│  └────────────────────────┬───────────────────────────┘  │
+│                           │                              │
+│  ┌────────────────────────┴───────────────────────────┐  │
+│  │              Integration Layer                      │  │
+│  │  Google Cal │ Garmin │ n8n │ Obsidian Sync          │  │
+│  └────────────────────────────────────────────────────┘  │
+│                                                           │
+│  ┌────────────────────────────────────────────────────┐  │
+│  │              Firebase (Firestore + Auth)            │  │
+│  └────────────────────────────────────────────────────┘  │
+└──────────────────────────────────────────────────────────┘
 ```
+
+---
+
+## Pillar 0: Focus Engine (Inspired by FocusHero)
+
+The core productivity loop. Every deep work session runs through the Focus Engine.
+
+### Focus Timer
+
+A Pomodoro-style timer built into the app, always accessible from the top bar or a floating action button.
+
+| Mode | Default Duration | Customizable |
+|------|-----------------|--------------|
+| **Focus** | 25 min | Yes (5-120 min) |
+| **Short Break** | 5 min | Yes (1-30 min) |
+| **Long Break** | 15 min | Yes (5-60 min) |
+| **Long break after** | 4 sessions | Yes (2-8 sessions) |
+
+**Timer features:**
+- Visual countdown with progress ring
+- Audio/vibration alerts on session end
+- Auto-start next session (optional)
+- Pause/resume with reason tracking (why did you stop?)
+- Session tagging — link each focus session to an area, project, or quest
+- Task binding — optionally attach a task to a session; mark it done when session ends
+
+### Focus Blocks (Time Blocks)
+
+Pre-scheduled focus blocks that appear on your calendar view. Like FocusHero's time blocks but integrated with Google Calendar and the task system.
+
+```
+┌──────────────────────────────────────┐
+│  Focus Block: Deep Work              │
+│  09:00 — 11:30 (2.5 hours)          │
+│  Area: Career / JECT                 │
+│  Goal: Finish client wireframes      │
+│  Sessions: 5 × 25min + breaks       │
+│  Buffer: 10 min before next event    │
+│  Auto-start: Yes                     │
+└──────────────────────────────────────┘
+```
+
+**Block features:**
+- Set a goal for the block (what you want to accomplish)
+- Auto-calculate number of sessions from block duration
+- Buffer time before next calendar event
+- Session chaining — back-to-back focus sessions within a block
+- Block templates (e.g., "Morning Deep Work 2h", "Evening Study 1.5h")
+- Sync to Google Calendar as an event
+
+### Focus Shield
+
+Distraction blocking during active focus sessions. Since LifeOS is a PWA, this works at the browser level.
+
+- **Blocklist mode** — Block specific sites during focus (social media, news, YouTube)
+- **Allowlist mode** — Only allow specific sites (docs, GitHub, school portal)
+- **Visual overlay** — If you navigate to a blocked site, show a full-screen reminder with session progress and time remaining
+- **Configurable per block** — Different block profiles for different types of work
+- **Break access** — Blocked sites are accessible during breaks (optional)
+
+> Implementation note: Uses a browser extension or Service Worker interception for PWA. Could leverage the Focus Mode API on supported platforms.
+
+### Session Analytics
+
+Every completed focus session is logged. This feeds into the analytics system.
+
+**Tracked per session:**
+- Duration (planned vs. actual)
+- Area / project / quest linked
+- Task worked on
+- Completion status (full, partial, abandoned)
+- Interruption count
+- Time of day
+
+**Aggregated views:**
+- Daily focus hours (bar chart)
+- Weekly focus trend (line chart)
+- Focus time by area (pie/donut chart)
+- Best focus times (heatmap by hour of day × day of week)
+- Average session completion rate
+- Focus streaks (consecutive days with ≥1 completed session)
 
 ---
 
@@ -65,9 +150,11 @@ The screen you open every morning and revisit every evening.
 
 | Section | What it shows | Data source |
 |---------|---------------|-------------|
-| **Today's Schedule** | Time-blocked calendar events | Google Calendar API |
+| **Today's Schedule** | Time-blocked calendar events + focus blocks | Google Calendar API + Firestore |
 | **Priority Tasks** | Top 3-5 tasks for today, ordered by energy match | Firestore tasks |
+| **Focus Streak** | Current daily focus streak + today's focus goal | Firestore sessions |
 | **Active Quests** | Quarterly quest progress bars (e.g., "Swimming 60%") | Firestore quests |
+| **Hero Journeys** | Top 2 journeys with tier, hours this week, XP bar | Firestore journeys |
 | **Energy Check-in** | Quick slider: sleep quality + energy level | User input |
 | **Daily Brief** | LLM-generated summary of day ahead + suggestions | Gemini 2.5 Flash |
 
@@ -242,6 +329,63 @@ Displayed as a year-view with quarterly milestones. Each goal links to relevant 
 | JECT mastery | Work / Career | Client projects completed |
 | Personal brand setup | Work / Brand | Checklist of setup tasks |
 
+### Hero Journeys (Inspired by FocusHero)
+
+Long-term mastery paths that sit above quests. While quests are 90-day sprints, Hero Journeys track your multi-year progression toward mastery in a skill domain.
+
+**Core concept:** Choose a skill path (maps to LifeOS areas). Every focus session logged in that area accumulates hours toward mastery. Visual progression from beginner to master.
+
+#### Progression Tiers
+
+| Tier | Title | Hours Required | Cumulative |
+|------|-------|---------------|------------|
+| 1 | Novice | 0 | 0 |
+| 2 | Apprentice | 100 | 100 |
+| 3 | Journeyman | 250 | 350 |
+| 4 | Adept | 500 | 850 |
+| 5 | Expert | 1,000 | 1,850 |
+| 6 | Master | 3,150 | 5,000 |
+| 7 | Grandmaster | 5,000 | 10,000 |
+
+> Inspired by the 10,000-hour rule. Tiers are spaced logarithmically so early progress feels rewarding while the long game stays ambitious.
+
+#### Journey Examples (mapped to LifeOS areas)
+
+| Journey | Area | What counts |
+|---------|------|-------------|
+| Web Developer | Career | Focus sessions tagged web dev, coding, frontend, backend |
+| AI / LLM Engineer | Career | Focus sessions tagged AI, machine learning, LLM |
+| Triathlete | Health | Training sessions (swim, bike, run) logged via Garmin or manual |
+| Writer & Creator | Personal Brand | Focus sessions tagged writing, content creation, video editing |
+| Cybersecurity | Career | Focus sessions tagged security, CTF, reverse engineering |
+| Entrepreneur | Career | Focus sessions tagged JECT, business, sales |
+
+#### Journey Features
+
+- **Progress visualization** — XP bar showing progress toward next tier
+- **Hour counter** — Total hours invested, rolling 30-day average
+- **Milestone celebrations** — Visual reward on tier-up (animation, badge)
+- **Journey history** — Timeline of when you reached each tier
+- **Multi-journey support** — Run multiple journeys in parallel (your focus sessions auto-route to the right journey based on tags)
+- **Journey dashboard card** — Shows on Command Center with current tier, hours this week, and progress to next tier
+
+#### How It Connects
+
+- Focus sessions tagged with an area automatically feed the matching Hero Journey
+- Quests can be linked to Journeys (completing a quest grants bonus hours toward the journey)
+- The skill tree (Career module) visual levels align with Journey tiers
+- Daily streaks count toward all active journeys
+
+### Streaks & Habits (Enhanced)
+
+Building on the existing habit system, add FocusHero-style streak prominence:
+
+- **Daily focus streak** — Consecutive days with ≥1 completed focus session (displayed prominently on dashboard)
+- **Area streaks** — Per-area streaks (e.g., "7-day coding streak", "14-day training streak")
+- **Streak shields** — Allow 1 missed day per week without breaking the streak (configurable)
+- **Streak milestones** — Visual badges at 7, 30, 60, 100, 365 days
+- **Streak recovery** — If broken, show "last streak: 23 days" as motivation to beat it
+
 ---
 
 ## LLM Agent (Gemini 2.5 Flash)
@@ -277,6 +421,10 @@ Tools:
   - getQuestProgress(questId)
   - getDailySummary(date)
   - getWeeklySummary(weekOf)
+  - createFocusBlock(title, date, startTime, endTime, area, goal)
+  - getFocusStats(dateRange, groupBy)
+  - getJourneyProgress(journeyId)
+  - getStreakStatus()
 ```
 
 ### What the LLM Does NOT Do
@@ -312,6 +460,8 @@ Tools:
 users/{userId}/
   ├── profile/
   │     └── settings, preferences, energy patterns
+  │     └── focusSettings: { defaultFocus, defaultBreak, defaultLongBreak,
+  │           longBreakAfter, autoStartNext, blocklist[], allowlist[] }
   │
   ├── tasks/{taskId}
   │     └── title, area, project, priority, status, dueDate, createdAt
@@ -335,7 +485,31 @@ users/{userId}/
   │     └── name, frequency, streak, history[]
   │
   ├── dailyLogs/{date}
-  │     └── sleepQuality, energy, mood, gratitude, reflection, tasks[]
+  │     └── sleepQuality, energy, mood, gratitude, reflection, tasks[],
+  │           focusSessions (count), focusMinutes (total), streakDay (int)
+  │
+  ├── focusSessions/{sessionId}                          ← NEW
+  │     └── startedAt, endedAt, plannedDuration, actualDuration,
+  │           type (focus/break/longBreak), status (completed/partial/abandoned),
+  │           area, project, quest, taskId, interruptions (count),
+  │           blockId (if part of a focus block), journeyId
+  │
+  ├── focusBlocks/{blockId}                              ← NEW
+  │     └── title, date, startTime, endTime, area, project,
+  │           goal (text), sessionCount, sessionDuration, breakDuration,
+  │           bufferMinutes, autoStart (bool), template (string),
+  │           sessions[] (linked sessionIds), status (scheduled/active/done)
+  │
+  ├── journeys/{journeyId}                               ← NEW
+  │     └── title, area, description, totalHours, currentTier,
+  │           tierHistory[] ({ tier, reachedAt }),
+  │           tags[] (which session tags count toward this journey),
+  │           createdAt, isActive (bool)
+  │
+  ├── streaks/                                           ← NEW
+  │     └── focus: { current, longest, lastActiveDate }
+  │     └── areas/{areaId}: { current, longest, lastActiveDate }
+  │     └── shieldDaysUsed (int, resets weekly)
   │
   ├── finance/
   │     ├── transactions/{txId}
@@ -356,18 +530,21 @@ users/{userId}/
 - [ ] Init Next.js + Tailwind project
 - [ ] Firebase project setup (Firestore + Auth)
 - [ ] Basic auth flow (Google sign-in)
-- [ ] App shell with sidebar navigation (Dashboard, Areas, Projects, Quests)
+- [ ] App shell with sidebar navigation (Dashboard, Focus, Areas, Projects, Quests, Journeys)
 - [ ] Deploy to Vercel
 
-### Phase 1: Core Loop (Weeks 2-4)
+### Phase 1: Core Loop + Focus Timer (Weeks 2-4)
 
-- [ ] **Dashboard** — Today view with static layout
+- [ ] **Dashboard** — Today view with static layout (including focus streak + journey cards)
 - [ ] **Quick capture bar** — Text input that creates tasks/notes in Firestore
 - [ ] **Task system** — CRUD for tasks, filter by area, mark complete
 - [ ] **Daily log** — Morning check-in (sleep, energy) + evening reflection
 - [ ] **Calendar view** — Basic weekly calendar rendering events from Firestore
+- [ ] **Focus timer** — Pomodoro timer with configurable durations (focus/break/long break)
+- [ ] **Session logging** — Save completed sessions to Firestore with area/project/task links
+- [ ] **Focus streak** — Track consecutive days with completed focus sessions
 
-### Phase 2: Life Areas (Weeks 5-7)
+### Phase 2: Life Areas + Focus Blocks (Weeks 5-7)
 
 - [ ] Area module layout (shared component)
 - [ ] **Health module** — Training log, bodyweight skill tracker, habit checklist
@@ -375,6 +552,8 @@ users/{userId}/
 - [ ] **Finance module** — Monthly budget table, subscription tracker
 - [ ] **Life Admin module** — Recurring tasks with due dates
 - [ ] **Personal Brand module** — Content calendar, publishing log
+- [ ] **Focus blocks** — Schedule time blocks with goals, auto-session chaining, buffer time
+- [ ] **Block templates** — Reusable focus block presets (e.g., "Morning Deep Work 2h")
 
 ### Phase 3: Google Calendar Integration (Weeks 8-9)
 
@@ -382,29 +561,45 @@ users/{userId}/
 - [ ] Sync events bidirectionally (read external, write LifeOS events)
 - [ ] Conflict detection on event creation
 - [ ] Merged calendar view (LifeOS + Google Calendar events)
+- [ ] Focus blocks as calendar events (sync to Google Calendar)
 
 ### Phase 4: LLM Integration (Weeks 10-12)
 
 - [ ] Gemini 2.5 Flash API setup with function calling
-- [ ] Upgrade quick capture to LLM-powered parsing (text → task/event/note/reminder)
-- [ ] Daily brief generation (morning summary)
-- [ ] Weekly review generation
+- [ ] Upgrade quick capture to LLM-powered parsing (text → task/event/note/reminder/focus block)
+- [ ] Daily brief generation (morning summary, includes focus stats)
+- [ ] Weekly review generation (includes focus hours by area)
 - [ ] Quest progress check-ins
+- [ ] Focus coaching — "You focused 3.5 hours on web dev this week, 1.5 below your goal. Schedule a block?"
 
-### Phase 5: Quests & Goals (Week 13)
+### Phase 5: Quests, Goals & Hero Journeys (Weeks 13-14)
 
 - [ ] Quest CRUD with progress tracking
 - [ ] Annual goals view with quarterly breakdown
 - [ ] Link quests to goals, goals to projects
 - [ ] Progress bars on dashboard
+- [ ] **Hero Journey CRUD** — Create journeys, assign areas/tags, set active
+- [ ] **Journey progression** — Auto-calculate hours from focus sessions, tier progression
+- [ ] **Journey dashboard** — XP bars, tier badges, hour counters, milestone history
+- [ ] **Link quests to journeys** — Quest completion grants bonus journey hours
 
-### Phase 6: Polish & Integrations (Weeks 14-16)
+### Phase 6: Focus Shield & Analytics (Weeks 15-16)
 
-- [ ] Garmin Connect API integration (workouts, sleep)
+- [ ] **Focus Shield** — Blocklist/allowlist configuration per focus block profile
+- [ ] **Distraction overlay** — Full-screen reminder when navigating to blocked sites
+- [ ] **Focus analytics dashboard** — Daily/weekly/monthly charts (hours, by area, by time of day)
+- [ ] **Focus heatmap** — Best focus times (hour of day × day of week)
+- [ ] **Session completion rate** — Track full vs. partial vs. abandoned sessions
+
+### Phase 7: Polish & Integrations (Weeks 17-19)
+
+- [ ] Garmin Connect API integration (workouts, sleep → auto-log to Health journey)
 - [ ] n8n webhook endpoints for external automation triggers
-- [ ] Notification system (browser notifications for reminders, due tasks)
+- [ ] Notification system (browser notifications for reminders, due tasks, streak at risk)
 - [ ] Mobile-responsive design pass
 - [ ] Wellbeing dashboard (energy/sleep/mood trends over time)
+- [ ] Streak shields and recovery mechanics
+- [ ] Journey milestone celebrations (animations, badges)
 
 ---
 
@@ -412,6 +607,9 @@ users/{userId}/
 
 ```
 /                     → Dashboard (Command Center)
+/focus                → Focus timer (full-screen focus mode)
+/focus/blocks         → Focus block planner (schedule blocks)
+/focus/analytics      → Focus session analytics & charts
 /capture              → Full capture interface
 /areas                → Area overview grid
 /areas/health         → Health & Training module
@@ -422,10 +620,13 @@ users/{userId}/
 /projects             → Project board (all projects)
 /projects/:id         → Single project detail
 /quests               → Quest tracker
+/journeys             → Hero Journey dashboard (all journeys)
+/journeys/:id         → Single journey detail + history
 /goals                → Annual goals + quarterly breakdown
-/calendar             → Full calendar view
-/review               → Weekly/monthly review
+/calendar             → Full calendar view (with focus blocks overlay)
+/review               → Weekly/monthly review (includes focus stats)
 /settings             → Profile, integrations, preferences
+/settings/focus       → Focus timer defaults, Focus Shield config
 ```
 
 ---
@@ -457,8 +658,10 @@ users/{userId}/
 
 The app is useful when you can:
 
-1. Open it in the morning and see your day (schedule + tasks + energy check-in)
+1. Open it in the morning and see your day (schedule + tasks + energy check-in + focus streak)
 2. Quick-capture a thought and have it land in the right place
-3. See your quarterly quest progress without checking markdown files
-4. Do an evening reflection with structured prompts
-5. Review your week in under 5 minutes with an LLM-generated summary
+3. Start a focus session, link it to a task, and see it count toward your Hero Journey
+4. See your quarterly quest progress without checking markdown files
+5. Do an evening reflection with structured prompts (including focus stats for the day)
+6. Review your week in under 5 minutes with an LLM-generated summary (including focus hours)
+7. See your long-term mastery progress across skill domains (Hero Journeys)
