@@ -1,0 +1,276 @@
+"use client";
+
+import { useState, useEffect, useCallback, useRef } from "react";
+import { collection, onSnapshot, query, orderBy, where, Timestamp } from "firebase/firestore";
+import { db, isConfigured } from "./firebase";
+import { focusSessions as sessionsApi } from "./firestore";
+import type { FocusSession, FocusSessionType, FocusSessionStatus, AreaId } from "./types";
+import { useAuth } from "./auth-context";
+
+export type TimerState = "idle" | "running" | "paused";
+
+interface FocusTimerConfig {
+  focusDuration: number; // minutes
+  breakDuration: number;
+  longBreakDuration: number;
+  longBreakAfter: number; // sessions
+}
+
+const DEFAULT_CONFIG: FocusTimerConfig = {
+  focusDuration: 25,
+  breakDuration: 5,
+  longBreakDuration: 15,
+  longBreakAfter: 4,
+};
+
+let localSessionId = 0;
+
+export function useFocusTimer() {
+  const { user, isFirebaseConfigured } = useAuth();
+  const [config] = useState<FocusTimerConfig>(DEFAULT_CONFIG);
+
+  // Timer state
+  const [timerState, setTimerState] = useState<TimerState>("idle");
+  const [sessionType, setSessionType] = useState<FocusSessionType>("focus");
+  const [timeRemaining, setTimeRemaining] = useState(config.focusDuration * 60); // seconds
+  const [totalTime, setTotalTime] = useState(config.focusDuration * 60);
+  const [completedSessions, setCompletedSessions] = useState(0);
+  const [interruptions, setInterruptions] = useState(0);
+
+  // Session context
+  const [linkedArea, setLinkedArea] = useState<AreaId | undefined>();
+  const [linkedTaskId, setLinkedTaskId] = useState<string | undefined>();
+
+  // Active session tracking
+  const sessionStartRef = useRef<Date | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Today's sessions
+  const [todaySessions, setTodaySessions] = useState<FocusSession[]>([]);
+
+  // Load today's sessions
+  useEffect(() => {
+    if (!isFirebaseConfigured || !user || !db) return;
+
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+
+    const q = query(
+      collection(db, `users/${user.uid}/focusSessions`),
+      where("startedAt", ">=", Timestamp.fromDate(todayStart)),
+      orderBy("startedAt", "desc")
+    );
+
+    const unsubscribe = onSnapshot(q, (snap) => {
+      const items = snap.docs.map((doc) => {
+        const data = doc.data();
+        return {
+          ...data,
+          id: doc.id,
+          startedAt: data.startedAt?.toDate?.() || new Date(),
+          endedAt: data.endedAt?.toDate?.() || undefined,
+        } as FocusSession;
+      });
+      setTodaySessions(items);
+    });
+
+    return unsubscribe;
+  }, [user, isFirebaseConfigured]);
+
+  // Timer tick
+  useEffect(() => {
+    if (timerState !== "running") {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+      return;
+    }
+
+    intervalRef.current = setInterval(() => {
+      setTimeRemaining((prev) => {
+        if (prev <= 1) {
+          // Session complete
+          handleSessionComplete();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, [timerState]);
+
+  const getDurationForType = (type: FocusSessionType): number => {
+    switch (type) {
+      case "focus": return config.focusDuration * 60;
+      case "break": return config.breakDuration * 60;
+      case "long_break": return config.longBreakDuration * 60;
+    }
+  };
+
+  const handleSessionComplete = useCallback(async () => {
+    setTimerState("idle");
+
+    // Play audio notification
+    try {
+      const audio = new Audio("data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbsGEcBj+a2teleR4DHZXQ0I9RA");
+      audio.volume = 0.5;
+      audio.play().catch(() => {});
+    } catch {}
+
+    if (sessionType === "focus") {
+      // Log completed focus session
+      const endedAt = new Date();
+      const startedAt = sessionStartRef.current || new Date(endedAt.getTime() - config.focusDuration * 60 * 1000);
+      const actualDuration = Math.round((endedAt.getTime() - startedAt.getTime()) / 60000);
+
+      const sessionData: Omit<FocusSession, "id"> = {
+        startedAt,
+        endedAt,
+        plannedDuration: config.focusDuration,
+        actualDuration,
+        type: "focus",
+        status: "completed",
+        area: linkedArea,
+        taskId: linkedTaskId,
+        interruptions,
+      };
+
+      if (isFirebaseConfigured && user) {
+        await sessionsApi.create(user.uid, sessionData);
+      } else {
+        const local: FocusSession = { ...sessionData, id: `local-session-${++localSessionId}` };
+        setTodaySessions((prev) => [local, ...prev]);
+      }
+
+      const newCompleted = completedSessions + 1;
+      setCompletedSessions(newCompleted);
+      setInterruptions(0);
+
+      // Determine next: break or long break
+      if (newCompleted % config.longBreakAfter === 0) {
+        setSessionType("long_break");
+        const dur = config.longBreakDuration * 60;
+        setTimeRemaining(dur);
+        setTotalTime(dur);
+      } else {
+        setSessionType("break");
+        const dur = config.breakDuration * 60;
+        setTimeRemaining(dur);
+        setTotalTime(dur);
+      }
+    } else {
+      // Break complete, go back to focus
+      setSessionType("focus");
+      const dur = config.focusDuration * 60;
+      setTimeRemaining(dur);
+      setTotalTime(dur);
+    }
+
+    sessionStartRef.current = null;
+  }, [sessionType, completedSessions, config, linkedArea, linkedTaskId, interruptions, user, isFirebaseConfigured]);
+
+  const start = useCallback(() => {
+    sessionStartRef.current = new Date();
+    setTimerState("running");
+  }, []);
+
+  const pause = useCallback(() => {
+    setTimerState("paused");
+    if (sessionType === "focus") {
+      setInterruptions((prev) => prev + 1);
+    }
+  }, [sessionType]);
+
+  const resume = useCallback(() => {
+    setTimerState("running");
+  }, []);
+
+  const stop = useCallback(async () => {
+    // Log as partial/abandoned if was a focus session
+    if (sessionType === "focus" && sessionStartRef.current) {
+      const endedAt = new Date();
+      const startedAt = sessionStartRef.current;
+      const actualDuration = Math.round((endedAt.getTime() - startedAt.getTime()) / 60000);
+      const status: FocusSessionStatus = actualDuration >= config.focusDuration * 0.5 ? "partial" : "abandoned";
+
+      const sessionData: Omit<FocusSession, "id"> = {
+        startedAt,
+        endedAt,
+        plannedDuration: config.focusDuration,
+        actualDuration,
+        type: "focus",
+        status,
+        area: linkedArea,
+        taskId: linkedTaskId,
+        interruptions,
+      };
+
+      if (isFirebaseConfigured && user) {
+        await sessionsApi.create(user.uid, sessionData);
+      } else {
+        const local: FocusSession = { ...sessionData, id: `local-session-${++localSessionId}` };
+        setTodaySessions((prev) => [local, ...prev]);
+      }
+    }
+
+    setTimerState("idle");
+    setSessionType("focus");
+    setTimeRemaining(config.focusDuration * 60);
+    setTotalTime(config.focusDuration * 60);
+    setInterruptions(0);
+    sessionStartRef.current = null;
+  }, [sessionType, config, linkedArea, linkedTaskId, interruptions, user, isFirebaseConfigured]);
+
+  const skip = useCallback(() => {
+    // Skip break to start next focus
+    setTimerState("idle");
+    setSessionType("focus");
+    const dur = config.focusDuration * 60;
+    setTimeRemaining(dur);
+    setTotalTime(dur);
+    sessionStartRef.current = null;
+  }, [config]);
+
+  const todayFocusMinutes = todaySessions
+    .filter((s) => s.type === "focus" && s.status === "completed")
+    .reduce((sum, s) => sum + (s.actualDuration || 0), 0);
+
+  const todayCompletedSessions = todaySessions.filter(
+    (s) => s.type === "focus" && s.status === "completed"
+  ).length;
+
+  return {
+    // Timer state
+    timerState,
+    sessionType,
+    timeRemaining,
+    totalTime,
+    completedSessions,
+    interruptions,
+
+    // Context
+    linkedArea,
+    setLinkedArea,
+    linkedTaskId,
+    setLinkedTaskId,
+
+    // Actions
+    start,
+    pause,
+    resume,
+    stop,
+    skip,
+
+    // Today stats
+    todaySessions,
+    todayFocusMinutes,
+    todayCompletedSessions,
+
+    // Config
+    config,
+  };
+}
