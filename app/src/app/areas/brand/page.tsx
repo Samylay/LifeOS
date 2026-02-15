@@ -6,8 +6,9 @@ import { AreaModule } from "@/components/area-module";
 import { useTasks } from "@/lib/use-tasks";
 import { useHabits } from "@/lib/use-habits";
 import { useNotes } from "@/lib/use-notes";
+import { useAreaData } from "@/lib/use-area-data";
 
-// --- Content Calendar ---
+// --- Types ---
 
 interface ContentItem {
   id: string;
@@ -17,6 +18,14 @@ interface ContentItem {
   status: "draft" | "scheduled" | "published";
 }
 
+interface BrandAreaData {
+  contentItems: ContentItem[];
+}
+
+const DEFAULT_BRAND_DATA: BrandAreaData = {
+  contentItems: [],
+};
+
 const platformColors: Record<string, string> = {
   Instagram: "#E1306C",
   YouTube: "#FF0000",
@@ -25,8 +34,9 @@ const platformColors: Record<string, string> = {
   Twitter: "#1DA1F2",
 };
 
-function ContentCalendar() {
-  const [items, setItems] = useState<ContentItem[]>([]);
+// --- Content Calendar (Persisted) ---
+
+function ContentCalendar({ items, onUpdate }: { items: ContentItem[]; onUpdate: (items: ContentItem[]) => void }) {
   const [showAdd, setShowAdd] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   const [newPlatform, setNewPlatform] = useState("Instagram");
@@ -34,19 +44,26 @@ function ContentCalendar() {
 
   const handleAdd = () => {
     if (!newTitle.trim() || !newDate) return;
-    setItems((prev) => [...prev, { id: Date.now().toString(), title: newTitle.trim(), platform: newPlatform, date: newDate, status: "draft" }]);
+    onUpdate([...items, { id: Date.now().toString(), title: newTitle.trim(), platform: newPlatform, date: newDate, status: "draft" }]);
     setNewTitle("");
     setNewDate("");
     setShowAdd(false);
+  };
+
+  const cycleStatus = (id: string) => {
+    const order: ContentItem["status"][] = ["draft", "scheduled", "published"];
+    onUpdate(items.map((item) => {
+      if (item.id !== id) return item;
+      const nextIdx = (order.indexOf(item.status) + 1) % order.length;
+      return { ...item, status: order[nextIdx] };
+    }));
   };
 
   return (
     <div>
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-sm font-medium" style={{ color: "var(--text-secondary)" }}>Content Calendar</h3>
-        <button onClick={() => setShowAdd(!showAdd)} className="p-1 rounded" style={{ color: "var(--text-tertiary)" }}>
-          <Plus size={14} />
-        </button>
+        <button onClick={() => setShowAdd(!showAdd)} className="p-1 rounded" style={{ color: "var(--text-tertiary)" }}><Plus size={14} /></button>
       </div>
       {showAdd && (
         <div className="space-y-2 mb-3 p-3 rounded-lg" style={{ border: "1px solid var(--accent)" }}>
@@ -57,11 +74,7 @@ function ContentCalendar() {
             <select value={newPlatform} onChange={(e) => setNewPlatform(e.target.value)}
               className="text-xs rounded-lg px-2 py-1.5 outline-none"
               style={{ background: "var(--bg-tertiary)", color: "var(--text-primary)", border: "1px solid var(--border-primary)" }}>
-              <option>Instagram</option>
-              <option>YouTube</option>
-              <option>Mailing List</option>
-              <option>LinkedIn</option>
-              <option>Twitter</option>
+              <option>Instagram</option><option>YouTube</option><option>Mailing List</option><option>LinkedIn</option><option>Twitter</option>
             </select>
             <input type="date" value={newDate} onChange={(e) => setNewDate(e.target.value)}
               className="flex-1 text-xs bg-transparent rounded-lg px-2 py-1.5 outline-none"
@@ -87,12 +100,13 @@ function ContentCalendar() {
                   <span className="text-xs" style={{ color: "var(--text-tertiary)" }}>{item.date}</span>
                 </div>
               </div>
-              <span className="text-xs px-2 py-0.5 rounded-full capitalize"
+              <button onClick={() => cycleStatus(item.id)}
+                className="text-xs px-2 py-0.5 rounded-full capitalize cursor-pointer hover:opacity-80"
                 style={{ background: item.status === "published" ? "#10B98120" : item.status === "scheduled" ? "#F59E0B20" : "#64748B20",
                   color: item.status === "published" ? "#10B981" : item.status === "scheduled" ? "#F59E0B" : "#64748B" }}>
                 {item.status}
-              </span>
-              <button onClick={() => setItems((prev) => prev.filter((i) => i.id !== item.id))}
+              </button>
+              <button onClick={() => onUpdate(items.filter((i) => i.id !== item.id))}
                 className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity p-0.5" style={{ color: "var(--text-tertiary)" }}>
                 <X size={12} />
               </button>
@@ -104,16 +118,32 @@ function ContentCalendar() {
   );
 }
 
-// --- Publishing Log ---
+// --- Publishing Log (computed from content items) ---
 
-function PublishingLog() {
+function PublishingLog({ items }: { items: ContentItem[] }) {
+  const published = items.filter((i) => i.status === "published");
+
   return (
     <div>
       <h3 className="text-sm font-medium mb-3" style={{ color: "var(--text-secondary)" }}>Publishing Log</h3>
-      <div className="text-center py-6">
-        <FileText size={24} style={{ color: "var(--text-tertiary)" }} className="mx-auto mb-2" />
-        <p className="text-xs" style={{ color: "var(--text-tertiary)" }}>No published content yet. Published items will appear here.</p>
-      </div>
+      {published.length === 0 ? (
+        <div className="text-center py-6">
+          <FileText size={24} style={{ color: "var(--text-tertiary)" }} className="mx-auto mb-2" />
+          <p className="text-xs" style={{ color: "var(--text-tertiary)" }}>No published content yet. Mark items as published in the calendar.</p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {published.map((item) => (
+            <div key={item.id} className="flex items-center gap-3 rounded-lg px-3 py-2" style={{ background: "var(--bg-tertiary)" }}>
+              <div className="shrink-0 h-2 w-2 rounded-full" style={{ background: platformColors[item.platform] || "#8B5CF6" }} />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm truncate" style={{ color: "var(--text-primary)" }}>{item.title}</p>
+                <span className="text-xs" style={{ color: "var(--text-tertiary)" }}>{item.platform} - {item.date}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -165,6 +195,17 @@ function IdeasBacklog() {
 export default function BrandAreaPage() {
   const { tasks, updateTask, deleteTask, createTask } = useTasks();
   const { habits, toggleToday, createHabit, deleteHabit } = useHabits();
+  const { notes } = useNotes();
+  const { data, updateData } = useAreaData("brand", DEFAULT_BRAND_DATA);
+
+  const brandNotes = notes.filter((n) => n.area === "brand");
+  const publishedThisWeek = data.contentItems.filter((i) => {
+    if (i.status !== "published") return false;
+    const today = new Date();
+    const weekStart = new Date(today);
+    weekStart.setDate(today.getDate() - today.getDay());
+    return i.date >= weekStart.toISOString().split("T")[0];
+  }).length;
 
   return (
     <AreaModule
@@ -173,9 +214,9 @@ export default function BrandAreaPage() {
       color="#8B5CF6"
       areaId="brand"
       metrics={[
-        { label: "Posts this week", value: 0, color: "#8B5CF6" },
-        { label: "Mailing list subs", value: 0, color: "#8B5CF6" },
-        { label: "Ideas in backlog", value: 0, color: "#8B5CF6" },
+        { label: "Posts this week", value: publishedThisWeek, color: "#8B5CF6" },
+        { label: "Content planned", value: data.contentItems.filter((i) => i.status !== "published").length, color: "#8B5CF6" },
+        { label: "Ideas in backlog", value: brandNotes.length, color: "#8B5CF6" },
       ]}
       tasks={tasks}
       onTaskUpdate={updateTask}
@@ -187,10 +228,10 @@ export default function BrandAreaPage() {
       onHabitDelete={deleteHabit}
     >
       <div className="col-span-12 lg:col-span-6 rounded-xl p-6" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-primary)" }}>
-        <ContentCalendar />
+        <ContentCalendar items={data.contentItems} onUpdate={(contentItems) => updateData({ contentItems })} />
       </div>
       <div className="col-span-12 lg:col-span-6 rounded-xl p-6" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-primary)" }}>
-        <PublishingLog />
+        <PublishingLog items={data.contentItems} />
       </div>
       <div className="col-span-12 rounded-xl p-6" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-primary)" }}>
         <IdeasBacklog />

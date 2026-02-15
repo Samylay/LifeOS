@@ -1,27 +1,39 @@
 "use client";
 
 import { useState } from "react";
-import { ClipboardList, Inbox, FileCheck, Plus, X, Clock, AlertTriangle, Check } from "lucide-react";
+import { ClipboardList, Inbox, FileCheck, Plus, X, Clock, AlertTriangle } from "lucide-react";
 import { AreaModule } from "@/components/area-module";
 import { useTasks } from "@/lib/use-tasks";
 import { useHabits } from "@/lib/use-habits";
 import { useNotes } from "@/lib/use-notes";
+import { useAreaData } from "@/lib/use-area-data";
 
-// --- Recurring Tasks ---
+// --- Types ---
 
-interface RecurringItem {
-  id: string;
-  name: string;
-  frequency: string;
-  nextDue: string;
+interface RecurringItem { id: string; name: string; frequency: string; nextDue: string }
+interface TrackedDocument { id: string; name: string; location: string; expiryDate?: string }
+
+interface AdminAreaData {
+  recurringTasks: RecurringItem[];
+  documents: TrackedDocument[];
 }
 
-function RecurringTasks() {
-  const [items, setItems] = useState<RecurringItem[]>([
+const DEFAULT_ADMIN_DATA: AdminAreaData = {
+  recurringTasks: [
     { id: "1", name: "Pay rent", frequency: "Monthly", nextDue: "2026-03-01" },
     { id: "2", name: "Check bank statements", frequency: "Monthly", nextDue: "2026-02-28" },
     { id: "3", name: "Backup important files", frequency: "Weekly", nextDue: "2026-02-22" },
-  ]);
+  ],
+  documents: [
+    { id: "1", name: "ID Card", location: "Wallet", expiryDate: "2028-06-15" },
+    { id: "2", name: "Passport", location: "Home safe", expiryDate: "2030-09-20" },
+    { id: "3", name: "Health Insurance Card", location: "Wallet" },
+  ],
+};
+
+// --- Recurring Tasks (Persisted) ---
+
+function RecurringTasks({ items, onUpdate }: { items: RecurringItem[]; onUpdate: (items: RecurringItem[]) => void }) {
   const [showAdd, setShowAdd] = useState(false);
   const [newName, setNewName] = useState("");
   const [newFreq, setNewFreq] = useState("Monthly");
@@ -29,7 +41,7 @@ function RecurringTasks() {
 
   const handleAdd = () => {
     if (!newName.trim() || !newDate) return;
-    setItems((prev) => [...prev, { id: Date.now().toString(), name: newName.trim(), frequency: newFreq, nextDue: newDate }]);
+    onUpdate([...items, { id: Date.now().toString(), name: newName.trim(), frequency: newFreq, nextDue: newDate }]);
     setNewName("");
     setNewDate("");
     setShowAdd(false);
@@ -49,9 +61,7 @@ function RecurringTasks() {
             </span>
           )}
         </h3>
-        <button onClick={() => setShowAdd(!showAdd)} className="p-1 rounded" style={{ color: "var(--text-tertiary)" }}>
-          <Plus size={14} />
-        </button>
+        <button onClick={() => setShowAdd(!showAdd)} className="p-1 rounded" style={{ color: "var(--text-tertiary)" }}><Plus size={14} /></button>
       </div>
       {showAdd && (
         <div className="space-y-2 mb-3 p-3 rounded-lg" style={{ border: "1px solid var(--accent)" }}>
@@ -62,11 +72,7 @@ function RecurringTasks() {
             <select value={newFreq} onChange={(e) => setNewFreq(e.target.value)}
               className="text-xs rounded-lg px-2 py-1.5 outline-none"
               style={{ background: "var(--bg-tertiary)", color: "var(--text-primary)", border: "1px solid var(--border-primary)" }}>
-              <option>Daily</option>
-              <option>Weekly</option>
-              <option>Monthly</option>
-              <option>Quarterly</option>
-              <option>Yearly</option>
+              <option>Daily</option><option>Weekly</option><option>Monthly</option><option>Quarterly</option><option>Yearly</option>
             </select>
             <input type="date" value={newDate} onChange={(e) => setNewDate(e.target.value)}
               className="flex-1 text-xs bg-transparent rounded-lg px-2 py-1.5 outline-none"
@@ -88,7 +94,7 @@ function RecurringTasks() {
                   <span className="text-xs" style={{ color: isOverdue ? "#EF4444" : "var(--text-tertiary)" }}>Due: {item.nextDue}</span>
                 </div>
               </div>
-              <button onClick={() => setItems((prev) => prev.filter((i) => i.id !== item.id))}
+              <button onClick={() => onUpdate(items.filter((i) => i.id !== item.id))}
                 className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity p-0.5" style={{ color: "var(--text-tertiary)" }}>
                 <X size={12} />
               </button>
@@ -146,21 +152,9 @@ function AdminInbox() {
   );
 }
 
-// --- Document Tracker ---
+// --- Document Tracker (Persisted) ---
 
-interface TrackedDocument {
-  id: string;
-  name: string;
-  location: string;
-  expiryDate?: string;
-}
-
-function DocumentTracker() {
-  const [docs, setDocs] = useState<TrackedDocument[]>([
-    { id: "1", name: "ID Card", location: "Wallet", expiryDate: "2028-06-15" },
-    { id: "2", name: "Passport", location: "Home safe", expiryDate: "2030-09-20" },
-    { id: "3", name: "Health Insurance Card", location: "Wallet" },
-  ]);
+function DocumentTracker({ docs, onUpdate }: { docs: TrackedDocument[]; onUpdate: (docs: TrackedDocument[]) => void }) {
   const [showAdd, setShowAdd] = useState(false);
   const [newName, setNewName] = useState("");
   const [newLocation, setNewLocation] = useState("");
@@ -168,7 +162,7 @@ function DocumentTracker() {
 
   const handleAdd = () => {
     if (!newName.trim()) return;
-    setDocs((prev) => [...prev, { id: Date.now().toString(), name: newName.trim(), location: newLocation.trim() || "Not specified", expiryDate: newExpiry || undefined }]);
+    onUpdate([...docs, { id: Date.now().toString(), name: newName.trim(), location: newLocation.trim() || "Not specified", expiryDate: newExpiry || undefined }]);
     setNewName("");
     setNewLocation("");
     setNewExpiry("");
@@ -182,9 +176,7 @@ function DocumentTracker() {
     <div>
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-sm font-medium" style={{ color: "var(--text-secondary)" }}>Document Tracker</h3>
-        <button onClick={() => setShowAdd(!showAdd)} className="p-1 rounded" style={{ color: "var(--text-tertiary)" }}>
-          <Plus size={14} />
-        </button>
+        <button onClick={() => setShowAdd(!showAdd)} className="p-1 rounded" style={{ color: "var(--text-tertiary)" }}><Plus size={14} /></button>
       </div>
       {showAdd && (
         <div className="space-y-2 mb-3 p-3 rounded-lg" style={{ border: "1px solid var(--accent)" }}>
@@ -203,24 +195,24 @@ function DocumentTracker() {
         </div>
       )}
       <div className="space-y-2">
-        {docs.map((doc) => {
-          const isExpiring = doc.expiryDate && doc.expiryDate <= thirtyDaysFromNow && doc.expiryDate > today;
-          const isExpired = doc.expiryDate && doc.expiryDate <= today;
+        {docs.map((d) => {
+          const isExpiring = d.expiryDate && d.expiryDate <= thirtyDaysFromNow && d.expiryDate > today;
+          const isExpired = d.expiryDate && d.expiryDate <= today;
           return (
-            <div key={doc.id} className="group flex items-center gap-3 rounded-lg px-3 py-2" style={{ background: "var(--bg-tertiary)" }}>
+            <div key={d.id} className="group flex items-center gap-3 rounded-lg px-3 py-2" style={{ background: "var(--bg-tertiary)" }}>
               <FileCheck size={14} style={{ color: isExpired ? "#EF4444" : isExpiring ? "#F59E0B" : "#64748B" }} />
               <div className="flex-1 min-w-0">
-                <p className="text-sm" style={{ color: "var(--text-primary)" }}>{doc.name}</p>
+                <p className="text-sm" style={{ color: "var(--text-primary)" }}>{d.name}</p>
                 <div className="flex items-center gap-2">
-                  <span className="text-xs" style={{ color: "var(--text-tertiary)" }}>{doc.location}</span>
-                  {doc.expiryDate && (
+                  <span className="text-xs" style={{ color: "var(--text-tertiary)" }}>{d.location}</span>
+                  {d.expiryDate && (
                     <span className="text-xs" style={{ color: isExpired ? "#EF4444" : isExpiring ? "#F59E0B" : "var(--text-tertiary)" }}>
-                      {isExpired ? "Expired" : isExpiring ? "Expiring soon" : `Exp: ${doc.expiryDate}`}
+                      {isExpired ? "Expired" : isExpiring ? "Expiring soon" : `Exp: ${d.expiryDate}`}
                     </span>
                   )}
                 </div>
               </div>
-              <button onClick={() => setDocs((prev) => prev.filter((d) => d.id !== doc.id))}
+              <button onClick={() => onUpdate(docs.filter((x) => x.id !== d.id))}
                 className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity p-0.5" style={{ color: "var(--text-tertiary)" }}>
                 <X size={12} />
               </button>
@@ -237,10 +229,12 @@ function DocumentTracker() {
 export default function AdminAreaPage() {
   const { tasks, updateTask, deleteTask, createTask } = useTasks();
   const { habits, toggleToday, createHabit, deleteHabit } = useHabits();
+  const { data, updateData } = useAreaData("admin", DEFAULT_ADMIN_DATA);
 
   const today = new Date().toISOString().split("T")[0];
   const adminTasks = tasks.filter((t) => t.area === "admin");
   const overdueTasks = adminTasks.filter((t) => t.dueDate && new Date(t.dueDate).toISOString().split("T")[0] < today && t.status !== "done");
+  const overdueRecurring = data.recurringTasks.filter((i) => i.nextDue < today).length;
 
   return (
     <AreaModule
@@ -249,9 +243,9 @@ export default function AdminAreaPage() {
       color="#64748B"
       areaId="admin"
       metrics={[
-        { label: "Overdue items", value: overdueTasks.length, color: overdueTasks.length > 0 ? "#EF4444" : "#64748B" },
+        { label: "Overdue items", value: overdueTasks.length + overdueRecurring, color: (overdueTasks.length + overdueRecurring) > 0 ? "#EF4444" : "#64748B" },
         { label: "Active admin tasks", value: adminTasks.filter((t) => t.status !== "done").length, color: "#64748B" },
-        { label: "Documents tracked", value: 3, color: "#64748B" },
+        { label: "Documents tracked", value: data.documents.length, color: "#64748B" },
       ]}
       tasks={tasks}
       onTaskUpdate={updateTask}
@@ -263,13 +257,13 @@ export default function AdminAreaPage() {
       onHabitDelete={deleteHabit}
     >
       <div className="col-span-12 lg:col-span-6 rounded-xl p-6" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-primary)" }}>
-        <RecurringTasks />
+        <RecurringTasks items={data.recurringTasks} onUpdate={(recurringTasks) => updateData({ recurringTasks })} />
       </div>
       <div className="col-span-12 lg:col-span-6 rounded-xl p-6" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-primary)" }}>
         <AdminInbox />
       </div>
       <div className="col-span-12 rounded-xl p-6" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-primary)" }}>
-        <DocumentTracker />
+        <DocumentTracker docs={data.documents} onUpdate={(documents) => updateData({ documents })} />
       </div>
     </AreaModule>
   );

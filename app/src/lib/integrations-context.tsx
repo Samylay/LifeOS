@@ -8,8 +8,12 @@ import {
   useCallback,
   ReactNode,
 } from "react";
-import { signInWithPopup, GoogleAuthProvider } from "firebase/auth";
-import { doc, getDoc, setDoc, deleteDoc } from "firebase/firestore";
+import {
+  signInWithRedirect,
+  getRedirectResult,
+  GoogleAuthProvider,
+} from "firebase/auth";
+import { doc, getDoc, setDoc } from "firebase/firestore";
 import { auth, db } from "./firebase";
 import { useAuth } from "./auth-context";
 
@@ -24,12 +28,19 @@ interface IntegrationsContextType {
   gcal: GCalState;
   connectGoogleCalendar: () => Promise<void>;
   disconnectGoogleCalendar: () => Promise<void>;
+  createCalendarEvent: (event: {
+    title: string;
+    start: Date;
+    end: Date;
+    description?: string;
+  }) => Promise<boolean>;
 }
 
 const IntegrationsContext = createContext<IntegrationsContextType>({
   gcal: { connected: false, accessToken: null, email: null, loading: true },
   connectGoogleCalendar: async () => {},
   disconnectGoogleCalendar: async () => {},
+  createCalendarEvent: async () => false,
 });
 
 export function IntegrationsProvider({ children }: { children: ReactNode }) {
@@ -40,6 +51,48 @@ export function IntegrationsProvider({ children }: { children: ReactNode }) {
     email: null,
     loading: true,
   });
+
+  // Handle redirect result for GCal connection
+  useEffect(() => {
+    if (!auth || !user || !db) return;
+
+    const pending =
+      typeof window !== "undefined" &&
+      sessionStorage.getItem("gcal_pending_connect");
+    if (!pending) return;
+
+    getRedirectResult(auth)
+      .then(async (result) => {
+        if (result) {
+          const credential = GoogleAuthProvider.credentialFromResult(result);
+          const token = credential?.accessToken ?? null;
+
+          if (token) {
+            const ref = doc(db!, "users", user.uid, "settings", "integrations");
+            await setDoc(
+              ref,
+              {
+                gcal_connected: true,
+                gcal_email: result.user.email,
+                gcal_connected_at: new Date().toISOString(),
+              },
+              { merge: true }
+            );
+
+            setGcal({
+              connected: true,
+              accessToken: token,
+              email: result.user.email,
+              loading: false,
+            });
+          }
+        }
+        sessionStorage.removeItem("gcal_pending_connect");
+      })
+      .catch(() => {
+        sessionStorage.removeItem("gcal_pending_connect");
+      });
+  }, [user]);
 
   // Load saved connection state from Firestore
   useEffect(() => {
@@ -53,12 +106,12 @@ export function IntegrationsProvider({ children }: { children: ReactNode }) {
       const snap = await getDoc(ref);
       if (snap.exists()) {
         const data = snap.data();
-        setGcal({
+        setGcal((prev) => ({
           connected: data.gcal_connected ?? false,
-          accessToken: null, // Token doesn't persist — user re-authenticates per session
+          accessToken: prev.accessToken,
           email: data.gcal_email ?? null,
           loading: false,
-        });
+        }));
       } else {
         setGcal((prev) => ({ ...prev, loading: false }));
       }
@@ -68,40 +121,32 @@ export function IntegrationsProvider({ children }: { children: ReactNode }) {
   }, [user]);
 
   const connectGoogleCalendar = useCallback(async () => {
-    if (!auth || !db || !user) return;
+    if (!auth || !user) return;
 
     const provider = new GoogleAuthProvider();
-    provider.addScope("https://www.googleapis.com/auth/calendar.readonly");
+    provider.addScope("https://www.googleapis.com/auth/calendar");
+    provider.addScope("https://www.googleapis.com/auth/calendar.events");
 
-    const result = await signInWithPopup(auth, provider);
-    const credential = GoogleAuthProvider.credentialFromResult(result);
-    const token = credential?.accessToken ?? null;
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem("gcal_pending_connect", "true");
+    }
 
-    // Save connection flag to Firestore
-    const ref = doc(db, "users", user.uid, "settings", "integrations");
-    await setDoc(ref, {
-      gcal_connected: true,
-      gcal_email: result.user.email,
-      gcal_connected_at: new Date().toISOString(),
-    }, { merge: true });
-
-    setGcal({
-      connected: true,
-      accessToken: token,
-      email: result.user.email,
-      loading: false,
-    });
+    await signInWithRedirect(auth, provider);
   }, [user]);
 
   const disconnectGoogleCalendar = useCallback(async () => {
     if (!db || !user) return;
 
     const ref = doc(db, "users", user.uid, "settings", "integrations");
-    await setDoc(ref, {
-      gcal_connected: false,
-      gcal_email: null,
-      gcal_connected_at: null,
-    }, { merge: true });
+    await setDoc(
+      ref,
+      {
+        gcal_connected: false,
+        gcal_email: null,
+        gcal_connected_at: null,
+      },
+      { merge: true }
+    );
 
     setGcal({
       connected: false,
@@ -111,9 +156,48 @@ export function IntegrationsProvider({ children }: { children: ReactNode }) {
     });
   }, [user]);
 
+  const createCalendarEvent = useCallback(
+    async (event: {
+      title: string;
+      start: Date;
+      end: Date;
+      description?: string;
+    }) => {
+      if (!gcal.accessToken) return false;
+
+      try {
+        const resp = await fetch(
+          "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${gcal.accessToken}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              summary: event.title,
+              description: event.description || "",
+              start: { dateTime: event.start.toISOString() },
+              end: { dateTime: event.end.toISOString() },
+            }),
+          }
+        );
+        return resp.ok;
+      } catch {
+        return false;
+      }
+    },
+    [gcal.accessToken]
+  );
+
   return (
     <IntegrationsContext.Provider
-      value={{ gcal, connectGoogleCalendar, disconnectGoogleCalendar }}
+      value={{
+        gcal,
+        connectGoogleCalendar,
+        disconnectGoogleCalendar,
+        createCalendarEvent,
+      }}
     >
       {children}
     </IntegrationsContext.Provider>

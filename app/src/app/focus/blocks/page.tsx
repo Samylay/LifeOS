@@ -3,6 +3,9 @@
 import { useState } from "react";
 import { Clock, Plus, X, Play, Trash2, Calendar } from "lucide-react";
 import { useFocusBlocks, BLOCK_TEMPLATES } from "@/lib/use-focus-blocks";
+import { useIntegrations } from "@/lib/integrations-context";
+import { useAppStore } from "@/lib/store";
+import { useRouter } from "next/navigation";
 import type { FocusBlock, FocusBlockStatus, AreaId } from "@/lib/types";
 import { AREAS } from "@/lib/types";
 
@@ -42,7 +45,6 @@ function BlockCreateForm({ onSubmit, onCancel }: {
     setSessionDuration(template.sessionDuration);
     setBreakDuration(template.breakDuration);
     setBufferMinutes(template.bufferMinutes);
-    // Calculate end time from start time + duration
     const [h, m] = startTime.split(":").map(Number);
     const endMin = h * 60 + m + template.duration;
     const endH = Math.floor(endMin / 60);
@@ -68,7 +70,6 @@ function BlockCreateForm({ onSubmit, onCancel }: {
     });
   };
 
-  // Calculate sessions preview
   const startMin = parseInt(startTime.split(":")[0]) * 60 + parseInt(startTime.split(":")[1]);
   const endMin = parseInt(endTime.split(":")[0]) * 60 + parseInt(endTime.split(":")[1]);
   const totalMin = endMin - startMin - bufferMinutes;
@@ -77,7 +78,6 @@ function BlockCreateForm({ onSubmit, onCancel }: {
 
   return (
     <form onSubmit={handleSubmit} className="rounded-xl p-5 space-y-4" style={{ background: "var(--bg-secondary)", border: "1px solid var(--accent)" }}>
-      {/* Templates */}
       <div>
         <label className="text-xs font-medium mb-2 block" style={{ color: "var(--text-secondary)" }}>Quick Templates</label>
         <div className="flex flex-wrap gap-2">
@@ -148,7 +148,6 @@ function BlockCreateForm({ onSubmit, onCancel }: {
         </div>
       </div>
 
-      {/* Preview */}
       <div className="rounded-lg px-3 py-2 flex items-center justify-between" style={{ background: "var(--bg-tertiary)" }}>
         <span className="text-xs" style={{ color: "var(--text-secondary)" }}>
           {sessionCount} sessions x {sessionDuration}min + {breakDuration}min breaks
@@ -171,10 +170,13 @@ function BlockCreateForm({ onSubmit, onCancel }: {
 
 // --- Block Card ---
 
-function BlockCard({ block, onUpdate, onDelete }: {
+function BlockCard({ block, onUpdate, onDelete, onStartSession, onSyncGCal, gcalConnected }: {
   block: FocusBlock;
   onUpdate: (id: string, data: Partial<FocusBlock>) => void;
   onDelete: (id: string) => void;
+  onStartSession: (block: FocusBlock) => void;
+  onSyncGCal: (block: FocusBlock) => void;
+  gcalConnected: boolean;
 }) {
   return (
     <div className="rounded-xl p-4 transition-all group" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-primary)" }}>
@@ -212,10 +214,20 @@ function BlockCard({ block, onUpdate, onDelete }: {
         </span>
         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
           {block.status === "scheduled" && (
-            <button onClick={() => onUpdate(block.id, { status: "active" })}
-              className="p-1.5 rounded-lg transition-colors" style={{ color: "#10B981" }}>
-              <Play size={14} />
-            </button>
+            <>
+              <button onClick={() => onStartSession(block)}
+                className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium transition-colors"
+                style={{ background: "#10B98120", color: "#10B981" }}>
+                <Play size={12} /> Start
+              </button>
+              {gcalConnected && (
+                <button onClick={() => onSyncGCal(block)}
+                  className="p-1.5 rounded-lg transition-colors" style={{ color: "#3B82F6" }}
+                  title="Sync to Google Calendar">
+                  <Calendar size={14} />
+                </button>
+              )}
+            </>
           )}
           {block.status === "active" && (
             <button onClick={() => onUpdate(block.id, { status: "done" })}
@@ -237,12 +249,48 @@ function BlockCard({ block, onUpdate, onDelete }: {
 
 export default function FocusBlocksPage() {
   const { blocks, loading, createBlock, updateBlock, deleteBlock } = useFocusBlocks();
+  const { gcal, createCalendarEvent } = useIntegrations();
+  const setPendingBlockConfig = useAppStore((s) => s.setPendingBlockConfig);
+  const router = useRouter();
   const [showForm, setShowForm] = useState(false);
 
   const today = new Date().toISOString().split("T")[0];
   const todayBlocks = blocks.filter((b) => b.date === today);
   const upcomingBlocks = blocks.filter((b) => b.date > today);
   const pastBlocks = blocks.filter((b) => b.date < today);
+
+  const handleStartSession = (block: FocusBlock) => {
+    updateBlock(block.id, { status: "active" });
+    setPendingBlockConfig({
+      blockId: block.id,
+      title: block.title,
+      sessionDuration: block.sessionDuration,
+      breakDuration: block.breakDuration,
+      area: block.area,
+    });
+    router.push("/focus");
+  };
+
+  const handleSyncGCal = async (block: FocusBlock) => {
+    const [year, month, day] = block.date.split("-").map(Number);
+    const [startH, startM] = block.startTime.split(":").map(Number);
+    const [endH, endM] = block.endTime.split(":").map(Number);
+
+    const start = new Date(year, month - 1, day, startH, startM);
+    const end = new Date(year, month - 1, day, endH, endM);
+
+    const success = await createCalendarEvent({
+      title: `[Focus] ${block.title}`,
+      start,
+      end,
+      description: block.goal ? `Goal: ${block.goal}\n${block.sessionCount} sessions x ${block.sessionDuration}min` : `${block.sessionCount} sessions x ${block.sessionDuration}min`,
+    });
+
+    if (success) {
+      // Visual feedback - could add a toast, for now update status
+      updateBlock(block.id, { status: "scheduled" });
+    }
+  };
 
   return (
     <div>
@@ -272,37 +320,37 @@ export default function FocusBlocksPage() {
         </div>
       ) : (
         <div className="space-y-8">
-          {/* Today */}
           {todayBlocks.length > 0 && (
             <div>
               <h2 className="text-sm font-semibold uppercase tracking-wider mb-3" style={{ color: "var(--accent)" }}>Today</h2>
               <div className="space-y-3">
                 {todayBlocks.map((block) => (
-                  <BlockCard key={block.id} block={block} onUpdate={updateBlock} onDelete={deleteBlock} />
+                  <BlockCard key={block.id} block={block} onUpdate={updateBlock} onDelete={deleteBlock}
+                    onStartSession={handleStartSession} onSyncGCal={handleSyncGCal} gcalConnected={gcal.connected} />
                 ))}
               </div>
             </div>
           )}
 
-          {/* Upcoming */}
           {upcomingBlocks.length > 0 && (
             <div>
               <h2 className="text-sm font-semibold uppercase tracking-wider mb-3" style={{ color: "var(--text-secondary)" }}>Upcoming</h2>
               <div className="space-y-3">
                 {upcomingBlocks.map((block) => (
-                  <BlockCard key={block.id} block={block} onUpdate={updateBlock} onDelete={deleteBlock} />
+                  <BlockCard key={block.id} block={block} onUpdate={updateBlock} onDelete={deleteBlock}
+                    onStartSession={handleStartSession} onSyncGCal={handleSyncGCal} gcalConnected={gcal.connected} />
                 ))}
               </div>
             </div>
           )}
 
-          {/* Past */}
           {pastBlocks.length > 0 && (
             <div>
               <h2 className="text-sm font-semibold uppercase tracking-wider mb-3" style={{ color: "var(--text-tertiary)" }}>Past</h2>
               <div className="space-y-3 opacity-60">
                 {pastBlocks.map((block) => (
-                  <BlockCard key={block.id} block={block} onUpdate={updateBlock} onDelete={deleteBlock} />
+                  <BlockCard key={block.id} block={block} onUpdate={updateBlock} onDelete={deleteBlock}
+                    onStartSession={handleStartSession} onSyncGCal={handleSyncGCal} gcalConnected={gcal.connected} />
                 ))}
               </div>
             </div>

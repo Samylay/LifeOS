@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { FolderKanban, Plus, X, ChevronRight, Archive, RotateCcw, MoreHorizontal } from "lucide-react";
+import { FolderKanban, Plus, X, ChevronRight, Archive, RotateCcw, MoreHorizontal, AlertCircle } from "lucide-react";
 import { useProjects } from "@/lib/use-projects";
 import { useTasks } from "@/lib/use-tasks";
 import type { Project, ProjectStatus, AreaId, Task } from "@/lib/types";
@@ -24,6 +24,49 @@ const AREA_COLORS: Record<string, string> = {
   brand: "#8B5CF6",
   admin: "#64748B",
 };
+
+// --- Weekly Review Banner ---
+
+function WeeklyReviewBanner({ projects, tasks, onDismiss }: {
+  projects: Project[];
+  tasks: Task[];
+  onDismiss: () => void;
+}) {
+  const activeProjects = projects.filter((p) => p.status === "active" || p.status === "planning");
+  const staleProjects = activeProjects.filter((p) => {
+    const projectTasks = tasks.filter((t) => t.projectId === p.id);
+    const allDone = projectTasks.length > 0 && projectTasks.every((t) => t.status === "done");
+    const noNextAction = !p.nextAction;
+    return allDone || (noNextAction && projectTasks.length === 0);
+  });
+
+  if (staleProjects.length === 0) return null;
+
+  return (
+    <div className="rounded-xl p-4 mb-6" style={{ background: "#F59E0B10", border: "1px solid #F59E0B40" }}>
+      <div className="flex items-start justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <AlertCircle size={16} style={{ color: "#F59E0B" }} />
+          <h3 className="text-sm font-semibold" style={{ color: "#F59E0B" }}>Weekly Review</h3>
+        </div>
+        <button onClick={onDismiss} className="p-0.5" style={{ color: "var(--text-tertiary)" }}><X size={14} /></button>
+      </div>
+      <p className="text-xs mb-3" style={{ color: "var(--text-secondary)" }}>
+        These projects need attention - no next action or all tasks complete:
+      </p>
+      <div className="space-y-2">
+        {staleProjects.map((p) => (
+          <div key={p.id} className="flex items-center gap-2 rounded-lg px-3 py-2" style={{ background: "var(--bg-secondary)" }}>
+            <span className="flex-1 text-sm" style={{ color: "var(--text-primary)" }}>{p.title}</span>
+            <span className="text-xs" style={{ color: "#F59E0B" }}>
+              {!p.nextAction ? "No next action" : "All tasks done"}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 // --- Create Form ---
 
@@ -155,7 +198,6 @@ function ProjectCard({
           </span>
         )}
 
-        {/* Progress bar */}
         <div className="mb-2">
           <div className="flex justify-between mb-1">
             <span className="text-xs" style={{ color: "var(--text-tertiary)" }}>Progress</span>
@@ -178,7 +220,6 @@ function ProjectCard({
         )}
       </div>
 
-      {/* Expanded: linked tasks */}
       {expanded && (
         <div className="px-4 pb-4 border-t" style={{ borderColor: "var(--border-primary)" }}>
           <div className="flex items-center justify-between mt-3 mb-2">
@@ -221,8 +262,13 @@ export default function ProjectsPage() {
   const { tasks, updateTask, deleteTask, createTask } = useTasks();
   const [showForm, setShowForm] = useState(false);
   const [viewMode, setViewMode] = useState<"kanban" | "list">("kanban");
+  const [reviewDismissed, setReviewDismissed] = useState(false);
 
   const activeProjects = projects.filter((p) => p.status !== "archived");
+
+  // Show review banner on Sundays and Mondays
+  const dayOfWeek = new Date().getDay();
+  const isReviewDay = dayOfWeek === 0 || dayOfWeek === 1;
 
   return (
     <div>
@@ -249,6 +295,10 @@ export default function ProjectsPage() {
           </button>
         </div>
       </div>
+
+      {isReviewDay && !reviewDismissed && (
+        <WeeklyReviewBanner projects={projects} tasks={tasks} onDismiss={() => setReviewDismissed(true)} />
+      )}
 
       {showForm && (
         <div className="mb-6">
