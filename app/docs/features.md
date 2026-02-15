@@ -246,3 +246,155 @@ users/{userId}/streaks/data
 
 #### View Toggle
 Morning/Evening toggle in the page header. Defaults to Morning.
+
+---
+
+## Phase 2: Life Areas + Focus Blocks + Projects (Complete)
+
+### Shared Area Module Layout
+**Component**: `AreaModule` — `src/components/area-module.tsx`
+
+Shared layout for all five life areas, providing a consistent structure with:
+- **Key Metrics** card (area-colored left border)
+- **Habits** card with daily toggle, streak tracking, add/delete
+- **Active Tasks** card with area-filtered tasks, inline create form
+- **Area-specific content** (passed as children)
+- **Quick Notes** section (optional)
+
+Sub-components: `MetricCard`, `HabitList`, `QuickNotes`
+
+---
+
+### Health Module
+**Page**: `/areas/health` — `src/app/areas/health/page.tsx`
+
+| Feature | Description |
+|---------|-------------|
+| Bodyweight Skill Tracker | Progress bars for handstand, pistol squat, one-arm pushup with current/target levels |
+| Joint Health Checklist | Daily prehab exercises checklist (bird-dogs, glute bridges, planks, hip circles, shoulder dislocates) |
+| Training Log | Session list (Garmin integration placeholder for Phase 6) |
+| Wellbeing Pulse | Today's sleep/energy/mood from Daily Log as progress bars |
+
+---
+
+### Career Module
+**Page**: `/areas/career` — `src/app/areas/career/page.tsx`
+
+| Feature | Description |
+|---------|-------------|
+| Skill Tree | Categorized skills (Web Dev, AI/LLM, Cybersecurity) with 5-level rating bars |
+| JECT Project Tracker | Lists career-linked projects from Projects page |
+| Learning Queue | Ordered learning items (courses, books, tutorials) with add/remove |
+| Portfolio | Project showcase with completion status badges |
+
+---
+
+### Finance Module
+**Page**: `/areas/finance` — `src/app/areas/finance/page.tsx`
+
+| Feature | Description |
+|---------|-------------|
+| Budget vs. Actual | Category-by-category budget comparison with color-coded progress bars |
+| Subscription Tracker | CRUD for subscriptions with monthly/yearly toggle, auto-calculated monthly total |
+| Savings Goals | Target-based savings progress bars with percentage and remaining amount |
+
+**Hook**: `useSubscriptions()` — `src/lib/use-subscriptions.ts`
+
+---
+
+### Personal Brand Module
+**Page**: `/areas/brand` — `src/app/areas/brand/page.tsx`
+
+| Feature | Description |
+|---------|-------------|
+| Content Calendar | Plan content across platforms (Instagram, YouTube, LinkedIn, Twitter, Mailing List) with date/status |
+| Publishing Log | History of published content (placeholder) |
+| Ideas Backlog | Quick-add content ideas stored as notes, filterable by area |
+
+---
+
+### Life Admin Module
+**Page**: `/areas/admin` — `src/app/areas/admin/page.tsx`
+
+| Feature | Description |
+|---------|-------------|
+| Recurring Tasks | Scheduled tasks with frequency (daily/weekly/monthly/quarterly/yearly), overdue detection |
+| Admin Inbox | Quick-add admin items backed by notes, "Done" to process |
+| Document Tracker | Important documents with storage location and expiry date tracking (expiring soon / expired alerts) |
+
+---
+
+### Project Tracker
+**Page**: `/projects` — `src/app/projects/page.tsx`
+**Hook**: `useProjects()` — `src/lib/use-projects.ts`
+
+#### Features
+- **Kanban board view** with 4 columns: Planning, Active, Paused, Completed
+- **List view** toggle
+- **Project cards** with status badges, area tags, progress bars, next action, target date
+- **CRUD operations**: Create projects with title, area, status, next action, target date
+- **Task linking**: Expand project to view/add linked tasks
+- **Archive**: Move projects to archive via context menu
+- **Status transitions**: Change project status from context menu
+
+#### Project Fields
+| Field | Type | Description |
+|-------|------|-------------|
+| `title` | string | Project name |
+| `area` | AreaId (optional) | Linked life area |
+| `status` | `"planning" \| "active" \| "paused" \| "completed"` | Current status |
+| `nextAction` | string (optional) | Next actionable step |
+| `targetDate` | Date (optional) | Target completion date |
+| `linkedTaskIds` | string[] | Associated task IDs |
+
+---
+
+### Focus Blocks
+**Page**: `/focus/blocks` — `src/app/focus/blocks/page.tsx`
+**Hook**: `useFocusBlocks()` — `src/lib/use-focus-blocks.ts`
+
+#### Features
+- **Block scheduling** with date, start/end time, area, goal
+- **Session chaining**: Auto-calculates sessions from block duration (session + break cycle)
+- **Quick templates**: Morning Deep Work 2h, Afternoon Focus 1.5h, Evening Study 1h, Sprint 45min
+- **Buffer time**: Configurable buffer between end of sessions and block end
+- **Status management**: Scheduled → Active → Done
+- **Today/Upcoming/Past** grouping
+
+#### Block Fields
+| Field | Type | Description |
+|-------|------|-------------|
+| `title` | string | Block name |
+| `date` | string (YYYY-MM-DD) | Scheduled date |
+| `startTime` / `endTime` | string (HH:MM) | Time range |
+| `sessionDuration` | number | Focus session length (min) |
+| `breakDuration` | number | Break length (min) |
+| `bufferMinutes` | number | Buffer time at end |
+| `sessionCount` | number | Auto-calculated session count |
+| `autoStart` | boolean | Auto-start next session |
+| `goal` | string (optional) | Block goal description |
+
+---
+
+### Calendar View
+**Page**: `/calendar` — `src/app/calendar/page.tsx`
+
+#### Features
+- **Weekly calendar grid** (Monday–Sunday) with navigable week offset
+- **Focus blocks** rendered as color-coded cards (area color) in day columns
+- **Google Calendar events** rendered as blue cards alongside focus blocks
+- **Today highlight** with emerald accent background and circled date
+- **Google Calendar connection** inline prompt when not connected
+- **Week navigation**: Previous/Next week buttons + "Today" reset
+
+---
+
+### New Data Hooks
+
+| Hook | File | Description |
+|------|------|-------------|
+| `useProjects()` | `src/lib/use-projects.ts` | CRUD for projects collection |
+| `useHabits()` | `src/lib/use-habits.ts` | CRUD for habits with area filtering, daily toggle |
+| `useFocusBlocks()` | `src/lib/use-focus-blocks.ts` | CRUD for focus blocks, session calculation |
+| `useNotes()` | `src/lib/use-notes.ts` | CRUD for notes with area filtering |
+| `useSubscriptions()` | `src/lib/use-subscriptions.ts` | CRUD for finance subscriptions, monthly cost calc |

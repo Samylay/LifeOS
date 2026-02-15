@@ -1,53 +1,233 @@
-import { Briefcase } from "lucide-react";
+"use client";
 
-export default function CareerAreaPage() {
+import { useState } from "react";
+import { Briefcase, BookOpen, FolderOpen, Plus, X, ChevronRight } from "lucide-react";
+import { AreaModule } from "@/components/area-module";
+import { useTasks } from "@/lib/use-tasks";
+import { useHabits } from "@/lib/use-habits";
+import { useNotes } from "@/lib/use-notes";
+import { useProjects } from "@/lib/use-projects";
+
+// --- Skill Tree ---
+
+const SKILL_CATEGORIES = [
+  {
+    name: "Web Development",
+    skills: [
+      { name: "React / Next.js", level: 4 },
+      { name: "TypeScript", level: 3 },
+      { name: "Tailwind CSS", level: 4 },
+      { name: "Node.js / APIs", level: 3 },
+    ],
+  },
+  {
+    name: "AI & LLM",
+    skills: [
+      { name: "Prompt Engineering", level: 3 },
+      { name: "LLM Integration", level: 2 },
+      { name: "Machine Learning Basics", level: 1 },
+    ],
+  },
+  {
+    name: "Cybersecurity",
+    skills: [
+      { name: "Reverse Engineering", level: 2 },
+      { name: "CTF Challenges", level: 2 },
+      { name: "Network Security", level: 1 },
+    ],
+  },
+];
+
+function SkillTree() {
+  const levelLabels = ["", "Beginner", "Intermediate", "Advanced", "Proficient", "Expert"];
+
   return (
     <div>
-      <div className="flex items-center gap-3 mb-6">
-        <Briefcase size={24} style={{ color: "#6366F1" }} />
-        <h1 className="text-2xl font-semibold" style={{ color: "var(--text-primary)" }}>
-          Career & Learning
-        </h1>
-      </div>
-
-      <div className="grid grid-cols-12 gap-6">
-        <div
-          className="col-span-12 lg:col-span-4 rounded-xl p-6"
-          style={{
-            background: "var(--bg-secondary)",
-            border: "1px solid var(--border-primary)",
-            borderLeft: "3px solid #6366F1",
-          }}
-        >
-          <h3 className="text-sm font-medium mb-3" style={{ color: "var(--text-secondary)" }}>Key Metrics</h3>
-          <div className="space-y-3">
-            <div className="flex justify-between">
-              <span className="text-sm" style={{ color: "var(--text-primary)" }}>Learning hours this week</span>
-              <span className="text-sm font-mono font-semibold" style={{ color: "#6366F1" }}>0</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-sm" style={{ color: "var(--text-primary)" }}>JECT projects</span>
-              <span className="text-sm font-mono font-semibold" style={{ color: "#6366F1" }}>0</span>
+      <h3 className="text-sm font-medium mb-4" style={{ color: "var(--text-secondary)" }}>Skill Tree</h3>
+      <div className="space-y-5">
+        {SKILL_CATEGORIES.map((cat) => (
+          <div key={cat.name}>
+            <h4 className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: "#6366F1" }}>
+              {cat.name}
+            </h4>
+            <div className="space-y-2">
+              {cat.skills.map((skill) => (
+                <div key={skill.name}>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-sm" style={{ color: "var(--text-primary)" }}>{skill.name}</span>
+                    <span className="text-xs" style={{ color: "var(--text-tertiary)" }}>{levelLabels[skill.level]}</span>
+                  </div>
+                  <div className="flex gap-1">
+                    {[1, 2, 3, 4, 5].map((lvl) => (
+                      <div key={lvl} className="h-1.5 flex-1 rounded-full" style={{ background: lvl <= skill.level ? "#6366F1" : "var(--bg-tertiary)" }} />
+                    ))}
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
-        </div>
-
-        <div
-          className="col-span-12 lg:col-span-4 rounded-xl p-6"
-          style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-primary)" }}
-        >
-          <h3 className="text-sm font-medium mb-3" style={{ color: "var(--text-secondary)" }}>Skill Tree</h3>
-          <p className="text-sm" style={{ color: "var(--text-tertiary)" }}>Coming in Phase 2.</p>
-        </div>
-
-        <div
-          className="col-span-12 lg:col-span-4 rounded-xl p-6"
-          style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-primary)" }}
-        >
-          <h3 className="text-sm font-medium mb-3" style={{ color: "var(--text-secondary)" }}>Active Tasks</h3>
-          <p className="text-sm" style={{ color: "var(--text-tertiary)" }}>No career tasks yet.</p>
-        </div>
+        ))}
       </div>
     </div>
+  );
+}
+
+// --- JECT Project Tracker ---
+
+function JECTTracker() {
+  const { projects } = useProjects();
+  const jectProjects = projects.filter((p) => p.area === "career");
+
+  return (
+    <div>
+      <h3 className="text-sm font-medium mb-3" style={{ color: "var(--text-secondary)" }}>JECT Projects</h3>
+      {jectProjects.length === 0 ? (
+        <div className="text-center py-6">
+          <FolderOpen size={24} style={{ color: "var(--text-tertiary)" }} className="mx-auto mb-2" />
+          <p className="text-xs" style={{ color: "var(--text-tertiary)" }}>No JECT projects yet. Create projects in the Projects tracker.</p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {jectProjects.map((project) => (
+            <div key={project.id} className="flex items-center justify-between rounded-lg px-3 py-2" style={{ background: "var(--bg-tertiary)" }}>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium truncate" style={{ color: "var(--text-primary)" }}>{project.title}</p>
+                <span className="text-xs capitalize" style={{ color: "var(--text-tertiary)" }}>{project.status}</span>
+              </div>
+              <ChevronRight size={14} style={{ color: "var(--text-tertiary)" }} />
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// --- Learning Queue ---
+
+function LearningQueue() {
+  const [items, setItems] = useState([
+    { id: "1", title: "42sh Shell Project", type: "Course" },
+    { id: "2", title: "Advanced TypeScript Patterns", type: "Book" },
+    { id: "3", title: "LLM Function Calling Deep Dive", type: "Tutorial" },
+  ]);
+  const [showAdd, setShowAdd] = useState(false);
+  const [newTitle, setNewTitle] = useState("");
+
+  const addItem = () => {
+    if (!newTitle.trim()) return;
+    setItems((prev) => [...prev, { id: Date.now().toString(), title: newTitle.trim(), type: "Topic" }]);
+    setNewTitle("");
+    setShowAdd(false);
+  };
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-sm font-medium" style={{ color: "var(--text-secondary)" }}>Learning Queue</h3>
+        <button onClick={() => setShowAdd(!showAdd)} className="p-1 rounded" style={{ color: "var(--text-tertiary)" }}>
+          <Plus size={14} />
+        </button>
+      </div>
+      {showAdd && (
+        <div className="flex gap-2 mb-3">
+          <input type="text" value={newTitle} onChange={(e) => setNewTitle(e.target.value)} placeholder="What to learn..."
+            className="flex-1 text-xs bg-transparent rounded-lg px-2 py-1.5 outline-none"
+            style={{ border: "1px solid var(--border-primary)", color: "var(--text-primary)" }}
+            autoFocus onKeyDown={(e) => e.key === "Enter" && addItem()} />
+          <button onClick={addItem} className="text-xs px-2 py-1.5 rounded-lg bg-emerald-500 text-white">Add</button>
+        </div>
+      )}
+      <div className="space-y-2">
+        {items.map((item) => (
+          <div key={item.id} className="group flex items-center gap-3 rounded-lg px-3 py-2" style={{ background: "var(--bg-tertiary)" }}>
+            <BookOpen size={14} style={{ color: "#6366F1" }} />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm truncate" style={{ color: "var(--text-primary)" }}>{item.title}</p>
+              <span className="text-xs" style={{ color: "var(--text-tertiary)" }}>{item.type}</span>
+            </div>
+            <button onClick={() => setItems((prev) => prev.filter((i) => i.id !== item.id))}
+              className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity p-0.5" style={{ color: "var(--text-tertiary)" }}>
+              <X size={12} />
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// --- Portfolio ---
+
+function PortfolioItems() {
+  const items = [
+    { name: "LifeOS App", status: "In Progress" },
+    { name: "RVTNails Website", status: "Completed" },
+    { name: "JECT Client Projects", status: "Ongoing" },
+  ];
+
+  return (
+    <div>
+      <h3 className="text-sm font-medium mb-3" style={{ color: "var(--text-secondary)" }}>Portfolio</h3>
+      <div className="space-y-2">
+        {items.map((item) => (
+          <div key={item.name} className="flex items-center justify-between rounded-lg px-3 py-2" style={{ background: "var(--bg-tertiary)" }}>
+            <span className="text-sm" style={{ color: "var(--text-primary)" }}>{item.name}</span>
+            <span className="text-xs px-2 py-0.5 rounded-full"
+              style={{ background: item.status === "Completed" ? "#10B98120" : "#6366F120", color: item.status === "Completed" ? "#10B981" : "#6366F1" }}>
+              {item.status}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// --- Main Page ---
+
+export default function CareerAreaPage() {
+  const { tasks, updateTask, deleteTask, createTask } = useTasks();
+  const { habits, toggleToday, createHabit, deleteHabit } = useHabits();
+  const { notes, createNote, deleteNote } = useNotes();
+
+  const careerNotes = notes.filter((n) => n.area === "career").map((n) => ({ id: n.id, content: n.content, createdAt: n.createdAt }));
+
+  return (
+    <AreaModule
+      icon={<Briefcase size={24} />}
+      title="Career & Learning"
+      color="#6366F1"
+      areaId="career"
+      metrics={[
+        { label: "Learning hours this week", value: 0, color: "#6366F1" },
+        { label: "Skills tracked", value: 10, color: "#6366F1" },
+        { label: "Portfolio items", value: 3, color: "#6366F1" },
+      ]}
+      tasks={tasks}
+      onTaskUpdate={updateTask}
+      onTaskDelete={deleteTask}
+      onTaskCreate={createTask}
+      habits={habits}
+      onHabitToggle={toggleToday}
+      onHabitCreate={createHabit}
+      onHabitDelete={deleteHabit}
+      notes={careerNotes}
+      onNoteAdd={(content) => createNote({ content, area: "career", tags: [], processed: false })}
+      onNoteDelete={deleteNote}
+    >
+      <div className="col-span-12 lg:col-span-6 rounded-xl p-6" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-primary)" }}>
+        <SkillTree />
+      </div>
+      <div className="col-span-12 lg:col-span-6 rounded-xl p-6" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-primary)" }}>
+        <JECTTracker />
+      </div>
+      <div className="col-span-12 lg:col-span-6 rounded-xl p-6" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-primary)" }}>
+        <LearningQueue />
+      </div>
+      <div className="col-span-12 lg:col-span-6 rounded-xl p-6" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-primary)" }}>
+        <PortfolioItems />
+      </div>
+    </AreaModule>
   );
 }
