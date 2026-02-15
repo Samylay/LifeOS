@@ -1,8 +1,10 @@
 "use client";
 
+import { useEffect } from "react";
 import { Play, Pause, Square, SkipForward, Flame } from "lucide-react";
 import { useFocusTimer } from "@/lib/use-focus";
 import { useStreaks } from "@/lib/use-streaks";
+import { useAppStore } from "@/lib/store";
 import { AREAS } from "@/lib/types";
 import type { AreaId } from "@/lib/types";
 
@@ -33,6 +35,18 @@ export default function FocusPage() {
   } = useFocusTimer();
 
   const { streaks, recordFocusDay } = useStreaks();
+  const pendingBlockConfig = useAppStore((s) => s.pendingBlockConfig);
+  const setPendingBlockConfig = useAppStore((s) => s.setPendingBlockConfig);
+
+  // Apply pending block config from focus blocks page
+  useEffect(() => {
+    if (pendingBlockConfig && timerState === "idle") {
+      if (pendingBlockConfig.area) {
+        setLinkedArea(pendingBlockConfig.area);
+      }
+      setPendingBlockConfig(null);
+    }
+  }, [pendingBlockConfig, timerState, setLinkedArea, setPendingBlockConfig]);
 
   const progress = totalTime > 0 ? (totalTime - timeRemaining) / totalTime : 0;
   const circumference = 2 * Math.PI * 90;
