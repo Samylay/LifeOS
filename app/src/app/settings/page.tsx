@@ -3,11 +3,13 @@
 import { useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { useIntegrations } from "@/lib/integrations-context";
+import { useFocusTimer, DEFAULT_CONFIG } from "@/lib/use-focus";
 import { ExternalLink, Check, Loader2, X } from "lucide-react";
 
 export default function SettingsPage() {
   const { user } = useAuth();
   const { gcal, connectGoogleCalendar, disconnectGoogleCalendar } = useIntegrations();
+  const { config, applyConfig } = useFocusTimer();
   const [connecting, setConnecting] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -87,19 +89,25 @@ export default function SettingsPage() {
           </h2>
           <div className="space-y-4">
             {[
-              { label: "Focus duration", value: "25 min" },
-              { label: "Short break", value: "5 min" },
-              { label: "Long break", value: "15 min" },
-              { label: "Long break after", value: "4 sessions" },
+              { label: "Focus duration", key: "focusDuration" as const, value: config.focusDuration, suffix: "min" },
+              { label: "Short break", key: "breakDuration" as const, value: config.breakDuration, suffix: "min" },
+              { label: "Long break", key: "longBreakDuration" as const, value: config.longBreakDuration, suffix: "min" },
+              { label: "Long break after", key: "longBreakAfter" as const, value: config.longBreakAfter, suffix: "sessions" },
             ].map((item) => (
               <div key={item.label} className="flex justify-between items-center">
                 <span className="text-sm" style={{ color: "var(--text-secondary)" }}>{item.label}</span>
-                <span
-                  className="text-sm font-mono font-semibold px-3 py-1 rounded-lg"
-                  style={{ background: "var(--bg-tertiary)", color: "var(--text-primary)" }}
-                >
-                  {item.value}
-                </span>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    value={item.value}
+                    onChange={(e) => applyConfig({ [item.key]: parseInt(e.target.value) || item.value })}
+                    min={1}
+                    max={item.key === "longBreakAfter" ? 10 : 120}
+                    className="w-16 text-sm font-mono font-semibold px-2 py-1 rounded-lg text-right outline-none"
+                    style={{ background: "var(--bg-tertiary)", color: "var(--text-primary)", border: "1px solid var(--border-primary)" }}
+                  />
+                  <span className="text-xs" style={{ color: "var(--text-tertiary)" }}>{item.suffix}</span>
+                </div>
               </div>
             ))}
           </div>

@@ -29,6 +29,7 @@ export default function FocusPage() {
     resume,
     stop,
     skip,
+    applyConfig,
     todayFocusMinutes,
     todayCompletedSessions,
     config,
@@ -44,9 +45,13 @@ export default function FocusPage() {
       if (pendingBlockConfig.area) {
         setLinkedArea(pendingBlockConfig.area);
       }
+      applyConfig({
+        focusDuration: pendingBlockConfig.sessionDuration,
+        breakDuration: pendingBlockConfig.breakDuration,
+      });
       setPendingBlockConfig(null);
     }
-  }, [pendingBlockConfig, timerState, setLinkedArea, setPendingBlockConfig]);
+  }, [pendingBlockConfig, timerState, setLinkedArea, applyConfig, setPendingBlockConfig]);
 
   const progress = totalTime > 0 ? (totalTime - timeRemaining) / totalTime : 0;
   const circumference = 2 * Math.PI * 90;

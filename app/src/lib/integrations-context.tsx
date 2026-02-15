@@ -9,8 +9,7 @@ import {
   ReactNode,
 } from "react";
 import {
-  signInWithRedirect,
-  getRedirectResult,
+  signInWithPopup,
   GoogleAuthProvider,
 } from "firebase/auth";
 import { doc, getDoc, setDoc } from "firebase/firestore";
@@ -52,47 +51,6 @@ export function IntegrationsProvider({ children }: { children: ReactNode }) {
     loading: true,
   });
 
-  // Handle redirect result for GCal connection
-  useEffect(() => {
-    if (!auth || !user || !db) return;
-
-    const pending =
-      typeof window !== "undefined" &&
-      sessionStorage.getItem("gcal_pending_connect");
-    if (!pending) return;
-
-    getRedirectResult(auth)
-      .then(async (result) => {
-        if (result) {
-          const credential = GoogleAuthProvider.credentialFromResult(result);
-          const token = credential?.accessToken ?? null;
-
-          if (token) {
-            const ref = doc(db!, "users", user.uid, "settings", "integrations");
-            await setDoc(
-              ref,
-              {
-                gcal_connected: true,
-                gcal_email: result.user.email,
-                gcal_connected_at: new Date().toISOString(),
-              },
-              { merge: true }
-            );
-
-            setGcal({
-              connected: true,
-              accessToken: token,
-              email: result.user.email,
-              loading: false,
-            });
-          }
-        }
-        sessionStorage.removeItem("gcal_pending_connect");
-      })
-      .catch(() => {
-        sessionStorage.removeItem("gcal_pending_connect");
-      });
-  }, [user]);
 
   // Load saved connection state from Firestore
   useEffect(() => {
@@ -121,17 +79,37 @@ export function IntegrationsProvider({ children }: { children: ReactNode }) {
   }, [user]);
 
   const connectGoogleCalendar = useCallback(async () => {
-    if (!auth || !user) return;
+    if (!auth || !user || !db) return;
 
     const provider = new GoogleAuthProvider();
     provider.addScope("https://www.googleapis.com/auth/calendar");
     provider.addScope("https://www.googleapis.com/auth/calendar.events");
 
-    if (typeof window !== "undefined") {
-      sessionStorage.setItem("gcal_pending_connect", "true");
-    }
+    const result = await signInWithPopup(auth, provider);
+    if (result) {
+      const credential = GoogleAuthProvider.credentialFromResult(result);
+      const token = credential?.accessToken ?? null;
 
-    await signInWithRedirect(auth, provider);
+      if (token) {
+        const ref = doc(db!, "users", user.uid, "settings", "integrations");
+        await setDoc(
+          ref,
+          {
+            gcal_connected: true,
+            gcal_email: result.user.email,
+            gcal_connected_at: new Date().toISOString(),
+          },
+          { merge: true }
+        );
+
+        setGcal({
+          connected: true,
+          accessToken: token,
+          email: result.user.email,
+          loading: false,
+        });
+      }
+    }
   }, [user]);
 
   const disconnectGoogleCalendar = useCallback(async () => {

@@ -91,10 +91,19 @@ export function useHabits() {
           )
         : [...habit.history, { date: today, completed: true }];
 
-      const isNowCompleted = !todayEntry?.completed;
-      const newStreak = isNowCompleted ? habit.streak + 1 : Math.max(0, habit.streak - 1);
+      // Recompute streak from history by counting consecutive completed days backwards from today
+      const completedDates = new Set(
+        newHistory.filter((h) => h.completed).map((h) => h.date)
+      );
+      let streak = 0;
+      const d = new Date();
+      d.setHours(0, 0, 0, 0);
+      while (completedDates.has(d.toISOString().split("T")[0])) {
+        streak++;
+        d.setDate(d.getDate() - 1);
+      }
 
-      await updateHabit(id, { history: newHistory, streak: newStreak });
+      await updateHabit(id, { history: newHistory, streak });
     },
     [habits, updateHabit]
   );
