@@ -1,15 +1,24 @@
 "use client";
 
 import { ReactNode } from "react";
+import { usePathname } from "next/navigation";
 import { Sidebar } from "./sidebar";
 import { TopBar } from "./top-bar";
 import { useAppStore } from "@/lib/store";
 import { useAuth } from "@/lib/auth-context";
 import { LoginScreen } from "./login-screen";
 
+const PUBLIC_PATHS = ["/privacy"];
+
 export function AppShell({ children }: { children: ReactNode }) {
+  const pathname = usePathname();
   const { sidebarExpanded } = useAppStore();
   const { user, loading, isFirebaseConfigured } = useAuth();
+
+  // Public pages render without auth or app chrome
+  if (PUBLIC_PATHS.includes(pathname)) {
+    return <>{children}</>;
+  }
 
   if (loading) {
     return (
