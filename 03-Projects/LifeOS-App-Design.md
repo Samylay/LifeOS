@@ -513,44 +513,88 @@ Route: `/projects`, `/projects/:id`
 
 ---
 
-## Pillar 5: Quests & Goals
+## Pillar 5: Quest Cascade System
 
-Route: `/quests`, `/goals`
+Route: `/quests`, `/quests/:id`, `/goals`
 
-### Quest Kanban
+The quest system uses a **cascade**: Annual Goals → Quarterly Quests → Weekly Sprints → Daily Tasks. Each level feeds the one below it. See `04-Goals/Quest-System.md` for full methodology.
+
+### Quest Kanban (`/quests`)
 
 ```
-┌──────────────────────────────────────────────────┐
-│  Q1 2026 Quests                     [+ New]       │
-├──────────────────────────────────────────────────┤
-│  Not Started    │  In Progress     │  Done        │
-│  ─────────────  │  ──────────────  │  ──────────  │
-│  ┌───────────┐  │  ┌────────────┐  │              │
-│  │ Game Jam  │  │  │ Swimming   │  │              │
-│  │ Life      │  │  │ Life/Health│  │              │
-│  │           │  │  │ 45%        │  │              │
-│  └───────────┘  │  │ 8/12 sess  │  │              │
-│                 │  └────────────┘  │              │
-│                 │  ┌────────────┐  │              │
-│                 │  │ 42sh       │  │              │
-│                 │  │ Work/Learn │  │              │
-│                 │  │ 30%        │  │              │
-│                 │  └────────────┘  │              │
-│                 │  ┌────────────┐  │              │
-│                 │  │ JECT       │  │              │
-│                 │  │ Work       │  │              │
-│                 │  │ 20%        │  │              │
-│                 │  └────────────┘  │              │
-└──────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────┐
+│  Q1 2026 Quests                         [+ New]       │
+├──────────────────────────────────────────────────────┤
+│  Not Started    │  In Progress        │  Done         │
+│  ─────────────  │  ────────────────── │  ──────────── │
+│  ┌───────────┐  │  ┌────────────────┐ │               │
+│  │ Game Jam  │  │  │ Swimming       │ │               │
+│  │ Life      │  │  │ Life/Health    │ │               │
+│  │           │  │  │ 24/36 (67%)   │ │               │
+│  └───────────┘  │  │ Pace: 1.0 ✓   │ │               │
+│                 │  │ W7: 1200m cont │ │               │
+│                 │  └────────────────┘ │               │
+│                 │  ┌────────────────┐ │               │
+│                 │  │ 42sh           │ │               │
+│                 │  │ Work/Learning  │ │               │
+│                 │  │ 3/10 (30%)    │ │               │
+│                 │  │ Pace: 0.45 ⚠  │ │               │
+│                 │  │ W7: env vars   │ │               │
+│                 │  └────────────────┘ │               │
+└──────────────────────────────────────────────────────┘
 ```
 
-### Quest Detail
+Each quest card now shows: progress fraction, pace indicator, and current sprint milestone.
 
-- Title, category (Life/Work), tracking method
-- Progress: percentage or checklist
-- Success criteria (what does "done" look like?)
-- Linked to annual goal
-- Claude nudges when progress is behind pace
+### Quest Detail (`/quests/:id`)
+
+```
+┌──────────────────────────────────────────────────────┐
+│  ← Quests          Swimming              [Chat about] │
+├──────────────────────────────────────────────────────┤
+│  Progress: 24/36 sessions (67%)                       │
+│  ████████████████████░░░░░░░░░░                       │
+│  Pace: 1.0 — On track                                │
+│  Parent goal: Triathlon training consistency           │
+├──────────────────────────────────────────────────────┤
+│                                                       │
+│  CURRENT SPRINT: Week 7 (Feb 17-23)                   │
+│  Milestone: 3 sessions, 1200m continuous               │
+│                                                       │
+│  ☑ Tue: Swim 1200m technique focus (60 min)           │
+│  ☐ Thu: Swim 1000m intervals 4x250 (60 min)          │
+│  ☐ Sat: Swim 1500m continuous endurance (75 min)      │
+│                                                       │
+│  SPRINT HISTORY                                       │
+│  W6: 3/3 sessions, flip turns in warmup      100% ✓  │
+│  W5: 2/3 sessions, flip turn practice         66% △  │
+│  W4: 3/3 sessions, 1000m continuous          100% ✓  │
+│  W3: 3/3 sessions, bilateral breathing       100% ✓  │
+│  W2: 2/3 sessions, breathing rhythm           66% △  │
+│  W1: 3/3 sessions, established routine       100% ✓  │
+│                                                       │
+└──────────────────────────────────────────────────────┘
+```
+
+### Quest Detail Features
+
+- **Progress bar** with pace calculation (actual / expected)
+- **Pace alerts**: Ahead (>1.1), On track (0.9-1.1), Behind (0.7-0.9), At risk (<0.7)
+- **Current sprint** with this week's milestone and daily tasks (checkable inline)
+- **Sprint history** — scrollable log of past weeks with scores
+- **Success criteria** displayed at top
+- **[Chat about]** opens `/chat?context=quest:swimming` for Claude to discuss pacing, suggest adjustments
+
+### Weekly Reset Flow
+
+Triggered from `/quests` or via chat (`"let's do my weekly reset"`). Claude walks through:
+
+1. **Score sprints** — For each quest, "You planned 3 swim sessions this week. How many did you complete?"
+2. **Pace check** — "Swimming is at 67% with 67% of time elapsed. You're on track."
+3. **Flag risks** — "42sh is at 30% with 67% elapsed. Pace is 0.45 — at risk. Want to adjust scope or increase time?"
+4. **Plan next sprints** — "For swimming W8, I suggest: 3 sessions, flip turns in full sets. Sound good?"
+5. **Generate daily tasks** — Creates tasks for next week, assigned to specific days
+6. **Save** — Sprint scores saved to Firestore, weekly summary synced to vault
 
 ### Annual Goals View (`/goals`)
 
@@ -558,6 +602,86 @@ Route: `/quests`, `/goals`
 - Quarterly breakdown with checklist items
 - Each goal links to relevant quests and projects
 - End-of-quarter review prompt
+- Visual: which goals have active quests vs. no quests attached
+
+### Quest Cascade Data Model (Firestore)
+
+```
+users/{userId}/
+  ├── quests/{questId}
+  │     └── title: string
+  │         category: "life" | "work"
+  │         area: string
+  │         parentGoal: goalId
+  │         status: "not_started" | "in_progress" | "done" | "on_hold" | "abandoned"
+  │         quarter: "Q1" | "Q2" | "Q3" | "Q4"
+  │         year: number
+  │         startDate: timestamp
+  │         endDate: timestamp
+  │         trackingMethod: "count" | "checklist" | "milestones"
+  │         target: number
+  │         current: number
+  │         weeklyCommitment: string
+  │         successCriteria: string
+  │
+  ├── quests/{questId}/sprints/{weekNumber}
+  │     └── week: number (1-13)
+  │         startDate: timestamp
+  │         endDate: timestamp
+  │         milestone: string
+  │         status: "planned" | "in_progress" | "done" | "missed"
+  │         score: number (0-100)
+  │         notes: string
+  │         tasks: [{
+  │           title: string,
+  │           day: "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun",
+  │           duration: number (minutes),
+  │           status: "todo" | "done" | "skipped",
+  │           taskId?: string (ref to tasks collection),
+  │           notes?: string
+  │         }]
+  │
+  └── goals/{goalId}
+        └── title, year, quarter?,
+            status: "active" | "completed" | "abandoned",
+            linkedQuests[]
+```
+
+### Claude Tools for Quest Cascade
+
+```typescript
+const questTools = [
+  // Quest-level
+  { name: "getQuestProgress", params: { questId? } },
+  // Returns: progress, pace, current sprint, pace alert status
+
+  { name: "updateQuestProgress", params: { questId, current, note? } },
+  // Manually update progress count
+
+  { name: "getQuestPaceAlerts", params: {} },
+  // Returns all quests with pace < 0.9
+
+  // Sprint-level
+  { name: "scoreWeeklySprint", params: { questId, week, score, notes? } },
+  // Score a completed sprint (0-100)
+
+  { name: "planWeeklySprint", params: { questId, week, milestone, tasks[] } },
+  // Create next week's sprint with milestone and daily tasks
+
+  { name: "getCurrentSprints", params: {} },
+  // Returns this week's sprint for each active quest
+
+  // Weekly reset
+  { name: "generateWeeklyReset", params: {} },
+  // Aggregates: all sprint scores, pace checks, suggests next week
+  // Used by Claude during the weekly reset conversation
+
+  // Daily
+  { name: "getTodayQuestTasks", params: {} },
+  // Returns today's quest-linked tasks across all active sprints
+  // Used to populate dashboard and daily brief
+]
+```
 
 ---
 
@@ -635,11 +759,20 @@ users/{userId}/
   │
   ├── quests/{questId}
   │     └── title, category: "life" | "work",
-  │         area?, trackingMethod: "percentage" | "checklist" | "count",
-  │         progress: number, target: number,
-  │         criteria: string, startDate, endDate,
-  │         status: "not_started" | "in_progress" | "done",
+  │         area?, trackingMethod: "count" | "checklist" | "milestones",
+  │         target: number, current: number,
+  │         weeklyCommitment: string, successCriteria: string,
+  │         quarter: "Q1"|"Q2"|"Q3"|"Q4", year: number,
+  │         startDate, endDate,
+  │         status: "not_started" | "in_progress" | "done" | "on_hold" | "abandoned",
   │         linkedGoal?: goalId
+  │
+  ├── quests/{questId}/sprints/{weekNumber}
+  │     └── week: number (1-13), startDate, endDate,
+  │         milestone: string,
+  │         status: "planned" | "in_progress" | "done" | "missed",
+  │         score: number (0-100), notes?: string,
+  │         tasks: [{ title, day, duration, status, taskId?, notes? }]
   │
   ├── goals/{goalId}
   │     └── title, year, quarter?,
