@@ -38,6 +38,12 @@ import type {
   Transaction,
   Subscription,
   Area,
+  Workout,
+  WorkoutTemplate,
+  Reminder,
+  WaterLog,
+  Book,
+  BodyMeasurement,
 } from "./types";
 
 // --- Helpers ---
@@ -353,4 +359,88 @@ export const areas = {
     ),
   list: (userId: string) =>
     queryDocuments<Area>(userId, "areas"),
+};
+
+// --- Workouts ---
+
+export const workouts = {
+  create: (userId: string, data: Omit<Workout, "id">) =>
+    createDocument<Workout>(userId, "workouts", data),
+  get: (userId: string, id: string) =>
+    getDocument<Workout>(userId, "workouts", id),
+  update: (userId: string, id: string, data: Partial<Workout>) =>
+    updateDocument(userId, "workouts", id, data),
+  delete: (userId: string, id: string) =>
+    deleteDocument(userId, "workouts", id),
+  list: (userId: string, ...constraints: QueryConstraint[]) =>
+    queryDocuments<Workout>(userId, "workouts", ...constraints),
+};
+
+// --- Workout Templates ---
+
+export const workoutTemplates = {
+  create: (userId: string, data: Omit<WorkoutTemplate, "id">) =>
+    createDocument<WorkoutTemplate>(userId, "workoutTemplates", data),
+  get: (userId: string, id: string) =>
+    getDocument<WorkoutTemplate>(userId, "workoutTemplates", id),
+  update: (userId: string, id: string, data: Partial<WorkoutTemplate>) =>
+    updateDocument(userId, "workoutTemplates", id, data),
+  delete: (userId: string, id: string) =>
+    deleteDocument(userId, "workoutTemplates", id),
+  list: (userId: string) =>
+    queryDocuments<WorkoutTemplate>(userId, "workoutTemplates"),
+};
+
+// --- Reminders ---
+
+export const reminders = {
+  create: (userId: string, data: Omit<Reminder, "id">) =>
+    createDocument<Reminder>(userId, "reminders", data),
+  get: (userId: string, id: string) =>
+    getDocument<Reminder>(userId, "reminders", id),
+  update: (userId: string, id: string, data: Partial<Reminder>) =>
+    updateDocument(userId, "reminders", id, data),
+  delete: (userId: string, id: string) =>
+    deleteDocument(userId, "reminders", id),
+  list: (userId: string, ...constraints: QueryConstraint[]) =>
+    queryDocuments<Reminder>(userId, "reminders", ...constraints),
+};
+
+// --- Water Logs ---
+
+export const waterLogs = {
+  get: (userId: string, date: string) =>
+    getDocument<WaterLog>(userId, "waterLogs", date),
+  set: (userId: string, date: string, data: Partial<WaterLog>) =>
+    setDoc(
+      userDoc(userId, "waterLogs", date),
+      toFirestoreData(data as Record<string, unknown>),
+      { merge: true }
+    ),
+};
+
+// --- Books ---
+
+export const books = {
+  create: (userId: string, data: Omit<Book, "id">) =>
+    createDocument<Book>(userId, "books", data),
+  get: (userId: string, id: string) =>
+    getDocument<Book>(userId, "books", id),
+  update: (userId: string, id: string, data: Partial<Book>) =>
+    updateDocument(userId, "books", id, data),
+  delete: (userId: string, id: string) =>
+    deleteDocument(userId, "books", id),
+  list: (userId: string, ...constraints: QueryConstraint[]) =>
+    queryDocuments<Book>(userId, "books", ...constraints),
+};
+
+// --- Body Measurements ---
+
+export const bodyMeasurements = {
+  create: (userId: string, data: Omit<BodyMeasurement, "id">) =>
+    createDocument<BodyMeasurement>(userId, "bodyMeasurements", data),
+  list: (userId: string, ...constraints: QueryConstraint[]) =>
+    queryDocuments<BodyMeasurement>(userId, "bodyMeasurements", ...constraints),
+  delete: (userId: string, id: string) =>
+    deleteDocument(userId, "bodyMeasurements", id),
 };

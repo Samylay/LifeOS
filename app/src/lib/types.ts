@@ -224,6 +224,158 @@ export interface Area {
   linkedTaskIds: string[];
 }
 
+// --- Workout & Exercise Models ---
+
+export type MuscleGroup =
+  | "chest"
+  | "back"
+  | "shoulders"
+  | "biceps"
+  | "triceps"
+  | "legs"
+  | "core"
+  | "cardio"
+  | "flexibility"
+  | "full_body";
+
+export interface Exercise {
+  id: string;
+  name: string;
+  muscleGroup: MuscleGroup;
+  isCustom: boolean;
+}
+
+export interface WorkoutSet {
+  reps?: number;
+  weight?: number; // kg
+  duration?: number; // seconds (for timed exercises)
+  distance?: number; // meters (for cardio)
+}
+
+export interface WorkoutExercise {
+  exerciseId: string;
+  exerciseName: string;
+  sets: WorkoutSet[];
+  notes?: string;
+}
+
+export interface Workout {
+  id: string;
+  title: string;
+  date: Date;
+  duration?: number; // minutes
+  exercises: WorkoutExercise[];
+  notes?: string;
+  rating?: number; // 1-5 how the workout felt
+  createdAt: Date;
+}
+
+export interface WorkoutTemplate {
+  id: string;
+  name: string;
+  exercises: { exerciseId: string; exerciseName: string; targetSets: number }[];
+}
+
+// --- Reminders / Recurring Tasks ---
+
+export type ReminderFrequency = "once" | "daily" | "weekly" | "monthly" | "yearly";
+
+export interface Reminder {
+  id: string;
+  title: string;
+  notes?: string;
+  frequency: ReminderFrequency;
+  time?: string; // HH:mm
+  dueDate: Date;
+  area?: AreaId;
+  completed: boolean;
+  lastCompletedDate?: string; // YYYY-MM-DD
+  createdAt: Date;
+}
+
+// --- Water Intake ---
+
+export interface WaterLog {
+  date: string; // YYYY-MM-DD
+  glasses: number; // each glass = 250ml
+  goal: number; // target glasses per day
+  entries: { time: string; amount: number }[]; // individual entries
+}
+
+// --- Reading / Book Tracker ---
+
+export type BookStatus = "want_to_read" | "reading" | "finished" | "abandoned";
+
+export interface Book {
+  id: string;
+  title: string;
+  author: string;
+  status: BookStatus;
+  totalPages?: number;
+  currentPage?: number;
+  rating?: number; // 1-5
+  notes?: string;
+  startDate?: Date;
+  finishDate?: Date;
+  createdAt: Date;
+}
+
+// --- Body Measurements ---
+
+export interface BodyMeasurement {
+  id: string;
+  date: Date;
+  weight?: number; // kg
+  bodyFat?: number; // percentage
+  chest?: number; // cm
+  waist?: number;
+  hips?: number;
+  biceps?: number;
+  thighs?: number;
+}
+
+// --- Default Exercises Library ---
+
+export const DEFAULT_EXERCISES: Exercise[] = [
+  // Chest
+  { id: "bench-press", name: "Bench Press", muscleGroup: "chest", isCustom: false },
+  { id: "push-ups", name: "Push-ups", muscleGroup: "chest", isCustom: false },
+  { id: "dumbbell-fly", name: "Dumbbell Fly", muscleGroup: "chest", isCustom: false },
+  { id: "incline-press", name: "Incline Press", muscleGroup: "chest", isCustom: false },
+  // Back
+  { id: "pull-ups", name: "Pull-ups", muscleGroup: "back", isCustom: false },
+  { id: "barbell-row", name: "Barbell Row", muscleGroup: "back", isCustom: false },
+  { id: "lat-pulldown", name: "Lat Pulldown", muscleGroup: "back", isCustom: false },
+  { id: "deadlift", name: "Deadlift", muscleGroup: "back", isCustom: false },
+  // Shoulders
+  { id: "overhead-press", name: "Overhead Press", muscleGroup: "shoulders", isCustom: false },
+  { id: "lateral-raise", name: "Lateral Raise", muscleGroup: "shoulders", isCustom: false },
+  { id: "face-pull", name: "Face Pull", muscleGroup: "shoulders", isCustom: false },
+  // Arms
+  { id: "bicep-curl", name: "Bicep Curl", muscleGroup: "biceps", isCustom: false },
+  { id: "tricep-dips", name: "Tricep Dips", muscleGroup: "triceps", isCustom: false },
+  { id: "hammer-curl", name: "Hammer Curl", muscleGroup: "biceps", isCustom: false },
+  // Legs
+  { id: "squat", name: "Squat", muscleGroup: "legs", isCustom: false },
+  { id: "leg-press", name: "Leg Press", muscleGroup: "legs", isCustom: false },
+  { id: "lunges", name: "Lunges", muscleGroup: "legs", isCustom: false },
+  { id: "calf-raises", name: "Calf Raises", muscleGroup: "legs", isCustom: false },
+  { id: "romanian-deadlift", name: "Romanian Deadlift", muscleGroup: "legs", isCustom: false },
+  // Core
+  { id: "plank", name: "Plank", muscleGroup: "core", isCustom: false },
+  { id: "crunches", name: "Crunches", muscleGroup: "core", isCustom: false },
+  { id: "leg-raises", name: "Leg Raises", muscleGroup: "core", isCustom: false },
+  { id: "russian-twist", name: "Russian Twist", muscleGroup: "core", isCustom: false },
+  // Cardio
+  { id: "running", name: "Running", muscleGroup: "cardio", isCustom: false },
+  { id: "cycling", name: "Cycling", muscleGroup: "cardio", isCustom: false },
+  { id: "jump-rope", name: "Jump Rope", muscleGroup: "cardio", isCustom: false },
+  { id: "rowing", name: "Rowing", muscleGroup: "cardio", isCustom: false },
+  // Flexibility
+  { id: "stretching", name: "Stretching", muscleGroup: "flexibility", isCustom: false },
+  { id: "yoga", name: "Yoga", muscleGroup: "flexibility", isCustom: false },
+];
+
 // Area metadata for UI
 export const AREAS: Record<AreaId, { name: string; color: string; icon: string }> = {
   health: { name: "Health & Training", color: "teal", icon: "Heart" },

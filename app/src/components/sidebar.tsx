@@ -15,17 +15,24 @@ import {
   Settings,
   ChevronsLeft,
   ChevronsRight,
+  Dumbbell,
+  Bell,
+  Droplets,
+  BookMarked,
 } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 
 const NAV_ITEMS = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/focus", label: "Focus", icon: Timer },
+  { href: "/workouts", label: "Workouts", icon: Dumbbell },
+  { href: "/reminders", label: "Reminders", icon: Bell },
   { href: "/areas", label: "Areas", icon: Layers },
   { href: "/projects", label: "Projects", icon: FolderKanban },
   { href: "/quests", label: "Quests", icon: Target },
   { href: "/goals", label: "Goals", icon: Flag },
   { href: "/journeys", label: "Journeys", icon: Sword },
+  { href: "/reading", label: "Reading", icon: BookMarked },
   { href: "/review", label: "Review", icon: BookOpen },
   { href: "/calendar", label: "Calendar", icon: Calendar },
 ];

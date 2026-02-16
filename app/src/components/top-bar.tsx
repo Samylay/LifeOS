@@ -5,11 +5,12 @@ import { Zap, Bell, Menu, Check } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { useAuth } from "@/lib/auth-context";
 import { useTasks } from "@/lib/use-tasks";
+import { VoiceCommandButton } from "@/components/voice-command-button";
 
 export function TopBar() {
   const { sidebarExpanded, toggleSidebar } = useAppStore();
   const { user, signOut } = useAuth();
-  const { createTask } = useTasks();
+  const { tasks, createTask, updateTask, deleteTask } = useTasks();
   const [input, setInput] = useState("");
   const [flash, setFlash] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
@@ -50,15 +51,19 @@ export function TopBar() {
 
   return (
     <header
-      className="sticky top-0 flex h-14 items-center gap-4 px-6"
+      className="sticky top-0 flex h-14 items-center gap-2 lg:gap-4 px-3 lg:px-6"
       style={{
         zIndex: "var(--z-header)",
         background: "var(--bg-secondary)",
         borderBottom: "1px solid var(--border-primary)",
-        marginLeft: sidebarExpanded ? 256 : 64,
         transition: `margin-left var(--duration-slow)`,
       }}
     >
+      <style>{`
+        @media (min-width: 1024px) {
+          header { margin-left: ${sidebarExpanded ? 256 : 64}px; }
+        }
+      `}</style>
       {/* Mobile menu button */}
       <button
         onClick={toggleSidebar}
@@ -93,6 +98,13 @@ export function TopBar() {
             style={{ color: "var(--text-primary)" }}
           />
         </div>
+        <VoiceCommandButton
+          tasks={tasks}
+          onDelete={deleteTask}
+          onUpdate={updateTask}
+          onCreate={createTask}
+          compact
+        />
       </div>
 
       {/* Right side */}
