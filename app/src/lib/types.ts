@@ -376,6 +376,60 @@ export const DEFAULT_EXERCISES: Exercise[] = [
   { id: "yoga", name: "Yoga", muscleGroup: "flexibility", isCustom: false },
 ];
 
+// --- Garmin Connect Types ---
+
+export interface GarminActivity {
+  activityId: number;
+  activityName: string;
+  activityType: string; // e.g. "running", "cycling", "strength_training"
+  startTimeLocal: string;
+  duration: number; // seconds
+  distance: number; // meters
+  calories: number;
+  averageHR: number;
+  maxHR: number;
+  elevationGain: number;
+  steps: number;
+  vO2MaxValue: number;
+  averageSpeed: number; // m/s
+}
+
+export interface GarminSleepData {
+  calendarDate: string;
+  sleepTimeSeconds: number;
+  deepSleepSeconds: number;
+  lightSleepSeconds: number;
+  remSleepSeconds: number;
+  awakeSleepSeconds: number;
+  sleepScore: number; // overall score
+  restingHeartRate: number;
+  avgOvernightHrv: number;
+  hrvStatus: string;
+  bodyBatteryChange: number;
+  averageRespirationValue: number;
+}
+
+export interface GarminHeartRate {
+  calendarDate: string;
+  maxHeartRate: number;
+  minHeartRate: number;
+  restingHeartRate: number;
+  lastSevenDaysAvgRestingHeartRate: number;
+}
+
+export interface GarminDailySummary {
+  calendarDate: string;
+  steps: number;
+  heartRate: GarminHeartRate | null;
+  sleep: GarminSleepData | null;
+}
+
+export interface GarminConnectionState {
+  connected: boolean;
+  displayName: string | null;
+  lastSyncedAt: string | null;
+}
+
 // Area metadata for UI
 export const AREAS: Record<AreaId, { name: string; color: string; icon: string }> = {
   health: { name: "Health & Training", color: "teal", icon: "Heart" },
