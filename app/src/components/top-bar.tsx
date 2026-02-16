@@ -51,15 +51,19 @@ export function TopBar() {
 
   return (
     <header
-      className="sticky top-0 flex h-14 items-center gap-4 px-6"
+      className="sticky top-0 flex h-14 items-center gap-2 lg:gap-4 px-3 lg:px-6"
       style={{
         zIndex: "var(--z-header)",
         background: "var(--bg-secondary)",
         borderBottom: "1px solid var(--border-primary)",
-        marginLeft: sidebarExpanded ? 256 : 64,
         transition: `margin-left var(--duration-slow)`,
       }}
     >
+      <style>{`
+        @media (min-width: 1024px) {
+          header { margin-left: ${sidebarExpanded ? 256 : 64}px; }
+        }
+      `}</style>
       {/* Mobile menu button */}
       <button
         onClick={toggleSidebar}

@@ -11,41 +11,46 @@ import {
   Timer,
   CheckCircle,
   ArrowRight,
+  Dumbbell,
+  Bell,
+  BookOpen,
+  Droplets,
+  Check,
+  AlertTriangle,
 } from "lucide-react";
 import { useTasks } from "@/lib/use-tasks";
 import { useFocusTimer } from "@/lib/use-focus";
 import { useDailyLog } from "@/lib/use-daily-log";
 import { useStreaks } from "@/lib/use-streaks";
 import { useQuests } from "@/lib/use-quests";
-import { useJourneys } from "@/lib/use-journeys";
+import { useHabits } from "@/lib/use-habits";
+import { useReminders } from "@/lib/use-reminders";
+import { useWorkouts } from "@/lib/use-workouts";
+import { useBooks } from "@/lib/use-books";
 import { MorningCheckIn, EveningReflection } from "@/components/daily-log";
 import { TaskItem } from "@/components/task-list";
+import { WaterTracker } from "@/components/water-tracker";
 import Link from "next/link";
 import type { Task } from "@/lib/types";
 import { TIER_NAMES, AREAS } from "@/lib/types";
 import { useIntegrations } from "@/lib/integrations-context";
 import { useGoogleCalendar } from "@/lib/use-google-calendar";
-import { ExternalLink, Loader2, Clock, Zap, Calendar, FolderKanban, Settings } from "lucide-react";
-
-const SETUP_STEPS = [
-  { key: "calendar", icon: Calendar, label: "Connect Google Calendar", desc: "See your schedule on the dashboard", href: "/settings", color: "#4285F4" },
-  { key: "task", icon: Zap, label: "Capture your first task", desc: "Use the bar above or go to Capture", href: "/capture", color: "var(--accent)" },
-  { key: "focus", icon: Timer, label: "Run a focus session", desc: "Start a 25-minute Pomodoro", href: "/focus", color: "var(--accent)" },
-  { key: "project", icon: FolderKanban, label: "Create a project", desc: "Organize tasks into projects", href: "/projects", color: "#6366F1" },
-];
+import { ExternalLink, Loader2, Clock } from "lucide-react";
 
 export default function Dashboard() {
-  const { tasks, updateTask, deleteTask, createTask } = useTasks();
+  const { tasks, updateTask, deleteTask } = useTasks();
   const { todayFocusMinutes, todayCompletedSessions } = useFocusTimer();
   const { log, updateLog } = useDailyLog();
   const { streaks } = useStreaks();
   const { activeQuests } = useQuests();
-  const { activeJourneys } = useJourneys();
+  const { habits, toggleToday } = useHabits();
+  const { overdue: overdueReminders, dueToday: todayReminders, completeReminder } = useReminders();
+  const { thisWeek: weekWorkouts } = useWorkouts();
+  const { reading: currentlyReading } = useBooks();
   const { gcal, connectGoogleCalendar } = useIntegrations();
   const { events: calEvents, hasToken: gcalHasToken } = useGoogleCalendar();
   const [view, setView] = useState<"morning" | "evening">("morning");
   const [gcalConnecting, setGcalConnecting] = useState(false);
-  const [setupDismissed, setSetupDismissed] = useState(false);
 
   const activeTasks = tasks.filter((t) => t.status === "todo" || t.status === "in_progress");
   const priorityTasks = activeTasks
@@ -62,17 +67,17 @@ export default function Dashboard() {
       new Date(t.updatedAt).toDateString() === new Date().toDateString()
   );
 
-  // Tomorrow's Top 3 - persisted to daily log
+  const today = new Date().toISOString().split("T")[0];
+  const todayHabits = habits.filter((h) => h.frequency === "daily");
+  const habitsDone = todayHabits.filter((h) =>
+    h.history.some((e) => e.date === today && e.completed)
+  ).length;
+
+  // Tomorrow's Top 3
   const [tomorrowTasks, setTomorrowTasks] = useState<string[]>([]);
-
-  // Load from daily log on mount
   useEffect(() => {
-    if (log?.tomorrowTop3) {
-      setTomorrowTasks(log.tomorrowTop3);
-    }
+    if (log?.tomorrowTop3) setTomorrowTasks(log.tomorrowTop3);
   }, [log]);
-
-  // Save tomorrow tasks to daily log when changed
   const handleTomorrowChange = (index: number, value: string) => {
     const updated = [...tomorrowTasks];
     updated[index] = value;
@@ -80,13 +85,29 @@ export default function Dashboard() {
     updateLog({ tomorrowTop3: updated });
   };
 
+  const greeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return "Good morning";
+    if (hour < 17) return "Good afternoon";
+    return "Good evening";
+  };
+
   return (
     <div>
-      {/* View toggle */}
+      {/* Header */}
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-semibold" style={{ color: "var(--text-primary)" }}>
-          Command Center
-        </h1>
+        <div>
+          <h1 className="text-xl lg:text-2xl font-semibold" style={{ color: "var(--text-primary)" }}>
+            {greeting()}
+          </h1>
+          <p className="text-sm" style={{ color: "var(--text-tertiary)" }}>
+            {new Date().toLocaleDateString("en-US", {
+              weekday: "long",
+              month: "long",
+              day: "numeric",
+            })}
+          </p>
+        </div>
         <div
           className="flex rounded-lg p-0.5"
           style={{ background: "var(--bg-tertiary)" }}
@@ -101,7 +122,7 @@ export default function Dashboard() {
             }}
           >
             <Sun size={14} />
-            Morning
+            AM
           </button>
           <button
             onClick={() => setView("evening")}
@@ -113,259 +134,254 @@ export default function Dashboard() {
             }}
           >
             <Moon size={14} />
-            Evening
+            PM
           </button>
         </div>
       </div>
 
-      {/* Getting Started Guide - shows for new users */}
-      {!setupDismissed && tasks.length === 0 && streaks.focus.current === 0 && todayCompletedSessions === 0 && (
-        <div className="rounded-xl p-6 mb-6" style={{ background: "var(--bg-secondary)", border: "1px solid var(--accent)", boxShadow: "var(--shadow-sm)" }}>
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h2 className="text-lg font-semibold" style={{ color: "var(--text-primary)" }}>Welcome to LifeOS</h2>
-              <p className="text-sm" style={{ color: "var(--text-secondary)" }}>Here are a few things to get you started.</p>
-            </div>
-            <button onClick={() => setSetupDismissed(true)} className="text-xs px-2 py-1 rounded-lg" style={{ color: "var(--text-tertiary)" }}>
-              Dismiss
-            </button>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            {SETUP_STEPS.map(({ key, icon: Icon, label, desc, href, color }) => {
-              const done = (key === "calendar" && gcal.connected) || (key === "task" && tasks.length > 0);
-              return (
-                <Link key={key} href={href}
-                  className="flex items-start gap-3 rounded-lg p-3 transition-colors hover:opacity-90"
-                  style={{ background: "var(--bg-tertiary)", border: done ? `1px solid var(--accent)` : "1px solid var(--border-primary)" }}>
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg" style={{ background: `${typeof color === "string" && color.startsWith("#") ? color : "var(--accent)"}15` }}>
-                    {done ? <CheckCircle size={16} style={{ color: "var(--accent)" }} /> : <Icon size={16} style={{ color }} />}
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>{label}</p>
-                    <p className="text-xs" style={{ color: "var(--text-tertiary)" }}>{desc}</p>
-                  </div>
-                </Link>
-              );
-            })}
-          </div>
+      {/* Quick Stats Bar - mobile-first row */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+        <div className="rounded-xl p-3 text-center" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-primary)" }}>
+          <p className="text-xl font-bold font-mono" style={{ color: "var(--accent)" }}>{streaks.focus.current}</p>
+          <p className="text-xs" style={{ color: "var(--text-tertiary)" }}>Day streak</p>
         </div>
-      )}
+        <div className="rounded-xl p-3 text-center" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-primary)" }}>
+          <p className="text-xl font-bold font-mono" style={{ color: "var(--accent)" }}>
+            {habitsDone}/{todayHabits.length}
+          </p>
+          <p className="text-xs" style={{ color: "var(--text-tertiary)" }}>Habits</p>
+        </div>
+        <div className="rounded-xl p-3 text-center" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-primary)" }}>
+          <p className="text-xl font-bold font-mono" style={{ color: "var(--accent)" }}>{weekWorkouts.length}</p>
+          <p className="text-xs" style={{ color: "var(--text-tertiary)" }}>Workouts</p>
+        </div>
+        <div className="rounded-xl p-3 text-center" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-primary)" }}>
+          <p className="text-xl font-bold font-mono" style={{ color: "var(--accent)" }}>{completedToday.length}</p>
+          <p className="text-xs" style={{ color: "var(--text-tertiary)" }}>Done today</p>
+        </div>
+      </div>
 
       {view === "morning" ? (
-        /* ========= MORNING VIEW ========= */
-        <div className="grid grid-cols-12 gap-6">
-          {/* Today's Schedule (span-8) */}
-          <div
-            className="col-span-12 lg:col-span-8 rounded-xl p-6"
-            style={{
-              background: "var(--bg-secondary)",
-              border: "1px solid var(--border-primary)",
-              boxShadow: "var(--shadow-sm)",
-            }}
-          >
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <Sun size={20} style={{ color: "#F59E0B" }} />
-                <h2 className="text-lg font-semibold" style={{ color: "var(--text-primary)" }}>
-                  Today&apos;s Schedule
-                </h2>
-              </div>
-              <span className="text-xs" style={{ color: "var(--text-tertiary)" }}>
-                {new Date().toLocaleDateString("en-US", {
-                  weekday: "long",
-                  month: "long",
-                  day: "numeric",
-                })}
-              </span>
-            </div>
-            {!gcal.connected ? (
-              <div className="flex items-center justify-between">
-                <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
-                  Connect Google Calendar to see your schedule.
-                </p>
-                <button
-                  onClick={async () => {
-                    setGcalConnecting(true);
-                    try { await connectGoogleCalendar(); } catch {} finally { setGcalConnecting(false); }
-                  }}
-                  disabled={gcalConnecting}
-                  className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-white shrink-0"
-                  style={{ background: "#4285F4" }}
-                >
-                  {gcalConnecting ? <Loader2 size={12} className="animate-spin" /> : <ExternalLink size={12} />}
-                  Connect
-                </button>
-              </div>
-            ) : !gcalHasToken ? (
-              <div className="flex items-center justify-between">
-                <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
-                  Session expired — reconnect to sync.
-                </p>
-                <button
-                  onClick={async () => {
-                    setGcalConnecting(true);
-                    try { await connectGoogleCalendar(); } catch {} finally { setGcalConnecting(false); }
-                  }}
-                  disabled={gcalConnecting}
-                  className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium shrink-0"
-                  style={{ background: "var(--accent-bg)", color: "var(--accent)" }}
-                >
-                  {gcalConnecting ? <Loader2 size={12} className="animate-spin" /> : <ExternalLink size={12} />}
-                  Reconnect
-                </button>
-              </div>
-            ) : calEvents.length === 0 ? (
-              <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
-                No events today.
-              </p>
-            ) : (
-              <div className="space-y-2">
-                {calEvents
-                  .filter((e) => e.start.toDateString() === new Date().toDateString())
-                  .slice(0, 5)
-                  .map((event) => (
-                    <div key={event.id} className="flex items-center gap-2 text-sm">
-                      <div className="h-1.5 w-1.5 rounded-full shrink-0" style={{ background: "#4285F4" }} />
-                      <span className="font-medium truncate" style={{ color: "var(--text-primary)" }}>
-                        {event.title}
-                      </span>
-                      <span className="flex items-center gap-1 text-xs shrink-0 ml-auto" style={{ color: "var(--text-tertiary)" }}>
-                        <Clock size={10} />
-                        {event.allDay
-                          ? "All day"
-                          : event.start.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                      </span>
-                    </div>
-                  ))}
-                {calEvents.filter((e) => e.start.toDateString() === new Date().toDateString()).length > 5 && (
-                  <Link href="/calendar" className="text-xs font-medium" style={{ color: "var(--accent)" }}>
-                    View all events
-                  </Link>
+        <div className="grid grid-cols-12 gap-4 lg:gap-6">
+
+          {/* Reminders alert */}
+          {(overdueReminders.length > 0 || todayReminders.length > 0) && (
+            <div className="col-span-12 rounded-xl p-4" style={{
+              background: overdueReminders.length > 0 ? "#EF444408" : "var(--bg-secondary)",
+              border: overdueReminders.length > 0 ? "1px solid #EF444430" : "1px solid var(--border-primary)",
+            }}>
+              <div className="flex items-center gap-2 mb-3">
+                {overdueReminders.length > 0 ? (
+                  <AlertTriangle size={16} style={{ color: "#EF4444" }} />
+                ) : (
+                  <Bell size={16} style={{ color: "var(--accent)" }} />
                 )}
+                <span className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
+                  {overdueReminders.length > 0
+                    ? `${overdueReminders.length} overdue`
+                    : `${todayReminders.length} due today`}
+                </span>
+                <Link href="/reminders" className="ml-auto text-xs font-medium" style={{ color: "var(--accent)" }}>
+                  View all
+                </Link>
               </div>
-            )}
+              <div className="space-y-1.5">
+                {[...overdueReminders, ...todayReminders].slice(0, 3).map((r) => (
+                  <div key={r.id} className="flex items-center gap-2">
+                    <button
+                      onClick={() => completeReminder(r.id)}
+                      className="shrink-0 h-4 w-4 rounded-full flex items-center justify-center"
+                      style={{ border: "1.5px solid var(--text-tertiary)" }}
+                    />
+                    <span className="text-sm truncate" style={{ color: "var(--text-primary)" }}>{r.title}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Today's habits */}
+          {todayHabits.length > 0 && (
+            <div className="col-span-12 lg:col-span-6 rounded-xl p-4 lg:p-5" style={{
+              background: "var(--bg-secondary)", border: "1px solid var(--border-primary)", boxShadow: "var(--shadow-sm)",
+            }}>
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-base font-semibold" style={{ color: "var(--text-primary)" }}>
+                  Daily Habits
+                </h2>
+                <span className="text-xs font-mono" style={{ color: "var(--accent)" }}>
+                  {habitsDone}/{todayHabits.length}
+                </span>
+              </div>
+              <div className="space-y-2">
+                {todayHabits.map((habit) => {
+                  const done = habit.history.some((h) => h.date === today && h.completed);
+                  return (
+                    <button
+                      key={habit.id}
+                      onClick={() => toggleToday(habit.id)}
+                      className="flex items-center gap-3 w-full rounded-lg px-3 py-2.5 text-left transition-all active:scale-[0.98]"
+                      style={{ background: "var(--bg-tertiary)" }}
+                    >
+                      <div
+                        className="shrink-0 h-5 w-5 rounded flex items-center justify-center"
+                        style={{
+                          border: done ? "none" : "1.5px solid var(--text-tertiary)",
+                          background: done ? "var(--accent)" : "transparent",
+                        }}
+                      >
+                        {done && <Check size={12} className="text-white" />}
+                      </div>
+                      <span className="text-sm flex-1" style={{
+                        color: "var(--text-primary)",
+                        textDecoration: done ? "line-through" : "none",
+                        opacity: done ? 0.6 : 1,
+                      }}>
+                        {habit.name}
+                      </span>
+                      {habit.streak > 0 && (
+                        <span className="flex items-center gap-1 text-xs font-mono" style={{ color: "var(--accent)" }}>
+                          <Flame size={10} />{habit.streak}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Water + Quick Actions */}
+          <div className="col-span-12 lg:col-span-6 space-y-4">
+            <WaterTracker />
+
+            {/* Quick actions */}
+            <div className="grid grid-cols-2 gap-3">
+              <Link href="/workouts" className="flex items-center gap-2.5 rounded-xl px-4 py-3 transition-all active:scale-95"
+                style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-primary)" }}>
+                <Dumbbell size={18} style={{ color: "#10B981" }} />
+                <div>
+                  <p className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>Workout</p>
+                  <p className="text-xs" style={{ color: "var(--text-tertiary)" }}>{weekWorkouts.length} this week</p>
+                </div>
+              </Link>
+              <Link href="/reading" className="flex items-center gap-2.5 rounded-xl px-4 py-3 transition-all active:scale-95"
+                style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-primary)" }}>
+                <BookOpen size={18} style={{ color: "#8B5CF6" }} />
+                <div>
+                  <p className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>Reading</p>
+                  <p className="text-xs" style={{ color: "var(--text-tertiary)" }}>{currentlyReading.length} active</p>
+                </div>
+              </Link>
+            </div>
           </div>
 
-          {/* Energy Check-in (span-4) */}
+          {/* Energy Check-in */}
           <div className="col-span-12 lg:col-span-4">
             <MorningCheckIn log={log} onUpdate={updateLog} />
           </div>
 
-          {/* Priority Tasks (span-4) */}
-          <div
-            className="col-span-12 md:col-span-4 rounded-xl p-6"
-            style={{
-              background: "var(--bg-secondary)",
-              border: "1px solid var(--border-primary)",
-              boxShadow: "var(--shadow-sm)",
-            }}
-          >
-            <div className="flex items-center gap-2 mb-4">
-              <LayoutDashboard size={20} style={{ color: "var(--accent)" }} />
-              <h2 className="text-lg font-semibold" style={{ color: "var(--text-primary)" }}>
-                Priority Tasks
-              </h2>
+          {/* Today's Schedule */}
+          <div className="col-span-12 lg:col-span-8 rounded-xl p-4 lg:p-5" style={{
+            background: "var(--bg-secondary)", border: "1px solid var(--border-primary)", boxShadow: "var(--shadow-sm)",
+          }}>
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Sun size={18} style={{ color: "#F59E0B" }} />
+                <h2 className="text-base font-semibold" style={{ color: "var(--text-primary)" }}>Schedule</h2>
+              </div>
+              <Link href="/calendar" className="text-xs font-medium" style={{ color: "var(--accent)" }}>
+                Calendar <ArrowRight size={10} className="inline" />
+              </Link>
             </div>
-            {priorityTasks.length === 0 ? (
-              <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
-                No tasks yet. Use the capture bar above.
-              </p>
+            {!gcal.connected ? (
+              <div className="flex items-center justify-between">
+                <p className="text-sm" style={{ color: "var(--text-secondary)" }}>Connect Google Calendar to see your schedule.</p>
+                <button onClick={async () => { setGcalConnecting(true); try { await connectGoogleCalendar(); } catch {} finally { setGcalConnecting(false); } }}
+                  disabled={gcalConnecting}
+                  className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-white shrink-0" style={{ background: "#4285F4" }}>
+                  {gcalConnecting ? <Loader2 size={12} className="animate-spin" /> : <ExternalLink size={12} />} Connect
+                </button>
+              </div>
+            ) : !gcalHasToken ? (
+              <p className="text-sm" style={{ color: "var(--text-secondary)" }}>Session expired — reconnect in Settings.</p>
+            ) : calEvents.filter((e) => e.start.toDateString() === new Date().toDateString()).length === 0 ? (
+              <p className="text-sm" style={{ color: "var(--text-secondary)" }}>No events today.</p>
             ) : (
               <div className="space-y-2">
-                {priorityTasks.map((task) => (
-                  <TaskItem
-                    key={task.id}
-                    task={task}
-                    onUpdate={updateTask}
-                    onDelete={deleteTask}
-                  />
+                {calEvents.filter((e) => e.start.toDateString() === new Date().toDateString()).slice(0, 5).map((event) => (
+                  <div key={event.id} className="flex items-center gap-2 text-sm">
+                    <div className="h-1.5 w-1.5 rounded-full shrink-0" style={{ background: "#4285F4" }} />
+                    <span className="font-medium truncate" style={{ color: "var(--text-primary)" }}>{event.title}</span>
+                    <span className="flex items-center gap-1 text-xs shrink-0 ml-auto" style={{ color: "var(--text-tertiary)" }}>
+                      <Clock size={10} />
+                      {(event as { allDay?: boolean }).allDay ? "All day" : event.start.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                    </span>
+                  </div>
                 ))}
               </div>
             )}
           </div>
 
-          {/* Focus Streak (span-4) */}
-          <div
-            className="col-span-12 md:col-span-4 rounded-xl p-6"
-            style={{
-              background: "var(--bg-secondary)",
-              border: "1px solid var(--border-primary)",
-              boxShadow: "var(--shadow-sm)",
-            }}
-          >
-            <div className="flex items-center gap-2 mb-4">
-              <Flame size={20} style={{ color: "var(--accent)" }} />
-              <h2 className="text-lg font-semibold" style={{ color: "var(--text-primary)" }}>
-                Focus Streak
-              </h2>
+          {/* Priority Tasks */}
+          <div className="col-span-12 md:col-span-6 lg:col-span-4 rounded-xl p-4 lg:p-5" style={{
+            background: "var(--bg-secondary)", border: "1px solid var(--border-primary)", boxShadow: "var(--shadow-sm)",
+          }}>
+            <div className="flex items-center gap-2 mb-3">
+              <LayoutDashboard size={18} style={{ color: "var(--accent)" }} />
+              <h2 className="text-base font-semibold" style={{ color: "var(--text-primary)" }}>Priority Tasks</h2>
             </div>
-            <div className="text-center py-2">
-              <span
-                className="text-4xl font-bold font-mono tabular-nums"
-                style={{ color: "var(--accent)" }}
-              >
-                {streaks.focus.current}
-              </span>
-              <p
-                className="text-xs mt-1 uppercase tracking-wider font-medium"
-                style={{ color: "var(--text-tertiary)" }}
-              >
-                Day{streaks.focus.current !== 1 ? "s" : ""}
-              </p>
+            {priorityTasks.length === 0 ? (
+              <p className="text-sm" style={{ color: "var(--text-secondary)" }}>No tasks yet.</p>
+            ) : (
+              <div className="space-y-2">
+                {priorityTasks.map((task) => (
+                  <TaskItem key={task.id} task={task} onUpdate={updateTask} onDelete={deleteTask} />
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Focus + Streak */}
+          <div className="col-span-12 md:col-span-6 lg:col-span-4 rounded-xl p-4 lg:p-5" style={{
+            background: "var(--bg-secondary)", border: "1px solid var(--border-primary)", boxShadow: "var(--shadow-sm)",
+          }}>
+            <div className="flex items-center gap-2 mb-3">
+              <Flame size={18} style={{ color: "var(--accent)" }} />
+              <h2 className="text-base font-semibold" style={{ color: "var(--text-primary)" }}>Focus</h2>
             </div>
-            <div className="flex justify-between mt-4 pt-3" style={{ borderTop: "1px solid var(--border-secondary)" }}>
+            <div className="flex justify-between items-center mb-3">
               <div className="text-center">
-                <p className="text-lg font-bold font-mono" style={{ color: "var(--text-primary)" }}>
-                  {todayCompletedSessions}
-                </p>
+                <p className="text-lg font-bold font-mono" style={{ color: "var(--text-primary)" }}>{todayCompletedSessions}</p>
                 <p className="text-xs" style={{ color: "var(--text-tertiary)" }}>Sessions</p>
               </div>
               <div className="text-center">
-                <p className="text-lg font-bold font-mono" style={{ color: "var(--text-primary)" }}>
-                  {todayFocusMinutes}
-                </p>
+                <p className="text-lg font-bold font-mono" style={{ color: "var(--text-primary)" }}>{todayFocusMinutes}</p>
                 <p className="text-xs" style={{ color: "var(--text-tertiary)" }}>Minutes</p>
               </div>
               <div className="text-center">
-                <p className="text-lg font-bold font-mono" style={{ color: "var(--text-primary)" }}>
-                  {streaks.focus.longest}
-                </p>
+                <p className="text-lg font-bold font-mono" style={{ color: "var(--accent)" }}>{streaks.focus.longest}</p>
                 <p className="text-xs" style={{ color: "var(--text-tertiary)" }}>Best</p>
               </div>
             </div>
-            <Link
-              href="/focus"
-              className="flex items-center justify-center gap-2 mt-4 rounded-lg py-2 text-sm font-medium bg-emerald-500 text-white hover:bg-emerald-600 transition-colors"
-            >
-              <Timer size={16} />
-              Start Focus
+            <Link href="/focus"
+              className="flex items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-medium bg-emerald-500 text-white hover:bg-emerald-600 transition-colors">
+              <Timer size={16} /> Start Focus
             </Link>
           </div>
 
-          {/* Active Quests (span-4) */}
-          <div
-            className="col-span-12 md:col-span-4 rounded-xl p-6"
-            style={{
-              background: "var(--bg-secondary)",
-              border: "1px solid var(--border-primary)",
-              boxShadow: "var(--shadow-sm)",
-            }}
-          >
-            <div className="flex items-center gap-2 mb-4">
-              <Target size={20} style={{ color: "var(--accent)" }} />
-              <h2 className="text-lg font-semibold" style={{ color: "var(--text-primary)" }}>
-                Active Quests
-              </h2>
+          {/* Active Quests */}
+          <div className="col-span-12 lg:col-span-4 rounded-xl p-4 lg:p-5" style={{
+            background: "var(--bg-secondary)", border: "1px solid var(--border-primary)", boxShadow: "var(--shadow-sm)",
+          }}>
+            <div className="flex items-center gap-2 mb-3">
+              <Target size={18} style={{ color: "var(--accent)" }} />
+              <h2 className="text-base font-semibold" style={{ color: "var(--text-primary)" }}>Quests</h2>
             </div>
             {activeQuests.length === 0 ? (
-              <>
-                <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
-                  No active quests. Create a 90-day quest.
-                </p>
-                <Link href="/quests" className="flex items-center gap-1 mt-3 text-xs font-medium" style={{ color: "var(--accent)" }}>
-                  Go to Quests <ArrowRight size={12} />
-                </Link>
-              </>
+              <Link href="/quests" className="text-sm" style={{ color: "var(--accent)" }}>
+                Create a 90-day quest <ArrowRight size={12} className="inline" />
+              </Link>
             ) : (
               <div className="space-y-2">
                 {activeQuests.slice(0, 3).map((q) => {
@@ -383,111 +399,37 @@ export default function Dashboard() {
                     </div>
                   );
                 })}
-                <Link href="/quests" className="flex items-center gap-1 mt-1 text-xs font-medium" style={{ color: "var(--accent)" }}>
-                  View all <ArrowRight size={12} />
-                </Link>
               </div>
             )}
-          </div>
-
-          {/* Hero Journeys (span-8) */}
-          <div
-            className="col-span-12 lg:col-span-8 rounded-xl p-6"
-            style={{
-              background: "var(--bg-secondary)",
-              border: "1px solid var(--border-primary)",
-              boxShadow: "var(--shadow-sm)",
-            }}
-          >
-            <div className="flex items-center gap-2 mb-4">
-              <Sword size={20} style={{ color: "var(--accent)" }} />
-              <h2 className="text-lg font-semibold" style={{ color: "var(--text-primary)" }}>
-                Hero Journeys
-              </h2>
-            </div>
-            {activeJourneys.length === 0 ? (
-              <>
-                <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
-                  Start a Hero Journey to track your long-term mastery.
-                </p>
-                <Link href="/journeys" className="flex items-center gap-1 mt-3 text-xs font-medium" style={{ color: "var(--accent)" }}>
-                  Go to Journeys <ArrowRight size={12} />
-                </Link>
-              </>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {activeJourneys.slice(0, 4).map((j) => (
-                  <div key={j.id} className="rounded-lg p-3" style={{ background: "var(--bg-tertiary)" }}>
-                    <div className="flex justify-between items-center mb-1">
-                      <span className="text-sm font-medium truncate" style={{ color: "var(--text-primary)" }}>{j.title}</span>
-                      <span className="text-xs font-semibold px-1.5 py-0.5 rounded"
-                        style={{ background: "var(--accent-bg)", color: "var(--accent)" }}>
-                        {TIER_NAMES[j.currentTier]}
-                      </span>
-                    </div>
-                    <div className="flex items-baseline gap-1">
-                      <span className="text-lg font-bold font-mono" style={{ color: "var(--accent)" }}>{j.totalHours.toFixed(1)}</span>
-                      <span className="text-xs" style={{ color: "var(--text-tertiary)" }}>hours</span>
-                    </div>
-                  </div>
-                ))}
-                <Link href="/journeys" className="flex items-center gap-1 text-xs font-medium col-span-full" style={{ color: "var(--accent)" }}>
-                  View all <ArrowRight size={12} />
-                </Link>
-              </div>
-            )}
-          </div>
-
-          {/* Daily Brief (span-4) */}
-          <div
-            className="col-span-12 lg:col-span-4 rounded-xl p-6"
-            style={{
-              background: "var(--bg-secondary)",
-              border: "1px solid var(--border-primary)",
-              boxShadow: "var(--shadow-sm)",
-            }}
-          >
-            <div className="flex items-center gap-2 mb-4">
-              <Sword size={20} style={{ color: "#6366F1" }} />
-              <h2 className="text-lg font-semibold" style={{ color: "var(--text-primary)" }}>
-                Daily Brief
-              </h2>
-            </div>
-            <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
-              AI-generated summary will appear here once the LLM is connected in Phase 4.
-            </p>
           </div>
         </div>
       ) : (
         /* ========= EVENING VIEW ========= */
-        <div className="grid grid-cols-12 gap-6">
-          {/* Day Review (span-8) */}
-          <div
-            className="col-span-12 lg:col-span-8 rounded-xl p-6"
-            style={{
-              background: "var(--bg-secondary)",
-              border: "1px solid var(--border-primary)",
-              boxShadow: "var(--shadow-sm)",
-            }}
-          >
+        <div className="grid grid-cols-12 gap-4 lg:gap-6">
+          {/* Day Review */}
+          <div className="col-span-12 lg:col-span-8 rounded-xl p-4 lg:p-5" style={{
+            background: "var(--bg-secondary)", border: "1px solid var(--border-primary)", boxShadow: "var(--shadow-sm)",
+          }}>
             <div className="flex items-center gap-2 mb-4">
-              <CheckCircle size={20} style={{ color: "var(--accent)" }} />
-              <h2 className="text-lg font-semibold" style={{ color: "var(--text-primary)" }}>
-                Day Review
-              </h2>
+              <CheckCircle size={18} style={{ color: "var(--accent)" }} />
+              <h2 className="text-base font-semibold" style={{ color: "var(--text-primary)" }}>Day Review</h2>
             </div>
-            <div className="grid grid-cols-3 gap-4 mb-4">
+            <div className="grid grid-cols-4 gap-3 mb-4">
               <div className="rounded-lg p-3 text-center" style={{ background: "var(--bg-tertiary)" }}>
-                <p className="text-2xl font-bold font-mono" style={{ color: "var(--accent)" }}>{todayCompletedSessions}</p>
-                <p className="text-xs" style={{ color: "var(--text-tertiary)" }}>Focus sessions</p>
+                <p className="text-xl font-bold font-mono" style={{ color: "var(--accent)" }}>{todayCompletedSessions}</p>
+                <p className="text-xs" style={{ color: "var(--text-tertiary)" }}>Sessions</p>
               </div>
               <div className="rounded-lg p-3 text-center" style={{ background: "var(--bg-tertiary)" }}>
-                <p className="text-2xl font-bold font-mono" style={{ color: "var(--accent)" }}>{todayFocusMinutes}</p>
-                <p className="text-xs" style={{ color: "var(--text-tertiary)" }}>Focus minutes</p>
+                <p className="text-xl font-bold font-mono" style={{ color: "var(--accent)" }}>{todayFocusMinutes}</p>
+                <p className="text-xs" style={{ color: "var(--text-tertiary)" }}>Minutes</p>
               </div>
               <div className="rounded-lg p-3 text-center" style={{ background: "var(--bg-tertiary)" }}>
-                <p className="text-2xl font-bold font-mono" style={{ color: "var(--accent)" }}>{completedToday.length}</p>
-                <p className="text-xs" style={{ color: "var(--text-tertiary)" }}>Tasks done</p>
+                <p className="text-xl font-bold font-mono" style={{ color: "var(--accent)" }}>{completedToday.length}</p>
+                <p className="text-xs" style={{ color: "var(--text-tertiary)" }}>Tasks</p>
+              </div>
+              <div className="rounded-lg p-3 text-center" style={{ background: "var(--bg-tertiary)" }}>
+                <p className="text-xl font-bold font-mono" style={{ color: "var(--accent)" }}>{habitsDone}/{todayHabits.length}</p>
+                <p className="text-xs" style={{ color: "var(--text-tertiary)" }}>Habits</p>
               </div>
             </div>
             {completedToday.length > 0 && (
@@ -503,42 +445,27 @@ export default function Dashboard() {
             )}
           </div>
 
-          {/* Streak Tracker (span-4) */}
-          <div
-            className="col-span-12 lg:col-span-4 rounded-xl p-6"
-            style={{
-              background: "var(--bg-secondary)",
-              border: "1px solid var(--border-primary)",
-              boxShadow: "var(--shadow-sm)",
-            }}
-          >
-            <div className="flex items-center gap-2 mb-4">
-              <Flame size={20} style={{ color: "var(--accent)" }} />
-              <h2 className="text-lg font-semibold" style={{ color: "var(--text-primary)" }}>
-                Streak Tracker
-              </h2>
+          {/* Streak */}
+          <div className="col-span-12 lg:col-span-4 rounded-xl p-4 lg:p-5" style={{
+            background: "var(--bg-secondary)", border: "1px solid var(--border-primary)", boxShadow: "var(--shadow-sm)",
+          }}>
+            <div className="flex items-center gap-2 mb-3">
+              <Flame size={18} style={{ color: "var(--accent)" }} />
+              <h2 className="text-base font-semibold" style={{ color: "var(--text-primary)" }}>Streak</h2>
             </div>
             <div className="text-center py-4">
               <span className="text-4xl font-bold font-mono tabular-nums" style={{ color: "var(--accent)" }}>
                 {streaks.focus.current}
               </span>
-              <p className="text-xs mt-1 uppercase tracking-wider font-medium" style={{ color: "var(--text-tertiary)" }}>Day streak</p>
+              <p className="text-xs mt-1 uppercase tracking-wider font-medium" style={{ color: "var(--text-tertiary)" }}>Days</p>
             </div>
-            {streaks.focus.current > 0 && streaks.focus.longest > streaks.focus.current && (
-              <p className="text-xs text-center" style={{ color: "var(--text-tertiary)" }}>Best: {streaks.focus.longest} days</p>
-            )}
           </div>
 
-          {/* Tomorrow's Top 3 (span-6) */}
-          <div
-            className="col-span-12 md:col-span-6 rounded-xl p-6"
-            style={{
-              background: "var(--bg-secondary)",
-              border: "1px solid var(--border-primary)",
-              boxShadow: "var(--shadow-sm)",
-            }}
-          >
-            <h2 className="text-lg font-semibold mb-4" style={{ color: "var(--text-primary)" }}>
+          {/* Tomorrow's Top 3 */}
+          <div className="col-span-12 md:col-span-6 rounded-xl p-4 lg:p-5" style={{
+            background: "var(--bg-secondary)", border: "1px solid var(--border-primary)", boxShadow: "var(--shadow-sm)",
+          }}>
+            <h2 className="text-base font-semibold mb-3" style={{ color: "var(--text-primary)" }}>
               Tomorrow&apos;s Top 3
             </h2>
             <p className="text-xs mb-3" style={{ color: "var(--text-secondary)" }}>
@@ -547,30 +474,18 @@ export default function Dashboard() {
             <div className="space-y-2">
               {[0, 1, 2].map((i) => (
                 <div key={i} className="flex items-center gap-2">
-                  <span
-                    className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold"
-                    style={{ background: "var(--accent-bg)", color: "var(--accent)" }}
-                  >
-                    {i + 1}
-                  </span>
-                  <input
-                    type="text"
-                    value={tomorrowTasks[i] || ""}
-                    onChange={(e) => handleTomorrowChange(i, e.target.value)}
+                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold"
+                    style={{ background: "var(--accent-bg)", color: "var(--accent)" }}>{i + 1}</span>
+                  <input type="text" value={tomorrowTasks[i] || ""} onChange={(e) => handleTomorrowChange(i, e.target.value)}
                     placeholder={`Priority ${i + 1}...`}
                     className="flex-1 rounded-lg px-3 py-2 text-sm outline-none"
-                    style={{
-                      background: "var(--bg-tertiary)",
-                      color: "var(--text-primary)",
-                      border: "1px solid var(--border-primary)",
-                    }}
-                  />
+                    style={{ background: "var(--bg-tertiary)", color: "var(--text-primary)", border: "1px solid var(--border-primary)" }} />
                 </div>
               ))}
             </div>
           </div>
 
-          {/* Gratitude & Reflection (span-6) */}
+          {/* Gratitude & Reflection */}
           <div className="col-span-12 md:col-span-6">
             <EveningReflection log={log} onUpdate={updateLog} />
           </div>

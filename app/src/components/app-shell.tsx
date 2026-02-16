@@ -4,6 +4,7 @@ import { ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import { Sidebar } from "./sidebar";
 import { TopBar } from "./top-bar";
+import { BottomNav } from "./bottom-nav";
 import { useAppStore } from "@/lib/store";
 import { useAuth } from "@/lib/auth-context";
 import { LoginScreen } from "./login-screen";
@@ -38,18 +39,32 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="min-h-screen" style={{ background: "var(--bg-primary)" }}>
-      <Sidebar />
+      {/* Desktop sidebar - hidden on mobile */}
+      <div className="hidden lg:block">
+        <Sidebar />
+      </div>
       <TopBar />
       <main
-        className="transition-all p-6"
+        className="transition-all p-4 lg:p-6"
         style={{
-          marginLeft: sidebarExpanded ? 256 : 64,
+          marginLeft: 0,
           transitionDuration: "var(--duration-slow)",
           maxWidth: 1280,
+          paddingBottom: 80, // space for bottom nav on mobile
         }}
       >
+        <style>{`
+          @media (min-width: 1024px) {
+            main {
+              margin-left: ${sidebarExpanded ? 256 : 64}px !important;
+              padding-bottom: 24px !important;
+            }
+          }
+        `}</style>
         {children}
       </main>
+      {/* Mobile bottom nav - hidden on desktop */}
+      <BottomNav />
     </div>
   );
 }
