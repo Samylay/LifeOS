@@ -5,7 +5,8 @@ import { useAuth } from "@/lib/auth-context";
 import { useIntegrations } from "@/lib/integrations-context";
 import { useFocusTimer, DEFAULT_CONFIG } from "@/lib/use-focus";
 import { useToast } from "@/components/toast";
-import { ExternalLink, Check, Loader2, X, Bell, Activity, Webhook } from "lucide-react";
+import { ExternalLink, Check, Loader2, X, Bell, Activity, Webhook, Eye, EyeOff } from "lucide-react";
+import { useGarmin } from "@/lib/use-garmin";
 
 export default function SettingsPage() {
   const { user } = useAuth();
@@ -15,7 +16,12 @@ export default function SettingsPage() {
   const [connecting, setConnecting] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [garminNotify, setGarminNotify] = useState(false);
+  const garmin = useGarmin();
+  const [garminEmail, setGarminEmail] = useState("");
+  const [garminPassword, setGarminPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [garminError, setGarminError] = useState<string | null>(null);
+  const [garminDisconnecting, setGarminDisconnecting] = useState(false);
   const [n8nNotify, setN8nNotify] = useState(false);
 
   const handleConnectGcal = async () => {
@@ -34,6 +40,29 @@ export default function SettingsPage() {
     } finally {
       setConnecting(false);
     }
+  };
+
+  const handleConnectGarmin = async () => {
+    if (!garminEmail.trim() || !garminPassword.trim()) {
+      setGarminError("Email and password are required");
+      return;
+    }
+    setGarminError(null);
+    const success = await garmin.connect(garminEmail.trim(), garminPassword.trim());
+    if (success) {
+      toast("Garmin Connect linked successfully");
+      setGarminEmail("");
+      setGarminPassword("");
+    } else {
+      setGarminError(garmin.error || "Failed to connect");
+    }
+  };
+
+  const handleDisconnectGarmin = async () => {
+    setGarminDisconnecting(true);
+    await garmin.disconnect();
+    toast("Garmin Connect disconnected", "info");
+    setGarminDisconnecting(false);
   };
 
   const handleDisconnectGcal = async () => {
@@ -255,7 +284,7 @@ export default function SettingsPage() {
 
             {/* Garmin Connect */}
             <div
-              className="rounded-lg p-4 opacity-75"
+              className="rounded-lg p-4"
               style={{ background: "var(--bg-tertiary)" }}
             >
               <div className="flex items-center justify-between">
@@ -270,61 +299,126 @@ export default function SettingsPage() {
                     </svg>
                   </div>
                   <div>
-                    <div className="flex items-center gap-2">
-                      <p className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
-                        Garmin Connect
-                      </p>
-                      <span
-                        className="text-[10px] font-medium px-1.5 py-0.5 rounded"
-                        style={{ background: "var(--bg-secondary)", color: "var(--text-tertiary)", border: "1px solid var(--border-primary)" }}
-                      >
-                        Coming Soon
-                      </span>
-                    </div>
-                    <p className="text-xs" style={{ color: "var(--text-tertiary)" }}>
-                      Sync training, sleep, and health data automatically
+                    <p className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
+                      Garmin Connect
                     </p>
+                    {garmin.connection.connected ? (
+                      <p className="text-xs" style={{ color: "var(--text-tertiary)" }}>
+                        Connected as {garmin.connection.displayName || "Garmin user"}
+                      </p>
+                    ) : (
+                      <p className="text-xs" style={{ color: "var(--text-tertiary)" }}>
+                        Sync training, sleep, and health data from your Garmin
+                      </p>
+                    )}
                   </div>
                 </div>
-                {garminNotify ? (
-                  <span
-                    className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg"
-                    style={{ background: "var(--accent-bg)", color: "var(--accent)" }}
-                  >
-                    <Check size={12} />
-                    Subscribed
-                  </span>
-                ) : (
-                  <button
-                    onClick={() => {
-                      setGarminNotify(true);
-                      toast("We'll notify you when Garmin Connect is ready", "info");
-                    }}
-                    className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors hover:opacity-80"
-                    style={{
-                      background: "var(--bg-secondary)",
-                      color: "var(--text-secondary)",
-                      border: "1px solid var(--border-primary)",
-                    }}
-                  >
-                    <Bell size={12} />
-                    Notify Me
-                  </button>
-                )}
-              </div>
-              <div className="mt-3 pt-3" style={{ borderTop: "1px solid var(--border-primary)" }}>
-                <p className="text-xs mb-2" style={{ color: "var(--text-tertiary)" }}>
-                  Planned features:
-                </p>
-                <div className="flex flex-wrap gap-1.5">
-                  {["Sleep tracking", "Heart rate", "Training load", "Steps", "Body battery"].map((f) => (
-                    <span key={f} className="text-xs px-2 py-0.5 rounded"
-                      style={{ background: "var(--bg-secondary)", color: "var(--text-tertiary)", border: "1px solid var(--border-primary)" }}>
-                      {f}
-                    </span>
-                  ))}
+
+                <div className="flex items-center gap-2">
+                  {garmin.connection.connected ? (
+                    <>
+                      <span
+                        className="flex items-center gap-1 text-xs font-medium px-2 py-1 rounded"
+                        style={{ color: "#007CC3" }}
+                      >
+                        <Check size={12} />
+                        Active
+                      </span>
+                      <button
+                        onClick={handleDisconnectGarmin}
+                        disabled={garminDisconnecting}
+                        className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors hover:opacity-80"
+                        style={{
+                          background: "var(--bg-secondary)",
+                          color: "var(--text-secondary)",
+                          border: "1px solid var(--border-primary)",
+                        }}
+                      >
+                        {garminDisconnecting ? <Loader2 size={12} className="animate-spin" /> : <X size={12} />}
+                        Disconnect
+                      </button>
+                    </>
+                  ) : null}
                 </div>
               </div>
+
+              {!garmin.connection.connected && (
+                <div className="mt-3 pt-3 space-y-3" style={{ borderTop: "1px solid var(--border-primary)" }}>
+                  <p className="text-xs" style={{ color: "var(--text-tertiary)" }}>
+                    Enter your Garmin Connect credentials to link your account. Your credentials are only used to authenticate with Garmin and are not stored.
+                  </p>
+                  <div className="space-y-2">
+                    <input
+                      type="email"
+                      value={garminEmail}
+                      onChange={(e) => setGarminEmail(e.target.value)}
+                      placeholder="Garmin email"
+                      className="w-full text-sm bg-transparent rounded-lg px-3 py-2 outline-none"
+                      style={{
+                        border: "1px solid var(--border-primary)",
+                        color: "var(--text-primary)",
+                      }}
+                      onKeyDown={(e) => e.key === "Enter" && handleConnectGarmin()}
+                    />
+                    <div className="relative">
+                      <input
+                        type={showPassword ? "text" : "password"}
+                        value={garminPassword}
+                        onChange={(e) => setGarminPassword(e.target.value)}
+                        placeholder="Garmin password"
+                        className="w-full text-sm bg-transparent rounded-lg px-3 py-2 pr-10 outline-none"
+                        style={{
+                          border: "1px solid var(--border-primary)",
+                          color: "var(--text-primary)",
+                        }}
+                        onKeyDown={(e) => e.key === "Enter" && handleConnectGarmin()}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 p-1"
+                        style={{ color: "var(--text-tertiary)" }}
+                      >
+                        {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+                      </button>
+                    </div>
+                  </div>
+                  {garminError && (
+                    <p className="text-xs" style={{ color: "#ef4444" }}>
+                      {garminError}
+                    </p>
+                  )}
+                  <button
+                    onClick={handleConnectGarmin}
+                    disabled={garmin.loading}
+                    className="flex items-center gap-1.5 rounded-lg px-4 py-2 text-xs font-medium text-white transition-colors hover:opacity-90"
+                    style={{ background: "#007CC3" }}
+                  >
+                    {garmin.loading ? (
+                      <Loader2 size={14} className="animate-spin" />
+                    ) : (
+                      <ExternalLink size={14} />
+                    )}
+                    Connect to Garmin
+                  </button>
+                </div>
+              )}
+
+              {garmin.connection.connected && (
+                <div className="mt-3 pt-3" style={{ borderTop: "1px solid var(--border-primary)" }}>
+                  <p className="text-xs mb-2" style={{ color: "var(--text-tertiary)" }}>
+                    Your Garmin data is available on the Health & Training page:
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {["Activities", "Sleep", "Heart rate", "Steps", "HRV"].map((f) => (
+                      <span key={f} className="text-xs px-2 py-0.5 rounded"
+                        style={{ background: "var(--bg-secondary)", color: "#007CC3", border: "1px solid var(--border-primary)" }}>
+                        {f}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* n8n Webhooks */}
