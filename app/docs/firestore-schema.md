@@ -19,6 +19,7 @@ users/{userId}/
 ├── focusBlocks/{blockId}         # Focus block documents
 ├── journeys/{journeyId}          # Hero Journey documents
 ├── streaks/data                  # Single document for all streak data
+├── settings/integrations         # Integration connection state (gcal, garmin)
 ├── areas/{areaId}                # Area metadata documents
 └── finance/data/
     ├── transactions/{txId}       # Financial transactions
@@ -44,6 +45,21 @@ users/{userId}/
     blocklist: string[];        // URLs to block during focus
     allowlist: string[];        // URLs to allow during focus
   }
+}
+```
+
+### settings/integrations
+```typescript
+{
+  // Google Calendar
+  gcal_connected?: boolean;
+  gcal_email?: string | null;
+  gcal_connected_at?: string | null;    // ISO timestamp
+
+  // Garmin Connect (per-user, never shared across accounts)
+  garmin_connected?: boolean;
+  garmin_display_name?: string | null;
+  garmin_connected_at?: string | null;  // ISO timestamp
 }
 ```
 

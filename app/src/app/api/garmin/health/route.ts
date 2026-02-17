@@ -4,17 +4,23 @@ import {
   fetchSleepData,
   fetchHeartRate,
 } from "@/lib/garmin-service";
+import { verifyAuth } from "@/lib/api-auth";
 
 export async function GET(req: NextRequest) {
+  const authUser = await verifyAuth(req);
+  if (!authUser) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
     const { searchParams } = new URL(req.url);
     const dateStr = searchParams.get("date");
     const date = dateStr ? new Date(dateStr) : undefined;
 
     const [steps, sleep, heartRate] = await Promise.all([
-      fetchSteps(date).catch(() => 0),
-      fetchSleepData(date).catch(() => null),
-      fetchHeartRate(date).catch(() => null),
+      fetchSteps(authUser.uid, date).catch(() => 0),
+      fetchSleepData(authUser.uid, date).catch(() => null),
+      fetchHeartRate(authUser.uid, date).catch(() => null),
     ]);
 
     return NextResponse.json({

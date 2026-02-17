@@ -1,13 +1,45 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
+import { useAuth } from "./auth-context";
+import { auth } from "./firebase";
 import type {
   GarminActivity,
   GarminDailySummary,
   GarminConnectionState,
 } from "./types";
 
+/** Get a fresh Firebase ID token for authenticated API calls */
+async function getIdToken(): Promise<string | null> {
+  const user = auth?.currentUser;
+  if (!user) return null;
+  try {
+    return await user.getIdToken();
+  } catch {
+    return null;
+  }
+}
+
+/** Wrapper around fetch that injects the Firebase Authorization header */
+async function authFetch(
+  url: string,
+  init?: RequestInit
+): Promise<Response> {
+  const token = await getIdToken();
+  if (!token) {
+    throw new Error("Not authenticated");
+  }
+  return fetch(url, {
+    ...init,
+    headers: {
+      ...init?.headers,
+      Authorization: `Bearer ${token}`,
+    },
+  });
+}
+
 export function useGarmin() {
+  const { user } = useAuth();
   const [connection, setConnection] = useState<GarminConnectionState>({
     connected: false,
     displayName: null,
@@ -21,11 +53,16 @@ export function useGarmin() {
   const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Check connection status on mount
+  // Check connection status on mount (only when authenticated)
   useEffect(() => {
+    if (!user) {
+      setConnection({ connected: false, displayName: null, lastSyncedAt: null });
+      return;
+    }
+
     const checkStatus = async () => {
       try {
-        const res = await fetch("/api/garmin/status");
+        const res = await authFetch("/api/garmin/status");
         if (res.ok) {
           const data = await res.json();
           setConnection((prev) => ({
@@ -35,18 +72,18 @@ export function useGarmin() {
           }));
         }
       } catch {
-        // Server not reachable — leave as disconnected
+        // Server not reachable or not authenticated — leave as disconnected
       }
     };
     checkStatus();
-  }, []);
+  }, [user]);
 
   const connect = useCallback(
     async (email: string, password: string) => {
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch("/api/garmin/connect", {
+        const res = await authFetch("/api/garmin/connect", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ email, password }),
@@ -78,7 +115,7 @@ export function useGarmin() {
 
   const disconnect = useCallback(async () => {
     try {
-      await fetch("/api/garmin/disconnect", { method: "POST" });
+      await authFetch("/api/garmin/disconnect", { method: "POST" });
     } catch {
       // best effort
     }
@@ -98,7 +135,7 @@ export function useGarmin() {
       setSyncing(true);
       setError(null);
       try {
-        const res = await fetch(
+        const res = await authFetch(
           `/api/garmin/activities?start=${start}&limit=${limit}`
         );
         const data = await res.json();
@@ -136,7 +173,7 @@ export function useGarmin() {
         const url = date
           ? `/api/garmin/health?date=${date}`
           : "/api/garmin/health";
-        const res = await fetch(url);
+        const res = await authFetch(url);
         const data = await res.json();
 
         if (!res.ok) {

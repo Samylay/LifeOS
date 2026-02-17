@@ -1,13 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchActivities } from "@/lib/garmin-service";
+import { verifyAuth } from "@/lib/api-auth";
 
 export async function GET(req: NextRequest) {
+  const authUser = await verifyAuth(req);
+  if (!authUser) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
     const { searchParams } = new URL(req.url);
     const start = parseInt(searchParams.get("start") || "0", 10);
     const limit = parseInt(searchParams.get("limit") || "20", 10);
 
-    const activities = await fetchActivities(start, limit);
+    const activities = await fetchActivities(authUser.uid, start, limit);
     return NextResponse.json({ activities });
   } catch (err: unknown) {
     const message =

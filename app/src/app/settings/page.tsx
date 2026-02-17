@@ -345,7 +345,7 @@ export default function SettingsPage() {
               {!garmin.connection.connected && (
                 <div className="mt-3 pt-3 space-y-3" style={{ borderTop: "1px solid var(--border-primary)" }}>
                   <p className="text-xs" style={{ color: "var(--text-tertiary)" }}>
-                    Enter your Garmin Connect credentials to link your account. Your credentials are only used to authenticate with Garmin and are not stored.
+                    Enter your Garmin Connect credentials to link your account. Your credentials are used to authenticate with Garmin and the session is tied to your account.
                   </p>
                   <div className="space-y-2">
                     <input
