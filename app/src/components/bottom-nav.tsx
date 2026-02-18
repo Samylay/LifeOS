@@ -9,17 +9,18 @@ import {
   Sparkles,
   Timer,
 } from "lucide-react";
+import { useAppStore } from "@/lib/store";
 
 const TABS = [
   { href: "/", label: "Home", icon: LayoutDashboard },
   { href: "/workouts", label: "Workout", icon: Dumbbell },
   { href: "/focus", label: "Focus", icon: Timer },
   { href: "/reminders", label: "Reminders", icon: Bell },
-  { href: "/assistant", label: "Assistant", icon: Sparkles },
 ];
 
 export function BottomNav() {
   const pathname = usePathname();
+  const { toggleChatPanel } = useAppStore();
 
   const isActive = (href: string) => {
     if (href === "/") return pathname === "/";
@@ -60,6 +61,23 @@ export function BottomNav() {
           </Link>
         );
       })}
+      {/* Assistant — opens chat panel instead of navigating */}
+      <button
+        onClick={toggleChatPanel}
+        className="flex flex-col items-center justify-center gap-0.5 py-1 px-3 rounded-lg transition-colors"
+        style={{
+          color: "var(--text-tertiary)",
+          minWidth: 56,
+        }}
+      >
+        <Sparkles size={22} strokeWidth={2} />
+        <span
+          className="text-xs font-medium"
+          style={{ fontSize: 10 }}
+        >
+          Assistant
+        </span>
+      </button>
     </nav>
   );
 }

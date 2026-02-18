@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { Sidebar } from "./sidebar";
 import { TopBar } from "./top-bar";
 import { BottomNav } from "./bottom-nav";
+import { ChatPanel } from "./chat-panel";
 import { useAppStore } from "@/lib/store";
 import { useAuth } from "@/lib/auth-context";
 import { LoginScreen } from "./login-screen";
@@ -39,9 +40,13 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="min-h-screen" style={{ background: "var(--bg-primary)" }}>
-      {/* Desktop sidebar - hidden on mobile */}
+      {/* Desktop sidebar */}
       <div className="hidden lg:block">
         <Sidebar />
+      </div>
+      {/* Mobile sidebar */}
+      <div className="lg:hidden">
+        <Sidebar mobile />
       </div>
       <TopBar />
       <main
@@ -65,6 +70,8 @@ export function AppShell({ children }: { children: ReactNode }) {
       </main>
       {/* Mobile bottom nav - hidden on desktop */}
       <BottomNav />
+      {/* Chat panel — right side drawer */}
+      <ChatPanel />
     </div>
   );
 }
