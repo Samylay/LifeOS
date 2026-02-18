@@ -245,7 +245,7 @@ export function useChat() {
         const errorMsg: ChatMessage = {
           id: `msg-${++msgId}`,
           role: "assistant",
-          content: `Something went wrong: ${err instanceof Error ? err.message : "Unknown error"}. Make sure your ANTHROPIC_API_KEY is set in .env.local.`,
+          content: `Something went wrong: ${err instanceof Error ? err.message : "Unknown error"}. Make sure your OPENAI_API_KEY is set in .env.local.`,
           timestamp: new Date(),
         };
         setMessages((prev) => [...prev, errorMsg]);

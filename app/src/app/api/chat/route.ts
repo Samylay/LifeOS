@@ -1,4 +1,4 @@
-import Anthropic from "@anthropic-ai/sdk";
+import OpenAI from "openai";
 import { NextRequest, NextResponse } from "next/server";
 
 const SYSTEM_PROMPT = `You are a helpful assistant embedded inside LifeOS, a personal productivity app. The user may paste raw text (e.g. from Notion, notes, or brain dumps) and you should extract actionable items from it.
@@ -19,158 +19,176 @@ Guidelines:
 
 The user's existing data context will be provided when available so you can avoid duplicates.`;
 
-const tools: Anthropic.Tool[] = [
+const tools: OpenAI.ChatCompletionTool[] = [
   {
-    name: "create_tasks",
-    description:
-      "Create one or more tasks in the app. Use this for actionable to-do items. You can create multiple tasks at once.",
-    input_schema: {
-      type: "object" as const,
-      properties: {
-        tasks: {
-          type: "array",
-          items: {
-            type: "object",
-            properties: {
-              title: {
-                type: "string",
-                description: "Short, actionable task title (start with a verb)",
+    type: "function",
+    function: {
+      name: "create_tasks",
+      description:
+        "Create one or more tasks in the app. Use this for actionable to-do items. You can create multiple tasks at once.",
+      parameters: {
+        type: "object",
+        properties: {
+          tasks: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                title: {
+                  type: "string",
+                  description: "Short, actionable task title (start with a verb)",
+                },
+                priority: {
+                  type: "string",
+                  enum: ["low", "medium", "high", "urgent"],
+                  description: "Task priority level",
+                },
+                area: {
+                  type: "string",
+                  enum: ["health", "career", "finance", "brand", "admin"],
+                  description: "Life area this task belongs to (optional)",
+                },
+                dueDate: {
+                  type: "string",
+                  description:
+                    "Due date in ISO format YYYY-MM-DD (optional, only if a clear deadline exists)",
+                },
               },
-              priority: {
-                type: "string",
-                enum: ["low", "medium", "high", "urgent"],
-                description: "Task priority level",
-              },
-              area: {
-                type: "string",
-                enum: ["health", "career", "finance", "brand", "admin"],
-                description: "Life area this task belongs to (optional)",
-              },
-              dueDate: {
-                type: "string",
-                description:
-                  "Due date in ISO format YYYY-MM-DD (optional, only if a clear deadline exists)",
-              },
+              required: ["title", "priority"],
             },
-            required: ["title", "priority"],
+            description: "Array of tasks to create",
           },
-          description: "Array of tasks to create",
         },
+        required: ["tasks"],
       },
-      required: ["tasks"],
     },
   },
   {
-    name: "create_goal",
-    description:
-      "Create a goal. Goals are high-level objectives for the year, optionally scoped to a quarter.",
-    input_schema: {
-      type: "object" as const,
-      properties: {
-        title: { type: "string", description: "Goal title" },
-        year: { type: "number", description: "Target year (e.g. 2026)" },
-        quarter: {
-          type: "number",
-          enum: [1, 2, 3, 4],
-          description: "Target quarter (optional)",
+    type: "function",
+    function: {
+      name: "create_goal",
+      description:
+        "Create a goal. Goals are high-level objectives for the year, optionally scoped to a quarter.",
+      parameters: {
+        type: "object",
+        properties: {
+          title: { type: "string", description: "Goal title" },
+          year: { type: "number", description: "Target year (e.g. 2026)" },
+          quarter: {
+            type: "number",
+            enum: [1, 2, 3, 4],
+            description: "Target quarter (optional)",
+          },
         },
+        required: ["title", "year"],
       },
-      required: ["title", "year"],
     },
   },
   {
-    name: "create_habit",
-    description:
-      "Create a habit to track. Habits are recurring activities the user wants to build consistency with.",
-    input_schema: {
-      type: "object" as const,
-      properties: {
-        name: { type: "string", description: "Habit name" },
-        frequency: {
-          type: "string",
-          enum: ["daily", "weekly"],
-          description: "How often the habit should be done",
+    type: "function",
+    function: {
+      name: "create_habit",
+      description:
+        "Create a habit to track. Habits are recurring activities the user wants to build consistency with.",
+      parameters: {
+        type: "object",
+        properties: {
+          name: { type: "string", description: "Habit name" },
+          frequency: {
+            type: "string",
+            enum: ["daily", "weekly"],
+            description: "How often the habit should be done",
+          },
+          area: {
+            type: "string",
+            enum: ["health", "career", "finance", "brand", "admin"],
+            description: "Life area (optional)",
+          },
         },
-        area: {
-          type: "string",
-          enum: ["health", "career", "finance", "brand", "admin"],
-          description: "Life area (optional)",
-        },
+        required: ["name", "frequency"],
       },
-      required: ["name", "frequency"],
     },
   },
   {
-    name: "create_note",
-    description:
-      "Capture a note or piece of information that doesn't fit as a task. Good for ideas, references, and things to process later.",
-    input_schema: {
-      type: "object" as const,
-      properties: {
-        content: { type: "string", description: "Note content" },
-        tags: {
-          type: "array",
-          items: { type: "string" },
-          description: "Tags for categorization",
+    type: "function",
+    function: {
+      name: "create_note",
+      description:
+        "Capture a note or piece of information that doesn't fit as a task. Good for ideas, references, and things to process later.",
+      parameters: {
+        type: "object",
+        properties: {
+          content: { type: "string", description: "Note content" },
+          tags: {
+            type: "array",
+            items: { type: "string" },
+            description: "Tags for categorization",
+          },
+          area: {
+            type: "string",
+            enum: ["health", "career", "finance", "brand", "admin"],
+            description: "Life area (optional)",
+          },
         },
-        area: {
-          type: "string",
-          enum: ["health", "career", "finance", "brand", "admin"],
-          description: "Life area (optional)",
-        },
+        required: ["content"],
       },
-      required: ["content"],
     },
   },
   {
-    name: "create_reminder",
-    description:
-      "Create a reminder for something due at a specific time or date, optionally recurring.",
-    input_schema: {
-      type: "object" as const,
-      properties: {
-        title: { type: "string", description: "Reminder title" },
-        frequency: {
-          type: "string",
-          enum: ["once", "daily", "weekly", "monthly", "yearly"],
+    type: "function",
+    function: {
+      name: "create_reminder",
+      description:
+        "Create a reminder for something due at a specific time or date, optionally recurring.",
+      parameters: {
+        type: "object",
+        properties: {
+          title: { type: "string", description: "Reminder title" },
+          frequency: {
+            type: "string",
+            enum: ["once", "daily", "weekly", "monthly", "yearly"],
+          },
+          dueDate: {
+            type: "string",
+            description: "Due date in ISO format YYYY-MM-DD",
+          },
+          time: {
+            type: "string",
+            description: "Time in HH:mm format (optional)",
+          },
+          area: {
+            type: "string",
+            enum: ["health", "career", "finance", "brand", "admin"],
+            description: "Life area (optional)",
+          },
         },
-        dueDate: {
-          type: "string",
-          description: "Due date in ISO format YYYY-MM-DD",
-        },
-        time: {
-          type: "string",
-          description: "Time in HH:mm format (optional)",
-        },
-        area: {
-          type: "string",
-          enum: ["health", "career", "finance", "brand", "admin"],
-          description: "Life area (optional)",
-        },
+        required: ["title", "frequency", "dueDate"],
       },
-      required: ["title", "frequency", "dueDate"],
     },
   },
   {
-    name: "create_project",
-    description:
-      "Create a project. Projects group related tasks and have a status lifecycle (planning → active → completed).",
-    input_schema: {
-      type: "object" as const,
-      properties: {
-        title: { type: "string", description: "Project title" },
-        area: {
-          type: "string",
-          enum: ["health", "career", "finance", "brand", "admin"],
-          description: "Life area (optional)",
+    type: "function",
+    function: {
+      name: "create_project",
+      description:
+        "Create a project. Projects group related tasks and have a status lifecycle (planning → active → completed).",
+      parameters: {
+        type: "object",
+        properties: {
+          title: { type: "string", description: "Project title" },
+          area: {
+            type: "string",
+            enum: ["health", "career", "finance", "brand", "admin"],
+            description: "Life area (optional)",
+          },
+          status: {
+            type: "string",
+            enum: ["planning", "active", "paused"],
+            description: "Initial project status",
+          },
         },
-        status: {
-          type: "string",
-          enum: ["planning", "active", "paused"],
-          description: "Initial project status",
-        },
+        required: ["title"],
       },
-      required: ["title"],
     },
   },
 ];
@@ -184,15 +202,15 @@ export async function POST(req: NextRequest) {
   try {
     const { messages, context } = await req.json();
 
-    const apiKey = process.env.ANTHROPIC_API_KEY;
+    const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
       return NextResponse.json(
-        { error: "ANTHROPIC_API_KEY not configured. Add it to your .env.local file." },
+        { error: "OPENAI_API_KEY not configured. Add it to your .env.local file." },
         { status: 500 }
       );
     }
 
-    const client = new Anthropic({ apiKey });
+    const client = new OpenAI({ apiKey });
 
     // Build system prompt with context
     let systemPrompt = SYSTEM_PROMPT;
@@ -217,71 +235,68 @@ export async function POST(req: NextRequest) {
       systemPrompt += `Avoid creating duplicates of existing items.`;
     }
 
-    // Convert messages to Anthropic format
-    const anthropicMessages: Anthropic.MessageParam[] = messages.map(
-      (m: { role: string; content: string }) => ({
+    // Convert messages to OpenAI format
+    const openaiMessages: OpenAI.ChatCompletionMessageParam[] = [
+      { role: "system", content: systemPrompt },
+      ...messages.map((m: { role: string; content: string }) => ({
         role: m.role as "user" | "assistant",
         content: m.content,
-      })
-    );
+      })),
+    ];
 
     const actions: ChatAction[] = [];
     let reply = "";
 
-    // Call Claude and handle tool use loop
-    let response = await client.messages.create({
-      model: "claude-sonnet-4-20250514",
+    // Call OpenAI and handle tool use loop
+    let response = await client.chat.completions.create({
+      model: "gpt-4o-mini",
       max_tokens: 4096,
-      system: systemPrompt,
       tools,
-      messages: anthropicMessages,
+      messages: openaiMessages,
     });
 
-    // Loop while Claude wants to use tools
-    const conversationMessages = [...anthropicMessages];
+    let choice = response.choices[0];
     let iterations = 0;
     const MAX_ITERATIONS = 10;
 
-    while (response.stop_reason === "tool_use" && iterations < MAX_ITERATIONS) {
+    while (
+      choice.finish_reason === "tool_calls" &&
+      choice.message.tool_calls?.length &&
+      iterations < MAX_ITERATIONS
+    ) {
       iterations++;
 
-      // Collect tool uses and build results
-      const assistantContent = response.content;
-      const toolResults: Anthropic.ToolResultBlockParam[] = [];
+      // Add the assistant message with tool calls
+      openaiMessages.push(choice.message);
 
-      for (const block of assistantContent) {
-        if (block.type === "text") {
-          reply += block.text;
-        }
-        if (block.type === "tool_use") {
-          actions.push({ tool: block.name, input: block.input as Record<string, unknown> });
-          toolResults.push({
-            type: "tool_result",
-            tool_use_id: block.id,
-            content: JSON.stringify({ success: true }),
-          });
-        }
+      // Process each tool call
+      for (const toolCall of choice.message.tool_calls) {
+        if (toolCall.type !== "function") continue;
+        const fn = toolCall.function;
+        const parsedArgs = JSON.parse(fn.arguments);
+        actions.push({ tool: fn.name, input: parsedArgs });
+
+        // Add tool result
+        openaiMessages.push({
+          role: "tool",
+          tool_call_id: toolCall.id,
+          content: JSON.stringify({ success: true }),
+        });
       }
 
-      // Continue conversation with tool results
-      conversationMessages.push({ role: "assistant", content: assistantContent });
-      conversationMessages.push({ role: "user", content: toolResults });
-
-      response = await client.messages.create({
-        model: "claude-sonnet-4-20250514",
+      // Continue conversation
+      response = await client.chat.completions.create({
+        model: "gpt-4o-mini",
         max_tokens: 4096,
-        system: systemPrompt,
         tools,
-        messages: conversationMessages,
+        messages: openaiMessages,
       });
+
+      choice = response.choices[0];
     }
 
     // Extract final text
-    for (const block of response.content) {
-      if (block.type === "text") {
-        reply += block.text;
-      }
-    }
+    reply += choice.message.content || "";
 
     return NextResponse.json({ reply, actions });
   } catch (error: unknown) {
