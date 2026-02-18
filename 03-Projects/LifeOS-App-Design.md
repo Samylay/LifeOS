@@ -575,88 +575,95 @@ Five area modules share a layout — AI generates the first, you refine, then AI
 
 **AI leverage:** ~90%. Repetitive module work is where AI shines hardest. Generate one module, review, then batch-generate the rest with consistent patterns.
 
-### Phase 3: Quests, Goals & Hero Journeys (Days 14-17)
+### Phase 3: Task System Upgrade + Todoist Parity (Days 14-19)
 
-Data-driven features with visual progression. AI handles the logic and UI; you tune the gamification feel.
+The task system is functional but basic. These upgrades make it a real daily driver — no external dependencies, pure frontend + Firestore work.
 
-- [ ] **Quest system** — CRUD with progress tracking (percentage + checklist modes), category, date range
-- [ ] **Annual goals view** — Year view with quarterly breakdown, link to quests and projects
-- [ ] **Hero Journey CRUD** — Create journeys, assign areas/tags, activate/deactivate
+**Sprint A — Core Task Upgrades (Days 14-16):**
+- [ ] **Sub-tasks** — Add `parentId` to Task type, nest child tasks under parents, collapse/expand toggle
+- [ ] **Task descriptions** — Add `description` field (markdown), expandable area below task title
+- [ ] **Natural language date parsing** — `chrono-node` library to parse "tomorrow", "next Friday" from quick capture
+- [ ] **Today view** — New `/today` route: due today + in_progress + overdue, grouped by urgency
+
+**Sprint B — Views & Organization (Days 17-19):**
+- [ ] **Sort & group options** — Sort by date/priority/name, group by area/priority/date/project
+- [ ] **Drag-and-drop reordering** — `sortOrder` field + `@dnd-kit/sortable` for manual ordering
+- [ ] **Upcoming view** — New `/upcoming` route: tasks grouped by day for next 7/14/30 days
+- [ ] **Completed tasks archive** — `/tasks/completed` route with date/area filters, restore-to-todo
+
+**AI leverage:** ~90%. All CRUD extensions and new views are ideal for AI generation. chrono-node integration is well-documented.
+
+### Phase 4: Quests, Goals, Journeys & Project Depth (Days 20-25)
+
+Gamification + project structure upgrades. Builds on the existing quest/journey scaffolds.
+
 - [ ] **Journey progression engine** — Auto-calculate hours from tagged focus sessions, tier-up logic
-- [ ] **Journey dashboard** — XP bars, tier badges, hour counters (total + 30-day rolling), milestone history
+- [ ] **Journey dashboard polish** — XP bars, tier badges, hour counters (total + 30-day rolling)
+- [ ] **Tier-up celebrations** — Animations and badge awards on milestone
 - [ ] **Link quests to journeys** — Quest completion grants bonus journey hours
-- [ ] **Streaks system (enhanced)** — Area streaks, streak shields, milestone badges (7/30/60/100/365), streak recovery display
-- [ ] **Dashboard integration** — Quest progress bars, journey cards, streak display on Command Center
+- [ ] **Streaks (enhanced)** — Area streaks, streak shields (1 miss/week), milestone badges (7/30/60/100/365)
+- [ ] **Sections within projects** — Named sections to group tasks inside a project
+- [ ] **Task duration estimates** — `estimatedMinutes` field, badge display, sum in Today view header
+- [ ] **Custom filters** — Boolean query builder (area AND priority AND date range), save as filter presets
 
-**AI leverage:** ~85%. The progression math, tier logic, and XP calculations are straightforward for AI. Milestone celebration animations and gamification polish need human feel.
+**AI leverage:** ~85%. Progression math and filter logic are straightforward. Celebration animations need design feel.
 
-### Phase 4: Google Calendar + LLM Integration (Days 18-24)
+### Phase 5: LLM Integration + Smart Features (Days 26-32)
 
-The two integrations that require the most human attention — OAuth flows, API credentials, prompt engineering, and edge-case debugging. Run these in parallel.
+LLM-powered features that turn LifeOS from a tracker into an assistant. Requires Gemini API setup.
 
-**Google Calendar (Days 18-21):**
-- [ ] OAuth2 flow for Google Calendar (manual: GCP console setup, consent screen)
-- [ ] Read events from Google Calendar API
-- [ ] Write LifeOS events + focus blocks to Google Calendar
-- [ ] Bidirectional sync strategy (webhook or polling)
-- [ ] Conflict detection on event creation
-- [ ] Merged calendar view (LifeOS + Google Calendar events)
+- [ ] **Gemini 2.5 Flash setup** — API key, function calling schema, rate limit handling
+- [ ] **Smart quick capture** — LLM parses text → task/event/note/reminder with auto-categorization
+- [ ] **AI task breakdown** — "Break this down" button → LLM suggests sub-tasks for a parent task
+- [ ] **Daily brief generation** — Morning summary: schedule + focus stats + quest nudges + priority suggestions
+- [ ] **Weekly review generation** — Completed tasks, focus hours by area, missed goals, suggestions
+- [ ] **Filter Assist** — Natural language → filter query ("show overdue career tasks")
+- [ ] **Priority suggestions** — LLM ranks unscheduled tasks based on due dates, area balance, energy patterns
+- [ ] **Prompt tuning** — Iterate on real-world input patterns, edge cases, hallucination guards
 
-**LLM Integration (Days 20-24, overlaps with calendar):**
-- [ ] Gemini 2.5 Flash API setup with function calling (manual: API key, quota setup)
-- [ ] Upgrade quick capture to LLM-powered parsing (text → task/event/note/reminder/focus block)
-- [ ] Daily brief generation (morning summary with schedule, focus stats, quest nudges)
-- [ ] Weekly review generation (completed tasks, focus hours by area, missed goals)
-- [ ] Quest progress check-ins and focus coaching suggestions
-- [ ] Prompt tuning and testing across real-world input patterns
+**AI leverage:** ~60%. Integration code is fast to write but prompt engineering, function calling reliability, and edge-case handling need hands-on iteration.
 
-**AI leverage:** ~60%. AI writes the integration code fast, but OAuth debugging, API rate limits, webhook reliability, and prompt engineering require hands-on iteration. This is the phase where wall-clock time matters most.
+### Phase 6: Analytics, Polish & Hardening (Days 33-40)
 
-### Phase 5: Analytics, Shield & Polish (Days 25-30)
+Production readiness. Charts, notifications, performance, security.
 
-Analytics charts are highly AI-generatable. Focus Shield has browser-level complexity. Polish is UX iteration.
-
+**Analytics:**
 - [ ] **Focus analytics dashboard** — Daily/weekly/monthly charts (hours, by area, completion rates)
 - [ ] **Focus heatmap** — Best focus times (hour of day × day of week)
-- [ ] **Session completion breakdown** — Full vs. partial vs. abandoned rates
-- [ ] **Focus Shield** — Blocklist/allowlist config per focus block profile
-- [ ] **Distraction overlay** — Full-screen reminder when navigating to blocked sites
-- [ ] **Notification system** — Browser notifications for reminders, due tasks, streak at risk
-- [ ] **Mobile-responsive pass** — Ensure all views work on phone/tablet
-- [ ] **Journey milestone celebrations** — Tier-up animations and badge awards
-- [ ] **Wellbeing dashboard** — Energy/sleep/mood trends over time
+- [ ] **Karma / productivity score** — Points for completions + streaks, daily/weekly goals
+- [ ] **Activity history feed** — Timeline of actions across all collections
+- [ ] **Wellbeing trends** — Energy/sleep/mood charts over time
 
-**AI leverage:** ~75%. Chart components and analytics queries are fast to generate. Focus Shield (Service Worker / browser extension interception) has platform edge cases that need manual testing.
-
-### Phase 6: External Integrations & Hardening (Days 31-35)
-
-Third-party APIs and production readiness. Mostly human-gated by API access and testing.
-
-- [ ] **Garmin Connect API** — OAuth setup, pull workouts/sleep/heart rate, auto-log to Health journey
+**Integrations:**
+- [ ] **Two-way Google Calendar sync** — Write LifeOS events/blocks to GCal, webhook or polling for changes
 - [ ] **n8n webhook endpoints** — Trigger external workflows (content pipeline, digests)
-- [ ] **Offline support** — Firestore offline persistence, Service Worker caching, sync-on-reconnect
-- [ ] **Error handling pass** — Edge cases, loading states, empty states, network failures
-- [ ] **Security review** — Firestore rules, API key scoping, auth edge cases
-- [ ] **Performance pass** — Lazy loading, code splitting, Firestore query optimization
 
-**AI leverage:** ~50%. AI writes the integration scaffolding, but Garmin OAuth, n8n configuration, and security hardening require manual verification and testing.
+**Hardening:**
+- [ ] **Notification system** — Browser push for reminders, due tasks, streak-at-risk warnings
+- [ ] **Offline support** — Firestore offline persistence, sync-on-reconnect
+- [ ] **Error handling pass** — Loading states, empty states, network failures, graceful degradation
+- [ ] **Security review** — Firestore rules audit, API key scoping, auth edge cases
+- [ ] **Performance pass** — Lazy loading, code splitting, query optimization
+- [ ] **Mobile polish** — Final responsive pass, touch targets, PWA install prompt
+
+**AI leverage:** ~65%. Charts and error handling are fast to generate. Notification permissions, offline sync edge cases, and security review need manual verification.
 
 ---
 
-### Timeline Summary (AI-Powered)
+### Timeline Summary (AI-Powered, Updated)
 
-| Phase | Duration | Calendar | AI Leverage |
-|-------|----------|----------|-------------|
-| 0 — Foundation | 2 days | Days 1-2 | ~90% |
-| 1 — Core Loop + Focus Engine | 5 days | Days 3-7 | ~85% |
-| 2 — Areas + Blocks + Projects | 6 days | Days 8-13 | ~90% |
-| 3 — Quests, Goals & Journeys | 4 days | Days 14-17 | ~85% |
-| 4 — Calendar + LLM Integration | 7 days | Days 18-24 | ~60% |
-| 5 — Analytics, Shield & Polish | 6 days | Days 25-30 | ~75% |
-| 6 — Integrations & Hardening | 5 days | Days 31-35 | ~50% |
-| **Total** | **~35 working days** | **~7 weeks** | **~75% avg** |
+| Phase | Status | Duration | Calendar | AI Leverage |
+|-------|--------|----------|----------|-------------|
+| 0 — Foundation | **Done** | 2 days | Days 1-2 | ~90% |
+| 1 — Core Loop + Focus Engine | **Done** | 5 days | Days 3-7 | ~85% |
+| 2 — Areas + Blocks + Projects | **Done** | 6 days | Days 8-13 | ~90% |
+| 3 — Task Upgrades + Todoist Parity | **Next** | 6 days | Days 14-19 | ~90% |
+| 4 — Quests, Journeys & Project Depth | Planned | 6 days | Days 20-25 | ~85% |
+| 5 — LLM Integration + Smart Features | Planned | 7 days | Days 26-32 | ~60% |
+| 6 — Analytics, Polish & Hardening | Planned | 8 days | Days 33-40 | ~65% |
+| **Total** | | **~40 working days** | **~8 weeks** | **~80% avg** |
 
-> **Compared to manual development:** 19 weeks → 7 weeks (~2.7x speedup). The compression is uneven — scaffold and CRUD phases collapse by 4-5x while integration and polish phases compress by ~1.5x. The bottleneck is no longer "how fast can I type code" but "how fast can I make decisions, test integrations, and iterate on UX."
+> **Key change from original plan:** Phase 3 now focuses on task system depth (sub-tasks, descriptions, NL dates, today/upcoming views) before jumping to LLM features. This makes the app a usable daily driver without waiting for Gemini integration. LLM features moved to Phase 5 since the core loop needs to be solid first — you can't build smart features on top of a basic task system.
 
 ---
 

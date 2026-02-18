@@ -398,3 +398,139 @@ Sub-components: `MetricCard`, `HabitList`, `QuickNotes`
 | `useFocusBlocks()` | `src/lib/use-focus-blocks.ts` | CRUD for focus blocks, session calculation |
 | `useNotes()` | `src/lib/use-notes.ts` | CRUD for notes with area filtering |
 | `useSubscriptions()` | `src/lib/use-subscriptions.ts` | CRUD for finance subscriptions, monthly cost calc |
+
+---
+
+## Todoist-Inspired Feature Roadmap
+
+Features distilled from Todoist's feature set, filtered to what matters for a **solo personal app** (no team/org/sharing features). Organized by realistic implementation priority.
+
+### Already Built
+
+| Feature | LifeOS Equivalent |
+|---------|-------------------|
+| Task CRUD with priorities | 4 priority levels, status cycling, area tagging |
+| Quick capture | Top bar input → creates task on Enter |
+| Projects | Kanban board with 4 status columns |
+| Recurring tasks | Reminders system with daily/weekly/monthly/yearly frequency |
+| Habit tracking | Daily toggle with streak tracking per habit |
+| Labels/tags | Area system (Health, Career, Finance, Brand, Admin) |
+| Due dates | Date picker on task creation |
+| Calendar view | Weekly grid with focus blocks + Google Calendar events |
+| Board layout (Kanban) | Project tracker with drag-and-drop columns |
+| Dark mode | CSS custom properties with system preference detection |
+| Mobile responsive | Responsive layout + bottom nav + PWA manifest |
+| Voice input | Web Speech API for task creation |
+| Google Calendar (read) | OAuth + event fetching + display on calendar |
+| Reminders | Recurring reminders with due date tracking |
+
+### Do Now — High Value, Low Complexity
+
+These can be built with the existing stack and data model. No external API or LLM dependency.
+
+#### 1. Sub-tasks (Task Nesting)
+- Add `parentId` field to Task type
+- Indent child tasks under parent in TaskList
+- Collapse/expand toggle on parent tasks
+- **Why now:** Core task management feature, simple data model change
+
+#### 2. Task Descriptions
+- Add `description` field to Task type (plain text or markdown)
+- Expandable description area below task title
+- **Why now:** Tasks often need context beyond a title
+
+#### 3. Natural Language Date Parsing
+- Use `chrono-node` library (no LLM needed) to parse "tomorrow", "next Friday", "March 5" from quick capture
+- Auto-extract date from capture text and set as `dueDate`
+- **Why now:** Massive QoL improvement for quick capture, zero API cost
+
+#### 4. Today View
+- Filtered task list: tasks where `dueDate === today` OR `status === in_progress`
+- Separate from Dashboard — dedicated `/today` route
+- Group by: overdue / today / no date
+- **Why now:** The single most-used view in Todoist, simple filter query
+
+#### 5. Task Sort & Group Options
+- Sort by: due date, priority, name, created date
+- Group by: area, priority, due date, project
+- Persist sort preference per view
+- **Why now:** Already have all the data fields, just need UI controls
+
+#### 6. Drag-and-Drop Task Reordering
+- Add `sortOrder` field to tasks
+- Drag-and-drop within task lists (use `@dnd-kit/sortable` or similar)
+- **Why now:** Manual ordering is essential when auto-sort isn't enough
+
+#### 7. Sections Within Projects
+- Add `sections` array to Project type (or separate collection)
+- Group tasks under named sections within a project view
+- **Why now:** Projects with 10+ tasks need internal structure
+
+#### 8. Task Duration / Time Estimates
+- Add `estimatedMinutes` field to Task type
+- Display as badge on task card
+- Sum estimates in Today view header ("~2.5h of work planned")
+- **Why now:** Connects tasks to focus blocks — know what fits in a session
+
+#### 9. Completed Tasks Archive
+- `/tasks/completed` route showing done/cancelled tasks
+- Filter by date range, area, project
+- Undo: restore task back to todo
+- **Why now:** Currently completed tasks just disappear from view
+
+#### 10. Upcoming View
+- `/upcoming` route showing tasks grouped by day for next 7/14/30 days
+- Overdue section at top
+- "No date" section at bottom
+- **Why now:** See what's coming without checking the calendar
+
+### Do Later — Valuable But Complex
+
+These depend on LLM integration, external APIs, or significant new infrastructure.
+
+#### LLM-Powered (Phase 4 dependency)
+| Feature | Complexity | Notes |
+|---------|-----------|-------|
+| Smart quick capture (text → task/event/note/reminder) | Medium | Needs Gemini function calling |
+| AI task breakdown ("Break this down") | Medium | Suggest sub-tasks from a parent task title |
+| Priority suggestions | Low | LLM ranks tasks based on due dates + context |
+| Smart scheduling | High | Suggest optimal time slots based on energy patterns |
+| Filter Assist (natural language → filter query) | Medium | "Show me overdue career tasks" → filter params |
+
+#### Integration-Dependent
+| Feature | Complexity | Dependency |
+|---------|-----------|------------|
+| Two-way Google Calendar sync | High | Webhook/polling infrastructure |
+| Email-to-task | Medium | Email parsing service or Gmail API |
+| Zapier/n8n automation triggers | Medium | Webhook endpoint infrastructure |
+| Location-based reminders | High | Needs native mobile app (not PWA) |
+
+#### Analytics (Phase 5)
+| Feature | Complexity | Notes |
+|---------|-----------|-------|
+| Productivity charts (daily/weekly/monthly) | Medium | Recharts already in deps |
+| Karma / points system | Low | Gamification layer on top of existing streaks |
+| Activity history feed | Low | Aggregate actions across collections |
+| Daily/weekly completion goals | Low | Target setting + progress tracking |
+
+### Skip — Doesn't Fit LifeOS
+
+| Todoist Feature | Why Skip |
+|----------------|----------|
+| Shared projects / collaboration | Solo personal app |
+| Team workspaces | Solo personal app |
+| Comments on tasks | Overkill — use description field instead |
+| File attachments | Obsidian handles documents and files |
+| Browser extension | Quick capture in-app is sufficient for now |
+| Email forwarding | Low priority for personal use |
+| Smartwatch app | Garmin integration covers health; tasks can wait |
+
+### Priority Implementation Order
+
+```
+Sprint A (next): Sub-tasks, Descriptions, NL Date Parsing, Today View
+Sprint B:        Sort/Group, Drag Reorder, Upcoming View, Completed Archive
+Sprint C:        Sections, Duration Estimates, Custom Filters
+Sprint D (LLM):  Smart Capture, Task Breakdown, Priority Suggestions
+Sprint E:        Productivity Charts, Karma, Activity Feed
+```
