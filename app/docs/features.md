@@ -13,7 +13,7 @@ All design tokens from the UX/UI spec are implemented in `globals.css`:
 - Emerald brand scale (50-950)
 - Slate neutral scale (50-950)
 - Area colors: Health (teal), Career (indigo), Finance (amber), Brand (violet), Admin (slate)
-- Tier colors for Hero Journey progression
+- Tier colors for goal progression
 - Semantic colors (success, warning, danger, info)
 - Z-index scale, animation durations, shadow scale
 
@@ -21,9 +21,8 @@ All design tokens from the UX/UI spec are implemented in `globals.css`:
 Full TypeScript types for all Firestore collections in `src/lib/types.ts`:
 - UserProfile, FocusSettings
 - Task, CalendarEvent, Note
-- Quest, Goal, Project, Habit
-- DailyLog, FocusSession, FocusBlock
-- Journey, Streaks, StreakData
+- Goal, Project, Habit
+- DailyLog, FocusSession
 - Transaction, Subscription, Area
 
 ### Firestore Helpers
@@ -171,7 +170,7 @@ await updateLog({ gratitude: "Good weather today", reflection: "Productive morni
 | `reflection` | string (optional) | Evening reflection |
 | `focusSessions` | number | Auto-updated |
 | `focusMinutes` | number | Auto-updated |
-| `streakDay` | number | Auto-updated |
+| `tasksCompleted` | number | Auto-updated |
 
 #### Firestore Path
 ```
@@ -193,35 +192,6 @@ users/{userId}/dailyLogs/{YYYY-MM-DD}
 
 ---
 
-### Focus Streaks
-**Hook**: `useStreaks()` — `src/lib/use-streaks.ts`
-
-#### Usage
-```tsx
-import { useStreaks } from "@/lib/use-streaks";
-
-const { streaks, loading, recordFocusDay } = useStreaks();
-
-// streaks.focus.current   — current consecutive days
-// streaks.focus.longest   — all-time best streak
-// streaks.focus.lastActiveDate — "YYYY-MM-DD"
-
-// Call when user starts a focus session
-await recordFocusDay();
-```
-
-#### Streak Logic
-- If `lastActiveDate === today`: no-op (already recorded)
-- If `lastActiveDate === yesterday`: increment streak
-- Otherwise: reset streak to 1
-
-#### Firestore Path
-```
-users/{userId}/streaks/data
-```
-
----
-
 ### Dashboard (Command Center)
 **Page**: `/` — `src/app/page.tsx`
 
@@ -231,16 +201,14 @@ users/{userId}/streaks/data
 | Today's Schedule | 8 cols | Google Calendar (placeholder — Phase 4) |
 | Morning Check-in | 4 cols | `useDailyLog` — sleep, energy, mood pickers |
 | Priority Tasks | 4 cols | `useTasks` — top 5 active tasks by priority |
-| Focus Streak | 4 cols | `useStreaks` + `useFocusTimer` — streak, sessions, minutes, best |
-| Active Quests | 4 cols | Placeholder (Phase 3) |
-| Hero Journeys | 8 cols | Placeholder (Phase 3) |
+| Focus Stats | 4 cols | `useFocusTimer` — sessions, minutes today |
+| Active Goals | 4 cols | `useGoals` — in-progress goals |
 | Daily Brief | 4 cols | Placeholder (Phase 4 — LLM) |
 
 #### Evening View
 | Card | Grid Span | Data Source |
 |------|-----------|-------------|
 | Day Review | 8 cols | `useFocusTimer` + `useTasks` — sessions, minutes, tasks done |
-| Streak Tracker | 4 cols | `useStreaks` — current streak, best |
 | Tomorrow's Top 3 | 6 cols | Local state — 3 text inputs |
 | Evening Reflection | 6 cols | `useDailyLog` — gratitude, reflection |
 
@@ -249,7 +217,7 @@ Morning/Evening toggle in the page header. Defaults to Morning.
 
 ---
 
-## Phase 2: Life Areas + Focus Blocks + Projects (Complete)
+## Phase 2: Life Areas + Projects (Complete)
 
 ### Shared Area Module Layout
 **Component**: `AreaModule` — `src/components/area-module.tsx`
@@ -349,43 +317,17 @@ Sub-components: `MetricCard`, `HabitList`, `QuickNotes`
 
 ---
 
-### Focus Blocks
-**Page**: `/focus/blocks` — `src/app/focus/blocks/page.tsx`
-**Hook**: `useFocusBlocks()` — `src/lib/use-focus-blocks.ts`
-
-#### Features
-- **Block scheduling** with date, start/end time, area, goal
-- **Session chaining**: Auto-calculates sessions from block duration (session + break cycle)
-- **Quick templates**: Morning Deep Work 2h, Afternoon Focus 1.5h, Evening Study 1h, Sprint 45min
-- **Buffer time**: Configurable buffer between end of sessions and block end
-- **Status management**: Scheduled → Active → Done
-- **Today/Upcoming/Past** grouping
-
-#### Block Fields
-| Field | Type | Description |
-|-------|------|-------------|
-| `title` | string | Block name |
-| `date` | string (YYYY-MM-DD) | Scheduled date |
-| `startTime` / `endTime` | string (HH:MM) | Time range |
-| `sessionDuration` | number | Focus session length (min) |
-| `breakDuration` | number | Break length (min) |
-| `bufferMinutes` | number | Buffer time at end |
-| `sessionCount` | number | Auto-calculated session count |
-| `autoStart` | boolean | Auto-start next session |
-| `goal` | string (optional) | Block goal description |
-
----
-
 ### Calendar View
 **Page**: `/calendar` — `src/app/calendar/page.tsx`
 
 #### Features
-- **Weekly calendar grid** (Monday–Sunday) with navigable week offset
-- **Focus blocks** rendered as color-coded cards (area color) in day columns
-- **Google Calendar events** rendered as blue cards alongside focus blocks
-- **Today highlight** with emerald accent background and circled date
-- **Google Calendar connection** inline prompt when not connected
-- **Week navigation**: Previous/Next week buttons + "Today" reset
+- **Google Calendar embed** as primary view (iframe with configurable calendar ID + timezone)
+- **Embed mode toggle**: Week / Month / Agenda views
+- **LifeOS View fallback**: API-powered weekly calendar grid when embed isn't available
+- **Quick Add Event**: Create events via Google Calendar API directly from the page
+- **Embed settings**: Configurable calendar ID and timezone
+- **Setup guide**: Instructions for enabling public calendar access for embed
+- **Connection prompt**: Inline prompt when Google Calendar is not connected
 
 ---
 
@@ -395,6 +337,141 @@ Sub-components: `MetricCard`, `HabitList`, `QuickNotes`
 |------|------|-------------|
 | `useProjects()` | `src/lib/use-projects.ts` | CRUD for projects collection |
 | `useHabits()` | `src/lib/use-habits.ts` | CRUD for habits with area filtering, daily toggle |
-| `useFocusBlocks()` | `src/lib/use-focus-blocks.ts` | CRUD for focus blocks, session calculation |
 | `useNotes()` | `src/lib/use-notes.ts` | CRUD for notes with area filtering |
 | `useSubscriptions()` | `src/lib/use-subscriptions.ts` | CRUD for finance subscriptions, monthly cost calc |
+
+---
+
+## Todoist-Inspired Feature Roadmap
+
+Features distilled from Todoist's feature set, filtered to what matters for a **solo personal app** (no team/org/sharing features). Organized by realistic implementation priority.
+
+### Already Built
+
+| Feature | LifeOS Equivalent |
+|---------|-------------------|
+| Task CRUD with priorities | 4 priority levels, status cycling, area tagging |
+| Quick capture | Top bar input → creates task on Enter |
+| Projects | Kanban board with 4 status columns |
+| Recurring tasks | Reminders system with daily/weekly/monthly/yearly frequency |
+| Habit tracking | Daily toggle with streak tracking per habit |
+| Labels/tags | Area system (Health, Career, Finance, Brand, Admin) |
+| Due dates | Date picker on task creation |
+| Calendar view | Google Calendar embed + LifeOS weekly grid + Quick Add Event |
+| Board layout (Kanban) | Project tracker with drag-and-drop columns |
+| Dark mode | CSS custom properties with system preference detection |
+| Mobile responsive | Responsive layout + bottom nav + PWA manifest |
+| Voice input | Web Speech API for task creation |
+| Google Calendar (read) | OAuth + event fetching + display on calendar |
+| Reminders | Recurring reminders with due date tracking |
+
+### Do Now — High Value, Low Complexity
+
+These can be built with the existing stack and data model. No external API or LLM dependency.
+
+#### 1. Sub-tasks (Task Nesting)
+- Add `parentId` field to Task type
+- Indent child tasks under parent in TaskList
+- Collapse/expand toggle on parent tasks
+- **Why now:** Core task management feature, simple data model change
+
+#### 2. Task Descriptions
+- Add `description` field to Task type (plain text or markdown)
+- Expandable description area below task title
+- **Why now:** Tasks often need context beyond a title
+
+#### 3. Natural Language Date Parsing
+- Use `chrono-node` library (no LLM needed) to parse "tomorrow", "next Friday", "March 5" from quick capture
+- Auto-extract date from capture text and set as `dueDate`
+- **Why now:** Massive QoL improvement for quick capture, zero API cost
+
+#### 4. Today View
+- Filtered task list: tasks where `dueDate === today` OR `status === in_progress`
+- Separate from Dashboard — dedicated `/today` route
+- Group by: overdue / today / no date
+- **Why now:** The single most-used view in Todoist, simple filter query
+
+#### 5. Task Sort & Group Options
+- Sort by: due date, priority, name, created date
+- Group by: area, priority, due date, project
+- Persist sort preference per view
+- **Why now:** Already have all the data fields, just need UI controls
+
+#### 6. Drag-and-Drop Task Reordering
+- Add `sortOrder` field to tasks
+- Drag-and-drop within task lists (use `@dnd-kit/sortable` or similar)
+- **Why now:** Manual ordering is essential when auto-sort isn't enough
+
+#### 7. Sections Within Projects
+- Add `sections` array to Project type (or separate collection)
+- Group tasks under named sections within a project view
+- **Why now:** Projects with 10+ tasks need internal structure
+
+#### 8. Task Duration / Time Estimates
+- Add `estimatedMinutes` field to Task type
+- Display as badge on task card
+- Sum estimates in Today view header ("~2.5h of work planned")
+- **Why now:** Helps estimate daily workload — know how much is on your plate
+
+#### 9. Completed Tasks Archive
+- `/tasks/completed` route showing done/cancelled tasks
+- Filter by date range, area, project
+- Undo: restore task back to todo
+- **Why now:** Currently completed tasks just disappear from view
+
+#### 10. Upcoming View
+- `/upcoming` route showing tasks grouped by day for next 7/14/30 days
+- Overdue section at top
+- "No date" section at bottom
+- **Why now:** See what's coming without checking the calendar
+
+### Do Later — Valuable But Complex
+
+These depend on LLM integration, external APIs, or significant new infrastructure.
+
+#### LLM-Powered (Phase 4 dependency)
+| Feature | Complexity | Notes |
+|---------|-----------|-------|
+| Smart quick capture (text → task/event/note/reminder) | Medium | Needs Gemini function calling |
+| AI task breakdown ("Break this down") | Medium | Suggest sub-tasks from a parent task title |
+| Priority suggestions | Low | LLM ranks tasks based on due dates + context |
+| Smart scheduling | High | Suggest optimal time slots based on energy patterns |
+| Filter Assist (natural language → filter query) | Medium | "Show me overdue career tasks" → filter params |
+
+#### Integration-Dependent
+| Feature | Complexity | Dependency |
+|---------|-----------|------------|
+| Two-way Google Calendar sync | High | Webhook/polling infrastructure |
+| Email-to-task | Medium | Email parsing service or Gmail API |
+| Zapier/n8n automation triggers | Medium | Webhook endpoint infrastructure |
+| Location-based reminders | High | Needs native mobile app (not PWA) |
+
+#### Analytics (Phase 5)
+| Feature | Complexity | Notes |
+|---------|-----------|-------|
+| Productivity charts (daily/weekly/monthly) | Medium | Recharts already in deps |
+| Task completion trends | Low | Track completion rates over time |
+| Activity history feed | Low | Aggregate actions across collections |
+| Daily/weekly completion goals | Low | Target setting + progress tracking |
+
+### Skip — Doesn't Fit LifeOS
+
+| Todoist Feature | Why Skip |
+|----------------|----------|
+| Shared projects / collaboration | Solo personal app |
+| Team workspaces | Solo personal app |
+| Comments on tasks | Overkill — use description field instead |
+| File attachments | Obsidian handles documents and files |
+| Browser extension | Quick capture in-app is sufficient for now |
+| Email forwarding | Low priority for personal use |
+| Smartwatch app | Garmin integration covers health; tasks can wait |
+
+### Priority Implementation Order
+
+```
+Sprint A (next): Sub-tasks, Descriptions, NL Date Parsing, Today View
+Sprint B:        Sort/Group, Drag Reorder, Upcoming View, Completed Archive
+Sprint C:        Sections, Duration Estimates, Custom Filters
+Sprint D (LLM):  Smart Capture, Task Breakdown, Priority Suggestions
+Sprint E:        Productivity Charts, Completion Trends, Activity Feed
+```
