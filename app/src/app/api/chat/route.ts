@@ -198,6 +198,32 @@ export interface ChatAction {
   input: Record<string, unknown>;
 }
 
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+async function callWithRetry(
+  client: OpenAI,
+  params: OpenAI.ChatCompletionCreateParamsNonStreaming,
+  maxRetries = 3
+): Promise<OpenAI.ChatCompletion> {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await client.chat.completions.create(params);
+    } catch (err: unknown) {
+      const status =
+        err != null && typeof err === "object" && "status" in err
+          ? (err as { status: number }).status
+          : undefined;
+      if (status === 429 && attempt < maxRetries) {
+        const delay = Math.pow(2, attempt + 1) * 1000; // 2s, 4s, 8s
+        console.log(`Gemini rate limited, retrying in ${delay / 1000}s...`);
+        await sleep(delay);
+        continue;
+      }
+      throw err;
+    }
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
     const { messages, context } = await req.json();
@@ -251,7 +277,7 @@ export async function POST(req: NextRequest) {
     let reply = "";
 
     // Call Gemini and handle tool use loop
-    let response = await client.chat.completions.create({
+    let response = await callWithRetry(client, {
       model: "gemini-2.0-flash",
       max_tokens: 4096,
       tools,
@@ -288,7 +314,7 @@ export async function POST(req: NextRequest) {
       }
 
       // Continue conversation
-      response = await client.chat.completions.create({
+      response = await callWithRetry(client, {
         model: "gemini-2.0-flash",
         max_tokens: 4096,
         tools,
