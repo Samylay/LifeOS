@@ -203,7 +203,7 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 async function callWithRetry(
   client: OpenAI,
   params: OpenAI.ChatCompletionCreateParamsNonStreaming,
-  maxRetries = 3
+  maxRetries = 5
 ): Promise<OpenAI.ChatCompletion> {
   for (let attempt = 0; ; attempt++) {
     try {
@@ -214,8 +214,9 @@ async function callWithRetry(
           ? (err as { status: number }).status
           : undefined;
       if (status === 429 && attempt < maxRetries) {
-        const delay = Math.pow(2, attempt + 1) * 1000; // 2s, 4s, 8s
-        console.log(`Gemini rate limited, retrying in ${delay / 1000}s...`);
+        // Gemini free tier is 15 RPM — use longer delays to cross the rate window
+        const delay = Math.min((attempt + 1) * 5000, 30000); // 5s, 10s, 15s, 20s, 25s
+        console.log(`Gemini rate limited, retrying in ${delay / 1000}s (attempt ${attempt + 1}/${maxRetries})...`);
         await sleep(delay);
         continue;
       }
@@ -312,6 +313,9 @@ export async function POST(req: NextRequest) {
           content: JSON.stringify({ success: true }),
         });
       }
+
+      // Pace requests to stay under 15 RPM free tier limit
+      await sleep(4000);
 
       // Continue conversation
       response = await callWithRetry(client, {
