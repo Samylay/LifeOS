@@ -229,7 +229,7 @@ export function useChat() {
 
         const data = await res.json();
 
-        // Execute actions from Claude's tool calls
+        // Execute actions from AI tool calls
         let actionResults: ActionResult[] = [];
         if (data.actions?.length) {
           actionResults = await executeActions(data.actions);
@@ -255,14 +255,14 @@ export function useChat() {
         switch (code) {
           case "quota_exceeded":
             content =
-              "Your OpenAI API quota has been exceeded. Please check your plan and billing details at platform.openai.com/account/billing.";
+              "Gemini API rate limit exceeded. The free tier allows 15 requests/minute. Please wait a moment and try again.";
             break;
           case "invalid_api_key":
             content =
-              "Your OpenAI API key is invalid or expired. Please update OPENAI_API_KEY in your .env.local file.";
+              "Your Gemini API key is invalid or expired. Please update GEMINI_API_KEY in your .env.local file.";
             break;
           default:
-            content = `Something went wrong: ${err instanceof Error ? err.message : "Unknown error"}. Make sure your OPENAI_API_KEY is set in .env.local.`;
+            content = `Something went wrong: ${err instanceof Error ? err.message : "Unknown error"}. Make sure your GEMINI_API_KEY is set in .env.local.`;
         }
 
         const errorMsg: ChatMessage = {
