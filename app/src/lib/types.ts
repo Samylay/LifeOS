@@ -7,32 +7,7 @@ export type TaskPriority = "low" | "medium" | "high" | "urgent";
 
 export type FocusSessionType = "focus" | "break" | "long_break";
 export type FocusSessionStatus = "completed" | "partial" | "abandoned";
-export type FocusBlockStatus = "scheduled" | "active" | "done";
-
-export type QuestCategory = "life" | "work";
 export type ProjectStatus = "planning" | "active" | "paused" | "completed" | "archived";
-
-export type JourneyTier = 1 | 2 | 3 | 4 | 5 | 6 | 7;
-
-export const TIER_NAMES: Record<JourneyTier, string> = {
-  1: "Novice",
-  2: "Apprentice",
-  3: "Journeyman",
-  4: "Adept",
-  5: "Expert",
-  6: "Master",
-  7: "Grandmaster",
-};
-
-export const TIER_HOURS: Record<JourneyTier, number> = {
-  1: 0,
-  2: 100,
-  3: 350,
-  4: 850,
-  5: 1850,
-  6: 5000,
-  7: 10000,
-};
 
 // --- Core Models ---
 
@@ -86,23 +61,12 @@ export interface Note {
   processed: boolean;
 }
 
-export interface Quest {
-  id: string;
-  title: string;
-  category: QuestCategory;
-  criteria: string;
-  progress: number; // 0-100
-  startDate: Date;
-  endDate: Date;
-}
-
 export interface Goal {
   id: string;
   title: string;
   year: number;
   quarter?: 1 | 2 | 3 | 4;
   status: "active" | "completed" | "abandoned";
-  linkedQuestIds: string[];
   linkedProjectIds: string[];
 }
 
@@ -134,7 +98,6 @@ export interface DailyLog {
   reflection?: string;
   focusSessions: number;
   focusMinutes: number;
-  streakDay: number;
   tomorrowTop3?: string[];
 }
 
@@ -148,55 +111,8 @@ export interface FocusSession {
   status: FocusSessionStatus;
   area?: AreaId;
   projectId?: string;
-  questId?: string;
   taskId?: string;
   interruptions: number;
-  blockId?: string;
-  journeyId?: string;
-}
-
-export interface FocusBlock {
-  id: string;
-  title: string;
-  date: string; // YYYY-MM-DD
-  startTime: string; // HH:mm
-  endTime: string;
-  area?: AreaId;
-  projectId?: string;
-  goal?: string;
-  sessionCount: number;
-  sessionDuration: number; // minutes
-  breakDuration: number;
-  bufferMinutes: number;
-  autoStart: boolean;
-  template?: string;
-  sessionIds: string[];
-  status: FocusBlockStatus;
-}
-
-export interface Journey {
-  id: string;
-  title: string;
-  area: AreaId;
-  description?: string;
-  totalHours: number;
-  currentTier: JourneyTier;
-  tierHistory: { tier: JourneyTier; reachedAt: Date }[];
-  tags: string[];
-  createdAt: Date;
-  isActive: boolean;
-}
-
-export interface Streaks {
-  focus: StreakData;
-  areas: Partial<Record<AreaId, StreakData>>;
-  shieldDaysUsed: number;
-}
-
-export interface StreakData {
-  current: number;
-  longest: number;
-  lastActiveDate: string; // YYYY-MM-DD
 }
 
 export interface Transaction {
@@ -291,15 +207,6 @@ export interface Reminder {
   completed: boolean;
   lastCompletedDate?: string; // YYYY-MM-DD
   createdAt: Date;
-}
-
-// --- Water Intake ---
-
-export interface WaterLog {
-  date: string; // YYYY-MM-DD
-  glasses: number; // each glass = 250ml
-  goal: number; // target glasses per day
-  entries: { time: string; amount: number }[]; // individual entries
 }
 
 // --- Reading / Book Tracker ---

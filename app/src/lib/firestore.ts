@@ -25,15 +25,11 @@ import type {
   Task,
   CalendarEvent,
   Note,
-  Quest,
   Goal,
   Project,
   Habit,
   DailyLog,
   FocusSession,
-  FocusBlock,
-  Journey,
-  Streaks,
   UserProfile,
   Transaction,
   Subscription,
@@ -41,7 +37,6 @@ import type {
   Workout,
   WorkoutTemplate,
   Reminder,
-  WaterLog,
   Book,
   BodyMeasurement,
 } from "./types";
@@ -204,53 +199,6 @@ export const focusSessions = {
     queryDocuments<FocusSession>(userId, "focusSessions", ...constraints),
 };
 
-// --- Focus Blocks ---
-
-export const focusBlocks = {
-  create: (userId: string, data: Omit<FocusBlock, "id">) =>
-    createDocument<FocusBlock>(userId, "focusBlocks", data),
-  get: (userId: string, id: string) =>
-    getDocument<FocusBlock>(userId, "focusBlocks", id),
-  update: (userId: string, id: string, data: Partial<FocusBlock>) =>
-    updateDocument(userId, "focusBlocks", id, data),
-  delete: (userId: string, id: string) =>
-    deleteDocument(userId, "focusBlocks", id),
-  list: (userId: string, ...constraints: QueryConstraint[]) =>
-    queryDocuments<FocusBlock>(userId, "focusBlocks", ...constraints),
-};
-
-// --- Journeys ---
-
-export const journeys = {
-  create: (userId: string, data: Omit<Journey, "id">) =>
-    createDocument<Journey>(userId, "journeys", data),
-  get: (userId: string, id: string) =>
-    getDocument<Journey>(userId, "journeys", id),
-  update: (userId: string, id: string, data: Partial<Journey>) =>
-    updateDocument(userId, "journeys", id, data),
-  delete: (userId: string, id: string) =>
-    deleteDocument(userId, "journeys", id),
-  listActive: (userId: string) =>
-    queryDocuments<Journey>(userId, "journeys", where("isActive", "==", true)),
-  list: (userId: string, ...constraints: QueryConstraint[]) =>
-    queryDocuments<Journey>(userId, "journeys", ...constraints),
-};
-
-// --- Quests ---
-
-export const quests = {
-  create: (userId: string, data: Omit<Quest, "id">) =>
-    createDocument<Quest>(userId, "quests", data),
-  get: (userId: string, id: string) =>
-    getDocument<Quest>(userId, "quests", id),
-  update: (userId: string, id: string, data: Partial<Quest>) =>
-    updateDocument(userId, "quests", id, data),
-  delete: (userId: string, id: string) =>
-    deleteDocument(userId, "quests", id),
-  list: (userId: string, ...constraints: QueryConstraint[]) =>
-    queryDocuments<Quest>(userId, "quests", ...constraints),
-};
-
 // --- Goals ---
 
 export const goals = {
@@ -311,18 +259,6 @@ export const dailyLogs = {
       toFirestoreData(data as Record<string, unknown>),
       { merge: true }
     ),
-};
-
-// --- Streaks ---
-
-export const streaks = {
-  get: async (userId: string): Promise<Streaks | null> => {
-    const snap = await getDoc(doc(getDb(), `users/${userId}/streaks/data`));
-    if (!snap.exists()) return null;
-    return snap.data() as Streaks;
-  },
-  set: (userId: string, data: Partial<Streaks>) =>
-    setDoc(doc(getDb(), `users/${userId}/streaks/data`), data, { merge: true }),
 };
 
 // --- Finance ---
@@ -404,19 +340,6 @@ export const reminders = {
     deleteDocument(userId, "reminders", id),
   list: (userId: string, ...constraints: QueryConstraint[]) =>
     queryDocuments<Reminder>(userId, "reminders", ...constraints),
-};
-
-// --- Water Logs ---
-
-export const waterLogs = {
-  get: (userId: string, date: string) =>
-    getDocument<WaterLog>(userId, "waterLogs", date),
-  set: (userId: string, date: string, data: Partial<WaterLog>) =>
-    setDoc(
-      userDoc(userId, "waterLogs", date),
-      toFirestoreData(data as Record<string, unknown>),
-      { merge: true }
-    ),
 };
 
 // --- Books ---

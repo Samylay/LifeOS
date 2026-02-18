@@ -7,17 +7,13 @@ import {
   Timer,
   Layers,
   FolderKanban,
-  Target,
-  Sword,
   Flag,
-  BookOpen,
   Calendar,
   Settings,
   ChevronsLeft,
   ChevronsRight,
   Dumbbell,
   Bell,
-  Droplets,
   BookMarked,
 } from "lucide-react";
 import { useAppStore } from "@/lib/store";
@@ -29,11 +25,8 @@ const NAV_ITEMS = [
   { href: "/reminders", label: "Reminders", icon: Bell },
   { href: "/areas", label: "Areas", icon: Layers },
   { href: "/projects", label: "Projects", icon: FolderKanban },
-  { href: "/quests", label: "Quests", icon: Target },
   { href: "/goals", label: "Goals", icon: Flag },
-  { href: "/journeys", label: "Journeys", icon: Sword },
   { href: "/reading", label: "Reading", icon: BookMarked },
-  { href: "/review", label: "Review", icon: BookOpen },
   { href: "/calendar", label: "Calendar", icon: Calendar },
 ];
 

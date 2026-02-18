@@ -3,18 +3,8 @@
 import { Calendar, ExternalLink, Loader2, Clock, MapPin, ChevronLeft, ChevronRight } from "lucide-react";
 import { useIntegrations } from "@/lib/integrations-context";
 import { useGoogleCalendar, GCalEvent } from "@/lib/use-google-calendar";
-import { useFocusBlocks } from "@/lib/use-focus-blocks";
 import Link from "next/link";
 import { useState, useMemo } from "react";
-import { AREAS } from "@/lib/types";
-
-const AREA_COLORS: Record<string, string> = {
-  health: "#14B8A6",
-  career: "#6366F1",
-  finance: "#F59E0B",
-  brand: "#8B5CF6",
-  admin: "#64748B",
-};
 
 function getWeekDates(offset: number) {
   const today = new Date();
@@ -58,26 +48,9 @@ function EventCard({ event }: { event: GCalEvent }) {
   );
 }
 
-function FocusBlockCard({ block }: { block: { title: string; startTime: string; endTime: string; area?: string; status: string; goal?: string } }) {
-  const color = block.area ? AREA_COLORS[block.area] || "#10B981" : "#10B981";
-
-  return (
-    <div className="rounded-lg p-2 mb-1" style={{ background: `${color}15`, borderLeft: `2px solid ${color}` }}>
-      <p className="text-xs font-medium truncate" style={{ color: "var(--text-primary)" }}>{block.title}</p>
-      <span className="text-[10px]" style={{ color: "var(--text-tertiary)" }}>
-        {block.startTime} — {block.endTime}
-      </span>
-      {block.goal && (
-        <p className="text-[10px] truncate mt-0.5" style={{ color: "var(--text-tertiary)" }}>{block.goal}</p>
-      )}
-    </div>
-  );
-}
-
 export default function CalendarPage() {
   const { gcal, connectGoogleCalendar } = useIntegrations();
   const { events, loading, error, hasToken, connected } = useGoogleCalendar();
-  const { blocks } = useFocusBlocks();
   const [connecting, setConnecting] = useState(false);
   const [weekOffset, setWeekOffset] = useState(0);
 
@@ -98,16 +71,6 @@ export default function CalendarPage() {
     }
     return map;
   }, [events]);
-
-  // Group blocks by date
-  const blocksByDate = useMemo(() => {
-    const map: Record<string, typeof blocks> = {};
-    for (const block of blocks) {
-      if (!map[block.date]) map[block.date] = [];
-      map[block.date].push(block);
-    }
-    return map;
-  }, [blocks]);
 
   const today = formatDateKey(new Date());
 
@@ -138,7 +101,7 @@ export default function CalendarPage() {
         <div className="rounded-xl p-4 mb-6 flex items-center justify-between" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-primary)" }}>
           <div>
             <p className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>Google Calendar</p>
-            <p className="text-xs" style={{ color: "var(--text-tertiary)" }}>Connect to see your events alongside focus blocks.</p>
+            <p className="text-xs" style={{ color: "var(--text-tertiary)" }}>Connect to see your events.</p>
           </div>
           <button onClick={handleConnect} disabled={connecting}
             className="flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-medium text-white transition-colors hover:opacity-90"
@@ -175,7 +138,6 @@ export default function CalendarPage() {
           {weekDays.map((day) => {
             const key = formatDateKey(day);
             const dayEvents = eventsByDate[key] || [];
-            const dayBlocks = blocksByDate[key] || [];
             const isToday = key === today;
 
             return (
@@ -184,17 +146,12 @@ export default function CalendarPage() {
                   borderRight: "1px solid var(--border-primary)",
                   background: isToday ? "var(--accent-bg, rgba(16, 185, 129, 0.03))" : undefined,
                 }}>
-                {/* Focus blocks */}
-                {dayBlocks.map((block) => (
-                  <FocusBlockCard key={block.id} block={block} />
-                ))}
-
                 {/* Google Calendar events */}
                 {dayEvents.map((event) => (
                   <EventCard key={event.id} event={event} />
                 ))}
 
-                {dayEvents.length === 0 && dayBlocks.length === 0 && (
+                {dayEvents.length === 0 && (
                   <p className="text-[10px] text-center mt-8" style={{ color: "var(--text-tertiary)" }}>
                     —
                   </p>

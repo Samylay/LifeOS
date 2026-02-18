@@ -1,10 +1,7 @@
 "use client";
 
-import { useEffect } from "react";
-import { Play, Pause, Square, SkipForward, Flame } from "lucide-react";
+import { Play, Pause, Square, SkipForward } from "lucide-react";
 import { useFocusTimer } from "@/lib/use-focus";
-import { useStreaks } from "@/lib/use-streaks";
-import { useAppStore } from "@/lib/store";
 import { AREAS } from "@/lib/types";
 import type { AreaId } from "@/lib/types";
 
@@ -29,29 +26,10 @@ export default function FocusPage() {
     resume,
     stop,
     skip,
-    applyConfig,
     todayFocusMinutes,
     todayCompletedSessions,
     config,
   } = useFocusTimer();
-
-  const { streaks, recordFocusDay } = useStreaks();
-  const pendingBlockConfig = useAppStore((s) => s.pendingBlockConfig);
-  const setPendingBlockConfig = useAppStore((s) => s.setPendingBlockConfig);
-
-  // Apply pending block config from focus blocks page
-  useEffect(() => {
-    if (pendingBlockConfig && timerState === "idle") {
-      if (pendingBlockConfig.area) {
-        setLinkedArea(pendingBlockConfig.area);
-      }
-      applyConfig({
-        focusDuration: pendingBlockConfig.sessionDuration,
-        breakDuration: pendingBlockConfig.breakDuration,
-      });
-      setPendingBlockConfig(null);
-    }
-  }, [pendingBlockConfig, timerState, setLinkedArea, applyConfig, setPendingBlockConfig]);
 
   const progress = totalTime > 0 ? (totalTime - timeRemaining) / totalTime : 0;
   const circumference = 2 * Math.PI * 90;
@@ -70,13 +48,6 @@ export default function FocusPage() {
     : sessionType === "break"
     ? "BREAK"
     : "LONG BREAK";
-
-  const handleStart = () => {
-    start();
-    if (sessionType === "focus") {
-      recordFocusDay();
-    }
-  };
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[70vh]">
@@ -120,7 +91,7 @@ export default function FocusPage() {
       <div className="flex items-center gap-3 mb-6">
         {timerState === "idle" && (
           <button
-            onClick={handleStart}
+            onClick={start}
             className="flex items-center gap-2 rounded-xl px-8 py-3 font-medium text-sm text-white transition-colors"
             style={{ background: isBreak ? "#3B82F6" : "var(--accent)" }}
           >
@@ -243,15 +214,6 @@ export default function FocusPage() {
             {todayFocusMinutes}
           </p>
           <p className="text-xs" style={{ color: "var(--text-tertiary)" }}>Minutes</p>
-        </div>
-        <div className="text-center">
-          <div className="flex items-center gap-1 justify-center">
-            <Flame size={16} style={{ color: "var(--accent)" }} />
-            <p className="text-2xl font-bold font-mono tabular-nums" style={{ color: "var(--accent)" }}>
-              {streaks.focus.current}
-            </p>
-          </div>
-          <p className="text-xs" style={{ color: "var(--text-tertiary)" }}>Day Streak</p>
         </div>
       </div>
     </div>

@@ -16,7 +16,6 @@ const DEFAULT_LOG: DailyLog = {
   date: getTodayKey(),
   focusSessions: 0,
   focusMinutes: 0,
-  streakDay: 0,
 };
 
 export function useDailyLog() {
