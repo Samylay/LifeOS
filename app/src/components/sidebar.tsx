@@ -15,6 +15,7 @@ import {
   Dumbbell,
   Bell,
   BookMarked,
+  Sparkles,
 } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 
@@ -28,6 +29,7 @@ const NAV_ITEMS = [
   { href: "/goals", label: "Goals", icon: Flag },
   { href: "/reading", label: "Reading", icon: BookMarked },
   { href: "/calendar", label: "Calendar", icon: Calendar },
+  { href: "/assistant", label: "Assistant", icon: Sparkles },
 ];
 
 const BOTTOM_ITEMS = [

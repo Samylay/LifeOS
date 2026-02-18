@@ -6,7 +6,7 @@ import {
   LayoutDashboard,
   Dumbbell,
   Bell,
-  BookOpen,
+  Sparkles,
   Timer,
 } from "lucide-react";
 
@@ -15,7 +15,7 @@ const TABS = [
   { href: "/workouts", label: "Workout", icon: Dumbbell },
   { href: "/focus", label: "Focus", icon: Timer },
   { href: "/reminders", label: "Reminders", icon: Bell },
-  { href: "/reading", label: "Reading", icon: BookOpen },
+  { href: "/assistant", label: "Assistant", icon: Sparkles },
 ];
 
 export function BottomNav() {
