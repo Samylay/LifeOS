@@ -301,7 +301,36 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ reply, actions });
   } catch (error: unknown) {
     console.error("Chat API error:", error);
+
+    // Detect OpenAI API error status codes
+    const status =
+      error != null && typeof error === "object" && "status" in error
+        ? (error as { status: number }).status
+        : undefined;
+
+    if (status === 429) {
+      return NextResponse.json(
+        {
+          error: "quota_exceeded",
+          message:
+            "Your OpenAI API quota has been exceeded. Check your billing details at https://platform.openai.com/account/billing",
+        },
+        { status: 429 }
+      );
+    }
+
+    if (status === 401) {
+      return NextResponse.json(
+        {
+          error: "invalid_api_key",
+          message:
+            "Your OpenAI API key is invalid or expired. Update OPENAI_API_KEY in your .env.local file.",
+        },
+        { status: 401 }
+      );
+    }
+
     const message = error instanceof Error ? error.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: "server_error", message }, { status: 500 });
   }
 }
