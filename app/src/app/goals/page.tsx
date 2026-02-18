@@ -28,7 +28,6 @@ function GoalCreateForm({ year, onSubmit, onCancel }: {
       year,
       quarter,
       status: "active",
-      linkedQuestIds: [],
       linkedProjectIds: [],
     });
   };

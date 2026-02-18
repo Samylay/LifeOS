@@ -5,7 +5,6 @@ import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   Dumbbell,
-  Droplets,
   Bell,
   BookOpen,
   Timer,

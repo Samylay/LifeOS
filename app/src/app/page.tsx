@@ -4,8 +4,6 @@ import { useState, useEffect } from "react";
 import {
   LayoutDashboard,
   Flame,
-  Target,
-  Sword,
   Sun,
   Moon,
   Timer,
@@ -14,25 +12,21 @@ import {
   Dumbbell,
   Bell,
   BookOpen,
-  Droplets,
   Check,
   AlertTriangle,
 } from "lucide-react";
 import { useTasks } from "@/lib/use-tasks";
 import { useFocusTimer } from "@/lib/use-focus";
 import { useDailyLog } from "@/lib/use-daily-log";
-import { useStreaks } from "@/lib/use-streaks";
-import { useQuests } from "@/lib/use-quests";
 import { useHabits } from "@/lib/use-habits";
 import { useReminders } from "@/lib/use-reminders";
 import { useWorkouts } from "@/lib/use-workouts";
 import { useBooks } from "@/lib/use-books";
 import { MorningCheckIn, EveningReflection } from "@/components/daily-log";
 import { TaskItem } from "@/components/task-list";
-import { WaterTracker } from "@/components/water-tracker";
 import Link from "next/link";
 import type { Task } from "@/lib/types";
-import { TIER_NAMES, AREAS } from "@/lib/types";
+import { AREAS } from "@/lib/types";
 import { useIntegrations } from "@/lib/integrations-context";
 import { useGoogleCalendar } from "@/lib/use-google-calendar";
 import { ExternalLink, Loader2, Clock } from "lucide-react";
@@ -41,8 +35,6 @@ export default function Dashboard() {
   const { tasks, updateTask, deleteTask } = useTasks();
   const { todayFocusMinutes, todayCompletedSessions } = useFocusTimer();
   const { log, updateLog } = useDailyLog();
-  const { streaks } = useStreaks();
-  const { activeQuests } = useQuests();
   const { habits, toggleToday } = useHabits();
   const { overdue: overdueReminders, dueToday: todayReminders, completeReminder } = useReminders();
   const { thisWeek: weekWorkouts } = useWorkouts();
@@ -139,12 +131,8 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Quick Stats Bar - mobile-first row */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
-        <div className="rounded-xl p-3 text-center" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-primary)" }}>
-          <p className="text-xl font-bold font-mono" style={{ color: "var(--accent)" }}>{streaks.focus.current}</p>
-          <p className="text-xs" style={{ color: "var(--text-tertiary)" }}>Day streak</p>
-        </div>
+      {/* Quick Stats Bar */}
+      <div className="grid grid-cols-3 gap-3 mb-6">
         <div className="rounded-xl p-3 text-center" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-primary)" }}>
           <p className="text-xl font-bold font-mono" style={{ color: "var(--accent)" }}>
             {habitsDone}/{todayHabits.length}
@@ -251,11 +239,8 @@ export default function Dashboard() {
             </div>
           )}
 
-          {/* Water + Quick Actions */}
+          {/* Quick Actions */}
           <div className="col-span-12 lg:col-span-6 space-y-4">
-            <WaterTracker />
-
-            {/* Quick actions */}
             <div className="grid grid-cols-2 gap-3">
               <Link href="/workouts" className="flex items-center gap-2.5 rounded-xl px-4 py-3 transition-all active:scale-95"
                 style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-primary)" }}>
@@ -324,7 +309,7 @@ export default function Dashboard() {
           </div>
 
           {/* Priority Tasks */}
-          <div className="col-span-12 md:col-span-6 lg:col-span-4 rounded-xl p-4 lg:p-5" style={{
+          <div className="col-span-12 md:col-span-6 rounded-xl p-4 lg:p-5" style={{
             background: "var(--bg-secondary)", border: "1px solid var(--border-primary)", boxShadow: "var(--shadow-sm)",
           }}>
             <div className="flex items-center gap-2 mb-3">
@@ -342,12 +327,12 @@ export default function Dashboard() {
             )}
           </div>
 
-          {/* Focus + Streak */}
-          <div className="col-span-12 md:col-span-6 lg:col-span-4 rounded-xl p-4 lg:p-5" style={{
+          {/* Focus */}
+          <div className="col-span-12 md:col-span-6 rounded-xl p-4 lg:p-5" style={{
             background: "var(--bg-secondary)", border: "1px solid var(--border-primary)", boxShadow: "var(--shadow-sm)",
           }}>
             <div className="flex items-center gap-2 mb-3">
-              <Flame size={18} style={{ color: "var(--accent)" }} />
+              <Timer size={18} style={{ color: "var(--accent)" }} />
               <h2 className="text-base font-semibold" style={{ color: "var(--text-primary)" }}>Focus</h2>
             </div>
             <div className="flex justify-between items-center mb-3">
@@ -359,48 +344,11 @@ export default function Dashboard() {
                 <p className="text-lg font-bold font-mono" style={{ color: "var(--text-primary)" }}>{todayFocusMinutes}</p>
                 <p className="text-xs" style={{ color: "var(--text-tertiary)" }}>Minutes</p>
               </div>
-              <div className="text-center">
-                <p className="text-lg font-bold font-mono" style={{ color: "var(--accent)" }}>{streaks.focus.longest}</p>
-                <p className="text-xs" style={{ color: "var(--text-tertiary)" }}>Best</p>
-              </div>
             </div>
             <Link href="/focus"
               className="flex items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-medium bg-emerald-500 text-white hover:bg-emerald-600 transition-colors">
               <Timer size={16} /> Start Focus
             </Link>
-          </div>
-
-          {/* Active Quests */}
-          <div className="col-span-12 lg:col-span-4 rounded-xl p-4 lg:p-5" style={{
-            background: "var(--bg-secondary)", border: "1px solid var(--border-primary)", boxShadow: "var(--shadow-sm)",
-          }}>
-            <div className="flex items-center gap-2 mb-3">
-              <Target size={18} style={{ color: "var(--accent)" }} />
-              <h2 className="text-base font-semibold" style={{ color: "var(--text-primary)" }}>Quests</h2>
-            </div>
-            {activeQuests.length === 0 ? (
-              <Link href="/quests" className="text-sm" style={{ color: "var(--accent)" }}>
-                Create a 90-day quest <ArrowRight size={12} className="inline" />
-              </Link>
-            ) : (
-              <div className="space-y-2">
-                {activeQuests.slice(0, 3).map((q) => {
-                  const daysLeft = Math.max(0, Math.ceil((q.endDate.getTime() - Date.now()) / 86400000));
-                  return (
-                    <div key={q.id} className="rounded-lg p-2.5" style={{ background: "var(--bg-tertiary)" }}>
-                      <div className="flex justify-between items-center mb-1">
-                        <span className="text-sm font-medium truncate" style={{ color: "var(--text-primary)" }}>{q.title}</span>
-                        <span className="text-xs font-mono shrink-0 ml-2" style={{ color: "var(--accent)" }}>{q.progress}%</span>
-                      </div>
-                      <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "var(--bg-primary)" }}>
-                        <div className="h-full rounded-full" style={{ width: `${q.progress}%`, background: "var(--accent)" }} />
-                      </div>
-                      <span className="text-xs mt-1 block" style={{ color: "var(--text-tertiary)" }}>{daysLeft}d left</span>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
           </div>
         </div>
       ) : (
@@ -445,19 +393,19 @@ export default function Dashboard() {
             )}
           </div>
 
-          {/* Streak */}
+          {/* Focus today */}
           <div className="col-span-12 lg:col-span-4 rounded-xl p-4 lg:p-5" style={{
             background: "var(--bg-secondary)", border: "1px solid var(--border-primary)", boxShadow: "var(--shadow-sm)",
           }}>
             <div className="flex items-center gap-2 mb-3">
-              <Flame size={18} style={{ color: "var(--accent)" }} />
-              <h2 className="text-base font-semibold" style={{ color: "var(--text-primary)" }}>Streak</h2>
+              <Timer size={18} style={{ color: "var(--accent)" }} />
+              <h2 className="text-base font-semibold" style={{ color: "var(--text-primary)" }}>Focus</h2>
             </div>
             <div className="text-center py-4">
               <span className="text-4xl font-bold font-mono tabular-nums" style={{ color: "var(--accent)" }}>
-                {streaks.focus.current}
+                {todayFocusMinutes}
               </span>
-              <p className="text-xs mt-1 uppercase tracking-wider font-medium" style={{ color: "var(--text-tertiary)" }}>Days</p>
+              <p className="text-xs mt-1 uppercase tracking-wider font-medium" style={{ color: "var(--text-tertiary)" }}>Minutes today</p>
             </div>
           </div>
 
