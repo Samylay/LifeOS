@@ -593,53 +593,47 @@ The task system is functional but basic. These upgrades make it a real daily dri
 
 **AI leverage:** ~90%. All CRUD extensions and new views are ideal for AI generation. chrono-node integration is well-documented.
 
-### Phase 4: Quests, Goals, Journeys & Project Depth (Days 20-25)
+### Phase 4: Project Depth & Advanced Task Features (Days 20-24)
 
-Gamification + project structure upgrades. Builds on the existing quest/journey scaffolds.
+Project structure upgrades and advanced task management.
 
-- [ ] **Journey progression engine** — Auto-calculate hours from tagged focus sessions, tier-up logic
-- [ ] **Journey dashboard polish** — XP bars, tier badges, hour counters (total + 30-day rolling)
-- [ ] **Tier-up celebrations** — Animations and badge awards on milestone
-- [ ] **Link quests to journeys** — Quest completion grants bonus journey hours
-- [ ] **Streaks (enhanced)** — Area streaks, streak shields (1 miss/week), milestone badges (7/30/60/100/365)
 - [ ] **Sections within projects** — Named sections to group tasks inside a project
 - [ ] **Task duration estimates** — `estimatedMinutes` field, badge display, sum in Today view header
 - [ ] **Custom filters** — Boolean query builder (area AND priority AND date range), save as filter presets
+- [ ] **Bulk task operations** — Multi-select tasks to move, reschedule, or change priority
 
-**AI leverage:** ~85%. Progression math and filter logic are straightforward. Celebration animations need design feel.
+**AI leverage:** ~85%. Filter logic and CRUD extensions are straightforward for AI.
 
-### Phase 5: LLM Integration + Smart Features (Days 26-32)
+### Phase 5: LLM Integration + Smart Features (Days 25-30)
 
 LLM-powered features that turn LifeOS from a tracker into an assistant. Requires Gemini API setup.
 
 - [ ] **Gemini 2.5 Flash setup** — API key, function calling schema, rate limit handling
 - [ ] **Smart quick capture** — LLM parses text → task/event/note/reminder with auto-categorization
 - [ ] **AI task breakdown** — "Break this down" button → LLM suggests sub-tasks for a parent task
-- [ ] **Daily brief generation** — Morning summary: schedule + focus stats + quest nudges + priority suggestions
-- [ ] **Weekly review generation** — Completed tasks, focus hours by area, missed goals, suggestions
+- [ ] **Daily brief generation** — Morning summary: schedule + focus stats + priority suggestions
 - [ ] **Filter Assist** — Natural language → filter query ("show overdue career tasks")
 - [ ] **Priority suggestions** — LLM ranks unscheduled tasks based on due dates, area balance, energy patterns
 - [ ] **Prompt tuning** — Iterate on real-world input patterns, edge cases, hallucination guards
 
 **AI leverage:** ~60%. Integration code is fast to write but prompt engineering, function calling reliability, and edge-case handling need hands-on iteration.
 
-### Phase 6: Analytics, Polish & Hardening (Days 33-40)
+### Phase 6: Analytics, Polish & Hardening (Days 31-36)
 
 Production readiness. Charts, notifications, performance, security.
 
 **Analytics:**
-- [ ] **Focus analytics dashboard** — Daily/weekly/monthly charts (hours, by area, completion rates)
-- [ ] **Focus heatmap** — Best focus times (hour of day × day of week)
-- [ ] **Karma / productivity score** — Points for completions + streaks, daily/weekly goals
+- [ ] **Task completion charts** — Daily/weekly/monthly charts (tasks done, by area)
+- [ ] **Focus session stats** — Hours, completion rates, by area
 - [ ] **Activity history feed** — Timeline of actions across all collections
 - [ ] **Wellbeing trends** — Energy/sleep/mood charts over time
 
 **Integrations:**
-- [ ] **Two-way Google Calendar sync** — Write LifeOS events/blocks to GCal, webhook or polling for changes
+- [ ] **Two-way Google Calendar sync** — Webhook or polling for changes back from GCal
 - [ ] **n8n webhook endpoints** — Trigger external workflows (content pipeline, digests)
 
 **Hardening:**
-- [ ] **Notification system** — Browser push for reminders, due tasks, streak-at-risk warnings
+- [ ] **Notification system** — Browser push for reminders, due tasks
 - [ ] **Offline support** — Firestore offline persistence, sync-on-reconnect
 - [ ] **Error handling pass** — Loading states, empty states, network failures, graceful degradation
 - [ ] **Security review** — Firestore rules audit, API key scoping, auth edge cases
@@ -656,14 +650,14 @@ Production readiness. Charts, notifications, performance, security.
 |-------|--------|----------|----------|-------------|
 | 0 — Foundation | **Done** | 2 days | Days 1-2 | ~90% |
 | 1 — Core Loop + Focus Engine | **Done** | 5 days | Days 3-7 | ~85% |
-| 2 — Areas + Blocks + Projects | **Done** | 6 days | Days 8-13 | ~90% |
+| 2 — Areas + Projects | **Done** | 6 days | Days 8-13 | ~90% |
 | 3 — Task Upgrades + Todoist Parity | **Next** | 6 days | Days 14-19 | ~90% |
-| 4 — Quests, Journeys & Project Depth | Planned | 6 days | Days 20-25 | ~85% |
-| 5 — LLM Integration + Smart Features | Planned | 7 days | Days 26-32 | ~60% |
-| 6 — Analytics, Polish & Hardening | Planned | 8 days | Days 33-40 | ~65% |
-| **Total** | | **~40 working days** | **~8 weeks** | **~80% avg** |
+| 4 — Project Depth & Advanced Tasks | Planned | 5 days | Days 20-24 | ~85% |
+| 5 — LLM Integration + Smart Features | Planned | 6 days | Days 25-30 | ~60% |
+| 6 — Analytics, Polish & Hardening | Planned | 6 days | Days 31-36 | ~65% |
+| **Total** | | **~36 working days** | **~7 weeks** | **~80% avg** |
 
-> **Key change from original plan:** Phase 3 now focuses on task system depth (sub-tasks, descriptions, NL dates, today/upcoming views) before jumping to LLM features. This makes the app a usable daily driver without waiting for Gemini integration. LLM features moved to Phase 5 since the core loop needs to be solid first — you can't build smart features on top of a basic task system.
+> **Key changes:** Removed gamification features (journeys, quests, streaks, focus blocks, water tracker, weekly review) to focus on core task management. Phase 3 now focuses on task system depth (sub-tasks, descriptions, NL dates, today/upcoming views) before LLM features. Leaner scope = faster to daily-driver quality.
 
 ---
 
