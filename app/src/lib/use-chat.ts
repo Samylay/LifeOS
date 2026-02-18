@@ -221,12 +221,15 @@ export function useChat() {
 
         if (!res.ok) {
           const errData = await res.json().catch(() => ({}));
-          throw new Error(errData.error || `HTTP ${res.status}`);
+          const errCode = errData.error || `http_${res.status}`;
+          const err = new Error(errData.message || `HTTP ${res.status}`);
+          (err as Error & { code: string }).code = errCode;
+          throw err;
         }
 
         const data = await res.json();
 
-        // Execute actions from Claude's tool calls
+        // Execute actions from AI tool calls
         let actionResults: ActionResult[] = [];
         if (data.actions?.length) {
           actionResults = await executeActions(data.actions);
@@ -242,10 +245,30 @@ export function useChat() {
         setMessages((prev) => [...prev, assistantMsg]);
       } catch (err: unknown) {
         if (err instanceof Error && err.name === "AbortError") return;
+
+        const code =
+          err != null && typeof err === "object" && "code" in err
+            ? (err as { code: string }).code
+            : undefined;
+
+        let content: string;
+        switch (code) {
+          case "quota_exceeded":
+            content =
+              "Gemini API rate limit exceeded. The free tier allows 15 requests/minute. Please wait a moment and try again.";
+            break;
+          case "invalid_api_key":
+            content =
+              "Your Gemini API key is invalid or expired. Please update GEMINI_API_KEY in your .env.local file.";
+            break;
+          default:
+            content = `Something went wrong: ${err instanceof Error ? err.message : "Unknown error"}. Make sure your GEMINI_API_KEY is set in .env.local.`;
+        }
+
         const errorMsg: ChatMessage = {
           id: `msg-${++msgId}`,
           role: "assistant",
-          content: `Something went wrong: ${err instanceof Error ? err.message : "Unknown error"}. Make sure your OPENAI_API_KEY is set in .env.local.`,
+          content,
           timestamp: new Date(),
         };
         setMessages((prev) => [...prev, errorMsg]);

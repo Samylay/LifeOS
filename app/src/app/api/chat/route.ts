@@ -202,15 +202,18 @@ export async function POST(req: NextRequest) {
   try {
     const { messages, context } = await req.json();
 
-    const apiKey = process.env.OPENAI_API_KEY;
+    const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
       return NextResponse.json(
-        { error: "OPENAI_API_KEY not configured. Add it to your .env.local file." },
+        { error: "GEMINI_API_KEY not configured. Add it to your .env.local file." },
         { status: 500 }
       );
     }
 
-    const client = new OpenAI({ apiKey });
+    const client = new OpenAI({
+      apiKey,
+      baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/",
+    });
 
     // Build system prompt with context
     let systemPrompt = SYSTEM_PROMPT;
@@ -235,7 +238,7 @@ export async function POST(req: NextRequest) {
       systemPrompt += `Avoid creating duplicates of existing items.`;
     }
 
-    // Convert messages to OpenAI format
+    // Convert messages to API format
     const openaiMessages: OpenAI.ChatCompletionMessageParam[] = [
       { role: "system", content: systemPrompt },
       ...messages.map((m: { role: string; content: string }) => ({
@@ -247,9 +250,9 @@ export async function POST(req: NextRequest) {
     const actions: ChatAction[] = [];
     let reply = "";
 
-    // Call OpenAI and handle tool use loop
+    // Call Gemini and handle tool use loop
     let response = await client.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: "gemini-2.0-flash",
       max_tokens: 4096,
       tools,
       messages: openaiMessages,
@@ -286,7 +289,7 @@ export async function POST(req: NextRequest) {
 
       // Continue conversation
       response = await client.chat.completions.create({
-        model: "gpt-4o-mini",
+        model: "gemini-2.0-flash",
         max_tokens: 4096,
         tools,
         messages: openaiMessages,
@@ -301,7 +304,36 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ reply, actions });
   } catch (error: unknown) {
     console.error("Chat API error:", error);
+
+    // Detect API error status codes
+    const status =
+      error != null && typeof error === "object" && "status" in error
+        ? (error as { status: number }).status
+        : undefined;
+
+    if (status === 429) {
+      return NextResponse.json(
+        {
+          error: "quota_exceeded",
+          message:
+            "Your Gemini API rate limit has been exceeded. The free tier allows 15 requests/minute. Please wait a moment and try again.",
+        },
+        { status: 429 }
+      );
+    }
+
+    if (status === 401) {
+      return NextResponse.json(
+        {
+          error: "invalid_api_key",
+          message:
+            "Your Gemini API key is invalid or expired. Update GEMINI_API_KEY in your .env.local file.",
+        },
+        { status: 401 }
+      );
+    }
+
     const message = error instanceof Error ? error.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: "server_error", message }, { status: 500 });
   }
 }
