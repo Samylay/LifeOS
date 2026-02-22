@@ -454,6 +454,42 @@ These depend on LLM integration, external APIs, or significant new infrastructur
 | Activity history feed | Low | Aggregate actions across collections |
 | Daily/weekly completion goals | Low | Target setting + progress tracking |
 
+#### Social & Nutrition Integration
+| Feature | Complexity | Notes |
+|---------|-----------|-------|
+| Instagram meal sharing — share meals from Instagram directly to Stride | Medium | Share sheet / deep link integration to capture meal posts into a nutrition or health log. Detailed implementation TBD |
+
+#### From Original Vision (LLM-Calendar Project)
+
+Features from the original LLM-Calendar project that inspired Stride, not yet implemented:
+
+| Feature | Complexity | Notes |
+|---------|-----------|-------|
+| Event conflict resolution | Medium | LLM detects scheduling conflicts and proposes alternatives automatically |
+| Availability search (free time slot finder) | Medium | "When am I free this week for 2 hours?" — scans calendar and suggests slots |
+| Proactive planning | High | AI generates structured daily/weekly plans for user confirmation |
+| Voice journaling with agent actions | Medium | Voice note capture where the AI extracts actions (e.g., "remind me in 2 weeks") |
+| Risk flagging | Low | Flag risky commitments or overloaded days, visible on dashboard |
+| Wellbeing-aware scheduling | High | Deep personalization — factor in glycemic peaks, energy patterns, sleep data, and mental state when suggesting schedule changes |
+
+#### From Design Document (Gamification & Mastery)
+
+Features from the original LifeOS design document, deferred during scope reduction but still planned:
+
+| Feature | Complexity | Notes |
+|---------|-----------|-------|
+| Focus Blocks (time blocks) | High | Pre-scheduled focus blocks on calendar with goals, session chaining, buffer time, and Google Calendar sync |
+| Focus Shield (distraction blocking) | High | Blocklist/allowlist mode during focus sessions — browser extension or Service Worker interception |
+| Session Analytics (heatmaps & charts) | Medium | Focus time by area (donut chart), best focus times (heatmap by hour × day), average completion rate |
+| Hero Journeys (mastery progression) | High | Long-term skill paths with tiered progression (Novice → Grandmaster over 10,000 hours). Auto-tracks from focus sessions |
+| Quarterly Quests | Medium | 90-day focused challenges with clear success criteria, progress tracking, and end-of-quarter review |
+| Enhanced Streaks | Medium | Area-specific streaks, streak shields (1 missed day/week allowed), milestones at 7/30/60/100/365 days, streak recovery |
+| Weekly review assistant (LLM) | Medium | AI-generated weekly review from completed tasks, missed goals, focus stats, and upcoming deadlines |
+| Schedule optimization (LLM) | High | LLM suggests optimal time slots for tasks based on energy patterns, calendar gaps, and task type |
+| Quest check-in prompts (LLM) | Low | Periodic AI prompt: "You're at 40% on your swimming quest with 5 weeks left. Want to schedule more sessions?" |
+| Daily brief generation (LLM) | Medium | Morning AI summary: today's schedule, conflicts, priority suggestions based on energy and deadlines |
+| Obsidian vault sync | High | Two-way sync between Stride and Obsidian vault (e.g., auto-generate daily notes as .md files) |
+
 ### Skip — Doesn't Fit Stride
 
 | Todoist Feature | Why Skip |
@@ -472,6 +508,9 @@ These depend on LLM integration, external APIs, or significant new infrastructur
 Sprint A (next): Sub-tasks, Descriptions, NL Date Parsing, Today View
 Sprint B:        Sort/Group, Drag Reorder, Upcoming View, Completed Archive
 Sprint C:        Sections, Duration Estimates, Custom Filters
-Sprint D (LLM):  Smart Capture, Task Breakdown, Priority Suggestions
-Sprint E:        Productivity Charts, Completion Trends, Activity Feed
+Sprint D (LLM):  Smart Capture, Task Breakdown, Priority Suggestions, Daily Brief
+Sprint E:        Productivity Charts, Completion Trends, Activity Feed, Session Analytics
+Sprint F:        Focus Blocks, Quarterly Quests, Enhanced Streaks
+Sprint G:        Hero Journeys, Weekly Review Assistant, Schedule Optimization
+Sprint H:        Instagram Meal Sharing, Wellbeing-Aware Scheduling, Obsidian Sync
 ```

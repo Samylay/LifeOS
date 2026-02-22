@@ -15,6 +15,7 @@ import {
   Check,
   AlertTriangle,
 } from "lucide-react";
+import { useAuth } from "@/lib/auth-context";
 import { useTasks } from "@/lib/use-tasks";
 import { useFocusTimer } from "@/lib/use-focus";
 import { useDailyLog } from "@/lib/use-daily-log";
@@ -32,6 +33,7 @@ import { useGoogleCalendar } from "@/lib/use-google-calendar";
 import { ExternalLink, Loader2, Clock } from "lucide-react";
 
 export default function Dashboard() {
+  const { user } = useAuth();
   const { tasks, updateTask, deleteTask } = useTasks();
   const { todayFocusMinutes, todayCompletedSessions } = useFocusTimer();
   const { log, updateLog } = useDailyLog();
@@ -77,11 +79,14 @@ export default function Dashboard() {
     updateLog({ tomorrowTop3: updated });
   };
 
+  const firstName = user?.displayName?.split(" ")[0] || "";
+
   const greeting = () => {
     const hour = new Date().getHours();
-    if (hour < 12) return "Good morning";
-    if (hour < 17) return "Good afternoon";
-    return "Good evening";
+    const name = firstName ? `, ${firstName}` : "";
+    if (hour < 12) return `Good morning${name}`;
+    if (hour < 17) return `Good afternoon${name}`;
+    return `Good evening${name}`;
   };
 
   return (
