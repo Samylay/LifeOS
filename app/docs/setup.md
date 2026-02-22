@@ -44,7 +44,7 @@ Find these values in: Firebase Console → Project Settings → General → Your
 - Enable **Google** provider
 - Add authorized domains:
   - `localhost` (for development)
-  - Your custom domain (e.g., `stride.samylayaida.com`)
+  - Your custom domain (e.g., `stride.yourdomain.com`)
 
 ### 3. Enable Firestore
 - Go to Firestore Database → Create database
@@ -86,12 +86,12 @@ If you don't set any Firebase env vars, the app runs in **demo mode**:
 5. Deploy
 
 ### Custom Domain
-To use `stride.samylayaida.com`:
-1. In Vercel: Settings → Domains → Add `stride.samylayaida.com`
+To use a custom domain (e.g., `stride.yourdomain.com`):
+1. In Vercel: Settings → Domains → Add your domain
 2. In your DNS: Add a CNAME record:
-   - Name: `stride`
+   - Name: your subdomain (e.g., `stride`)
    - Value: `cname.vercel-dns.com`
-3. In Firebase Console: Authentication → Settings → Authorized domains → Add `stride.samylayaida.com`
+3. In Firebase Console: Authentication → Settings → Authorized domains → Add your custom domain
 
 ## npm Scripts
 

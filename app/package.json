@@ -12,6 +12,7 @@
     "@anthropic-ai/sdk": "^0.76.0",
     "@fontsource/jetbrains-mono": "^5.2.8",
     "@fontsource/plus-jakarta-sans": "^5.2.8",
+    "@vercel/analytics": "^1.6.1",
     "firebase": "^12.9.0",
     "firebase-admin": "^13.6.1",
     "garmin-connect": "^1.6.2",
