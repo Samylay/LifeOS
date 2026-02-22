@@ -34,6 +34,8 @@ export default function SettingsPage() {
       const message = err instanceof Error ? err.message : "Connection failed";
       if (message.includes("popup-closed")) {
         setError("Sign-in popup was closed");
+      } else if (message.includes("user-mismatch")) {
+        setError("Please select the same Google account you used to sign in");
       } else {
         setError(message);
       }

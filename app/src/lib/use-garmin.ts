@@ -1,13 +1,32 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
+import { useAuth } from "./auth-context";
 import type {
   GarminActivity,
   GarminDailySummary,
   GarminConnectionState,
 } from "./types";
 
+/** Get a fresh Firebase ID token for authenticated API calls. */
+async function getIdToken(
+  user: { getIdToken: () => Promise<string> } | null
+): Promise<string | null> {
+  if (!user) return null;
+  try {
+    return await user.getIdToken();
+  } catch {
+    return null;
+  }
+}
+
+/** Build Authorization header from an ID token. */
+function authHeaders(token: string): Record<string, string> {
+  return { Authorization: `Bearer ${token}` };
+}
+
 export function useGarmin() {
+  const { user } = useAuth();
   const [connection, setConnection] = useState<GarminConnectionState>({
     connected: false,
     displayName: null,
@@ -21,11 +40,17 @@ export function useGarmin() {
   const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Check connection status on mount
+  // Check connection status on mount (only when authenticated)
   useEffect(() => {
+    if (!user) return;
+
     const checkStatus = async () => {
+      const token = await getIdToken(user);
+      if (!token) return;
       try {
-        const res = await fetch("/api/garmin/status");
+        const res = await fetch("/api/garmin/status", {
+          headers: authHeaders(token),
+        });
         if (res.ok) {
           const data = await res.json();
           setConnection((prev) => ({
@@ -39,16 +64,22 @@ export function useGarmin() {
       }
     };
     checkStatus();
-  }, []);
+  }, [user]);
 
   const connect = useCallback(
     async (email: string, password: string) => {
+      const token = await getIdToken(user);
+      if (!token) return false;
+
       setLoading(true);
       setError(null);
       try {
         const res = await fetch("/api/garmin/connect", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            ...authHeaders(token),
+          },
           body: JSON.stringify({ email, password }),
         });
         const data = await res.json();
@@ -73,12 +104,16 @@ export function useGarmin() {
         setLoading(false);
       }
     },
-    []
+    [user]
   );
 
   const disconnect = useCallback(async () => {
+    const token = await getIdToken(user);
     try {
-      await fetch("/api/garmin/disconnect", { method: "POST" });
+      await fetch("/api/garmin/disconnect", {
+        method: "POST",
+        headers: token ? authHeaders(token) : {},
+      });
     } catch {
       // best effort
     }
@@ -90,16 +125,20 @@ export function useGarmin() {
     setActivities([]);
     setDailySummary(null);
     setError(null);
-  }, []);
+  }, [user]);
 
   const syncActivities = useCallback(
     async (start = 0, limit = 20) => {
       if (!connection.connected) return;
+      const token = await getIdToken(user);
+      if (!token) return;
+
       setSyncing(true);
       setError(null);
       try {
         const res = await fetch(
-          `/api/garmin/activities?start=${start}&limit=${limit}`
+          `/api/garmin/activities?start=${start}&limit=${limit}`,
+          { headers: authHeaders(token) }
         );
         const data = await res.json();
 
@@ -124,19 +163,22 @@ export function useGarmin() {
         setSyncing(false);
       }
     },
-    [connection.connected]
+    [connection.connected, user]
   );
 
   const syncHealth = useCallback(
     async (date?: string) => {
       if (!connection.connected) return;
+      const token = await getIdToken(user);
+      if (!token) return;
+
       setSyncing(true);
       setError(null);
       try {
         const url = date
           ? `/api/garmin/health?date=${date}`
           : "/api/garmin/health";
-        const res = await fetch(url);
+        const res = await fetch(url, { headers: authHeaders(token) });
         const data = await res.json();
 
         if (!res.ok) {
@@ -160,7 +202,7 @@ export function useGarmin() {
         setSyncing(false);
       }
     },
-    [connection.connected]
+    [connection.connected, user]
   );
 
   const syncAll = useCallback(

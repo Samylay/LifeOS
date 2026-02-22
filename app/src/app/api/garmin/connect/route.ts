@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectGarmin } from "@/lib/garmin-service";
+import { verifyAuth, unauthorized } from "@/lib/verify-auth";
 
 export async function POST(req: NextRequest) {
+  const auth = await verifyAuth(req);
+  if (!auth) return unauthorized();
+
   try {
     const { email, password } = await req.json();
 
@@ -12,7 +16,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const result = await connectGarmin(email, password);
+    const result = await connectGarmin(auth.uid, email, password);
 
     if (result.success) {
       return NextResponse.json({

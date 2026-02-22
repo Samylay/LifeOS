@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useRef } from "react";
+import { useAuth } from "./auth-context";
 import { useTasks } from "./use-tasks";
 import { useGoals } from "./use-goals";
 import { useHabits } from "./use-habits";
@@ -26,6 +27,7 @@ export interface ActionResult {
 let msgId = 0;
 
 export function useChat() {
+  const { user } = useAuth();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
@@ -212,9 +214,13 @@ export function useChat() {
         const controller = new AbortController();
         abortRef.current = controller;
 
+        const idToken = user ? await user.getIdToken() : null;
         const res = await fetch("/api/chat", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}),
+          },
           body: JSON.stringify({ messages: history, context }),
           signal: controller.signal,
         });
@@ -277,7 +283,7 @@ export function useChat() {
         abortRef.current = null;
       }
     },
-    [loading, messages, tasks, goals, habits, projects, executeActions]
+    [loading, messages, tasks, goals, habits, projects, user, executeActions]
   );
 
   const clearMessages = useCallback(() => {

@@ -225,6 +225,11 @@ async function callWithRetry(
 }
 
 export async function POST(req: NextRequest) {
+  // Verify the caller is authenticated before processing
+  const { verifyAuth, unauthorized } = await import("@/lib/verify-auth");
+  const authResult = await verifyAuth(req);
+  if (!authResult) return unauthorized();
+
   try {
     const { messages, context } = await req.json();
 

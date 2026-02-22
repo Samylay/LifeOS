@@ -9,7 +9,7 @@ import {
   ReactNode,
 } from "react";
 import {
-  signInWithPopup,
+  reauthenticateWithPopup,
   GoogleAuthProvider,
 } from "firebase/auth";
 import { doc, getDoc, setDoc } from "firebase/firestore";
@@ -81,34 +81,41 @@ export function IntegrationsProvider({ children }: { children: ReactNode }) {
   const connectGoogleCalendar = useCallback(async () => {
     if (!auth || !user || !db) return;
 
+    const currentUser = auth.currentUser;
+    if (!currentUser) return;
+
     const provider = new GoogleAuthProvider();
     provider.addScope("https://www.googleapis.com/auth/calendar");
     provider.addScope("https://www.googleapis.com/auth/calendar.events");
+    // Pre-select the signed-in account so users don't accidentally pick another
+    provider.setCustomParameters({ login_hint: user.email || "" });
 
-    const result = await signInWithPopup(auth, provider);
-    if (result) {
-      const credential = GoogleAuthProvider.credentialFromResult(result);
-      const token = credential?.accessToken ?? null;
+    // Use reauthenticateWithPopup instead of signInWithPopup.
+    // This prevents the auth identity from switching to a different Google
+    // account — if the user picks a different account the call fails with
+    // auth/user-mismatch instead of silently changing who is logged in.
+    const result = await reauthenticateWithPopup(currentUser, provider);
+    const credential = GoogleAuthProvider.credentialFromResult(result);
+    const token = credential?.accessToken ?? null;
 
-      if (token) {
-        const ref = doc(db!, "users", user.uid, "settings", "integrations");
-        await setDoc(
-          ref,
-          {
-            gcal_connected: true,
-            gcal_email: result.user.email,
-            gcal_connected_at: new Date().toISOString(),
-          },
-          { merge: true }
-        );
+    if (token) {
+      const ref = doc(db!, "users", user.uid, "settings", "integrations");
+      await setDoc(
+        ref,
+        {
+          gcal_connected: true,
+          gcal_email: result.user.email,
+          gcal_connected_at: new Date().toISOString(),
+        },
+        { merge: true }
+      );
 
-        setGcal({
-          connected: true,
-          accessToken: token,
-          email: result.user.email,
-          loading: false,
-        });
-      }
+      setGcal({
+        connected: true,
+        accessToken: token,
+        email: result.user.email,
+        loading: false,
+      });
     }
   }, [user]);
 

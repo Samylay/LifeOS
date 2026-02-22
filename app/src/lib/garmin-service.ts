@@ -1,5 +1,5 @@
 // Server-side only — Garmin Connect client wrapper
-// Used by API routes to authenticate and fetch data from Garmin
+// Per-user client instances keyed by Firebase UID
 
 import { GarminConnect } from "garmin-connect";
 import type {
@@ -8,59 +8,67 @@ import type {
   GarminHeartRate,
 } from "./types";
 
-let client: GarminConnect | null = null;
-let isAuthenticated = false;
-let connectedDisplayName: string | null = null;
+interface UserGarminSession {
+  client: GarminConnect;
+  displayName: string | null;
+}
+
+/** Per-user Garmin sessions keyed by Firebase UID */
+const sessions = new Map<string, UserGarminSession>();
 
 export async function connectGarmin(
+  userId: string,
   email: string,
   password: string
 ): Promise<{ success: boolean; displayName?: string; error?: string }> {
   try {
-    client = new GarminConnect({ username: email, password });
+    const client = new GarminConnect({ username: email, password });
     await client.login(email, password);
 
-    // Try to get display name from user profile
+    let displayName: string | null = email;
     try {
       const profile = await client.getUserProfile();
-      connectedDisplayName = profile?.fullName || profile?.displayName || email;
+      displayName = profile?.fullName || profile?.displayName || email;
     } catch {
-      connectedDisplayName = email;
+      // Profile fetch failed — fall back to email
     }
 
-    isAuthenticated = true;
-    return { success: true, displayName: connectedDisplayName };
+    sessions.set(userId, { client, displayName });
+    return { success: true, displayName: displayName ?? undefined };
   } catch (err: unknown) {
-    client = null;
-    isAuthenticated = false;
-    connectedDisplayName = null;
+    // Clean up on failure
+    sessions.delete(userId);
     const message =
       err instanceof Error ? err.message : "Failed to connect to Garmin";
     return { success: false, error: message };
   }
 }
 
-export function disconnectGarmin(): void {
-  client = null;
-  isAuthenticated = false;
-  connectedDisplayName = null;
+export function disconnectGarmin(userId: string): void {
+  sessions.delete(userId);
 }
 
-export function getGarminStatus(): {
+export function getGarminStatus(userId: string): {
   connected: boolean;
   displayName: string | null;
 } {
-  return { connected: isAuthenticated, displayName: connectedDisplayName };
+  const session = sessions.get(userId);
+  if (!session) return { connected: false, displayName: null };
+  return { connected: true, displayName: session.displayName };
+}
+
+function getClient(userId: string): GarminConnect {
+  const session = sessions.get(userId);
+  if (!session) throw new Error("Not connected to Garmin");
+  return session.client;
 }
 
 export async function fetchActivities(
+  userId: string,
   start = 0,
   limit = 20
 ): Promise<GarminActivity[]> {
-  if (!client || !isAuthenticated) {
-    throw new Error("Not connected to Garmin");
-  }
-
+  const client = getClient(userId);
   const activities = await client.getActivities(start, limit);
 
   return activities.map((a) => ({
@@ -81,20 +89,18 @@ export async function fetchActivities(
 }
 
 export async function fetchSteps(
+  userId: string,
   date?: Date
 ): Promise<number> {
-  if (!client || !isAuthenticated) {
-    throw new Error("Not connected to Garmin");
-  }
+  const client = getClient(userId);
   return client.getSteps(date);
 }
 
 export async function fetchSleepData(
+  userId: string,
   date?: Date
 ): Promise<GarminSleepData | null> {
-  if (!client || !isAuthenticated) {
-    throw new Error("Not connected to Garmin");
-  }
+  const client = getClient(userId);
 
   try {
     const sleep = await client.getSleepData(date);
@@ -121,11 +127,10 @@ export async function fetchSleepData(
 }
 
 export async function fetchHeartRate(
+  userId: string,
   date?: Date
 ): Promise<GarminHeartRate | null> {
-  if (!client || !isAuthenticated) {
-    throw new Error("Not connected to Garmin");
-  }
+  const client = getClient(userId);
 
   try {
     const hr = await client.getHeartRate(date);
