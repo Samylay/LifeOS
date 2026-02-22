@@ -75,7 +75,7 @@ function MonthlySnapshot({ categories, onUpdate }: { categories: BudgetCategory[
                 )}
               </div>
               <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "var(--bg-tertiary)" }}>
-                <div className="h-full rounded-full" style={{ width: `${pct}%`, background: over ? "#EF4444" : pct > 80 ? "#F59E0B" : "#10B981" }} />
+                <div className="h-full rounded-full" style={{ width: `${pct}%`, background: over ? "#EF4444" : pct > 80 ? "#F59E0B" : "#7C9E8A" }} />
               </div>
             </div>
           );
@@ -83,7 +83,7 @@ function MonthlySnapshot({ categories, onUpdate }: { categories: BudgetCategory[
       </div>
       <div className="flex justify-between items-center rounded-lg px-3 py-2" style={{ background: "var(--bg-tertiary)" }}>
         <span className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>Remaining</span>
-        <span className="text-sm font-mono font-semibold" style={{ color: remaining >= 0 ? "#10B981" : "#EF4444" }}>
+        <span className="text-sm font-mono font-semibold" style={{ color: remaining >= 0 ? "#7C9E8A" : "#EF4444" }}>
           {remaining >= 0 ? "+" : ""}{remaining}&euro;
         </span>
       </div>
@@ -128,7 +128,7 @@ function SubscriptionTracker() {
               style={{ background: "var(--bg-tertiary)", color: "var(--text-primary)", border: "1px solid var(--border-primary)" }}>
               <option value="monthly">Monthly</option><option value="yearly">Yearly</option>
             </select>
-            <button onClick={handleAdd} className="text-xs px-3 py-1.5 rounded-lg bg-emerald-500 text-white">Add</button>
+            <button onClick={handleAdd} className="text-xs px-3 py-1.5 rounded-lg bg-sage-400 text-white">Add</button>
           </div>
         </div>
       )}
@@ -195,7 +195,7 @@ function SavingsGoals({ goals, onUpdate }: { goals: SavingsGoal[]; onUpdate: (go
           <input type="number" value={newTarget} onChange={(e) => setNewTarget(e.target.value)} placeholder="Target"
             className="w-20 text-xs bg-transparent rounded-lg px-2 py-1.5 outline-none"
             style={{ border: "1px solid var(--border-primary)", color: "var(--text-primary)" }} />
-          <button onClick={addGoal} className="text-xs px-2 py-1.5 rounded-lg bg-emerald-500 text-white">Add</button>
+          <button onClick={addGoal} className="text-xs px-2 py-1.5 rounded-lg bg-sage-400 text-white">Add</button>
         </div>
       )}
       <div className="space-y-4">
@@ -259,7 +259,7 @@ export default function FinanceAreaPage() {
       metrics={[
         { label: "Monthly budget", value: totalBudget.toLocaleString(), color: "#F59E0B", suffix: "\u20ac" },
         { label: "Subscriptions", value: `${totalMonthlyCost.toFixed(0)}`, color: "#F59E0B", suffix: "\u20ac/mo" },
-        { label: "Savings rate", value: `${savingsRate}`, color: savingsRate > 0 ? "#10B981" : "#EF4444", suffix: "%" },
+        { label: "Savings rate", value: `${savingsRate}`, color: savingsRate > 0 ? "#7C9E8A" : "#EF4444", suffix: "%" },
       ]}
       tasks={tasks}
       onTaskUpdate={updateTask}

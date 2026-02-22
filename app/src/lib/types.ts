@@ -1,4 +1,4 @@
-// LifeOS Firestore Data Model Types
+// Stride Firestore Data Model Types
 
 export type AreaId = "health" | "career" | "finance" | "brand" | "admin";
 

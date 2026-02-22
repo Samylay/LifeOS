@@ -24,7 +24,7 @@ import { useToast } from "@/components/toast";
 // ─── Types & Constants ──────────────────────────────────────
 
 type EmbedMode = "WEEK" | "MONTH" | "AGENDA";
-type ViewTab = "google" | "lifeos";
+type ViewTab = "google" | "stride";
 
 // ─── Helper Functions ───────────────────────────────────────
 
@@ -162,7 +162,7 @@ function EmbedSetupGuide({ email }: { email: string | null }) {
             <li>Check &quot;Make available to public&quot; → select &quot;See all event details&quot;</li>
           </ol>
           <p className="text-[10px] mt-2" style={{ color: "var(--text-tertiary)" }}>
-            If you prefer not to make your calendar public, use the &quot;LifeOS&quot; tab instead — it pulls events via API without needing public access.
+            If you prefer not to make your calendar public, use the &quot;Stride&quot; tab instead — it pulls events via API without needing public access.
           </p>
         </div>
       )}
@@ -309,7 +309,7 @@ function QuickAddEvent({ onClose }: { onClose: () => void }) {
   );
 }
 
-// ─── LifeOS Calendar View (API-powered) ─────────────────────
+// ─── Stride Calendar View (API-powered) ─────────────────────
 
 function EventCard({ event }: { event: GCalEvent }) {
   const timeStr = event.allDay
@@ -340,7 +340,7 @@ function EventCard({ event }: { event: GCalEvent }) {
   );
 }
 
-function LifeOSCalendarView({
+function StrideCalendarView({
   events,
   weekOffset,
   setWeekOffset,
@@ -415,7 +415,7 @@ function LifeOSCalendarView({
                   {day.toLocaleDateString("en-US", { weekday: "short" })}
                 </p>
                 <p
-                  className={`text-lg font-semibold ${isToday ? "bg-emerald-500 text-white rounded-full w-8 h-8 flex items-center justify-center mx-auto" : ""}`}
+                  className={`text-lg font-semibold ${isToday ? "bg-sage-400 text-white rounded-full w-8 h-8 flex items-center justify-center mx-auto" : ""}`}
                   style={{ color: isToday ? undefined : "var(--text-primary)" }}
                 >
                   {day.getDate()}
@@ -476,7 +476,7 @@ function ConnectPrompt({ onConnect, connecting }: { onConnect: () => void; conne
           Connect Google Calendar
         </p>
         <p className="text-xs max-w-sm" style={{ color: "var(--text-tertiary)" }}>
-          Connect your Google Calendar to see events, create new ones from LifeOS.
+          Connect your Google Calendar to see events, create new ones from Stride.
         </p>
       </div>
       <button
@@ -542,7 +542,7 @@ export default function CalendarPage() {
               className="flex rounded-lg p-0.5"
               style={{ background: "var(--bg-tertiary)" }}
             >
-              {(["google", "lifeos"] as ViewTab[]).map((tab) => (
+              {(["google", "stride"] as ViewTab[]).map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setViewTab(tab)}
@@ -553,7 +553,7 @@ export default function CalendarPage() {
                     boxShadow: viewTab === tab ? "var(--shadow-sm)" : "none",
                   }}
                 >
-                  {tab === "google" ? "Google Calendar" : "LifeOS View"}
+                  {tab === "google" ? "Google Calendar" : "Stride View"}
                 </button>
               ))}
             </div>
@@ -705,8 +705,8 @@ export default function CalendarPage() {
             </>
           )}
 
-          {viewTab === "lifeos" && (
-            <LifeOSCalendarView
+          {viewTab === "stride" && (
+            <StrideCalendarView
               events={events}
               weekOffset={weekOffset}
               setWeekOffset={setWeekOffset}

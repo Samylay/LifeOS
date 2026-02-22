@@ -14,7 +14,7 @@ import { TaskItem, TaskCreateForm } from "@/components/task-list";
 
 const STATUS_COLUMNS: { status: ProjectStatus; label: string; color: string }[] = [
   { status: "planning", label: "Planning", color: "#64748B" },
-  { status: "active", label: "Active", color: "#10B981" },
+  { status: "active", label: "Active", color: "#7C9E8A" },
   { status: "paused", label: "Paused", color: "#F59E0B" },
   { status: "completed", label: "Completed", color: "#6366F1" },
 ];
@@ -115,7 +115,7 @@ function ProjectCreateForm({ onSubmit, onCancel }: { onSubmit: (data: Omit<Proje
           style={{ background: "var(--bg-tertiary)", color: "var(--text-primary)", border: "1px solid var(--border-primary)" }} />
         <div className="flex-1" />
         <button type="button" onClick={onCancel} className="text-xs px-3 py-1.5 rounded-lg" style={{ color: "var(--text-secondary)" }}>Cancel</button>
-        <button type="submit" className="text-xs px-3 py-1.5 rounded-lg bg-emerald-500 text-white hover:bg-emerald-600 transition-colors font-medium">Create</button>
+        <button type="submit" className="text-xs px-3 py-1.5 rounded-lg bg-sage-400 text-white hover:bg-sage-500 transition-colors font-medium">Create</button>
       </div>
     </form>
   );
@@ -229,7 +229,7 @@ function ProjectCard({
             <span className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
               Linked Tasks ({totalTasks})
             </span>
-            <button onClick={() => setShowTaskForm(true)} className="text-xs px-2 py-1 rounded bg-emerald-500 text-white">
+            <button onClick={() => setShowTaskForm(true)} className="text-xs px-2 py-1 rounded bg-sage-400 text-white">
               <Plus size={12} className="inline mr-1" />Add
             </button>
           </div>
@@ -301,7 +301,7 @@ export default function ProjectsPage() {
             </button>
           </div>
           <button onClick={() => setShowForm(true)}
-            className="flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium bg-emerald-500 text-white hover:bg-emerald-600 transition-colors">
+            className="flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium bg-sage-400 text-white hover:bg-sage-500 transition-colors">
             <Plus size={16} /> New Project
           </button>
         </div>

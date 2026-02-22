@@ -123,7 +123,7 @@ export default function FocusPage() {
           <>
             <button
               onClick={resume}
-              className="flex items-center gap-2 rounded-xl px-6 py-3 font-medium text-sm bg-emerald-500 text-white transition-colors"
+              className="flex items-center gap-2 rounded-xl px-6 py-3 font-medium text-sm bg-sage-400 text-white transition-colors"
             >
               <Play size={18} fill="white" />
               Resume

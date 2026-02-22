@@ -26,7 +26,7 @@ const FREQ_LABELS: Record<ReminderFrequency, string> = {
 
 const FREQ_COLORS: Record<ReminderFrequency, string> = {
   once: "var(--text-tertiary)",
-  daily: "#10B981",
+  daily: "#7C9E8A",
   weekly: "#3B82F6",
   monthly: "#8B5CF6",
   yearly: "#F59E0B",
@@ -84,7 +84,7 @@ export default function RemindersPage() {
         </div>
         <button
           onClick={() => setShowForm(true)}
-          className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium bg-emerald-500 text-white hover:bg-emerald-600 transition-colors"
+          className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium bg-sage-400 text-white hover:bg-sage-500 transition-colors"
         >
           <Plus size={16} />
           Add
@@ -188,7 +188,7 @@ export default function RemindersPage() {
             </button>
             <button
               onClick={handleSubmit}
-              className="text-sm px-4 py-1.5 rounded-lg bg-emerald-500 text-white font-medium"
+              className="text-sm px-4 py-1.5 rounded-lg bg-sage-400 text-white font-medium"
             >
               Save
             </button>

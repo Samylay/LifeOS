@@ -1,4 +1,4 @@
-# LifeOS App — Routes
+# Stride — Routes
 
 ## Route Map
 

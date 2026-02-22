@@ -18,7 +18,7 @@ const STATUS_CONFIG: Record<
   BookStatus,
   { label: string; icon: typeof BookOpen; color: string }
 > = {
-  reading: { label: "Currently Reading", icon: BookOpen, color: "#10B981" },
+  reading: { label: "Currently Reading", icon: BookOpen, color: "#7C9E8A" },
   want_to_read: { label: "Want to Read", icon: Bookmark, color: "#3B82F6" },
   finished: { label: "Finished", icon: BookCheck, color: "#8B5CF6" },
   abandoned: { label: "Abandoned", icon: X, color: "#94A3B8" },
@@ -81,7 +81,7 @@ export default function ReadingPage() {
         </div>
         <button
           onClick={() => setShowForm(true)}
-          className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium bg-emerald-500 text-white hover:bg-emerald-600 transition-colors"
+          className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium bg-sage-400 text-white hover:bg-sage-500 transition-colors"
         >
           <Plus size={16} />
           Add Book
@@ -94,7 +94,7 @@ export default function ReadingPage() {
           className="rounded-xl p-4 text-center"
           style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-primary)" }}
         >
-          <p className="text-2xl font-bold font-mono" style={{ color: "#10B981" }}>
+          <p className="text-2xl font-bold font-mono" style={{ color: "#7C9E8A" }}>
             {reading.length}
           </p>
           <p className="text-xs" style={{ color: "var(--text-tertiary)" }}>Reading</p>
@@ -177,7 +177,7 @@ export default function ReadingPage() {
             <button onClick={() => setShowForm(false)} className="text-sm px-3 py-1.5" style={{ color: "var(--text-secondary)" }}>
               Cancel
             </button>
-            <button onClick={handleSubmit} className="text-sm px-4 py-1.5 rounded-lg bg-emerald-500 text-white font-medium">
+            <button onClick={handleSubmit} className="text-sm px-4 py-1.5 rounded-lg bg-sage-400 text-white font-medium">
               Add Book
             </button>
           </div>
@@ -187,7 +187,7 @@ export default function ReadingPage() {
       {/* Currently Reading */}
       {reading.length > 0 && (
         <div className="mb-6">
-          <h2 className="text-sm font-semibold mb-3" style={{ color: "#10B981" }}>
+          <h2 className="text-sm font-semibold mb-3" style={{ color: "#7C9E8A" }}>
             Currently Reading
           </h2>
           <div className="space-y-3">
@@ -202,7 +202,7 @@ export default function ReadingPage() {
                   style={{
                     background: "var(--bg-secondary)",
                     border: "1px solid var(--border-primary)",
-                    borderLeft: "3px solid #10B981",
+                    borderLeft: "3px solid #7C9E8A",
                   }}
                 >
                   <div className="flex items-start justify-between mb-2">
@@ -228,7 +228,7 @@ export default function ReadingPage() {
                         <span className="text-xs" style={{ color: "var(--text-tertiary)" }}>
                           Page {book.currentPage || 0} of {book.totalPages}
                         </span>
-                        <span className="text-xs font-mono" style={{ color: "#10B981" }}>
+                        <span className="text-xs font-mono" style={{ color: "#7C9E8A" }}>
                           {progress}%
                         </span>
                       </div>
@@ -238,7 +238,7 @@ export default function ReadingPage() {
                       >
                         <div
                           className="h-full rounded-full transition-all"
-                          style={{ width: `${progress}%`, background: "#10B981" }}
+                          style={{ width: `${progress}%`, background: "#7C9E8A" }}
                         />
                       </div>
                       <input
@@ -250,7 +250,7 @@ export default function ReadingPage() {
                           updateProgress(book.id, parseInt(e.target.value), book.totalPages)
                         }
                         className="w-full mt-2 h-1 appearance-none cursor-pointer"
-                        style={{ accentColor: "#10B981" }}
+                        style={{ accentColor: "#7C9E8A" }}
                       />
                     </div>
                   )}
@@ -298,7 +298,7 @@ export default function ReadingPage() {
                 <button
                   onClick={() => updateBook(book.id, { status: "reading", startDate: new Date() })}
                   className="text-xs px-2 py-1 rounded shrink-0"
-                  style={{ color: "#10B981" }}
+                  style={{ color: "#7C9E8A" }}
                 >
                   Start
                 </button>

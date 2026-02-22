@@ -89,15 +89,20 @@ export function Sidebar({ mobile }: { mobile?: boolean }) {
           style={{ borderBottom: "1px solid var(--border-primary)" }}
         >
           <div className="flex items-center gap-3">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-500 font-bold text-white text-sm">
-              L
-            </div>
             {expanded && (
               <span
                 className="font-semibold text-lg"
                 style={{ color: "var(--text-primary)" }}
               >
-                LifeOS
+                Stride
+              </span>
+            )}
+            {!expanded && (
+              <span
+                className="font-semibold text-lg"
+                style={{ color: "var(--text-primary)" }}
+              >
+                S
               </span>
             )}
           </div>

@@ -1,5 +1,5 @@
 {
-  "name": "app",
+  "name": "stride",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -10,8 +10,8 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.76.0",
-    "@fontsource/inter": "^5.2.8",
     "@fontsource/jetbrains-mono": "^5.2.8",
+    "@fontsource/plus-jakarta-sans": "^5.2.8",
     "firebase": "^12.9.0",
     "garmin-connect": "^1.6.2",
     "lucide-react": "^0.564.0",

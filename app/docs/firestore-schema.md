@@ -1,4 +1,4 @@
-# LifeOS App — Firestore Schema
+# Stride — Firestore Schema
 
 ## Collection Structure
 

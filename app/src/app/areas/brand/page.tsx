@@ -29,7 +29,7 @@ const DEFAULT_BRAND_DATA: BrandAreaData = {
 const platformColors: Record<string, string> = {
   Instagram: "#E1306C",
   YouTube: "#FF0000",
-  "Mailing List": "#10B981",
+  "Mailing List": "#7C9E8A",
   LinkedIn: "#0A66C2",
   Twitter: "#1DA1F2",
 };
@@ -79,7 +79,7 @@ function ContentCalendar({ items, onUpdate }: { items: ContentItem[]; onUpdate: 
             <input type="date" value={newDate} onChange={(e) => setNewDate(e.target.value)}
               className="flex-1 text-xs bg-transparent rounded-lg px-2 py-1.5 outline-none"
               style={{ border: "1px solid var(--border-primary)", color: "var(--text-primary)" }} />
-            <button onClick={handleAdd} className="text-xs px-3 py-1.5 rounded-lg bg-emerald-500 text-white">Add</button>
+            <button onClick={handleAdd} className="text-xs px-3 py-1.5 rounded-lg bg-sage-400 text-white">Add</button>
           </div>
         </div>
       )}
@@ -102,8 +102,8 @@ function ContentCalendar({ items, onUpdate }: { items: ContentItem[]; onUpdate: 
               </div>
               <button onClick={() => cycleStatus(item.id)}
                 className="text-xs px-2 py-0.5 rounded-full capitalize cursor-pointer hover:opacity-80"
-                style={{ background: item.status === "published" ? "#10B98120" : item.status === "scheduled" ? "#F59E0B20" : "#64748B20",
-                  color: item.status === "published" ? "#10B981" : item.status === "scheduled" ? "#F59E0B" : "#64748B" }}>
+                style={{ background: item.status === "published" ? "#7C9E8A20" : item.status === "scheduled" ? "#F59E0B20" : "#64748B20",
+                  color: item.status === "published" ? "#7C9E8A" : item.status === "scheduled" ? "#F59E0B" : "#64748B" }}>
                 {item.status}
               </button>
               <button onClick={() => onUpdate(items.filter((i) => i.id !== item.id))}
@@ -169,7 +169,7 @@ function IdeasBacklog() {
           className="flex-1 text-xs bg-transparent rounded-lg px-3 py-2 outline-none"
           style={{ border: "1px solid var(--border-primary)", color: "var(--text-primary)" }}
           onKeyDown={(e) => e.key === "Enter" && handleAdd()} />
-        <button onClick={handleAdd} className="px-3 py-2 rounded-lg text-xs bg-emerald-500 text-white">Add</button>
+        <button onClick={handleAdd} className="px-3 py-2 rounded-lg text-xs bg-sage-400 text-white">Add</button>
       </div>
       <div className="space-y-2 max-h-48 overflow-y-auto">
         {brandNotes.length === 0 && (

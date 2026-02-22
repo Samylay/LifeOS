@@ -131,7 +131,7 @@ function SkillTracker({ skills, onUpdate }: { skills: Skill[]; onUpdate: (skills
             className="flex-1 text-xs bg-transparent rounded-lg px-2 py-1.5 outline-none"
             style={{ border: "1px solid var(--border-primary)", color: "var(--text-primary)" }}
             onKeyDown={(e) => e.key === "Enter" && handleAdd()} />
-          <button onClick={handleAdd} className="text-xs px-2 py-1.5 rounded-lg bg-emerald-500 text-white">Add</button>
+          <button onClick={handleAdd} className="text-xs px-2 py-1.5 rounded-lg bg-sage-400 text-white">Add</button>
         </div>
       )}
       <div className="space-y-3">
@@ -243,7 +243,7 @@ function JointHealthChecklist({ exercises, onUpdateExercises }: {
             className="flex-1 text-xs bg-transparent rounded-lg px-2 py-1.5 outline-none"
             style={{ border: "1px solid var(--border-primary)", color: "var(--text-primary)" }} autoFocus
             onKeyDown={(e) => e.key === "Enter" && addExercise()} />
-          <button onClick={addExercise} className="text-xs px-2 py-1.5 rounded-lg bg-emerald-500 text-white">Add</button>
+          <button onClick={addExercise} className="text-xs px-2 py-1.5 rounded-lg bg-sage-400 text-white">Add</button>
         </div>
       )}
       <div className="space-y-2">

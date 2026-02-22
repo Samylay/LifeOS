@@ -1,7 +1,7 @@
 import OpenAI from "openai";
 import { NextRequest, NextResponse } from "next/server";
 
-const SYSTEM_PROMPT = `You are a helpful assistant embedded inside LifeOS, a personal productivity app. The user may paste raw text (e.g. from Notion, notes, or brain dumps) and you should extract actionable items from it.
+const SYSTEM_PROMPT = `You are a helpful assistant embedded inside Stride, a personal productivity app. The user may paste raw text (e.g. from Notion, notes, or brain dumps) and you should extract actionable items from it.
 
 You have access to tools that let you create items in the app. When the user pastes content, analyze it and use the appropriate tools to create tasks, goals, habits, notes, reminders, or projects.
 

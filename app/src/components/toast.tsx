@@ -31,7 +31,7 @@ const ICONS: Record<ToastType, React.ReactNode> = {
 };
 
 const COLORS: Record<ToastType, { bg: string; border: string; text: string }> = {
-  success: { bg: "#10B98115", border: "#10B98140", text: "#10B981" },
+  success: { bg: "#7C9E8A15", border: "#7C9E8A40", text: "#7C9E8A" },
   error: { bg: "#EF444415", border: "#EF444440", text: "#EF4444" },
   warning: { bg: "#F59E0B15", border: "#F59E0B40", text: "#F59E0B" },
   info: { bg: "#3B82F615", border: "#3B82F640", text: "#3B82F6" },

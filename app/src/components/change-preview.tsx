@@ -36,9 +36,9 @@ const ACTION_CONFIG: Record<
   },
   complete: {
     icon: CheckCircle,
-    color: "#10B981",
-    bgColor: "#10B98112",
-    borderColor: "#10B98140",
+    color: "#7C9E8A",
+    bgColor: "#7C9E8A12",
+    borderColor: "#7C9E8A40",
     label: "Complete",
   },
   start: {
@@ -78,9 +78,9 @@ const ACTION_CONFIG: Record<
   },
   create: {
     icon: Plus,
-    color: "#10B981",
-    bgColor: "#10B98112",
-    borderColor: "#10B98140",
+    color: "#7C9E8A",
+    bgColor: "#7C9E8A12",
+    borderColor: "#7C9E8A40",
     label: "Create",
   },
 };

@@ -217,7 +217,7 @@ export function TaskCreateForm({ onSubmit, onCancel }: TaskCreateFormProps) {
         </button>
         <button
           type="submit"
-          className="text-xs px-3 py-1.5 rounded-lg bg-emerald-500 text-white hover:bg-emerald-600 transition-colors font-medium"
+          className="text-xs px-3 py-1.5 rounded-lg bg-sage-400 text-white hover:bg-sage-500 transition-colors font-medium"
         >
           Add Task
         </button>
@@ -264,7 +264,7 @@ export function TaskList({ tasks, onUpdate, onDelete, onCreate, title = "Tasks",
         </h2>
         <button
           onClick={() => setShowForm(true)}
-          className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium bg-emerald-500 text-white hover:bg-emerald-600 transition-colors"
+          className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium bg-sage-400 text-white hover:bg-sage-500 transition-colors"
         >
           <Plus size={14} />
           Add Task

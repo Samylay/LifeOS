@@ -75,7 +75,7 @@ export function MorningCheckIn({ log, onUpdate }: MorningCheckInProps) {
           icon={Zap}
           value={log.energy}
           onChange={(val) => onUpdate({ energy: val })}
-          color="#10B981"
+          color="#7C9E8A"
         />
         <RatingPicker
           label="Mood"
