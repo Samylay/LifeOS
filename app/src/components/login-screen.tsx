@@ -81,7 +81,7 @@ export function LoginScreen() {
           </button>
 
           <p className="text-xs text-center" style={{ color: "var(--text-tertiary)" }}>
-            Free to use. Your data stays in your own Firebase.
+            Free to use. Your data stays private and secure.
             <br />
             <a href="/privacy" className="underline hover:opacity-80" style={{ color: "var(--text-tertiary)" }}>
               Privacy Policy
