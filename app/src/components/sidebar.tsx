@@ -15,6 +15,7 @@ import {
   Dumbbell,
   Bell,
   BookMarked,
+  ShoppingCart,
   Sparkles,
   X,
 } from "lucide-react";
@@ -29,6 +30,7 @@ const NAV_ITEMS = [
   { href: "/projects", label: "Projects", icon: FolderKanban },
   { href: "/goals", label: "Goals", icon: Flag },
   { href: "/reading", label: "Reading", icon: BookMarked },
+  { href: "/shopping", label: "Shopping", icon: ShoppingCart },
   { href: "/calendar", label: "Calendar", icon: Calendar },
 ];
 

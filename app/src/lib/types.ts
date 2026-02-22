@@ -227,6 +227,36 @@ export interface Book {
   createdAt: Date;
 }
 
+// --- Shopping List ---
+
+export type ShoppingCategory =
+  | "groceries"
+  | "household"
+  | "personal_care"
+  | "snacks"
+  | "beverages"
+  | "frozen"
+  | "other";
+
+export interface ShoppingItem {
+  id: string;
+  name: string;
+  category: ShoppingCategory;
+  quantity?: string; // e.g. "2", "1 lb", "6-pack"
+  checked: boolean;
+  createdAt: Date;
+}
+
+export const SHOPPING_CATEGORIES: Record<ShoppingCategory, { label: string; color: string }> = {
+  groceries: { label: "Groceries", color: "#22C55E" },
+  household: { label: "Household", color: "#6366F1" },
+  personal_care: { label: "Personal Care", color: "#EC4899" },
+  snacks: { label: "Snacks", color: "#F59E0B" },
+  beverages: { label: "Beverages", color: "#06B6D4" },
+  frozen: { label: "Frozen", color: "#8B5CF6" },
+  other: { label: "Other", color: "#64748B" },
+};
+
 // --- Body Measurements ---
 
 export interface BodyMeasurement {
