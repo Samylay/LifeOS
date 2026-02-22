@@ -244,7 +244,7 @@ export default function Dashboard() {
             <div className="grid grid-cols-2 gap-3">
               <Link href="/workouts" className="flex items-center gap-2.5 rounded-xl px-4 py-3 transition-all active:scale-95"
                 style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-primary)" }}>
-                <Dumbbell size={18} style={{ color: "#10B981" }} />
+                <Dumbbell size={18} style={{ color: "#7C9E8A" }} />
                 <div>
                   <p className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>Workout</p>
                   <p className="text-xs" style={{ color: "var(--text-tertiary)" }}>{weekWorkouts.length} this week</p>
@@ -346,7 +346,7 @@ export default function Dashboard() {
               </div>
             </div>
             <Link href="/focus"
-              className="flex items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-medium bg-emerald-500 text-white hover:bg-emerald-600 transition-colors">
+              className="flex items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-medium bg-sage-400 text-white hover:bg-sage-500 transition-colors">
               <Timer size={16} /> Start Focus
             </Link>
           </div>

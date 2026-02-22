@@ -77,7 +77,7 @@ function RecurringTasks({ items, onUpdate }: { items: RecurringItem[]; onUpdate:
             <input type="date" value={newDate} onChange={(e) => setNewDate(e.target.value)}
               className="flex-1 text-xs bg-transparent rounded-lg px-2 py-1.5 outline-none"
               style={{ border: "1px solid var(--border-primary)", color: "var(--text-primary)" }} />
-            <button onClick={handleAdd} className="text-xs px-3 py-1.5 rounded-lg bg-emerald-500 text-white">Add</button>
+            <button onClick={handleAdd} className="text-xs px-3 py-1.5 rounded-lg bg-sage-400 text-white">Add</button>
           </div>
         </div>
       )}
@@ -127,7 +127,7 @@ function AdminInbox() {
           className="flex-1 text-xs bg-transparent rounded-lg px-3 py-2 outline-none"
           style={{ border: "1px solid var(--border-primary)", color: "var(--text-primary)" }}
           onKeyDown={(e) => e.key === "Enter" && handleAdd()} />
-        <button onClick={handleAdd} className="px-3 py-2 rounded-lg text-xs bg-emerald-500 text-white">Add</button>
+        <button onClick={handleAdd} className="px-3 py-2 rounded-lg text-xs bg-sage-400 text-white">Add</button>
       </div>
       {adminNotes.length === 0 ? (
         <div className="text-center py-4">
@@ -141,7 +141,7 @@ function AdminInbox() {
               <span className="flex-1 text-sm" style={{ color: "var(--text-primary)" }}>{note.content}</span>
               <button onClick={() => deleteNote(note.id)}
                 className="shrink-0 text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity"
-                style={{ background: "#10B98120", color: "#10B981" }}>
+                style={{ background: "#7C9E8A20", color: "#7C9E8A" }}>
                 Done
               </button>
             </div>
@@ -190,7 +190,7 @@ function DocumentTracker({ docs, onUpdate }: { docs: TrackedDocument[]; onUpdate
             <input type="date" value={newExpiry} onChange={(e) => setNewExpiry(e.target.value)}
               className="text-xs bg-transparent rounded-lg px-2 py-1.5 outline-none"
               style={{ border: "1px solid var(--border-primary)", color: "var(--text-primary)" }} />
-            <button onClick={handleAdd} className="text-xs px-3 py-1.5 rounded-lg bg-emerald-500 text-white">Add</button>
+            <button onClick={handleAdd} className="text-xs px-3 py-1.5 rounded-lg bg-sage-400 text-white">Add</button>
           </div>
         </div>
       )}

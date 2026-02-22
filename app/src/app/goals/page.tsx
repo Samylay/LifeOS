@@ -7,7 +7,7 @@ import type { Goal } from "@/lib/types";
 
 const QUARTERS = [1, 2, 3, 4] as const;
 const STATUS_COLORS = {
-  active: "#10B981",
+  active: "#7C9E8A",
   completed: "#6366F1",
   abandoned: "#64748B",
 };
@@ -51,7 +51,7 @@ function GoalCreateForm({ year, onSubmit, onCancel }: {
         </div>
         <div className="flex-1" />
         <button type="button" onClick={onCancel} className="text-xs px-3 py-1.5 rounded-lg" style={{ color: "var(--text-secondary)" }}>Cancel</button>
-        <button type="submit" className="text-xs px-4 py-1.5 rounded-lg bg-emerald-500 text-white hover:bg-emerald-600 transition-colors font-medium">
+        <button type="submit" className="text-xs px-4 py-1.5 rounded-lg bg-sage-400 text-white hover:bg-sage-500 transition-colors font-medium">
           Add Goal
         </button>
       </div>
@@ -113,7 +113,7 @@ export default function GoalsPage() {
           </div>
         </div>
         <button onClick={() => setShowForm(true)}
-          className="flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium bg-emerald-500 text-white hover:bg-emerald-600 transition-colors">
+          className="flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium bg-sage-400 text-white hover:bg-sage-500 transition-colors">
           <Plus size={16} /> Add Goal
         </button>
       </div>

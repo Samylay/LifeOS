@@ -28,7 +28,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         className="flex h-screen items-center justify-center"
         style={{ background: "var(--bg-primary)" }}
       >
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent" />
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-sage-400 border-t-transparent" />
       </div>
     );
   }

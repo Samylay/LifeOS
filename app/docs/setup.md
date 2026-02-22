@@ -1,4 +1,4 @@
-# LifeOS App — Setup Guide
+# Stride App — Setup Guide
 
 ## Prerequisites
 
@@ -37,14 +37,14 @@ Find these values in: Firebase Console → Project Settings → General → Your
 
 ### 1. Create Project
 - Go to [Firebase Console](https://console.firebase.google.com)
-- Create a new project (e.g., "lifeos-app")
+- Create a new project (e.g., "stride-app")
 
 ### 2. Enable Authentication
 - Go to Authentication → Sign-in method
 - Enable **Google** provider
 - Add authorized domains:
   - `localhost` (for development)
-  - Your custom domain (e.g., `lifeos.samylayaida.com`)
+  - Your custom domain (e.g., `stride.samylayaida.com`)
 
 ### 3. Enable Firestore
 - Go to Firestore Database → Create database
@@ -86,12 +86,12 @@ If you don't set any Firebase env vars, the app runs in **demo mode**:
 5. Deploy
 
 ### Custom Domain
-To use `lifeos.samylayaida.com`:
-1. In Vercel: Settings → Domains → Add `lifeos.samylayaida.com`
+To use `stride.samylayaida.com`:
+1. In Vercel: Settings → Domains → Add `stride.samylayaida.com`
 2. In your DNS: Add a CNAME record:
-   - Name: `lifeos`
+   - Name: `stride`
    - Value: `cname.vercel-dns.com`
-3. In Firebase Console: Authentication → Settings → Authorized domains → Add `lifeos.samylayaida.com`
+3. In Firebase Console: Authentication → Settings → Authorized domains → Add `stride.samylayaida.com`
 
 ## npm Scripts
 

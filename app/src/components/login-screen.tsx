@@ -32,14 +32,11 @@ export function LoginScreen() {
         >
           {/* Logo */}
           <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-500 text-white font-bold text-xl">
-              L
-            </div>
             <span
-              className="text-3xl font-bold"
+              className="text-3xl font-semibold"
               style={{ color: "var(--text-primary)" }}
             >
-              LifeOS
+              Stride
             </span>
           </div>
 
@@ -48,19 +45,19 @@ export function LoginScreen() {
               className="text-sm"
               style={{ color: "var(--text-secondary)" }}
             >
-              Your personal operating system.
+              The system that gets out of your way.
             </p>
             <p
               className="text-xs"
               style={{ color: "var(--text-tertiary)" }}
             >
-              One screen in the morning, one screen at night.
+              For people with high standards for their time and even higher standards for their tools.
             </p>
           </div>
 
           <button
             onClick={signInWithGoogle}
-            className="flex items-center justify-center gap-3 rounded-lg px-6 py-3 font-medium text-sm transition-colors bg-emerald-500 text-white hover:bg-emerald-600 w-full"
+            className="flex items-center justify-center gap-3 rounded-lg px-6 py-3 font-medium text-sm transition-colors bg-sage-400 text-white hover:bg-sage-500 w-full"
           >
             <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
               <path
@@ -95,7 +92,7 @@ export function LoginScreen() {
         {/* Right side - Feature highlights */}
         <div className="hidden lg:block w-full max-w-md">
           <h2 className="text-lg font-semibold mb-1" style={{ color: "var(--text-primary)" }}>
-            Everything you need in one place
+            Less noise. More momentum.
           </h2>
           <p className="text-sm mb-6" style={{ color: "var(--text-tertiary)" }}>
             Focus sessions, task management, habit tracking, and more.

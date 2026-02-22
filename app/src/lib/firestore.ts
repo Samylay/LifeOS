@@ -39,6 +39,7 @@ import type {
   Reminder,
   Book,
   BodyMeasurement,
+  ShoppingItem,
 } from "./types";
 
 // --- Helpers ---
@@ -366,4 +367,17 @@ export const bodyMeasurements = {
     queryDocuments<BodyMeasurement>(userId, "bodyMeasurements", ...constraints),
   delete: (userId: string, id: string) =>
     deleteDocument(userId, "bodyMeasurements", id),
+};
+
+// --- Shopping List ---
+
+export const shoppingItems = {
+  create: (userId: string, data: Omit<ShoppingItem, "id">) =>
+    createDocument<ShoppingItem>(userId, "shoppingItems", data),
+  update: (userId: string, id: string, data: Partial<ShoppingItem>) =>
+    updateDocument(userId, "shoppingItems", id, data),
+  delete: (userId: string, id: string) =>
+    deleteDocument(userId, "shoppingItems", id),
+  list: (userId: string, ...constraints: QueryConstraint[]) =>
+    queryDocuments<ShoppingItem>(userId, "shoppingItems", ...constraints),
 };

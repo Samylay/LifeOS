@@ -28,7 +28,7 @@ const MUSCLE_COLORS: Record<MuscleGroup, string> = {
   shoulders: "#F59E0B",
   biceps: "#8B5CF6",
   triceps: "#EC4899",
-  legs: "#10B981",
+  legs: "#7C9E8A",
   core: "#F97316",
   cardio: "#06B6D4",
   flexibility: "#14B8A6",
@@ -327,7 +327,7 @@ function WorkoutForm({
               notes: notes || undefined,
             })
           }
-          className="text-sm px-4 py-2 rounded-lg bg-emerald-500 text-white font-medium hover:bg-emerald-600 transition-colors"
+          className="text-sm px-4 py-2 rounded-lg bg-sage-400 text-white font-medium hover:bg-sage-500 transition-colors"
         >
           Save Workout
         </button>
@@ -369,7 +369,7 @@ export default function WorkoutsPage() {
         </div>
         <button
           onClick={() => setShowForm(true)}
-          className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium bg-emerald-500 text-white hover:bg-emerald-600 transition-colors"
+          className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium bg-sage-400 text-white hover:bg-sage-500 transition-colors"
         >
           <Plus size={16} />
           Log Workout

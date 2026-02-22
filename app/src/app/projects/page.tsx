@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { FolderKanban, Plus, X, ChevronRight, Archive, RotateCcw, MoreHorizontal, AlertCircle } from "lucide-react";
 import { useProjects } from "@/lib/use-projects";
 import { useTasks } from "@/lib/use-tasks";
@@ -14,7 +14,7 @@ import { TaskItem, TaskCreateForm } from "@/components/task-list";
 
 const STATUS_COLUMNS: { status: ProjectStatus; label: string; color: string }[] = [
   { status: "planning", label: "Planning", color: "#64748B" },
-  { status: "active", label: "Active", color: "#10B981" },
+  { status: "active", label: "Active", color: "#7C9E8A" },
   { status: "paused", label: "Paused", color: "#F59E0B" },
   { status: "completed", label: "Completed", color: "#6366F1" },
 ];
@@ -115,7 +115,7 @@ function ProjectCreateForm({ onSubmit, onCancel }: { onSubmit: (data: Omit<Proje
           style={{ background: "var(--bg-tertiary)", color: "var(--text-primary)", border: "1px solid var(--border-primary)" }} />
         <div className="flex-1" />
         <button type="button" onClick={onCancel} className="text-xs px-3 py-1.5 rounded-lg" style={{ color: "var(--text-secondary)" }}>Cancel</button>
-        <button type="submit" className="text-xs px-3 py-1.5 rounded-lg bg-emerald-500 text-white hover:bg-emerald-600 transition-colors font-medium">Create</button>
+        <button type="submit" className="text-xs px-3 py-1.5 rounded-lg bg-sage-400 text-white hover:bg-sage-500 transition-colors font-medium">Create</button>
       </div>
     </form>
   );
@@ -138,6 +138,16 @@ function ProjectCard({
   const [showMenu, setShowMenu] = useState(false);
   const [showTaskForm, setShowTaskForm] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!showMenu) return;
+    const handleClick = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setShowMenu(false);
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [showMenu]);
 
   const projectTasks = tasks.filter((t) => t.projectId === project.id);
   const doneTasks = projectTasks.filter((t) => t.status === "done").length;
@@ -146,7 +156,7 @@ function ProjectCard({
 
   return (
     <div
-      className="rounded-xl overflow-hidden transition-all"
+      className="rounded-xl transition-all"
       style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-primary)" }}
     >
       <div className="p-4 cursor-pointer" onClick={() => setExpanded(!expanded)}>
@@ -160,13 +170,13 @@ function ProjectCard({
               }}>
               {project.status}
             </span>
-            <div className="relative">
+            <div className="relative" ref={menuRef}>
               <button onClick={(e) => { e.stopPropagation(); setShowMenu(!showMenu); }}
                 className="p-1 rounded" style={{ color: "var(--text-tertiary)" }}>
                 <MoreHorizontal size={14} />
               </button>
               {showMenu && (
-                <div className="absolute right-0 top-full mt-1 rounded-lg shadow-lg py-1 z-20 min-w-[140px]"
+                <div className="absolute right-0 top-full mt-1 rounded-lg shadow-lg py-1 z-50 min-w-[140px]"
                   style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-primary)" }}>
                   {STATUS_COLUMNS.map((col) => (
                     <button key={col.status}
@@ -229,7 +239,7 @@ function ProjectCard({
             <span className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
               Linked Tasks ({totalTasks})
             </span>
-            <button onClick={() => setShowTaskForm(true)} className="text-xs px-2 py-1 rounded bg-emerald-500 text-white">
+            <button onClick={() => setShowTaskForm(true)} className="text-xs px-2 py-1 rounded bg-sage-400 text-white">
               <Plus size={12} className="inline mr-1" />Add
             </button>
           </div>
@@ -301,7 +311,7 @@ export default function ProjectsPage() {
             </button>
           </div>
           <button onClick={() => setShowForm(true)}
-            className="flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium bg-emerald-500 text-white hover:bg-emerald-600 transition-colors">
+            className="flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium bg-sage-400 text-white hover:bg-sage-500 transition-colors">
             <Plus size={16} /> New Project
           </button>
         </div>

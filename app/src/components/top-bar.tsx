@@ -159,7 +159,7 @@ export function TopBar() {
               className="flex items-center gap-1.5 rounded-full transition-colors"
               title={user.displayName || user.email || "Profile"}
             >
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-500 text-white text-xs font-semibold">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-sage-400 text-white text-xs font-semibold">
                 {user.displayName?.[0]?.toUpperCase() || user.email?.[0]?.toUpperCase() || "U"}
               </div>
               <ChevronDown
@@ -186,7 +186,7 @@ export function TopBar() {
                   style={{ borderBottom: "1px solid var(--border-primary)" }}
                 >
                   <div className="flex items-center gap-3">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-500 text-white text-sm font-semibold">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-sage-400 text-white text-sm font-semibold">
                       {user.displayName?.[0]?.toUpperCase() || user.email?.[0]?.toUpperCase() || "U"}
                     </div>
                     <div className="flex-1 min-w-0">

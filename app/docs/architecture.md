@@ -1,4 +1,4 @@
-# LifeOS App — Architecture
+# Stride — Architecture
 
 ## Tech Stack
 

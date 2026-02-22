@@ -172,7 +172,7 @@ export default function SettingsPage() {
             Integrations
           </h2>
           <p className="text-xs mb-4" style={{ color: "var(--text-tertiary)" }}>
-            Connect external services to enhance your LifeOS experience.
+            Connect external services to enhance your Stride experience.
           </p>
           <div className="space-y-4">
             {/* Google Calendar */}
@@ -204,7 +204,7 @@ export default function SettingsPage() {
                       </p>
                     ) : (
                       <p className="text-xs" style={{ color: "var(--text-tertiary)" }}>
-                        Sync your schedule and see events in LifeOS
+                        Sync your schedule and see events in Stride
                       </p>
                     )}
                   </div>

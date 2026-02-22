@@ -1,4 +1,4 @@
-# LifeOS App — Features
+# Stride App — Features
 
 ## Phase 0: Foundation (Complete)
 
@@ -323,7 +323,7 @@ Sub-components: `MetricCard`, `HabitList`, `QuickNotes`
 #### Features
 - **Google Calendar embed** as primary view (iframe with configurable calendar ID + timezone)
 - **Embed mode toggle**: Week / Month / Agenda views
-- **LifeOS View fallback**: API-powered weekly calendar grid when embed isn't available
+- **Stride View fallback**: API-powered weekly calendar grid when embed isn't available
 - **Quick Add Event**: Create events via Google Calendar API directly from the page
 - **Embed settings**: Configurable calendar ID and timezone
 - **Setup guide**: Instructions for enabling public calendar access for embed
@@ -348,7 +348,7 @@ Features distilled from Todoist's feature set, filtered to what matters for a **
 
 ### Already Built
 
-| Feature | LifeOS Equivalent |
+| Feature | Stride Equivalent |
 |---------|-------------------|
 | Task CRUD with priorities | 4 priority levels, status cycling, area tagging |
 | Quick capture | Top bar input → creates task on Enter |
@@ -357,7 +357,7 @@ Features distilled from Todoist's feature set, filtered to what matters for a **
 | Habit tracking | Daily toggle with streak tracking per habit |
 | Labels/tags | Area system (Health, Career, Finance, Brand, Admin) |
 | Due dates | Date picker on task creation |
-| Calendar view | Google Calendar embed + LifeOS weekly grid + Quick Add Event |
+| Calendar view | Google Calendar embed + Stride weekly grid + Quick Add Event |
 | Board layout (Kanban) | Project tracker with drag-and-drop columns |
 | Dark mode | CSS custom properties with system preference detection |
 | Mobile responsive | Responsive layout + bottom nav + PWA manifest |
@@ -454,7 +454,7 @@ These depend on LLM integration, external APIs, or significant new infrastructur
 | Activity history feed | Low | Aggregate actions across collections |
 | Daily/weekly completion goals | Low | Target setting + progress tracking |
 
-### Skip — Doesn't Fit LifeOS
+### Skip — Doesn't Fit Stride
 
 | Todoist Feature | Why Skip |
 |----------------|----------|

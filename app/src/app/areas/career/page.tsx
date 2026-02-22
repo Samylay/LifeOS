@@ -44,7 +44,7 @@ const DEFAULT_CAREER_DATA: CareerAreaData = {
     { id: "3", title: "LLM Function Calling Deep Dive", type: "Tutorial" },
   ],
   portfolioItems: [
-    { id: "1", name: "LifeOS App", status: "In Progress" },
+    { id: "1", name: "Stride App", status: "In Progress" },
     { id: "2", name: "RVTNails Website", status: "Completed" },
     { id: "3", name: "JECT Client Projects", status: "Ongoing" },
   ],
@@ -155,7 +155,7 @@ function LearningQueue({ items, onUpdate }: { items: LearningItem[]; onUpdate: (
             style={{ background: "var(--bg-tertiary)", color: "var(--text-primary)", border: "1px solid var(--border-primary)" }}>
             <option>Topic</option><option>Course</option><option>Book</option><option>Tutorial</option>
           </select>
-          <button onClick={addItem} className="text-xs px-2 py-1.5 rounded-lg bg-emerald-500 text-white">Add</button>
+          <button onClick={addItem} className="text-xs px-2 py-1.5 rounded-lg bg-sage-400 text-white">Add</button>
         </div>
       )}
       <div className="space-y-2">
@@ -208,7 +208,7 @@ function PortfolioItems({ items, onUpdate }: { items: PortfolioItem[]; onUpdate:
             style={{ background: "var(--bg-tertiary)", color: "var(--text-primary)", border: "1px solid var(--border-primary)" }}>
             <option>In Progress</option><option>Completed</option><option>Ongoing</option>
           </select>
-          <button onClick={addItem} className="text-xs px-2 py-1.5 rounded-lg bg-emerald-500 text-white">Add</button>
+          <button onClick={addItem} className="text-xs px-2 py-1.5 rounded-lg bg-sage-400 text-white">Add</button>
         </div>
       )}
       <div className="space-y-2">
@@ -217,7 +217,7 @@ function PortfolioItems({ items, onUpdate }: { items: PortfolioItem[]; onUpdate:
             <span className="text-sm" style={{ color: "var(--text-primary)" }}>{item.name}</span>
             <div className="flex items-center gap-2">
               <span className="text-xs px-2 py-0.5 rounded-full"
-                style={{ background: item.status === "Completed" ? "#10B98120" : "#6366F120", color: item.status === "Completed" ? "#10B981" : "#6366F1" }}>
+                style={{ background: item.status === "Completed" ? "#7C9E8A20" : "#6366F120", color: item.status === "Completed" ? "#7C9E8A" : "#6366F1" }}>
                 {item.status}
               </span>
               <button onClick={() => onUpdate(items.filter((i) => i.id !== item.id))}

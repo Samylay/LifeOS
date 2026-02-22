@@ -152,7 +152,7 @@ export default function AssistantPage() {
               </p>
               <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
                 I&apos;ll parse them and add tasks, goals, habits, projects, and
-                reminders to your LifeOS automatically.
+                reminders to your Stride automatically.
               </p>
             </div>
             <div

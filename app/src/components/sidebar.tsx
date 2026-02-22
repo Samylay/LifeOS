@@ -15,6 +15,7 @@ import {
   Dumbbell,
   Bell,
   BookMarked,
+  ShoppingCart,
   Sparkles,
   X,
 } from "lucide-react";
@@ -29,6 +30,7 @@ const NAV_ITEMS = [
   { href: "/projects", label: "Projects", icon: FolderKanban },
   { href: "/goals", label: "Goals", icon: Flag },
   { href: "/reading", label: "Reading", icon: BookMarked },
+  { href: "/shopping", label: "Shopping", icon: ShoppingCart },
   { href: "/calendar", label: "Calendar", icon: Calendar },
 ];
 
@@ -89,15 +91,20 @@ export function Sidebar({ mobile }: { mobile?: boolean }) {
           style={{ borderBottom: "1px solid var(--border-primary)" }}
         >
           <div className="flex items-center gap-3">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-500 font-bold text-white text-sm">
-              L
-            </div>
             {expanded && (
               <span
                 className="font-semibold text-lg"
                 style={{ color: "var(--text-primary)" }}
               >
-                LifeOS
+                Stride
+              </span>
+            )}
+            {!expanded && (
+              <span
+                className="font-semibold text-lg"
+                style={{ color: "var(--text-primary)" }}
+              >
+                S
               </span>
             )}
           </div>

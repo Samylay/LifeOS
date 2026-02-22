@@ -91,7 +91,7 @@ export function HabitList({ habits, onToggle, onCreate, onDelete, area }: HabitL
             <option value="daily">Daily</option>
             <option value="weekly">Weekly</option>
           </select>
-          <button onClick={handleAdd} className="text-xs px-2 py-1.5 rounded-lg bg-emerald-500 text-white">
+          <button onClick={handleAdd} className="text-xs px-2 py-1.5 rounded-lg bg-sage-400 text-white">
             Add
           </button>
         </div>
@@ -186,7 +186,7 @@ export function QuickNotes({ notes, onAdd, onDelete }: QuickNotesProps) {
         />
         <button
           onClick={handleAdd}
-          className="px-3 py-2 rounded-lg text-xs font-medium bg-emerald-500 text-white hover:bg-emerald-600 transition-colors"
+          className="px-3 py-2 rounded-lg text-xs font-medium bg-sage-400 text-white hover:bg-sage-500 transition-colors"
         >
           Add
         </button>
