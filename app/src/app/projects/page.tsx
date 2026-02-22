@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { FolderKanban, Plus, X, ChevronRight, Archive, RotateCcw, MoreHorizontal, AlertCircle } from "lucide-react";
 import { useProjects } from "@/lib/use-projects";
 import { useTasks } from "@/lib/use-tasks";
@@ -138,6 +138,16 @@ function ProjectCard({
   const [showMenu, setShowMenu] = useState(false);
   const [showTaskForm, setShowTaskForm] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!showMenu) return;
+    const handleClick = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setShowMenu(false);
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [showMenu]);
 
   const projectTasks = tasks.filter((t) => t.projectId === project.id);
   const doneTasks = projectTasks.filter((t) => t.status === "done").length;
@@ -146,7 +156,7 @@ function ProjectCard({
 
   return (
     <div
-      className="rounded-xl overflow-hidden transition-all"
+      className="rounded-xl transition-all"
       style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-primary)" }}
     >
       <div className="p-4 cursor-pointer" onClick={() => setExpanded(!expanded)}>
@@ -160,13 +170,13 @@ function ProjectCard({
               }}>
               {project.status}
             </span>
-            <div className="relative">
+            <div className="relative" ref={menuRef}>
               <button onClick={(e) => { e.stopPropagation(); setShowMenu(!showMenu); }}
                 className="p-1 rounded" style={{ color: "var(--text-tertiary)" }}>
                 <MoreHorizontal size={14} />
               </button>
               {showMenu && (
-                <div className="absolute right-0 top-full mt-1 rounded-lg shadow-lg py-1 z-20 min-w-[140px]"
+                <div className="absolute right-0 top-full mt-1 rounded-lg shadow-lg py-1 z-50 min-w-[140px]"
                   style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-primary)" }}>
                   {STATUS_COLUMNS.map((col) => (
                     <button key={col.status}
