@@ -1,25 +1,79 @@
 import OpenAI from "openai";
 import { NextRequest, NextResponse } from "next/server";
+import { buildLifeContext, searchVault, readNote } from "@/lib/vault-parser";
 
-const SYSTEM_PROMPT = `You are a helpful assistant embedded inside Stride, a personal productivity app. The user may paste raw text (e.g. from Notion, notes, or brain dumps) and you should extract actionable items from it.
+const SYSTEM_PROMPT = `You are the AI brain of Stride — a personal life operating system. You are not a generic assistant. You know this person's life because you have access to their Obsidian vault (their second brain) and their live app data.
 
-You have access to tools that let you create items in the app. When the user pastes content, analyze it and use the appropriate tools to create tasks, goals, habits, notes, reminders, or projects.
+Your role is **personal chief of staff**: you process information, surface what's relevant, give grounded advice, and help execute. You don't wait to be asked — you notice patterns and flag them.
 
-Guidelines:
-- Extract clear, actionable tasks from unstructured text
-- Infer priority from context (words like "urgent", "ASAP", "this week" → high/urgent; general items → medium; "someday", "maybe" → low)
-- Infer the area when possible: "health" for fitness/wellness, "career" for work/learning, "finance" for money, "brand" for personal brand/content, "admin" for logistics/bureaucracy
-- Group related items into projects when appropriate
-- For recurring activities, create habits instead of tasks
-- For time-sensitive items with deadlines, create reminders
+## Your Personality
+- Direct, concise, no fluff. Like a sharp cofounder who knows the context.
+- You reference their actual goals, projects, and training data — not generic advice.
+- You understand their values: halal diet, privacy-first tech, sustainability, iron-sharpens-iron mentality.
+- You know they're a triathlete, EPITA student, JECT member, and aspiring content creator.
+- You speak in their language — mixing English and French is normal.
+
+## What You Can Do
+- **Create & manage items** in the app (tasks, goals, habits, notes, reminders, projects)
+- **Search their Obsidian vault** to find notes, goals, project details, or any knowledge they've written down
+- **Read specific vault notes** to get full context on a topic
+- **Give contextual advice** based on their training plan, JECT projects, school deadlines, and goals
+- **Morning briefings**: summarize the day ahead, suggest priorities based on goals + schedule + energy
+- **Evening reviews**: reflect on what got done, flag missed items, suggest tomorrow's focus
+- **Nutrition guidance**: high protein, halal, training-load-aware meal ideas
+- **Training awareness**: know their triathlon training (swimming focus Q1), bodyweight skill goals, recovery needs
+
+## Guidelines
+- When creating items, infer priority from context and assign the right life area
+- Reference their actual vault notes when giving advice — be specific
+- Use the search_vault tool when you need to look up something from their knowledge base
+- Use the read_vault_note tool to get the full content of a specific note
+- When they paste raw text, extract actionable items and create them efficiently
+- After creating items, give a summary of what you added
+- Don't create duplicates of existing items
 - Keep task titles concise and actionable (start with a verb)
-- You can also answer questions about productivity, help organize thoughts, or have a normal conversation
-- When creating many items, use the batch create_tasks tool to create them efficiently
-- After creating items, give the user a summary of what you added
-
-The user's existing data context will be provided when available so you can avoid duplicates.`;
+- For recurring activities, create habits instead of tasks
+- For time-sensitive items with deadlines, create reminders`;
 
 const tools: OpenAI.ChatCompletionTool[] = [
+  {
+    type: "function",
+    function: {
+      name: "search_vault",
+      description:
+        "Search the user's Obsidian vault (their second brain / knowledge base) for notes matching a query. Use this to find context about their goals, projects, training plans, ideas, or any topic they've written about. Returns matching note titles and relevant excerpts.",
+      parameters: {
+        type: "object",
+        properties: {
+          query: {
+            type: "string",
+            description:
+              "Search query — can be a topic, keyword, project name, or concept. Examples: 'triathlon training', 'JECT clients', 'bodyweight skills', 'GrapheneOS'",
+          },
+        },
+        required: ["query"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "read_vault_note",
+      description:
+        "Read the full content of a specific note from the Obsidian vault. Use this when you need detailed context from a note found via search_vault, or when you know the exact note path.",
+      parameters: {
+        type: "object",
+        properties: {
+          path: {
+            type: "string",
+            description:
+              "Relative path of the note in the vault, e.g. '03-Projects/JECT.md', '04-Goals/Goals-2026.md', '05-Areas/Health.md'",
+          },
+        },
+        required: ["path"],
+      },
+    },
+  },
   {
     type: "function",
     function: {
@@ -224,6 +278,54 @@ async function callWithRetry(
   }
 }
 
+/** Handle vault tool calls server-side (these don't create data, just read) */
+function handleVaultTool(
+  name: string,
+  args: Record<string, unknown>
+): string {
+  if (name === "search_vault") {
+    const query = args.query as string;
+    const results = searchVault(query).slice(0, 8);
+    if (results.length === 0) {
+      return JSON.stringify({ results: [], message: "No matching notes found." });
+    }
+    return JSON.stringify({
+      results: results.map((r) => ({
+        path: r.note.path,
+        title: r.note.title,
+        folder: r.note.folder,
+        excerpts: r.matches.slice(0, 3),
+        score: r.score,
+      })),
+    });
+  }
+
+  if (name === "read_vault_note") {
+    const filePath = args.path as string;
+    const note = readNote(filePath);
+    if (!note) {
+      return JSON.stringify({ error: `Note not found: ${filePath}` });
+    }
+    // Truncate very long notes to avoid token bloat
+    const maxLen = 3000;
+    const content =
+      note.content.length > maxLen
+        ? note.content.slice(0, maxLen) + "\n\n[... truncated]"
+        : note.content;
+    return JSON.stringify({
+      path: note.path,
+      title: note.title,
+      content,
+      links: note.links,
+      todos: note.todos.slice(0, 20),
+    });
+  }
+
+  return JSON.stringify({ error: "Unknown vault tool" });
+}
+
+const VAULT_TOOLS = new Set(["search_vault", "read_vault_note"]);
+
 export async function POST(req: NextRequest) {
   // Verify the caller is authenticated before processing
   const { verifyAuth, unauthorized } = await import("@/lib/verify-auth");
@@ -246,8 +348,20 @@ export async function POST(req: NextRequest) {
       baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/",
     });
 
-    // Build system prompt with context
+    // Build system prompt with vault context + app state
     let systemPrompt = SYSTEM_PROMPT;
+
+    // Inject live vault context (goals, projects, areas, inbox)
+    try {
+      const vaultContext = buildLifeContext();
+      if (vaultContext) {
+        systemPrompt += `\n\n# Your Life Context (from Obsidian vault)\n\n${vaultContext}`;
+      }
+    } catch (err) {
+      console.warn("Could not load vault context:", err);
+    }
+
+    // Inject app state context
     if (context) {
       systemPrompt += "\n\n## Current App State\n";
       if (context.taskCount !== undefined) {
@@ -265,9 +379,10 @@ export async function POST(req: NextRequest) {
       if (context.existingProjects?.length) {
         systemPrompt += `- Existing projects: ${context.existingProjects.join(", ")}\n`;
       }
-      systemPrompt += `\nToday's date: ${new Date().toISOString().split("T")[0]}\n`;
-      systemPrompt += `Avoid creating duplicates of existing items.`;
     }
+
+    systemPrompt += `\nToday's date: ${new Date().toISOString().split("T")[0]}`;
+    systemPrompt += `\nAvoid creating duplicates of existing items.`;
 
     // Convert messages to API format
     const openaiMessages: OpenAI.ChatCompletionMessageParam[] = [
@@ -308,14 +423,24 @@ export async function POST(req: NextRequest) {
         if (toolCall.type !== "function") continue;
         const fn = toolCall.function;
         const parsedArgs = JSON.parse(fn.arguments);
-        actions.push({ tool: fn.name, input: parsedArgs });
 
-        // Add tool result
-        openaiMessages.push({
-          role: "tool",
-          tool_call_id: toolCall.id,
-          content: JSON.stringify({ success: true }),
-        });
+        if (VAULT_TOOLS.has(fn.name)) {
+          // Vault tools are handled server-side — return real data to the LLM
+          const result = handleVaultTool(fn.name, parsedArgs);
+          openaiMessages.push({
+            role: "tool",
+            tool_call_id: toolCall.id,
+            content: result,
+          });
+        } else {
+          // App mutation tools — collect for client-side execution
+          actions.push({ tool: fn.name, input: parsedArgs });
+          openaiMessages.push({
+            role: "tool",
+            tool_call_id: toolCall.id,
+            content: JSON.stringify({ success: true }),
+          });
+        }
       }
 
       // Continue conversation

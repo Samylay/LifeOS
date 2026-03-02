@@ -154,19 +154,20 @@ export function ChatPanel() {
                 className="text-sm font-medium text-center"
                 style={{ color: "var(--text-primary)" }}
               >
-                Paste your notes or ask me anything
+                Your AI chief of staff
               </p>
               <p
                 className="text-xs text-center"
                 style={{ color: "var(--text-secondary)" }}
               >
-                I&apos;ll extract tasks, goals, habits, and more from your text.
+                Connected to your vault. Ask anything about your goals,
+                projects, or training.
               </p>
               <div className="mt-2 flex flex-col gap-1.5 w-full">
                 {[
-                  "Paste my Notion page",
-                  "Add a daily reading habit",
-                  "Create a project for my brand",
+                  "Give me my morning briefing",
+                  "What should I focus on today?",
+                  "Search my notes for JECT",
                 ].map((ex, i) => (
                   <button
                     key={i}

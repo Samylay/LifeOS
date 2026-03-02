@@ -107,7 +107,7 @@ export default function AssistantPage() {
               Assistant
             </h1>
             <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
-              Paste anything &mdash; I&apos;ll extract tasks, goals, habits &amp; more
+              Vault-connected &mdash; knows your goals, projects, training &amp; life context
             </p>
           </div>
         </div>
@@ -148,11 +148,12 @@ export default function AssistantPage() {
                 className="text-base font-medium mb-1"
                 style={{ color: "var(--text-primary)" }}
               >
-                Paste your notes, todos, or brain dumps
+                Your AI chief of staff
               </p>
               <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
-                I&apos;ll parse them and add tasks, goals, habits, projects, and
-                reminders to your Stride automatically.
+                Connected to your Obsidian vault. I know your goals, projects,
+                training plan, and life context. Ask me anything or paste content
+                to process.
               </p>
             </div>
             <div
@@ -160,10 +161,10 @@ export default function AssistantPage() {
               style={{ color: "var(--text-secondary)" }}
             >
               {[
-                "Paste a Notion page and I'll extract all the todos",
-                "\"Add a habit to do 30 min of reading daily\"",
-                "\"Create a project for my personal brand with tasks\"",
-                "Dump your meeting notes and I'll find the action items",
+                "Give me my morning briefing",
+                "What are my Q1 priorities right now?",
+                "What's in my JECT project backlog?",
+                "I had a 1500m swim today, felt heavy in the last 400",
               ].map((example, i) => (
                 <button
                   key={i}
