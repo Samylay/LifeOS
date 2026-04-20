@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Target, Plus, Trash2 } from "lucide-react";
 import { useQuests } from "@/lib/use-quests";
 import { AREAS, type Quest, type QuestCategory } from "@/lib/types";
@@ -130,10 +130,10 @@ function QuestCard({
   onDelete: (id: string) => void;
 }) {
   const color = CATEGORY_COLORS[quest.category] || "var(--accent)";
-  const daysLeft = Math.max(
+  const daysLeft = useMemo(() => Math.max(
     0,
     Math.ceil((new Date(quest.endDate).getTime() - Date.now()) / 86400000)
-  );
+  ), [quest.endDate]);
 
   return (
     <div
@@ -217,14 +217,14 @@ export default function QuestsPage() {
   const [showForm, setShowForm] = useState(false);
 
   const completed = quests.filter((q) => q.status === "completed").length;
-  const minDaysLeft = activeQuests.length
+  const minDaysLeft = useMemo(() => activeQuests.length
     ? Math.max(
         0,
         ...activeQuests.map((q) =>
           Math.ceil((new Date(q.endDate).getTime() - Date.now()) / 86400000)
         )
       )
-    : 0;
+    : 0, [activeQuests]);
 
   return (
     <div>

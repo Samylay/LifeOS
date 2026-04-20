@@ -27,7 +27,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useFocusSessions } from "@/lib/use-focus-sessions";
-import { AREAS } from "@/lib/types";
+import { AREAS, type FocusSession } from "@/lib/types";
 import type { AreaId } from "@/lib/types";
 
 const AREA_COLORS: Record<string, string> = {

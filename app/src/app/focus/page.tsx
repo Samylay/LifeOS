@@ -9,7 +9,7 @@ import { AREAS } from "@/lib/types";
 import type { AreaId } from "@/lib/types";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, Suspense } from "react";
 
 function formatTime(seconds: number): string {
   const m = Math.floor(seconds / 60);
@@ -17,7 +17,7 @@ function formatTime(seconds: number): string {
   return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
-export default function FocusPage() {
+function FocusPageContent() {
   const { activeJourneys, addHours, tierUp, dismissTierUp } = useJourneys();
   const { blocks, attachSession } = useFocusBlocks();
   const searchParams = useSearchParams();
@@ -293,5 +293,17 @@ export default function FocusPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function FocusPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center min-h-[70vh]">
+        <p className="text-tertiary">Loading timer...</p>
+      </div>
+    }>
+      <FocusPageContent />
+    </Suspense>
   );
 }

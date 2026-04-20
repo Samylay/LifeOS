@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { ClipboardList, Inbox, FileCheck, Plus, X, Clock, AlertTriangle } from "lucide-react";
 import { AreaModule } from "@/components/area-module";
 import { useTasks } from "@/lib/use-tasks";
@@ -169,8 +169,8 @@ function DocumentTracker({ docs, onUpdate }: { docs: TrackedDocument[]; onUpdate
     setShowAdd(false);
   };
 
-  const today = new Date().toISOString().split("T")[0];
-  const thirtyDaysFromNow = new Date(Date.now() + 30 * 86400000).toISOString().split("T")[0];
+  const today = useMemo(() => new Date().toISOString().split("T")[0], []);
+  const thirtyDaysFromNow = useMemo(() => new Date(Date.now() + 30 * 86400000).toISOString().split("T")[0], []);
 
   return (
     <div>
