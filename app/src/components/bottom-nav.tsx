@@ -4,23 +4,23 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
-  Dumbbell,
-  Bell,
-  Sparkles,
   Timer,
+  ListTodo,
+  Layers,
+  Menu,
 } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 
 const TABS = [
   { href: "/", label: "Home", icon: LayoutDashboard },
-  { href: "/workouts", label: "Workout", icon: Dumbbell },
+  { href: "/tasks", label: "Tasks", icon: ListTodo },
   { href: "/focus", label: "Focus", icon: Timer },
-  { href: "/reminders", label: "Reminders", icon: Bell },
+  { href: "/areas", label: "Areas", icon: Layers },
 ];
 
 export function BottomNav() {
   const pathname = usePathname();
-  const { toggleChatPanel } = useAppStore();
+  const { setMobileSidebarOpen } = useAppStore();
 
   const isActive = (href: string) => {
     if (href === "/") return pathname === "/";
@@ -61,21 +61,21 @@ export function BottomNav() {
           </Link>
         );
       })}
-      {/* Assistant — opens chat panel instead of navigating */}
+      {/* "More" — opens mobile sidebar */}
       <button
-        onClick={toggleChatPanel}
+        onClick={() => setMobileSidebarOpen(true)}
         className="flex flex-col items-center justify-center gap-0.5 py-1 px-3 rounded-lg transition-colors"
         style={{
           color: "var(--text-tertiary)",
           minWidth: 56,
         }}
       >
-        <Sparkles size={22} strokeWidth={2} />
+        <Menu size={22} strokeWidth={2} />
         <span
           className="text-xs font-medium"
           style={{ fontSize: 10 }}
         >
-          Assistant
+          More
         </span>
       </button>
     </nav>

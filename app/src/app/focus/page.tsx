@@ -1,9 +1,15 @@
 "use client";
 
-import { Play, Pause, Square, SkipForward } from "lucide-react";
+import { Play, Pause, Square, SkipForward, BarChart2 } from "lucide-react";
 import { useFocusTimer } from "@/lib/use-focus";
+import { useJourneys } from "@/lib/use-journeys";
+import { useFocusBlocks } from "@/lib/use-focus-blocks";
+import { TierUpCelebration } from "@/components/tier-up-celebration";
 import { AREAS } from "@/lib/types";
 import type { AreaId } from "@/lib/types";
+import Link from "next/link";
+import { useSearchParams, useRouter } from "next/navigation";
+import { useEffect } from "react";
 
 function formatTime(seconds: number): string {
   const m = Math.floor(seconds / 60);
@@ -12,6 +18,11 @@ function formatTime(seconds: number): string {
 }
 
 export default function FocusPage() {
+  const { activeJourneys, addHours, tierUp, dismissTierUp } = useJourneys();
+  const { blocks, attachSession } = useFocusBlocks();
+  const searchParams = useSearchParams();
+  const router = useRouter();
+
   const {
     timerState,
     sessionType,
@@ -21,15 +32,67 @@ export default function FocusPage() {
     interruptions,
     linkedArea,
     setLinkedArea,
+    linkedBlockId,
+    linkedJourneyId,
     start,
     pause,
     resume,
     stop,
     skip,
+    applyConfig,
     todayFocusMinutes,
     todayCompletedSessions,
     config,
-  } = useFocusTimer();
+  } = useFocusTimer({
+    onSessionComplete: async (session) => {
+      // 1. If part of a block, attach it
+      if (session.blockId) {
+        await attachSession(session.blockId, session.id);
+      }
+
+      // 2. Add hours to journey
+      const journeyId = session.journeyId || 
+        (session.area ? activeJourneys.find(j => j.area === session.area)?.id : null);
+      
+      if (journeyId && session.actualDuration) {
+        const hours = session.actualDuration / 60;
+        await addHours(journeyId, hours);
+      }
+    }
+  });
+
+  // Handle URL parameters for auto-config
+  useEffect(() => {
+    const blockId = searchParams.get("blockId");
+    const journeyId = searchParams.get("journeyId");
+    const questId = searchParams.get("questId");
+    const area = searchParams.get("area") as AreaId | null;
+
+    if (blockId) {
+      const block = blocks.find(b => b.id === blockId);
+      if (block) {
+        applyConfig({
+          focusDuration: block.sessionDuration,
+          breakDuration: block.breakDuration,
+          area: block.area,
+          blockId: block.id,
+          journeyId: block.journeyId,
+          questId: block.questId
+        });
+      }
+    } else if (journeyId || questId || area) {
+      applyConfig({
+        journeyId: journeyId || undefined,
+        questId: questId || undefined,
+        area: area || undefined
+      });
+    }
+
+    // Clear params after applying to avoid re-triggering if user navigates back
+    if (blockId || journeyId || questId || area) {
+      router.replace("/focus");
+    }
+  }, [searchParams, blocks, applyConfig, router]);
 
   const progress = totalTime > 0 ? (totalTime - timeRemaining) / totalTime : 0;
   const circumference = 2 * Math.PI * 90;
@@ -50,7 +113,20 @@ export default function FocusPage() {
     : "LONG BREAK";
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-[70vh]">
+    <div className="flex flex-col items-center justify-center min-h-[70vh] relative">
+      {tierUp && (
+        <TierUpCelebration event={tierUp} onClose={dismissTierUp} />
+      )}
+      <div className="absolute top-0 right-0">
+        <Link 
+          href="/focus/analytics"
+          className="flex items-center gap-2 text-sm font-medium text-tertiary hover:text-accent transition-colors px-4 py-2"
+        >
+          <BarChart2 size={18} />
+          View Analytics
+        </Link>
+      </div>
+
       {/* Timer Ring */}
       <div className="relative flex items-center justify-center mb-8">
         <svg width="240" height="240" viewBox="0 0 240 240">

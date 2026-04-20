@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Check, Circle, Clock, X, ChevronDown, Filter } from "lucide-react";
+import { Plus, Check, Circle, Clock, X, ChevronDown, Filter, Flame } from "lucide-react";
 import type { Task, TaskStatus, TaskPriority, AreaId } from "@/lib/types";
 import { AREAS } from "@/lib/types";
 
@@ -78,6 +78,13 @@ export function TaskItem({ task, onUpdate, onDelete }: TaskItemProps) {
               {AREAS[task.area]?.name}
             </span>
           )}
+          {task.energy && (
+            <span className="flex items-center gap-0.5 text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-bg-tertiary text-tertiary border border-primary">
+              <Flame size={8} className={task.energy >= 1 ? "text-amber-500" : ""} fill={task.energy >= 1 ? "currentColor" : "none"} />
+              <Flame size={8} className={task.energy >= 2 ? "text-amber-500" : ""} fill={task.energy >= 2 ? "currentColor" : "none"} />
+              <Flame size={8} className={task.energy >= 3 ? "text-amber-500" : ""} fill={task.energy >= 3 ? "currentColor" : "none"} />
+            </span>
+          )}
           {task.dueDate && (
             <span className="text-xs" style={{ color: "var(--text-tertiary)" }}>
               {new Date(task.dueDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
@@ -119,6 +126,7 @@ interface TaskCreateFormProps {
 export function TaskCreateForm({ onSubmit, onCancel }: TaskCreateFormProps) {
   const [title, setTitle] = useState("");
   const [priority, setPriority] = useState<TaskPriority>("medium");
+  const [energy, setEnergy] = useState<number>(2);
   const [area, setArea] = useState<AreaId | "">("");
   const [dueDate, setDueDate] = useState("");
 
@@ -129,11 +137,13 @@ export function TaskCreateForm({ onSubmit, onCancel }: TaskCreateFormProps) {
       title: title.trim(),
       priority,
       status: "todo",
+      energy: energy as 1 | 2 | 3,
       area: area || undefined,
       dueDate: dueDate ? new Date(dueDate) : undefined,
     });
     setTitle("");
     setPriority("medium");
+    setEnergy(2);
     setArea("");
     setDueDate("");
   };
@@ -169,10 +179,26 @@ export function TaskCreateForm({ onSubmit, onCancel }: TaskCreateFormProps) {
             border: "1px solid var(--border-primary)",
           }}
         >
-          <option value="low">Low</option>
-          <option value="medium">Medium</option>
-          <option value="high">High</option>
+          <option value="low">Low Priority</option>
+          <option value="medium">Medium Priority</option>
+          <option value="high">High Priority</option>
           <option value="urgent">Urgent</option>
+        </select>
+
+        {/* Energy */}
+        <select
+          value={energy}
+          onChange={(e) => setEnergy(parseInt(e.target.value))}
+          className="text-xs rounded-lg px-2 py-1.5 outline-none"
+          style={{
+            background: "var(--bg-tertiary)",
+            color: "var(--text-primary)",
+            border: "1px solid var(--border-primary)",
+          }}
+        >
+          <option value={1}>Low Energy</option>
+          <option value={2}>Medium Energy</option>
+          <option value={3}>High Energy</option>
         </select>
 
         {/* Area */}

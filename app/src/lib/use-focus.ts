@@ -16,6 +16,10 @@ export interface FocusTimerConfig {
   longBreakAfter: number; // sessions
 }
 
+export interface FocusTimerOptions {
+  onSessionComplete?: (session: FocusSession) => void | Promise<void>;
+}
+
 export const DEFAULT_CONFIG: FocusTimerConfig = {
   focusDuration: 25,
   breakDuration: 5,
@@ -25,7 +29,7 @@ export const DEFAULT_CONFIG: FocusTimerConfig = {
 
 let localSessionId = 0;
 
-export function useFocusTimer() {
+export function useFocusTimer(options: FocusTimerOptions = {}) {
   const { user, isFirebaseConfigured } = useAuth();
   const [config, setConfig] = useState<FocusTimerConfig>(DEFAULT_CONFIG);
 
@@ -40,6 +44,9 @@ export function useFocusTimer() {
   // Session context
   const [linkedArea, setLinkedArea] = useState<AreaId | undefined>();
   const [linkedTaskId, setLinkedTaskId] = useState<string | undefined>();
+  const [linkedBlockId, setLinkedBlockId] = useState<string | undefined>();
+  const [linkedJourneyId, setLinkedJourneyId] = useState<string | undefined>();
+  const [linkedQuestId, setLinkedQuestId] = useState<string | undefined>();
 
   // Active session tracking
   const sessionStartRef = useRef<Date | null>(null);
@@ -103,14 +110,25 @@ export function useFocusTimer() {
         status: "completed",
         area: linkedArea,
         taskId: linkedTaskId,
+        blockId: linkedBlockId,
+        journeyId: linkedJourneyId,
+        questId: linkedQuestId,
         interruptions,
       };
 
+      let createdSession: FocusSession;
+
       if (isFirebaseConfigured && user) {
-        await sessionsApi.create(user.uid, sessionData);
+        const id = await sessionsApi.create(user.uid, sessionData);
+        createdSession = { ...sessionData, id };
       } else {
-        const local: FocusSession = { ...sessionData, id: `local-session-${++localSessionId}` };
-        setTodaySessions((prev) => [local, ...prev]);
+        createdSession = { ...sessionData, id: `local-session-${++localSessionId}` };
+        setTodaySessions((prev) => [createdSession, ...prev]);
+      }
+
+      // Notify caller
+      if (options.onSessionComplete) {
+        await options.onSessionComplete(createdSession);
       }
 
       const newCompleted = completedSessions + 1;
@@ -136,7 +154,20 @@ export function useFocusTimer() {
     }
 
     sessionStartRef.current = null;
-  }, [sessionType, completedSessions, config, linkedArea, linkedTaskId, interruptions, user, isFirebaseConfigured]);
+  }, [
+    sessionType,
+    completedSessions,
+    config,
+    linkedArea,
+    linkedTaskId,
+    linkedBlockId,
+    linkedJourneyId,
+    linkedQuestId,
+    interruptions,
+    user,
+    isFirebaseConfigured,
+    options
+  ]);
 
   // Keep the ref in sync with the latest handleSessionComplete
   useEffect(() => {
@@ -208,6 +239,9 @@ export function useFocusTimer() {
         status,
         area: linkedArea,
         taskId: linkedTaskId,
+        blockId: linkedBlockId,
+        journeyId: linkedJourneyId,
+        questId: linkedQuestId,
         interruptions,
       };
 
@@ -225,7 +259,18 @@ export function useFocusTimer() {
     setTotalTime(config.focusDuration * 60);
     setInterruptions(0);
     sessionStartRef.current = null;
-  }, [sessionType, config, linkedArea, linkedTaskId, interruptions, user, isFirebaseConfigured]);
+  }, [
+    sessionType,
+    config,
+    linkedArea,
+    linkedTaskId,
+    linkedBlockId,
+    linkedJourneyId,
+    linkedQuestId,
+    interruptions,
+    user,
+    isFirebaseConfigured
+  ]);
 
   const skip = useCallback(() => {
     setTimerState("idle");
@@ -237,7 +282,19 @@ export function useFocusTimer() {
   }, [config]);
 
   // Apply new config (e.g., from focus blocks or settings)
-  const applyConfig = useCallback((newConfig: Partial<FocusTimerConfig>) => {
+  const applyConfig = useCallback((newConfig: Partial<FocusTimerConfig & {
+    area?: AreaId;
+    taskId?: string;
+    blockId?: string;
+    journeyId?: string;
+    questId?: string;
+  }>) => {
+    if (newConfig.area !== undefined) setLinkedArea(newConfig.area);
+    if (newConfig.taskId !== undefined) setLinkedTaskId(newConfig.taskId);
+    if (newConfig.blockId !== undefined) setLinkedBlockId(newConfig.blockId);
+    if (newConfig.journeyId !== undefined) setLinkedJourneyId(newConfig.journeyId);
+    if (newConfig.questId !== undefined) setLinkedQuestId(newConfig.questId);
+
     setConfig((prev) => {
       const updated = { ...prev, ...newConfig };
       // If idle, update the timer display too
@@ -270,6 +327,12 @@ export function useFocusTimer() {
     setLinkedArea,
     linkedTaskId,
     setLinkedTaskId,
+    linkedBlockId,
+    setLinkedBlockId,
+    linkedJourneyId,
+    setLinkedJourneyId,
+    linkedQuestId,
+    setLinkedQuestId,
 
     start,
     pause,

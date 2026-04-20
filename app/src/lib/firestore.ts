@@ -30,6 +30,9 @@ import type {
   Habit,
   DailyLog,
   FocusSession,
+  FocusBlock,
+  Journey,
+  Quest,
   UserProfile,
   Transaction,
   Subscription,
@@ -367,6 +370,57 @@ export const bodyMeasurements = {
     queryDocuments<BodyMeasurement>(userId, "bodyMeasurements", ...constraints),
   delete: (userId: string, id: string) =>
     deleteDocument(userId, "bodyMeasurements", id),
+};
+
+// --- Focus Blocks ---
+
+export const focusBlocks = {
+  create: (userId: string, data: Omit<FocusBlock, "id">) =>
+    createDocument<FocusBlock>(userId, "focusBlocks", data),
+  get: (userId: string, id: string) =>
+    getDocument<FocusBlock>(userId, "focusBlocks", id),
+  update: (userId: string, id: string, data: Partial<FocusBlock>) =>
+    updateDocument(userId, "focusBlocks", id, data),
+  delete: (userId: string, id: string) =>
+    deleteDocument(userId, "focusBlocks", id),
+  list: (userId: string, ...constraints: QueryConstraint[]) =>
+    queryDocuments<FocusBlock>(userId, "focusBlocks", ...constraints),
+  listByDate: (userId: string, date: string) =>
+    queryDocuments<FocusBlock>(userId, "focusBlocks", where("date", "==", date)),
+};
+
+// --- Hero Journeys ---
+
+export const journeys = {
+  create: (userId: string, data: Omit<Journey, "id">) =>
+    createDocument<Journey>(userId, "journeys", data),
+  get: (userId: string, id: string) =>
+    getDocument<Journey>(userId, "journeys", id),
+  update: (userId: string, id: string, data: Partial<Journey>) =>
+    updateDocument(userId, "journeys", id, data),
+  delete: (userId: string, id: string) =>
+    deleteDocument(userId, "journeys", id),
+  list: (userId: string, ...constraints: QueryConstraint[]) =>
+    queryDocuments<Journey>(userId, "journeys", ...constraints),
+  listActive: (userId: string) =>
+    queryDocuments<Journey>(userId, "journeys", where("isActive", "==", true)),
+};
+
+// --- Quests ---
+
+export const quests = {
+  create: (userId: string, data: Omit<Quest, "id">) =>
+    createDocument<Quest>(userId, "quests", data),
+  get: (userId: string, id: string) =>
+    getDocument<Quest>(userId, "quests", id),
+  update: (userId: string, id: string, data: Partial<Quest>) =>
+    updateDocument(userId, "quests", id, data),
+  delete: (userId: string, id: string) =>
+    deleteDocument(userId, "quests", id),
+  list: (userId: string, ...constraints: QueryConstraint[]) =>
+    queryDocuments<Quest>(userId, "quests", ...constraints),
+  listActive: (userId: string) =>
+    queryDocuments<Quest>(userId, "quests", where("status", "==", "active")),
 };
 
 // --- Shopping List ---

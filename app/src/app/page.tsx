@@ -20,10 +20,13 @@ import { useFocusTimer } from "@/lib/use-focus";
 import { useDailyLog } from "@/lib/use-daily-log";
 import { useHabits } from "@/lib/use-habits";
 import { useReminders } from "@/lib/use-reminders";
+import { useJourneys } from "@/lib/use-journeys";
+import { progressToNextTier } from "@/lib/types";
 import { useWorkouts } from "@/lib/use-workouts";
 import { useBooks } from "@/lib/use-books";
 import { MorningCheckIn, EveningReflection } from "@/components/daily-log";
 import { TaskItem } from "@/components/task-list";
+import { DailyBrief } from "@/components/daily-brief";
 import Link from "next/link";
 import type { Task } from "@/lib/types";
 import { AREAS } from "@/lib/types";
@@ -33,6 +36,7 @@ import { ExternalLink, Loader2, Clock } from "lucide-react";
 
 export default function Dashboard() {
   const { tasks, updateTask, deleteTask } = useTasks();
+  const { activeJourneys } = useJourneys();
   const { todayFocusMinutes, todayCompletedSessions } = useFocusTimer();
   const { log, updateLog } = useDailyLog();
   const { habits, toggleToday } = useHabits();
@@ -151,6 +155,48 @@ export default function Dashboard() {
 
       {view === "morning" ? (
         <div className="grid grid-cols-12 gap-4 lg:gap-6">
+          {/* Daily Brief */}
+          <div className="col-span-12">
+            <DailyBrief
+              tasks={activeTasks}
+              events={calEvents.filter((e) => e.start.toDateString() === new Date().toDateString())}
+              stats={{
+                habitsDone,
+                totalHabits: todayHabits.length,
+                focusMinutes: todayFocusMinutes,
+              }}
+            />
+          </div>
+
+          {/* Journeys Progress */}
+          {activeJourneys.length > 0 && (
+            <div className="col-span-12 rounded-2xl p-5 bg-bg-secondary border border-primary shadow-sm">
+              <div className="flex items-center justify-between mb-4 px-1">
+                <h2 className="text-xs font-bold uppercase tracking-widest text-secondary">Active Journeys</h2>
+                <Link href="/journeys" className="text-[10px] font-bold uppercase tracking-wider text-accent hover:underline">View All</Link>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {activeJourneys.slice(0, 3).map(journey => {
+                  const progress = progressToNextTier(journey.totalHours);
+                  return (
+                    <Link key={journey.id} href={`/journeys/${journey.id}`} className="p-3 rounded-xl bg-bg-tertiary border border-primary flex items-center gap-4 hover:border-accent transition-colors group">
+                      <div className="relative w-10 h-10 flex items-center justify-center shrink-0">
+                        <svg className="absolute inset-0 w-full h-full -rotate-90">
+                          <circle cx="20" cy="20" r="17" fill="none" stroke="var(--border-primary)" strokeWidth="3" />
+                          <circle cx="20" cy="20" r="17" fill="none" stroke="var(--accent)" strokeWidth="3" strokeDasharray={106.8} strokeDashoffset={106.8 * (1 - progress.pct / 100)} strokeLinecap="round" className="transition-all duration-1000" />
+                        </svg>
+                        <span className="text-[9px] font-bold font-mono">T{journey.currentTier}</span>
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs font-bold truncate text-primary group-hover:text-accent transition-colors">{journey.title}</p>
+                        <p className="text-[10px] text-tertiary uppercase tracking-wider">{journey.totalHours.toFixed(1)}h total</p>
+                      </div>
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Reminders alert */}
           {(overdueReminders.length > 0 || todayReminders.length > 0) && (

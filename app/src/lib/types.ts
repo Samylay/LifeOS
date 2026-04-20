@@ -30,13 +30,19 @@ export interface FocusSettings {
   allowlist: string[];
 }
 
+export type EnergyLevel = 1 | 2 | 3;
+
 export interface Task {
   id: string;
   title: string;
+  description?: string;
   area?: AreaId;
   projectId?: string;
+  parentId?: string;
   priority: TaskPriority;
   status: TaskStatus;
+  energy?: EnergyLevel;
+  estimatedMinutes?: number;
   dueDate?: Date;
   createdAt: Date;
   updatedAt: Date;
@@ -112,6 +118,9 @@ export interface FocusSession {
   area?: AreaId;
   projectId?: string;
   taskId?: string;
+  blockId?: string;
+  journeyId?: string;
+  questId?: string;
   interruptions: number;
 }
 
@@ -375,3 +384,106 @@ export const AREAS: Record<AreaId, { name: string; color: string; icon: string }
   brand: { name: "Personal Brand", color: "violet", icon: "Megaphone" },
   admin: { name: "Life Admin", color: "slate", icon: "ClipboardList" },
 };
+
+// --- Hero Journeys ---
+
+export type JourneyTier = 1 | 2 | 3 | 4 | 5 | 6 | 7;
+
+// index = tier - 1
+export const TIER_THRESHOLDS: number[] = [0, 100, 350, 850, 1850, 5000, 10000];
+export const TIER_NAMES: string[] = [
+  "Novice",
+  "Apprentice",
+  "Journeyman",
+  "Adept",
+  "Expert",
+  "Master",
+  "Grandmaster",
+];
+
+export interface TierMilestone {
+  tier: JourneyTier;
+  reachedAt: Date;
+}
+
+export interface Journey {
+  id: string;
+  title: string;
+  area: AreaId;
+  description?: string;
+  totalHours: number;
+  currentTier: JourneyTier;
+  tierHistory: TierMilestone[];
+  tags: string[];
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export function tierForHours(hours: number): JourneyTier {
+  let tier: JourneyTier = 1;
+  for (let i = TIER_THRESHOLDS.length - 1; i >= 0; i--) {
+    if (hours >= TIER_THRESHOLDS[i]) {
+      tier = (i + 1) as JourneyTier;
+      break;
+    }
+  }
+  return tier;
+}
+
+export function progressToNextTier(hours: number): { current: number; next: number; pct: number } {
+  const tier = tierForHours(hours);
+  const current = TIER_THRESHOLDS[tier - 1];
+  const next = TIER_THRESHOLDS[tier] ?? TIER_THRESHOLDS[TIER_THRESHOLDS.length - 1];
+  if (tier === 7) return { current, next: current, pct: 100 };
+  const pct = Math.min(100, Math.round(((hours - current) / (next - current)) * 100));
+  return { current, next, pct };
+}
+
+// --- Quests (90-day sprints) ---
+
+export type QuestCategory = "life" | "work" | AreaId;
+export type QuestStatus = "active" | "completed" | "abandoned";
+
+export interface Quest {
+  id: string;
+  title: string;
+  category: QuestCategory;
+  criteria: string;
+  progress: number; // 0-100
+  startDate: Date;
+  endDate: Date;
+  linkedJourneyIds?: string[];
+  status: QuestStatus;
+  hot?: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// --- Focus Blocks ---
+
+export type FocusBlockStatus = "scheduled" | "active" | "done";
+
+export interface FocusBlock {
+  id: string;
+  title: string;
+  date: string; // YYYY-MM-DD
+  startTime: string; // HH:mm
+  endTime: string; // HH:mm
+  area?: AreaId;
+  projectId?: string;
+  journeyId?: string;
+  questId?: string;
+  goal?: string;
+  sessionCount: number;
+  sessionDuration: number; // minutes
+  breakDuration: number; // minutes
+  bufferMinutes: number;
+  autoStart: boolean;
+  template?: string;
+  sessionIds: string[];
+  status: FocusBlockStatus;
+  shieldEnabled?: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
