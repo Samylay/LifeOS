@@ -1,0 +1,30 @@
+services:
+  app:
+    build: .
+    image: lifeos
+    container_name: lifeos
+    restart: unless-stopped
+    # Bound to localhost; exposed to the tailnet over HTTPS via `tailscale serve`
+    # (sudo tailscale serve --bg 3000 → https://homelab.tail069527.ts.net).
+    # The app has no login, and `tailscale serve` only accepts tailnet traffic.
+    ports:
+      - "127.0.0.1:3000:3000"
+    env_file:
+      - .env
+    environment:
+      # Local LLM via Ollama running on the homelab host (not in this container).
+      OLLAMA_BASE_URL: "http://host.docker.internal:11434"
+      OLLAMA_MODEL: "qwen2.5:7b"
+      LIFEOS_DB_PATH: "/data/lifeos.db"
+      HERMES_STATUS: "/hermes/status.json"
+      DOCKER_SOCK: "/var/run/docker.sock"
+    extra_hosts:
+      # Lets the container reach the host's Ollama at host.docker.internal.
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - lifeos-data:/data
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /home/quorky/.hermes:/hermes:ro
+
+volumes:
+  lifeos-data:

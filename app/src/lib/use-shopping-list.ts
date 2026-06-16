@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { collection, onSnapshot, query, orderBy } from "firebase/firestore";
+import { collection, onSnapshot, query, orderBy } from "@/lib/local-db";
 import { db } from "./firebase";
 import { shoppingItems as api } from "./firestore";
 import type { ShoppingItem } from "./types";

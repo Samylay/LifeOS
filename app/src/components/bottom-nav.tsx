@@ -4,17 +4,17 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
-  Timer,
   ListTodo,
   Layers,
   Menu,
+  UtensilsCrossed,
 } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 
 const TABS = [
   { href: "/", label: "Home", icon: LayoutDashboard },
   { href: "/tasks", label: "Tasks", icon: ListTodo },
-  { href: "/focus", label: "Focus", icon: Timer },
+  { href: "/food", label: "Food", icon: UtensilsCrossed },
   { href: "/areas", label: "Areas", icon: Layers },
 ];
 

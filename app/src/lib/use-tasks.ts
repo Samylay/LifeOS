@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { collection, onSnapshot, query, orderBy, Timestamp } from "firebase/firestore";
+import { collection, onSnapshot, query, orderBy, Timestamp } from "@/lib/local-db";
 import { db, isConfigured } from "./firebase";
 import { tasks as tasksApi } from "./firestore";
 import type { Task, TaskStatus, TaskPriority, AreaId } from "./types";

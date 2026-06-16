@@ -1,14 +1,17 @@
 "use client";
 
 import { useState, useCallback, useRef } from "react";
-import { useAuth } from "./auth-context";
 import { useTasks } from "./use-tasks";
 import { useGoals } from "./use-goals";
 import { useHabits } from "./use-habits";
 import { useNotes } from "./use-notes";
 import { useReminders } from "./use-reminders";
 import { useProjects } from "./use-projects";
+import { useShoppingList } from "./use-shopping-list";
+import { useRecipes } from "./use-recipes";
+import { useMealPlan, getWeekStart } from "./use-mealplan";
 import type { ChatAction } from "@/app/api/chat/route";
+import type { ShoppingCategory, MealDay, MealSlot } from "./types";
 
 export interface ChatMessage {
   id: string;
@@ -27,17 +30,20 @@ export interface ActionResult {
 let msgId = 0;
 
 export function useChat() {
-  const { user } = useAuth();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
 
-  const { tasks, createTask } = useTasks();
+  const { tasks, createTask, updateTask } = useTasks();
   const { goals, createGoal } = useGoals();
   const { habits, createHabit } = useHabits();
   const { notes, createNote } = useNotes();
   const { reminders, createReminder } = useReminders();
   const { projects, createProject } = useProjects();
+  const { addItem: addShoppingItem } = useShoppingList();
+  const { recipes, createRecipe } = useRecipes();
+  const weekId = getWeekStart();
+  const { setMeal } = useMealPlan(weekId);
 
   const executeActions = useCallback(
     async (actions: ChatAction[]): Promise<ActionResult[]> => {
@@ -166,6 +172,84 @@ export function useChat() {
               });
               break;
             }
+            case "add_shopping_items": {
+              const { items: shoppingItems } = action.input as {
+                items: Array<{ name: string; quantity?: string; category?: ShoppingCategory }>;
+              };
+              for (const it of shoppingItems) {
+                await addShoppingItem({
+                  name: it.name,
+                  category: it.category || "groceries",
+                  quantity: it.quantity,
+                  checked: false,
+                });
+              }
+              results.push({
+                tool: "add_shopping_items",
+                summary: `Added ${shoppingItems.length} item${shoppingItems.length > 1 ? "s" : ""} to shopping list`,
+                count: shoppingItems.length,
+              });
+              break;
+            }
+            case "create_recipe": {
+              const r = action.input as {
+                name: string;
+                ingredients: Array<{ name: string; quantity?: string; category?: ShoppingCategory }>;
+                steps?: string[];
+              };
+              await createRecipe({
+                name: r.name,
+                ingredients: r.ingredients,
+                steps: r.steps,
+              });
+              results.push({
+                tool: "create_recipe",
+                summary: `Saved recipe: "${r.name}"`,
+              });
+              break;
+            }
+            case "plan_meal": {
+              const m = action.input as {
+                day: MealDay;
+                slot: MealSlot;
+                recipe_name?: string;
+                text?: string;
+              };
+              const matchedRecipe = m.recipe_name
+                ? recipes.find((r) => r.name.toLowerCase().includes(m.recipe_name!.toLowerCase()))
+                : undefined;
+              await setMeal(m.day, m.slot, {
+                recipeId: matchedRecipe?.id,
+                recipeName: matchedRecipe?.name || m.recipe_name,
+                text: matchedRecipe ? undefined : m.text,
+              });
+              results.push({
+                tool: "plan_meal",
+                summary: `Planned ${m.slot} on ${m.day}: ${matchedRecipe?.name || m.recipe_name || m.text || ""}`,
+              });
+              break;
+            }
+            case "complete_task": {
+              const c = action.input as { title: string };
+              const target = tasks.find(
+                (t) =>
+                  t.status !== "done" &&
+                  t.title.toLowerCase().includes(c.title.toLowerCase())
+              );
+              if (target) {
+                await updateTask(target.id, { status: "done" });
+                results.push({
+                  tool: "complete_task",
+                  summary: `Completed: "${target.title}"`,
+                });
+              } else {
+                results.push({
+                  tool: "complete_task",
+                  summary: `Failed: complete_task (no match for "${c.title}")`,
+                });
+              }
+              break;
+            }
           }
         } catch (err) {
           console.error(`Failed to execute ${action.tool}:`, err);
@@ -178,7 +262,20 @@ export function useChat() {
 
       return results;
     },
-    [createTask, createGoal, createHabit, createNote, createReminder, createProject]
+    [
+      createTask,
+      updateTask,
+      tasks,
+      createGoal,
+      createHabit,
+      createNote,
+      createReminder,
+      createProject,
+      addShoppingItem,
+      createRecipe,
+      recipes,
+      setMeal,
+    ]
   );
 
   const sendMessage = useCallback(
@@ -214,13 +311,9 @@ export function useChat() {
         const controller = new AbortController();
         abortRef.current = controller;
 
-        const idToken = user ? await user.getIdToken() : null;
         const res = await fetch("/api/chat", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}),
-          },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ messages: history, context }),
           signal: controller.signal,
         });
@@ -260,15 +353,10 @@ export function useChat() {
         let content: string;
         switch (code) {
           case "quota_exceeded":
-            content =
-              "Gemini API rate limit exceeded. The free tier allows 15 requests/minute. Please wait a moment and try again.";
-            break;
-          case "invalid_api_key":
-            content =
-              "Your Gemini API key is invalid or expired. Please update GEMINI_API_KEY in your .env.local file.";
+            content = "The local model is busy. Please wait a moment and try again.";
             break;
           default:
-            content = `Something went wrong: ${err instanceof Error ? err.message : "Unknown error"}. Make sure your GEMINI_API_KEY is set in .env.local.`;
+            content = `Something went wrong: ${err instanceof Error ? err.message : "Unknown error"}. Make sure Ollama is running and OLLAMA_MODEL is pulled.`;
         }
 
         const errorMsg: ChatMessage = {
@@ -283,7 +371,7 @@ export function useChat() {
         abortRef.current = null;
       }
     },
-    [loading, messages, tasks, goals, habits, projects, user, executeActions]
+    [loading, messages, tasks, goals, habits, projects, executeActions]
   );
 
   const clearMessages = useCallback(() => {

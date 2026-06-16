@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { collection, onSnapshot, query, orderBy } from "firebase/firestore";
+import { collection, onSnapshot, query, orderBy } from "@/lib/local-db";
 import { db, isConfigured } from "./firebase";
 import { projects as projectsApi } from "./firestore";
 import type { Project, ProjectStatus, AreaId } from "./types";

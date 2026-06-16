@@ -8,7 +8,6 @@ import { useHabits } from "@/lib/use-habits";
 import { useNotes } from "@/lib/use-notes";
 import { useProjects } from "@/lib/use-projects";
 import { useAreaData } from "@/lib/use-area-data";
-import { useFocusTimer } from "@/lib/use-focus";
 
 // --- Types ---
 
@@ -239,14 +238,10 @@ export default function CareerAreaPage() {
   const { habits, toggleToday, createHabit, deleteHabit } = useHabits();
   const { notes, createNote, deleteNote } = useNotes();
   const { data, updateData } = useAreaData("career", DEFAULT_CAREER_DATA);
-  const { todaySessions } = useFocusTimer();
 
   const careerNotes = notes.filter((n) => n.area === "career").map((n) => ({ id: n.id, content: n.content, createdAt: n.createdAt }));
 
   const totalSkills = data.skillCategories.reduce((sum, cat) => sum + cat.skills.length, 0);
-  const learningMinutes = todaySessions
-    .filter((s) => s.area === "career" && s.type === "focus" && s.status === "completed")
-    .reduce((sum, s) => sum + (s.actualDuration || 0), 0);
 
   return (
     <AreaModule
@@ -255,7 +250,6 @@ export default function CareerAreaPage() {
       color="#6366F1"
       areaId="career"
       metrics={[
-        { label: "Focus time today", value: (learningMinutes / 60).toFixed(1), color: "#6366F1", suffix: "h" },
         { label: "Skills tracked", value: totalSkills, color: "#6366F1" },
         { label: "Portfolio items", value: data.portfolioItems.length, color: "#6366F1" },
       ]}

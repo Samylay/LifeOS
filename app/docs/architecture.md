@@ -8,8 +8,9 @@
 | Language | TypeScript | 5.x |
 | Styling | Tailwind CSS | 4.x |
 | State | Zustand | 5.x |
-| Database | Firebase Firestore | 12.x |
-| Auth | Firebase Auth (Google) | 12.x |
+| Database | SQLite (better-sqlite3) document store | 11.x |
+| Auth | None — single-user, self-hosted | — |
+| AI | Local LLM via Ollama (OpenAI-compatible) | qwen2.5:7b |
 | Charts | Recharts | 3.x |
 | Icons | Lucide React | 0.564.x |
 | Fonts | Inter + JetBrains Mono | via @fontsource |

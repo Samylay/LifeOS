@@ -9,7 +9,6 @@ interface DailyBriefProps {
   stats: {
     habitsDone: number;
     totalHabits: number;
-    focusMinutes: number;
   };
 }
 

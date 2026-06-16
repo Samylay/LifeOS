@@ -27,15 +27,6 @@ export function useProfile() {
             email: user!.email || "",
             displayName: user!.displayName || "",
             createdAt: new Date(),
-            focusSettings: {
-              defaultFocus: 25,
-              defaultBreak: 5,
-              defaultLongBreak: 15,
-              longBreakAfter: 4,
-              autoStartNext: false,
-              blocklist: [],
-              allowlist: [],
-            },
           };
           await setProfile(user!.uid, defaultProfile);
           setProfileState({ ...defaultProfile, id: "settings" } as UserProfile);
@@ -63,22 +54,9 @@ export function useProfile() {
     [user]
   );
 
-  const updateFocusSettings = useCallback(
-    async (settings: Partial<UserProfile["focusSettings"]>) => {
-      if (!profile) return;
-      const updatedProfile = {
-        ...profile,
-        focusSettings: { ...profile.focusSettings, ...settings },
-      };
-      await updateProfile({ focusSettings: updatedProfile.focusSettings });
-    },
-    [profile, updateProfile]
-  );
-
   return {
     profile,
     loading,
     updateProfile,
-    updateFocusSettings,
   };
 }

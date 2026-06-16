@@ -1,103 +1,87 @@
-# Stride App — Setup Guide
+# LifeOS App — Setup Guide
+
+LifeOS is fully self-hosted: data lives in a local **SQLite** file and the AI
+features run against a local **Ollama** instance. There are no cloud accounts,
+no API keys, and no login (single-user).
 
 ## Prerequisites
 
-- Node.js 18+
-- npm
-- A Firebase project (see below)
+- Node.js 20+ and npm (for local dev), or Docker + Docker Compose (to serve)
+- [Ollama](https://ollama.com) running locally, with a tool-capable model pulled:
+  ```bash
+  ollama pull qwen2.5:7b
+  ```
 
-## Quick Start
+## Quick Start (local dev)
 
 ```bash
 cd app
-cp .env.local.example .env.local
-# Fill in your Firebase config values in .env.local
+cp .env.local.example .env.local   # defaults are fine for local dev
 npm install
 npm run dev
 ```
 
-The app runs at `http://localhost:3000`.
+The app runs at `http://localhost:3000`. Data is written to `app/data/lifeos.db`.
 
 ## Environment Variables
 
-Create `app/.env.local` with your Firebase project config:
+All optional — sensible defaults are baked in. See `.env.local.example`.
 
-```
-NEXT_PUBLIC_FIREBASE_API_KEY=your_api_key
-NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your_custom_domain_or_project.firebaseapp.com
-NEXT_PUBLIC_FIREBASE_PROJECT_ID=your_project_id
-NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your_project.firebasestorage.app
-NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
-NEXT_PUBLIC_FIREBASE_APP_ID=your_app_id
-```
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `LIFEOS_DB_PATH` | `./data/lifeos.db` | SQLite database file location |
+| `OLLAMA_BASE_URL` | `http://127.0.0.1:11434` | Ollama server URL |
+| `OLLAMA_MODEL` | `qwen2.5:7b` | Model used for chat / parse / brief |
 
-Find these values in: Firebase Console → Project Settings → General → Your Apps → Web App config.
+## Data Model
 
-## Firebase Setup
+Data is stored exactly as it was under Firestore — a document store keyed by
+collection path (`users/local/<collection>`) — but in a single SQLite table.
+The `/api/data/[...path]` route provides generic CRUD; client hooks read via
+fetch + light polling and write through the same endpoint. See
+`architecture.md` and `firestore-schema.md` for the collection layout.
 
-### 1. Create Project
-- Go to [Firebase Console](https://console.firebase.google.com)
-- Create a new project (e.g., "stride-app")
+## Deployment (Docker, self-hosted on the homelab)
 
-### 2. Enable Authentication
-- Go to Authentication → Sign-in method
-- Enable **Google** provider
-- Add authorized domains:
-  - `localhost` (for development)
-  - Your custom domain (e.g., `stride.yourdomain.com`)
-
-### 3. Enable Firestore
-- Go to Firestore Database → Create database
-- Start in **test mode** (you'll add rules later)
-- Choose a region close to you
-
-### 4. Register Web App
-- Go to Project Settings → General → Your apps
-- Click "Add app" → Web
-- Copy the config values to your `.env.local`
-
-### 5. Firestore Security Rules
-Once you're ready for production, set these rules:
-
-```javascript
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    match /users/{userId}/{document=**} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
-    }
-  }
-}
+```bash
+cd app
+docker compose up -d --build
 ```
 
-## Demo Mode
+This builds a standalone Next.js image and runs it as the `lifeos` container:
 
-If you don't set any Firebase env vars, the app runs in **demo mode**:
-- Auth is bypassed (no login screen)
-- All data is stored in React state (lost on refresh)
-- Useful for local development and UI iteration
+- The SQLite database is persisted in the `lifeos-data` Docker volume (`/data`).
+- The container reaches the host's Ollama via `host.docker.internal:11434`
+  (configured with `extra_hosts: host-gateway` in `docker-compose.yml`).
+- The port is bound to the **Tailscale interface IP** only
+  (`100.124.149.101:3000`), so the app is reachable from every device on the
+  tailnet but not from the LAN or the internet. Since there is no login, keep
+  it tailnet-only.
 
-## Deployment (Vercel)
+Access it from any tailnet device at:
 
-1. Push to GitHub
-2. Import the `app/` directory in Vercel
-3. Set the root directory to `app`
-4. Add all `NEXT_PUBLIC_FIREBASE_*` env vars in Vercel project settings
-5. Deploy
+```
+http://homelab.tail069527.ts.net:3000
+```
 
-### Custom Domain
-To use a custom domain (e.g., `stride.yourdomain.com`):
-1. In Vercel: Settings → Domains → Add your domain
-2. In your DNS: Add a CNAME record:
-   - Name: your subdomain (e.g., `stride`)
-   - Value: `cname.vercel-dns.com`
-3. In Firebase Console: Authentication → Settings → Authorized domains → Add your custom domain
+### Optional: Tailscale Serve (HTTPS on 443)
+
+For a clean `https://homelab.tail069527.ts.net` URL instead of `:3000`:
+
+1. Enable HTTPS certificates for the tailnet in the Tailscale admin console
+   (Settings → Features → HTTPS Certificates).
+2. In `docker-compose.yml`, change the port binding back to
+   `"127.0.0.1:3000:3000"` and `docker compose up -d`.
+3. Run (needs root):
+   ```bash
+   sudo tailscale serve --bg 3000
+   ```
 
 ## npm Scripts
 
 | Script | Description |
 |--------|-------------|
 | `npm run dev` | Start development server (hot reload) |
-| `npm run build` | Production build |
+| `npm run build` | Production build (standalone output) |
 | `npm run start` | Start production server |
 | `npm run lint` | Run ESLint |

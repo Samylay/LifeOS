@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { useIntegrations } from "@/lib/integrations-context";
-import { useFocusTimer, DEFAULT_CONFIG } from "@/lib/use-focus";
 import { useToast } from "@/components/toast";
 import { ExternalLink, Check, Loader2, X, Bell, Activity, Webhook, Eye, EyeOff } from "lucide-react";
 import { useGarmin } from "@/lib/use-garmin";
@@ -11,7 +10,6 @@ import { useGarmin } from "@/lib/use-garmin";
 export default function SettingsPage() {
   const { user } = useAuth();
   const { gcal, connectGoogleCalendar, disconnectGoogleCalendar } = useIntegrations();
-  const { config, applyConfig } = useFocusTimer();
   const { toast } = useToast();
   const [connecting, setConnecting] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
@@ -116,49 +114,6 @@ export default function SettingsPage() {
                 <img src={user.photoURL} alt="" className="h-8 w-8 rounded-full" referrerPolicy="no-referrer" />
               </div>
             )}
-          </div>
-        </div>
-
-        {/* Focus Timer Defaults */}
-        <div
-          className="rounded-xl p-6"
-          style={{
-            background: "var(--bg-secondary)",
-            border: "1px solid var(--border-primary)",
-          }}
-        >
-          <h2 className="text-lg font-semibold mb-1" style={{ color: "var(--text-primary)" }}>
-            Focus Timer
-          </h2>
-          <p className="text-xs mb-4" style={{ color: "var(--text-tertiary)" }}>
-            Configure your default Pomodoro timer settings.
-          </p>
-          <div className="space-y-4">
-            {[
-              { label: "Focus duration", key: "focusDuration" as const, value: config.focusDuration, suffix: "min", hint: "How long each focus session lasts" },
-              { label: "Short break", key: "breakDuration" as const, value: config.breakDuration, suffix: "min", hint: "Break between sessions" },
-              { label: "Long break", key: "longBreakDuration" as const, value: config.longBreakDuration, suffix: "min", hint: "Extended break for recovery" },
-              { label: "Long break after", key: "longBreakAfter" as const, value: config.longBreakAfter, suffix: "sessions", hint: "Sessions before long break" },
-            ].map((item) => (
-              <div key={item.label} className="flex justify-between items-center">
-                <div>
-                  <span className="text-sm block" style={{ color: "var(--text-primary)" }}>{item.label}</span>
-                  <span className="text-xs" style={{ color: "var(--text-tertiary)" }}>{item.hint}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="number"
-                    value={item.value}
-                    onChange={(e) => applyConfig({ [item.key]: parseInt(e.target.value) || item.value })}
-                    min={1}
-                    max={item.key === "longBreakAfter" ? 10 : 120}
-                    className="w-16 text-sm font-mono font-semibold px-2 py-1 rounded-lg text-right outline-none"
-                    style={{ background: "var(--bg-tertiary)", color: "var(--text-primary)", border: "1px solid var(--border-primary)" }}
-                  />
-                  <span className="text-xs w-12" style={{ color: "var(--text-tertiary)" }}>{item.suffix}</span>
-                </div>
-              </div>
-            ))}
           </div>
         </div>
 
@@ -272,7 +227,7 @@ export default function SettingsPage() {
               {gcal.connected && gcal.accessToken && (
                 <div className="mt-3 pt-3" style={{ borderTop: "1px solid var(--border-primary)" }}>
                   <p className="text-xs" style={{ color: "var(--text-tertiary)" }}>
-                    Your calendar events appear on the Dashboard, Calendar page, and alongside Focus Blocks. You can also sync Focus Blocks to your Google Calendar.
+                    Your calendar events appear on the Dashboard and Calendar page.
                   </p>
                 </div>
               )}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { collection, onSnapshot, query, orderBy } from "firebase/firestore";
+import { collection, onSnapshot, query, orderBy } from "@/lib/local-db";
 import { db, isConfigured } from "./firebase";
 import { finance } from "./firestore";
 import type { Subscription } from "./types";

@@ -1,20 +1,10 @@
 "use client";
 
-import {
-  createContext,
-  useContext,
-  useEffect,
-  useState,
-  useCallback,
-  ReactNode,
-} from "react";
-import {
-  reauthenticateWithPopup,
-  GoogleAuthProvider,
-} from "firebase/auth";
-import { doc, getDoc, setDoc } from "firebase/firestore";
-import { auth, db } from "./firebase";
-import { useAuth } from "./auth-context";
+import { createContext, useContext, ReactNode } from "react";
+
+// Cloud integrations (Google Calendar) are disabled in the self-hosted build —
+// no external calls. This stub keeps the same surface so consumers compile and
+// simply report a permanently-disconnected state.
 
 interface GCalState {
   connected: boolean;
@@ -35,153 +25,28 @@ interface IntegrationsContextType {
   }) => Promise<boolean>;
 }
 
+const DISABLED: GCalState = {
+  connected: false,
+  accessToken: null,
+  email: null,
+  loading: false,
+};
+
 const IntegrationsContext = createContext<IntegrationsContextType>({
-  gcal: { connected: false, accessToken: null, email: null, loading: true },
+  gcal: DISABLED,
   connectGoogleCalendar: async () => {},
   disconnectGoogleCalendar: async () => {},
   createCalendarEvent: async () => false,
 });
 
 export function IntegrationsProvider({ children }: { children: ReactNode }) {
-  const { user } = useAuth();
-  const [gcal, setGcal] = useState<GCalState>({
-    connected: false,
-    accessToken: null,
-    email: null,
-    loading: true,
-  });
-
-
-  // Load saved connection state from Firestore
-  useEffect(() => {
-    if (!user || !db) {
-      setGcal((prev) => ({ ...prev, loading: false }));
-      return;
-    }
-
-    const load = async () => {
-      const ref = doc(db!, "users", user.uid, "settings", "integrations");
-      const snap = await getDoc(ref);
-      if (snap.exists()) {
-        const data = snap.data();
-        setGcal((prev) => ({
-          connected: data.gcal_connected ?? false,
-          accessToken: prev.accessToken,
-          email: data.gcal_email ?? null,
-          loading: false,
-        }));
-      } else {
-        setGcal((prev) => ({ ...prev, loading: false }));
-      }
-    };
-
-    load();
-  }, [user]);
-
-  const connectGoogleCalendar = useCallback(async () => {
-    if (!auth || !user || !db) return;
-
-    const currentUser = auth.currentUser;
-    if (!currentUser) return;
-
-    const provider = new GoogleAuthProvider();
-    provider.addScope("https://www.googleapis.com/auth/calendar");
-    provider.addScope("https://www.googleapis.com/auth/calendar.events");
-    // Pre-select the signed-in account so users don't accidentally pick another
-    provider.setCustomParameters({ login_hint: user.email || "" });
-
-    // Use reauthenticateWithPopup instead of signInWithPopup.
-    // This prevents the auth identity from switching to a different Google
-    // account — if the user picks a different account the call fails with
-    // auth/user-mismatch instead of silently changing who is logged in.
-    const result = await reauthenticateWithPopup(currentUser, provider);
-    const credential = GoogleAuthProvider.credentialFromResult(result);
-    const token = credential?.accessToken ?? null;
-
-    if (token) {
-      const ref = doc(db!, "users", user.uid, "settings", "integrations");
-      await setDoc(
-        ref,
-        {
-          gcal_connected: true,
-          gcal_email: result.user.email,
-          gcal_connected_at: new Date().toISOString(),
-        },
-        { merge: true }
-      );
-
-      setGcal({
-        connected: true,
-        accessToken: token,
-        email: result.user.email,
-        loading: false,
-      });
-    }
-  }, [user]);
-
-  const disconnectGoogleCalendar = useCallback(async () => {
-    if (!db || !user) return;
-
-    const ref = doc(db, "users", user.uid, "settings", "integrations");
-    await setDoc(
-      ref,
-      {
-        gcal_connected: false,
-        gcal_email: null,
-        gcal_connected_at: null,
-      },
-      { merge: true }
-    );
-
-    setGcal({
-      connected: false,
-      accessToken: null,
-      email: null,
-      loading: false,
-    });
-  }, [user]);
-
-  const createCalendarEvent = useCallback(
-    async (event: {
-      title: string;
-      start: Date;
-      end: Date;
-      description?: string;
-    }) => {
-      if (!gcal.accessToken) return false;
-
-      try {
-        const resp = await fetch(
-          "https://www.googleapis.com/calendar/v3/calendars/primary/events",
-          {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${gcal.accessToken}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              summary: event.title,
-              description: event.description || "",
-              start: { dateTime: event.start.toISOString() },
-              end: { dateTime: event.end.toISOString() },
-            }),
-          }
-        );
-        return resp.ok;
-      } catch {
-        return false;
-      }
-    },
-    [gcal.accessToken]
-  );
-
   return (
     <IntegrationsContext.Provider
       value={{
-        gcal,
-        connectGoogleCalendar,
-        disconnectGoogleCalendar,
-        createCalendarEvent,
+        gcal: DISABLED,
+        connectGoogleCalendar: async () => {},
+        disconnectGoogleCalendar: async () => {},
+        createCalendarEvent: async () => false,
       }}
     >
       {children}

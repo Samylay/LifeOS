@@ -1,9 +1,10 @@
 import OpenAI from "openai";
 import { NextRequest, NextResponse } from "next/server";
+import { getOllamaClient, OLLAMA_MODEL } from "@/lib/ollama";
 
-const SYSTEM_PROMPT = `You are a helpful assistant embedded inside Stride, a personal productivity app. The user may paste raw text (e.g. from Notion, notes, or brain dumps) and you should extract actionable items from it.
+const SYSTEM_PROMPT = `You are a helpful assistant embedded inside Stride, a personal productivity app. The user is a triathlete, developer, and business manager — fueling and nutrition logistics matter for his training, but this app does NOT track calories or macros, only groceries/recipes/meal planning. The user may paste raw text (e.g. from Notion, notes, or brain dumps) and you should extract actionable items from it. He may also speak commands via voice — voice transcripts can be short and imperative (e.g. "add eggs and oats to the grocery list", "mark laundry done", "plan chicken stir fry for dinner Wednesday").
 
-You have access to tools that let you create items in the app. When the user pastes content, analyze it and use the appropriate tools to create tasks, goals, habits, notes, reminders, or projects.
+You have access to tools that let you create items in the app. When the user pastes content, analyze it and use the appropriate tools to create tasks, goals, habits, notes, reminders, projects, shopping items, recipes, or meal plan entries — and to mark tasks complete.
 
 Guidelines:
 - Extract clear, actionable tasks from unstructured text
@@ -13,9 +14,13 @@ Guidelines:
 - For recurring activities, create habits instead of tasks
 - For time-sensitive items with deadlines, create reminders
 - Keep task titles concise and actionable (start with a verb)
-- You can also answer questions about productivity, help organize thoughts, or have a normal conversation
+- For grocery/food requests ("add X to the shopping list", "we need more Y"), use add_shopping_items
+- For recipe requests ("save this recipe", "remember how to make X"), use create_recipe
+- For meal planning ("plan X for dinner Tuesday", "lunch tomorrow is leftovers"), use plan_meal — map relative days (today/tomorrow/this week) to mon..sun
+- For "mark X done", "I finished X", "complete the X task", use complete_task to fuzzy-match an existing task
+- You can also answer questions about productivity, fueling/grocery logistics, or have a normal conversation
 - When creating many items, use the batch create_tasks tool to create them efficiently
-- After creating items, give the user a summary of what you added
+- After creating items, give the user a brief summary of what you added
 
 The user's existing data context will be provided when available so you can avoid duplicates.`;
 
@@ -191,6 +196,124 @@ const tools: OpenAI.ChatCompletionTool[] = [
       },
     },
   },
+  {
+    type: "function",
+    function: {
+      name: "add_shopping_items",
+      description:
+        "Add one or more items to the grocery/shopping list. Use this for any 'add X to the list', 'we need Y', or fueling/grocery requests.",
+      parameters: {
+        type: "object",
+        properties: {
+          items: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                name: { type: "string", description: "Item name" },
+                quantity: {
+                  type: "string",
+                  description: "Quantity, e.g. '2', '1 lb', '6-pack' (optional)",
+                },
+                category: {
+                  type: "string",
+                  enum: ["groceries", "household", "personal_care", "snacks", "beverages", "frozen", "other"],
+                  description: "Shopping category (optional, defaults to groceries)",
+                },
+              },
+              required: ["name"],
+            },
+            description: "Array of items to add to the shopping list",
+          },
+        },
+        required: ["items"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "create_recipe",
+      description:
+        "Save a recipe with its ingredients and optional steps, so it can be planned into the weekly meal plan and its ingredients added to the shopping list later.",
+      parameters: {
+        type: "object",
+        properties: {
+          name: { type: "string", description: "Recipe name" },
+          ingredients: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                name: { type: "string", description: "Ingredient name" },
+                quantity: { type: "string", description: "Quantity (optional)" },
+                category: {
+                  type: "string",
+                  enum: ["groceries", "household", "personal_care", "snacks", "beverages", "frozen", "other"],
+                  description: "Shopping category (optional, defaults to groceries)",
+                },
+              },
+              required: ["name"],
+            },
+            description: "Ingredients needed for the recipe",
+          },
+          steps: {
+            type: "array",
+            items: { type: "string" },
+            description: "Preparation steps, in order (optional)",
+          },
+        },
+        required: ["name", "ingredients"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "plan_meal",
+      description:
+        "Assign a recipe or free-text meal to a day and slot in the weekly meal plan.",
+      parameters: {
+        type: "object",
+        properties: {
+          day: {
+            type: "string",
+            enum: ["mon", "tue", "wed", "thu", "fri", "sat", "sun"],
+            description: "Day of the week",
+          },
+          slot: {
+            type: "string",
+            enum: ["lunch", "dinner"],
+            description: "Meal slot",
+          },
+          recipe_name: {
+            type: "string",
+            description: "Name of an existing recipe to plan (matched by name, optional)",
+          },
+          text: {
+            type: "string",
+            description: "Free-text meal description if no recipe applies (optional)",
+          },
+        },
+        required: ["day", "slot"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "complete_task",
+      description:
+        "Mark an existing open task as done, fuzzy-matching by title.",
+      parameters: {
+        type: "object",
+        properties: {
+          title: { type: "string", description: "Title or partial title of the task to complete" },
+        },
+        required: ["title"],
+      },
+    },
+  },
 ];
 
 export interface ChatAction {
@@ -225,26 +348,10 @@ async function callWithRetry(
 }
 
 export async function POST(req: NextRequest) {
-  // Verify the caller is authenticated before processing
-  const { verifyAuth, unauthorized } = await import("@/lib/verify-auth");
-  const authResult = await verifyAuth(req);
-  if (!authResult) return unauthorized();
-
   try {
     const { messages, context } = await req.json();
 
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      return NextResponse.json(
-        { error: "GEMINI_API_KEY not configured. Add it to your .env.local file." },
-        { status: 500 }
-      );
-    }
-
-    const client = new OpenAI({
-      apiKey,
-      baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/",
-    });
+    const client = getOllamaClient();
 
     // Build system prompt with context
     let systemPrompt = SYSTEM_PROMPT;
@@ -281,9 +388,9 @@ export async function POST(req: NextRequest) {
     const actions: ChatAction[] = [];
     let reply = "";
 
-    // Call Gemini and handle tool use loop
+    // Call the local model and handle the tool-use loop
     let response = await callWithRetry(client, {
-      model: "gemini-2.0-flash",
+      model: OLLAMA_MODEL,
       max_tokens: 4096,
       tools,
       messages: openaiMessages,
@@ -320,7 +427,7 @@ export async function POST(req: NextRequest) {
 
       // Continue conversation
       response = await callWithRetry(client, {
-        model: "gemini-2.0-flash",
+        model: OLLAMA_MODEL,
         max_tokens: 4096,
         tools,
         messages: openaiMessages,

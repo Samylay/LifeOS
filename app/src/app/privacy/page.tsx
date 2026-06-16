@@ -42,9 +42,8 @@ export default function PrivacyPolicyPage() {
               </li>
               <li>
                 <strong>How it&apos;s used:</strong> Calendar events are displayed within the
-                Stride interface so you can see your schedule alongside your tasks and focus
-                sessions. Events can also be created on your Google Calendar from within
-                Stride (e.g. syncing focus blocks).
+                Stride interface so you can see your schedule alongside your tasks.
+                Events can also be created on your Google Calendar from within Stride.
               </li>
               <li>
                 <strong>Storage:</strong> Calendar events fetched from Google are held in
@@ -81,7 +80,6 @@ export default function PrivacyPolicyPage() {
             <ul className="list-disc pl-5 mt-2 space-y-1">
               <li>Account information (name, email, profile photo from Google sign-in)</li>
               <li>Tasks, projects, goals, and quests you create</li>
-              <li>Focus session history and timer settings</li>
               <li>Daily log entries (mood, energy, reflections)</li>
               <li>Habits and streak data</li>
               <li>Calendar events you create manually</li>

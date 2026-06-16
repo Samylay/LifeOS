@@ -1,29 +1,15 @@
-// Server-side only — verifies Firebase ID tokens from API request headers
+// Single-user self-hosted build: there is no external auth provider, so every
+// request is treated as the local user. Kept as a module so the API routes
+// that imported it keep working unchanged.
 import { NextRequest, NextResponse } from "next/server";
-import { getAdminAuth } from "./firebase-admin";
 
-/**
- * Extract and verify the Firebase ID token from the Authorization header.
- * Returns the authenticated user's UID or null if verification fails.
- */
 export async function verifyAuth(
-  req: NextRequest
+  _req: NextRequest
 ): Promise<{ uid: string } | null> {
-  const header = req.headers.get("authorization");
-  if (!header?.startsWith("Bearer ")) return null;
-
-  const idToken = header.slice(7);
-  if (!idToken) return null;
-
-  try {
-    const decoded = await getAdminAuth().verifyIdToken(idToken);
-    return { uid: decoded.uid };
-  } catch {
-    return null;
-  }
+  return { uid: "local" };
 }
 
-/** Standard 401 response for unauthenticated requests. */
+/** Standard 401 response (unused now, kept for compatibility). */
 export function unauthorized() {
   return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 }

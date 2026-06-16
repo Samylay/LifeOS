@@ -1,15 +1,15 @@
 "use client";
 
 import { useAuth } from "@/lib/auth-context";
-import { Timer, Target, BarChart3, Calendar, Flame, FolderKanban } from "lucide-react";
+import { Activity, Target, BarChart3, Calendar, Flame, FolderKanban } from "lucide-react";
 
 const FEATURES = [
-  { icon: Timer, label: "Focus Timer", desc: "Pomodoro sessions with area tracking" },
+  { icon: Activity, label: "Strength", desc: "Build-then-maintain training plans" },
   { icon: Target, label: "Quests & Goals", desc: "90-day missions and quarterly goals" },
   { icon: FolderKanban, label: "Project Board", desc: "Kanban-style project management" },
   { icon: Calendar, label: "Calendar Sync", desc: "Google Calendar integration" },
   { icon: Flame, label: "Streaks", desc: "Build consistency with daily streaks" },
-  { icon: BarChart3, label: "Analytics", desc: "Track focus time and progress" },
+  { icon: BarChart3, label: "Analytics", desc: "Track your progress over time" },
 ];
 
 export function LoginScreen() {
@@ -95,7 +95,7 @@ export function LoginScreen() {
             Less noise. More momentum.
           </h2>
           <p className="text-sm mb-6" style={{ color: "var(--text-tertiary)" }}>
-            Focus sessions, task management, habit tracking, and more.
+            Task management, habit tracking, training plans, and more.
           </p>
           <div className="grid grid-cols-2 gap-3">
             {FEATURES.map(({ icon: Icon, label, desc }) => (

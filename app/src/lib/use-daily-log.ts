@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { doc, onSnapshot, Timestamp } from "firebase/firestore";
+import { doc, onSnapshot, Timestamp } from "@/lib/local-db";
 import { db, isConfigured } from "./firebase";
 import { dailyLogs } from "./firestore";
 import type { DailyLog } from "./types";
@@ -14,8 +14,6 @@ function getTodayKey(): string {
 
 const DEFAULT_LOG: DailyLog = {
   date: getTodayKey(),
-  focusSessions: 0,
-  focusMinutes: 0,
 };
 
 export function useDailyLog() {

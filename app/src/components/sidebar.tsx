@@ -4,7 +4,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
-  Timer,
   Layers,
   FolderKanban,
   Flag,
@@ -18,10 +17,11 @@ import {
   ShoppingCart,
   Sparkles,
   X,
-  Mountain,
   Target,
   Inbox,
   BarChart2,
+  UtensilsCrossed,
+  Activity,
 } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 
@@ -31,13 +31,11 @@ const NAV_GROUPS = [
     items: [
       { href: "/", label: "Dashboard", icon: LayoutDashboard },
       { href: "/inbox", label: "Inbox", icon: Inbox },
-      { href: "/focus", label: "Focus", icon: Timer },
     ],
   },
   {
     label: "Progress",
     items: [
-      { href: "/journeys", label: "Journeys", icon: Mountain },
       { href: "/quests", label: "Quests", icon: Target },
       { href: "/goals", label: "Goals", icon: Flag },
       { href: "/projects", label: "Projects", icon: FolderKanban },
@@ -48,7 +46,9 @@ const NAV_GROUPS = [
     items: [
       { href: "/areas", label: "Areas", icon: Layers },
       { href: "/workouts", label: "Workouts", icon: Dumbbell },
+      { href: "/strength", label: "Strength", icon: Activity },
       { href: "/reading", label: "Reading", icon: BookMarked },
+      { href: "/food", label: "Food", icon: UtensilsCrossed },
       { href: "/shopping", label: "Shopping", icon: ShoppingCart },
       { href: "/reminders", label: "Reminders", icon: Bell },
       { href: "/calendar", label: "Calendar", icon: Calendar },

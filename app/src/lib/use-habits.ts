@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { collection, onSnapshot, query } from "firebase/firestore";
+import { collection, onSnapshot, query } from "@/lib/local-db";
 import { db, isConfigured } from "./firebase";
 import { habits as habitsApi } from "./firestore";
 import type { Habit, AreaId } from "./types";

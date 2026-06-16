@@ -5,8 +5,6 @@ export type AreaId = "health" | "career" | "finance" | "brand" | "admin";
 export type TaskStatus = "todo" | "in_progress" | "done" | "cancelled";
 export type TaskPriority = "low" | "medium" | "high" | "urgent";
 
-export type FocusSessionType = "focus" | "break" | "long_break";
-export type FocusSessionStatus = "completed" | "partial" | "abandoned";
 export type ProjectStatus = "planning" | "active" | "paused" | "completed" | "archived";
 
 // --- Core Models ---
@@ -17,17 +15,6 @@ export interface UserProfile {
   displayName: string;
   photoURL?: string;
   createdAt: Date;
-  focusSettings: FocusSettings;
-}
-
-export interface FocusSettings {
-  defaultFocus: number; // minutes
-  defaultBreak: number;
-  defaultLongBreak: number;
-  longBreakAfter: number; // sessions
-  autoStartNext: boolean;
-  blocklist: string[];
-  allowlist: string[];
 }
 
 export type EnergyLevel = 1 | 2 | 3;
@@ -102,26 +89,7 @@ export interface DailyLog {
   mood?: number; // 1-5
   gratitude?: string;
   reflection?: string;
-  focusSessions: number;
-  focusMinutes: number;
   tomorrowTop3?: string[];
-}
-
-export interface FocusSession {
-  id: string;
-  startedAt: Date;
-  endedAt?: Date;
-  plannedDuration: number; // minutes
-  actualDuration?: number;
-  type: FocusSessionType;
-  status: FocusSessionStatus;
-  area?: AreaId;
-  projectId?: string;
-  taskId?: string;
-  blockId?: string;
-  journeyId?: string;
-  questId?: string;
-  interruptions: number;
 }
 
 export interface Transaction {
@@ -201,6 +169,63 @@ export interface WorkoutTemplate {
   exercises: { exerciseId: string; exerciseName: string; targetSets: number }[];
 }
 
+// --- Strength (build-then-maintain) ---
+//
+// Sequential emphasis, parallel maintenance: one focus is in "building" at a
+// time (front-loaded dose for a fixed window), everything already built ticks
+// over on a cheap "maintaining" dose, and the rest sit "queued". Graduating a
+// focus flips it to maintaining and promotes the next queued one to building.
+
+export type StrengthState = "building" | "maintaining" | "queued";
+
+export interface StrengthFocus {
+  id: string;
+  label: string; // "Core & Balance"
+  state: StrengthState;
+  order: number; // queue position (asc)
+  buildWeeks: number; // length of the build window, weeks
+  buildStarted?: Date; // set when the focus enters "building"
+  buildTargetFreq: number; // target sessions/week while building
+  maintainFreq: number; // sessions/week once maintaining
+  exercises: string[]; // editable prescription (one line each)
+  note?: string;
+  log: { date: Date }[]; // logged sessions, newest last
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+function startOfWeek(d: Date): Date {
+  const s = new Date(d);
+  const day = (s.getDay() + 6) % 7; // Monday = 0
+  s.setDate(s.getDate() - day);
+  s.setHours(0, 0, 0, 0);
+  return s;
+}
+
+/** Current build week (1-indexed) for a focus that has started building. */
+export function weekOfBuild(focus: StrengthFocus, now: Date = new Date()): number {
+  if (!focus.buildStarted) return 0;
+  const started = new Date(focus.buildStarted);
+  const ms = now.getTime() - started.getTime();
+  return Math.max(1, Math.floor(ms / (7 * 24 * 60 * 60 * 1000)) + 1);
+}
+
+/** Sessions logged since the most recent Monday. */
+export function sessionsThisWeek(focus: StrengthFocus, now: Date = new Date()): number {
+  const weekStart = startOfWeek(now);
+  return focus.log.filter((e) => new Date(e.date) >= weekStart).length;
+}
+
+/** True once the build window has fully elapsed (ready to graduate). */
+export function buildComplete(focus: StrengthFocus, now: Date = new Date()): boolean {
+  return focus.state === "building" && weekOfBuild(focus, now) > focus.buildWeeks;
+}
+
+/** Target sessions/week for the focus given its current state. */
+export function targetFreq(focus: StrengthFocus): number {
+  return focus.state === "building" ? focus.buildTargetFreq : focus.maintainFreq;
+}
+
 // --- Reminders / Recurring Tasks ---
 
 export type ReminderFrequency = "once" | "daily" | "weekly" | "monthly" | "yearly";
@@ -265,6 +290,54 @@ export const SHOPPING_CATEGORIES: Record<ShoppingCategory, { label: string; colo
   frozen: { label: "Frozen", color: "#8B5CF6" },
   other: { label: "Other", color: "#64748B" },
 };
+
+// --- Recipes & Meal Plan ---
+
+export interface RecipeIngredient {
+  name: string;
+  quantity?: string;
+  category?: ShoppingCategory;
+}
+
+export interface Recipe {
+  id: string;
+  name: string;
+  ingredients: RecipeIngredient[];
+  steps?: string[];
+  tags?: string[];
+  servings?: number;
+  prepMinutes?: number;
+  notes?: string;
+  createdAt: Date;
+}
+
+export type MealDay = "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
+export type MealSlot = "lunch" | "dinner";
+
+export interface MealPlanEntry {
+  recipeId?: string;
+  recipeName?: string; // free-text if no recipe linked
+  text?: string; // free-text note instead of a recipe
+}
+
+export interface MealPlan {
+  id: string; // week identifier, e.g. ISO date of Monday "YYYY-MM-DD"
+  weekOf: string; // YYYY-MM-DD (Monday)
+  meals: Partial<Record<MealDay, Partial<Record<MealSlot, MealPlanEntry>>>>;
+  updatedAt: Date;
+}
+
+export const MEAL_DAYS: MealDay[] = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
+export const MEAL_DAY_LABELS: Record<MealDay, string> = {
+  mon: "Monday",
+  tue: "Tuesday",
+  wed: "Wednesday",
+  thu: "Thursday",
+  fri: "Friday",
+  sat: "Saturday",
+  sun: "Sunday",
+};
+export const MEAL_SLOTS: MealSlot[] = ["lunch", "dinner"];
 
 // --- Body Measurements ---
 
@@ -385,61 +458,6 @@ export const AREAS: Record<AreaId, { name: string; color: string; icon: string }
   admin: { name: "Life Admin", color: "slate", icon: "ClipboardList" },
 };
 
-// --- Hero Journeys ---
-
-export type JourneyTier = 1 | 2 | 3 | 4 | 5 | 6 | 7;
-
-// index = tier - 1
-export const TIER_THRESHOLDS: number[] = [0, 100, 350, 850, 1850, 5000, 10000];
-export const TIER_NAMES: string[] = [
-  "Novice",
-  "Apprentice",
-  "Journeyman",
-  "Adept",
-  "Expert",
-  "Master",
-  "Grandmaster",
-];
-
-export interface TierMilestone {
-  tier: JourneyTier;
-  reachedAt: Date;
-}
-
-export interface Journey {
-  id: string;
-  title: string;
-  area: AreaId;
-  description?: string;
-  totalHours: number;
-  currentTier: JourneyTier;
-  tierHistory: TierMilestone[];
-  tags: string[];
-  isActive: boolean;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export function tierForHours(hours: number): JourneyTier {
-  let tier: JourneyTier = 1;
-  for (let i = TIER_THRESHOLDS.length - 1; i >= 0; i--) {
-    if (hours >= TIER_THRESHOLDS[i]) {
-      tier = (i + 1) as JourneyTier;
-      break;
-    }
-  }
-  return tier;
-}
-
-export function progressToNextTier(hours: number): { current: number; next: number; pct: number } {
-  const tier = tierForHours(hours);
-  const current = TIER_THRESHOLDS[tier - 1];
-  const next = TIER_THRESHOLDS[tier] ?? TIER_THRESHOLDS[TIER_THRESHOLDS.length - 1];
-  if (tier === 7) return { current, next: current, pct: 100 };
-  const pct = Math.min(100, Math.round(((hours - current) / (next - current)) * 100));
-  return { current, next, pct };
-}
-
 // --- Quests (90-day sprints) ---
 
 export type QuestCategory = "life" | "work" | AreaId;
@@ -453,37 +471,9 @@ export interface Quest {
   progress: number; // 0-100
   startDate: Date;
   endDate: Date;
-  linkedJourneyIds?: string[];
   status: QuestStatus;
   hot?: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
 
-// --- Focus Blocks ---
-
-export type FocusBlockStatus = "scheduled" | "active" | "done";
-
-export interface FocusBlock {
-  id: string;
-  title: string;
-  date: string; // YYYY-MM-DD
-  startTime: string; // HH:mm
-  endTime: string; // HH:mm
-  area?: AreaId;
-  projectId?: string;
-  journeyId?: string;
-  questId?: string;
-  goal?: string;
-  sessionCount: number;
-  sessionDuration: number; // minutes
-  breakDuration: number; // minutes
-  bufferMinutes: number;
-  autoStart: boolean;
-  template?: string;
-  sessionIds: string[];
-  status: FocusBlockStatus;
-  shieldEnabled?: boolean;
-  createdAt: Date;
-  updatedAt: Date;
-}

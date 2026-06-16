@@ -12,6 +12,7 @@ import {
   ClipboardPaste,
 } from "lucide-react";
 import { useChat, type ActionResult } from "@/lib/use-chat";
+import { VoiceMicButton } from "@/components/voice-mic-button";
 
 function ActionBadge({ result }: { result: ActionResult }) {
   const iconColor =
@@ -319,6 +320,7 @@ export default function AssistantPage() {
             <Send size={16} />
           )}
         </button>
+        <VoiceMicButton large onResult={(text) => sendMessage(text)} />
       </div>
     </div>
   );

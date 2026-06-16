@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { collection, onSnapshot, query, orderBy, Timestamp } from "firebase/firestore";
+import { collection, onSnapshot, query, orderBy, Timestamp } from "@/lib/local-db";
 import { db } from "./firebase";
 import { workouts as workoutsApi, workoutTemplates as templatesApi } from "./firestore";
 import type { Workout, WorkoutTemplate, WorkoutExercise } from "./types";

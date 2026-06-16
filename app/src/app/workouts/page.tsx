@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { useWorkouts } from "@/lib/use-workouts";
 import { useGarmin } from "@/lib/use-garmin";
+import TrainingAnalytics from "@/components/training-analytics";
 import type {
   Workout,
   WorkoutExercise,
@@ -398,6 +399,7 @@ export default function WorkoutsPage() {
   } = useWorkouts();
   const garmin = useGarmin();
   const [showForm, setShowForm] = useState(false);
+  const [tab, setTab] = useState<"training" | "log">("training");
 
   // Auto-sync Garmin activities on mount
   useEffect(() => {
@@ -454,36 +456,64 @@ export default function WorkoutsPage() {
   const totalCalories = garminThisWeek.reduce((sum, a) => sum + (a.calories || 0), 0);
 
   return (
-    <div className="max-w-3xl mx-auto">
-      <div className="flex items-center justify-between mb-6">
+    <div className={tab === "training" ? "max-w-4xl mx-auto" : "max-w-3xl mx-auto"}>
+      <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
           <Dumbbell size={24} style={{ color: "var(--accent)" }} />
           <h1 className="text-2xl font-semibold" style={{ color: "var(--text-primary)" }}>
             Workouts
           </h1>
         </div>
-        <div className="flex items-center gap-2">
-          {garmin.connection.connected && (
+        {tab === "log" && (
+          <div className="flex items-center gap-2">
+            {garmin.connection.connected && (
+              <button
+                onClick={() => garmin.syncActivities(0, 20)}
+                disabled={garmin.syncing}
+                className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors hover:opacity-80"
+                style={{ color: "#007CC3" }}
+              >
+                {garmin.syncing ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+                Sync
+              </button>
+            )}
             <button
-              onClick={() => garmin.syncActivities(0, 20)}
-              disabled={garmin.syncing}
-              className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors hover:opacity-80"
-              style={{ color: "#007CC3" }}
+              onClick={() => setShowForm(true)}
+              className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium bg-sage-400 text-white hover:bg-sage-500 transition-colors"
             >
-              {garmin.syncing ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
-              Sync
+              <Plus size={16} />
+              Log Workout
             </button>
-          )}
-          <button
-            onClick={() => setShowForm(true)}
-            className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium bg-sage-400 text-white hover:bg-sage-500 transition-colors"
-          >
-            <Plus size={16} />
-            Log Workout
-          </button>
-        </div>
+          </div>
+        )}
       </div>
 
+      {/* Tabs */}
+      <div className="flex gap-1 mb-6">
+        {(
+          [
+            { key: "training", label: "Training" },
+            { key: "log", label: "Workout Log" },
+          ] as const
+        ).map((t) => (
+          <button
+            key={t.key}
+            onClick={() => setTab(t.key)}
+            className="text-sm font-medium px-3 py-1.5 rounded-full transition-colors"
+            style={{
+              background: tab === t.key ? "var(--accent)" : "var(--bg-tertiary)",
+              color: tab === t.key ? "white" : "var(--text-secondary)",
+            }}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {tab === "training" && <TrainingAnalytics />}
+
+      {tab === "log" && (
+        <>
       {/* Stats */}
       <div className="grid grid-cols-3 gap-3 mb-6">
         <div
@@ -685,6 +715,8 @@ export default function WorkoutsPage() {
           )
         )}
       </div>
+        </>
+      )}
     </div>
   );
 }

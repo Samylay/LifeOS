@@ -1,16 +1,22 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
-import {
-  User,
-  onAuthStateChanged,
-  signInWithPopup,
-  signOut as firebaseSignOut,
-} from "firebase/auth";
-import { auth, googleProvider, isConfigured } from "./firebase";
+import { createContext, useContext, ReactNode } from "react";
+
+// Single-user, self-hosted: there is no sign-in. We expose a fixed local
+// "user" so every hook's `if (isFirebaseConfigured && user)` branch stays on
+// the persistent (server-backed) path. All data lives under users/local/*.
+export const LOCAL_USER = {
+  uid: "local",
+  email: "local@lifeos",
+  displayName: "Me",
+  photoURL: null as string | null,
+  getIdToken: async () => "local",
+};
+
+type LocalUser = typeof LOCAL_USER;
 
 interface AuthContextType {
-  user: User | null;
+  user: LocalUser | null;
   loading: boolean;
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
@@ -18,43 +24,23 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType>({
-  user: null,
-  loading: true,
+  user: LOCAL_USER,
+  loading: false,
   signInWithGoogle: async () => {},
   signOut: async () => {},
-  isFirebaseConfigured: false,
+  isFirebaseConfigured: true,
 });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(isConfigured);
-
-  useEffect(() => {
-    if (!auth) {
-      setLoading(false);
-      return;
-    }
-
-    const unsubscribe = onAuthStateChanged(auth, (u) => {
-      setUser(u);
-      setLoading(false);
-    });
-    return unsubscribe;
-  }, []);
-
-  const signInWithGoogle = async () => {
-    if (!auth || !googleProvider) return;
-    await signInWithPopup(auth, googleProvider);
-  };
-
-  const signOut = async () => {
-    if (!auth) return;
-    await firebaseSignOut(auth);
-  };
-
   return (
     <AuthContext.Provider
-      value={{ user, loading, signInWithGoogle, signOut, isFirebaseConfigured: isConfigured }}
+      value={{
+        user: LOCAL_USER,
+        loading: false,
+        signInWithGoogle: async () => {},
+        signOut: async () => {},
+        isFirebaseConfigured: true,
+      }}
     >
       {children}
     </AuthContext.Provider>

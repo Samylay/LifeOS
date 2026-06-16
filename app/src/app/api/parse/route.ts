@@ -1,5 +1,5 @@
-import OpenAI from "openai";
 import { NextRequest, NextResponse } from "next/server";
+import { getOllamaClient, OLLAMA_MODEL } from "@/lib/ollama";
 
 const SYSTEM_PROMPT = `You are a high-precision productivity data extractor for Stride, a personal productivity app.
 Your goal is to parse natural language "quick capture" text into structured data.
@@ -17,15 +17,15 @@ Output: A JSON object with the following schema:
     "dueDate"?: string, // ISO YYYY-MM-DD
     "energy"?: 1 | 2 | 3,
     "estimatedMinutes"?: number,
-    
+
     // for events
     "start"?: string, // ISO datetime
     "end"?: string, // ISO datetime
-    
+
     // for notes
     "content"?: string,
     "tags"?: string[],
-    
+
     // for reminders
     "frequency"?: "once" | "daily" | "weekly" | "monthly" | "yearly",
     "time"?: string // HH:mm
@@ -43,10 +43,6 @@ Guidelines:
 - Always return VALID JSON. Do not include any other text.`;
 
 export async function POST(req: NextRequest) {
-  const { verifyAuth, unauthorized } = await import("@/lib/verify-auth");
-  const authResult = await verifyAuth(req);
-  if (!authResult) return unauthorized();
-
   try {
     const { text } = await req.json();
 
@@ -54,21 +50,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing text input" }, { status: 400 });
     }
 
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      return NextResponse.json(
-        { error: "GEMINI_API_KEY not configured" },
-        { status: 500 }
-      );
-    }
-
-    const client = new OpenAI({
-      apiKey,
-      baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/",
-    });
+    const client = getOllamaClient();
 
     const response = await client.chat.completions.create({
-      model: "gemini-2.0-flash",
+      model: OLLAMA_MODEL,
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: `Parse this: "${text}"` },
@@ -87,7 +72,7 @@ export async function POST(req: NextRequest) {
   } catch (error: any) {
     console.error("Parse API error:", error);
     return NextResponse.json(
-      { error: "Failed to parse text", details: error.message },
+      { error: "Failed to parse text. Is Ollama running?", details: error.message },
       { status: 500 }
     );
   }
