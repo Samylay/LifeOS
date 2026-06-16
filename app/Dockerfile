@@ -12,6 +12,13 @@ RUN npm run build
 FROM node:22-bookworm-slim AS runner
 WORKDIR /app
 
+# Runtime deps for the Claude Code CLI (used when GEN_PROVIDER=claude-cli for
+# AI goal drafting via `claude -p`, using the mounted ~/.claude subscription auth).
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends git ripgrep ca-certificates \
+  && rm -rf /var/lib/apt/lists/* \
+  && npm install -g @anthropic-ai/claude-code
+
 ENV NODE_ENV=production
 # Bind to all interfaces so Docker port mapping works; data lives on a volume.
 ENV HOSTNAME=0.0.0.0

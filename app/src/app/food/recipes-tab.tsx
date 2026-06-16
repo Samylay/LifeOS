@@ -4,7 +4,6 @@ import { useState } from "react";
 import {
   Plus,
   Trash2,
-  ShoppingCart,
   ChefHat,
   ChevronDown,
   ChevronUp,
@@ -15,7 +14,6 @@ import {
   Users,
 } from "lucide-react";
 import { useRecipes } from "@/lib/use-recipes";
-import { useShoppingList } from "@/lib/use-shopping-list";
 import { useToast } from "@/components/toast";
 import type { Recipe, RecipeIngredient, ShoppingCategory } from "@/lib/types";
 import { SHOPPING_CATEGORIES } from "@/lib/types";
@@ -244,12 +242,10 @@ function RecipeCard({
   recipe,
   onUpdate,
   onDelete,
-  onAddToShopping,
 }: {
   recipe: Recipe;
   onUpdate: (data: Omit<Recipe, "id" | "createdAt">) => void;
   onDelete: () => void;
-  onAddToShopping: () => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -311,14 +307,6 @@ function RecipeCard({
           </div>
         </button>
         <div className="flex items-center gap-1 shrink-0">
-          <button
-            onClick={onAddToShopping}
-            title="Add ingredients to shopping list"
-            className="p-1.5 rounded-lg transition-colors"
-            style={{ color: "var(--accent)" }}
-          >
-            <ShoppingCart size={15} />
-          </button>
           <button
             onClick={() => setEditing(true)}
             title="Edit"
@@ -393,32 +381,8 @@ function RecipeCard({
 
 export function RecipesTab() {
   const { recipes, loading, createRecipe, updateRecipe, deleteRecipe } = useRecipes();
-  const { items, addItem } = useShoppingList();
   const { toast } = useToast();
   const [creating, setCreating] = useState(false);
-
-  const pushIngredientsToShoppingList = (ingredients: RecipeIngredient[]) => {
-    let added = 0;
-    for (const ing of ingredients) {
-      const exists = items.some(
-        (i) => i.name.trim().toLowerCase() === ing.name.trim().toLowerCase() && !i.checked
-      );
-      if (exists) continue;
-      addItem({
-        name: ing.name,
-        category: ing.category || "groceries",
-        quantity: ing.quantity,
-        checked: false,
-      });
-      added++;
-    }
-    return added;
-  };
-
-  const handleAddToShopping = (recipe: Recipe) => {
-    const added = pushIngredientsToShoppingList(recipe.ingredients);
-    toast(added > 0 ? `Added ${added} item${added > 1 ? "s" : ""} to shopping list` : "Already on the list");
-  };
 
   return (
     <div className="space-y-4">
@@ -466,7 +430,6 @@ export function RecipesTab() {
             recipe={recipe}
             onUpdate={(data) => updateRecipe(recipe.id, data)}
             onDelete={() => deleteRecipe(recipe.id)}
-            onAddToShopping={() => handleAddToShopping(recipe)}
           />
         ))}
       </div>

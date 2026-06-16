@@ -25,6 +25,12 @@ services:
       # can append its summary/tags. Match `id -u`/`id -g` of the vault owner.
       KB_UID: "1000"
       KB_GID: "1000"
+      # AI goal drafting via the Claude Code CLI (`claude -p`), using the mounted
+      # ~/.claude subscription auth — no API key/bill. Set GEN_PROVIDER=ollama
+      # to fall back to the local model.
+      GEN_PROVIDER: "claude-cli"
+      CLAUDE_CLI_MODEL: "sonnet"
+      CLAUDE_CONFIG_DIR: "/root/.claude"
     extra_hosts:
       # Lets the container reach the host's Ollama at host.docker.internal.
       - "host.docker.internal:host-gateway"
@@ -33,6 +39,8 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /home/quorky/.hermes:/hermes:ro
       - /home/quorky/vault/obsidian:/vault
+      # Claude CLI auth/config (container runs as root → /root/.claude).
+      - /home/quorky/.claude:/root/.claude
 
 volumes:
   lifeos-data:

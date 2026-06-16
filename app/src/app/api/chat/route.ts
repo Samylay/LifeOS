@@ -4,7 +4,7 @@ import { getOllamaClient, OLLAMA_MODEL } from "@/lib/ollama";
 
 const SYSTEM_PROMPT = `You are a helpful assistant embedded inside Stride, a personal productivity app. The user is a triathlete, developer, and business manager — fueling and nutrition logistics matter for his training, but this app does NOT track calories or macros, only groceries/recipes/meal planning. The user may paste raw text (e.g. from Notion, notes, or brain dumps) and you should extract actionable items from it. He may also speak commands via voice — voice transcripts can be short and imperative (e.g. "add eggs and oats to the grocery list", "mark laundry done", "plan chicken stir fry for dinner Wednesday").
 
-You have access to tools that let you create items in the app. When the user pastes content, analyze it and use the appropriate tools to create tasks, goals, habits, notes, reminders, projects, shopping items, recipes, or meal plan entries — and to mark tasks complete.
+You have access to tools that let you create items in the app. When the user pastes content, analyze it and use the appropriate tools to create tasks, habits, notes, reminders, projects, recipes, or meal plan entries — and to mark tasks complete.
 
 Guidelines:
 - Extract clear, actionable tasks from unstructured text
@@ -14,7 +14,6 @@ Guidelines:
 - For recurring activities, create habits instead of tasks
 - For time-sensitive items with deadlines, create reminders
 - Keep task titles concise and actionable (start with a verb)
-- For grocery/food requests ("add X to the shopping list", "we need more Y"), use add_shopping_items
 - For recipe requests ("save this recipe", "remember how to make X"), use create_recipe
 - For meal planning ("plan X for dinner Tuesday", "lunch tomorrow is leftovers"), use plan_meal — map relative days (today/tomorrow/this week) to mon..sun
 - For "mark X done", "I finished X", "complete the X task", use complete_task to fuzzy-match an existing task
@@ -65,27 +64,6 @@ const tools: OpenAI.ChatCompletionTool[] = [
           },
         },
         required: ["tasks"],
-      },
-    },
-  },
-  {
-    type: "function",
-    function: {
-      name: "create_goal",
-      description:
-        "Create a goal. Goals are high-level objectives for the year, optionally scoped to a quarter.",
-      parameters: {
-        type: "object",
-        properties: {
-          title: { type: "string", description: "Goal title" },
-          year: { type: "number", description: "Target year (e.g. 2026)" },
-          quarter: {
-            type: "number",
-            enum: [1, 2, 3, 4],
-            description: "Target quarter (optional)",
-          },
-        },
-        required: ["title", "year"],
       },
     },
   },
@@ -199,43 +177,9 @@ const tools: OpenAI.ChatCompletionTool[] = [
   {
     type: "function",
     function: {
-      name: "add_shopping_items",
-      description:
-        "Add one or more items to the grocery/shopping list. Use this for any 'add X to the list', 'we need Y', or fueling/grocery requests.",
-      parameters: {
-        type: "object",
-        properties: {
-          items: {
-            type: "array",
-            items: {
-              type: "object",
-              properties: {
-                name: { type: "string", description: "Item name" },
-                quantity: {
-                  type: "string",
-                  description: "Quantity, e.g. '2', '1 lb', '6-pack' (optional)",
-                },
-                category: {
-                  type: "string",
-                  enum: ["groceries", "household", "personal_care", "snacks", "beverages", "frozen", "other"],
-                  description: "Shopping category (optional, defaults to groceries)",
-                },
-              },
-              required: ["name"],
-            },
-            description: "Array of items to add to the shopping list",
-          },
-        },
-        required: ["items"],
-      },
-    },
-  },
-  {
-    type: "function",
-    function: {
       name: "create_recipe",
       description:
-        "Save a recipe with its ingredients and optional steps, so it can be planned into the weekly meal plan and its ingredients added to the shopping list later.",
+        "Save a recipe with its ingredients and optional steps, so it can be planned into the weekly meal plan.",
       parameters: {
         type: "object",
         properties: {
@@ -362,9 +306,6 @@ export async function POST(req: NextRequest) {
       }
       if (context.existingTasks?.length) {
         systemPrompt += `- Existing task titles: ${context.existingTasks.join(", ")}\n`;
-      }
-      if (context.existingGoals?.length) {
-        systemPrompt += `- Existing goals: ${context.existingGoals.join(", ")}\n`;
       }
       if (context.existingHabits?.length) {
         systemPrompt += `- Existing habits: ${context.existingHabits.join(", ")}\n`;

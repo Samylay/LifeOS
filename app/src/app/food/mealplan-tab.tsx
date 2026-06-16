@@ -1,18 +1,15 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { ShoppingCart, X, ChefHat, CalendarDays } from "lucide-react";
+import { X, ChefHat, CalendarDays } from "lucide-react";
 import { useMealPlan, getWeekStart } from "@/lib/use-mealplan";
 import { useRecipes } from "@/lib/use-recipes";
-import { useShoppingList } from "@/lib/use-shopping-list";
-import { useToast } from "@/components/toast";
 import {
   MEAL_DAYS,
   MEAL_DAY_LABELS,
   MEAL_SLOTS,
   type MealDay,
   type MealSlot,
-  type RecipeIngredient,
 } from "@/lib/types";
 
 const SLOT_LABELS: Record<MealSlot, string> = { lunch: "Lunch", dinner: "Dinner" };
@@ -122,47 +119,6 @@ export function MealPlanTab() {
   const weekId = useMemo(() => getWeekStart(), []);
   const { plan, loading, setMeal } = useMealPlan(weekId);
   const { recipes } = useRecipes();
-  const { items, addItem } = useShoppingList();
-  const { toast } = useToast();
-
-  const recipeById = useMemo(() => new Map(recipes.map((r) => [r.id, r])), [recipes]);
-
-  const handleShopWeek = () => {
-    if (!plan) return;
-    const ingredientsMap = new Map<string, RecipeIngredient>();
-
-    for (const day of MEAL_DAYS) {
-      for (const slot of MEAL_SLOTS) {
-        const entry = plan.meals[day]?.[slot];
-        if (!entry?.recipeId) continue;
-        const recipe = recipeById.get(entry.recipeId);
-        if (!recipe) continue;
-        for (const ing of recipe.ingredients) {
-          const key = ing.name.trim().toLowerCase();
-          if (!ingredientsMap.has(key)) {
-            ingredientsMap.set(key, ing);
-          }
-        }
-      }
-    }
-
-    let added = 0;
-    for (const ing of ingredientsMap.values()) {
-      const exists = items.some(
-        (i) => i.name.trim().toLowerCase() === ing.name.trim().toLowerCase() && !i.checked
-      );
-      if (exists) continue;
-      addItem({
-        name: ing.name,
-        category: ing.category || "groceries",
-        quantity: ing.quantity,
-        checked: false,
-      });
-      added++;
-    }
-
-    toast(added > 0 ? `Added ${added} ingredient${added > 1 ? "s" : ""} to shopping list` : "Nothing new to add");
-  };
 
   if (loading || !plan) {
     return (
@@ -175,9 +131,6 @@ export function MealPlanTab() {
   }
 
   const recipeOptions = recipes.map((r) => ({ id: r.id, name: r.name }));
-  const hasAnyPlannedRecipe = MEAL_DAYS.some((d) =>
-    MEAL_SLOTS.some((s) => plan.meals[d]?.[s]?.recipeId)
-  );
 
   return (
     <div className="space-y-4">
@@ -185,13 +138,6 @@ export function MealPlanTab() {
         <p className="text-xs flex items-center gap-1.5" style={{ color: "var(--text-tertiary)" }}>
           <CalendarDays size={13} /> Week of {weekId}
         </p>
-        <button
-          onClick={handleShopWeek}
-          disabled={!hasAnyPlannedRecipe}
-          className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium bg-sage-400 text-white hover:bg-sage-500 transition-colors disabled:opacity-40"
-        >
-          <ShoppingCart size={14} /> Shop this week
-        </button>
       </div>
 
       {recipes.length === 0 && (

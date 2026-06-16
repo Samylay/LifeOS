@@ -1,11 +1,11 @@
 "use client";
 
 import { useAuth } from "@/lib/auth-context";
-import { Activity, Target, BarChart3, Calendar, Flame, FolderKanban } from "lucide-react";
+import { Activity, Brain, BarChart3, Calendar, Flame, FolderKanban } from "lucide-react";
 
 const FEATURES = [
   { icon: Activity, label: "Strength", desc: "Build-then-maintain training plans" },
-  { icon: Target, label: "Quests & Goals", desc: "90-day missions and quarterly goals" },
+  { icon: Brain, label: "Knowledge Base", desc: "Notes enriched by your AI agent" },
   { icon: FolderKanban, label: "Project Board", desc: "Kanban-style project management" },
   { icon: Calendar, label: "Calendar Sync", desc: "Google Calendar integration" },
   { icon: Flame, label: "Streaks", desc: "Build consistency with daily streaks" },

@@ -21,6 +21,7 @@ import type { AreaId } from "@/lib/types";
 import { CockpitTraining, CockpitHomelab } from "@/components/cockpit-status";
 import { StrengthCard } from "@/components/strength-card";
 import { KnowledgeCard } from "@/components/knowledge-card";
+import { GoalsCard } from "@/components/goals-card";
 
 const AREA_ORDER: AreaId[] = ["health", "career", "finance", "brand", "admin"];
 const AREA_HEX: Record<AreaId, string> = {
@@ -129,6 +130,11 @@ export default function Dashboard() {
       </div>
 
       <div className="grid grid-cols-12 gap-4 lg:gap-6">
+        {/* 1b. This week (goals) */}
+        <div className="col-span-12 lg:col-span-6">
+          <GoalsCard />
+        </div>
+
         {/* 2. Focus */}
         <div
           className="col-span-12 lg:col-span-6 rounded-xl p-4 lg:p-5"

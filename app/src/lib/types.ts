@@ -54,15 +54,6 @@ export interface Note {
   processed: boolean;
 }
 
-export interface Goal {
-  id: string;
-  title: string;
-  year: number;
-  quarter?: 1 | 2 | 3 | 4;
-  status: "active" | "completed" | "abandoned";
-  linkedProjectIds: string[];
-}
-
 export interface Project {
   id: string;
   title: string;
@@ -243,25 +234,7 @@ export interface Reminder {
   createdAt: Date;
 }
 
-// --- Reading / Book Tracker ---
-
-export type BookStatus = "want_to_read" | "reading" | "finished" | "abandoned";
-
-export interface Book {
-  id: string;
-  title: string;
-  author: string;
-  status: BookStatus;
-  totalPages?: number;
-  currentPage?: number;
-  rating?: number; // 1-5
-  notes?: string;
-  startDate?: Date;
-  finishDate?: Date;
-  createdAt: Date;
-}
-
-// --- Shopping List ---
+// --- Ingredient categories (used by recipes) ---
 
 export type ShoppingCategory =
   | "groceries"
@@ -271,15 +244,6 @@ export type ShoppingCategory =
   | "beverages"
   | "frozen"
   | "other";
-
-export interface ShoppingItem {
-  id: string;
-  name: string;
-  category: ShoppingCategory;
-  quantity?: string; // e.g. "2", "1 lb", "6-pack"
-  checked: boolean;
-  createdAt: Date;
-}
 
 export const SHOPPING_CATEGORIES: Record<ShoppingCategory, { label: string; color: string }> = {
   groceries: { label: "Groceries", color: "#22C55E" },
@@ -458,22 +422,63 @@ export const AREAS: Record<AreaId, { name: string; color: string; icon: string }
   admin: { name: "Life Admin", color: "slate", icon: "ClipboardList" },
 };
 
-// --- Quests (90-day sprints) ---
+// --- Goals (quarterly objective → weekly commitments → sessions) ---
+//
+// A goal is a single quarterly objective. Each ISO week you set 1-3 concrete
+// commitments toward it (the week-to-week layer), and log sessions as you put
+// in the work (the day-to-day layer). The weekly plan can be AI-prefilled from
+// the objective via `claude -p`.
 
-export type QuestCategory = "life" | "work" | AreaId;
-export type QuestStatus = "active" | "completed" | "abandoned";
+export type GoalStatus = "active" | "done" | "dropped";
 
-export interface Quest {
+export interface GoalCommitment {
+  id: string;
+  text: string;
+  weekOf: string; // ISO Monday, YYYY-MM-DD
+  done: boolean;
+}
+
+export interface GoalSession {
+  date: string; // YYYY-MM-DD
+  note?: string;
+}
+
+export interface Goal {
   id: string;
   title: string;
-  category: QuestCategory;
-  criteria: string;
-  progress: number; // 0-100
-  startDate: Date;
-  endDate: Date;
-  status: QuestStatus;
-  hot?: boolean;
+  quarter: string; // e.g. "2026-Q3"
+  why?: string;
+  outcome?: string; // definition of done
+  status: GoalStatus;
+  milestones: string[]; // AI/user quarter-level steps, for reference
+  commitments: GoalCommitment[];
+  sessions: GoalSession[];
   createdAt: Date;
   updatedAt: Date;
 }
+
+/** Quarter key for a date, e.g. "2026-Q3". */
+export function quarterOf(d: Date = new Date()): string {
+  return `${d.getFullYear()}-Q${Math.floor(d.getMonth() / 3) + 1}`;
+}
+
+/** ISO Monday (YYYY-MM-DD) for the week containing `d`. */
+export function mondayOf(d: Date = new Date()): string {
+  const m = new Date(d);
+  const day = (m.getDay() + 6) % 7; // Monday = 0
+  m.setDate(m.getDate() - day);
+  m.setHours(0, 0, 0, 0);
+  return `${m.getFullYear()}-${String(m.getMonth() + 1).padStart(2, "0")}-${String(m.getDate()).padStart(2, "0")}`;
+}
+
+/** Commitments for the current week. */
+export function commitmentsForWeek(goal: Goal, weekOf: string): GoalCommitment[] {
+  return goal.commitments.filter((c) => c.weekOf === weekOf);
+}
+
+/** Sessions logged since the most recent Monday. */
+export function sessionsThisWeekForGoal(goal: Goal, weekOf: string): number {
+  return goal.sessions.filter((s) => s.date >= weekOf).length;
+}
+
 

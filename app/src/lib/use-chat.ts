@@ -2,12 +2,10 @@
 
 import { useState, useCallback, useRef } from "react";
 import { useTasks } from "./use-tasks";
-import { useGoals } from "./use-goals";
 import { useHabits } from "./use-habits";
 import { useNotes } from "./use-notes";
 import { useReminders } from "./use-reminders";
 import { useProjects } from "./use-projects";
-import { useShoppingList } from "./use-shopping-list";
 import { useRecipes } from "./use-recipes";
 import { useMealPlan, getWeekStart } from "./use-mealplan";
 import type { ChatAction } from "@/app/api/chat/route";
@@ -35,12 +33,10 @@ export function useChat() {
   const abortRef = useRef<AbortController | null>(null);
 
   const { tasks, createTask, updateTask } = useTasks();
-  const { goals, createGoal } = useGoals();
   const { habits, createHabit } = useHabits();
   const { notes, createNote } = useNotes();
   const { reminders, createReminder } = useReminders();
   const { projects, createProject } = useProjects();
-  const { addItem: addShoppingItem } = useShoppingList();
   const { recipes, createRecipe } = useRecipes();
   const weekId = getWeekStart();
   const { setMeal } = useMealPlan(weekId);
@@ -72,25 +68,6 @@ export function useChat() {
                 tool: "create_tasks",
                 summary: `Created ${tasksData.length} task${tasksData.length > 1 ? "s" : ""}`,
                 count: tasksData.length,
-              });
-              break;
-            }
-            case "create_goal": {
-              const g = action.input as {
-                title: string;
-                year: number;
-                quarter?: 1 | 2 | 3 | 4;
-              };
-              await createGoal({
-                title: g.title,
-                year: g.year,
-                quarter: g.quarter,
-                status: "active",
-                linkedProjectIds: [],
-              });
-              results.push({
-                tool: "create_goal",
-                summary: `Created goal: "${g.title}"`,
               });
               break;
             }
@@ -172,25 +149,6 @@ export function useChat() {
               });
               break;
             }
-            case "add_shopping_items": {
-              const { items: shoppingItems } = action.input as {
-                items: Array<{ name: string; quantity?: string; category?: ShoppingCategory }>;
-              };
-              for (const it of shoppingItems) {
-                await addShoppingItem({
-                  name: it.name,
-                  category: it.category || "groceries",
-                  quantity: it.quantity,
-                  checked: false,
-                });
-              }
-              results.push({
-                tool: "add_shopping_items",
-                summary: `Added ${shoppingItems.length} item${shoppingItems.length > 1 ? "s" : ""} to shopping list`,
-                count: shoppingItems.length,
-              });
-              break;
-            }
             case "create_recipe": {
               const r = action.input as {
                 name: string;
@@ -266,12 +224,10 @@ export function useChat() {
       createTask,
       updateTask,
       tasks,
-      createGoal,
       createHabit,
       createNote,
       createReminder,
       createProject,
-      addShoppingItem,
       createRecipe,
       recipes,
       setMeal,
@@ -297,7 +253,6 @@ export function useChat() {
         const context = {
           taskCount: tasks.length,
           existingTasks: tasks.slice(0, 30).map((t) => t.title),
-          existingGoals: goals.map((g) => g.title),
           existingHabits: habits.map((h) => h.name),
           existingProjects: projects.map((p) => p.title),
         };
@@ -371,7 +326,7 @@ export function useChat() {
         abortRef.current = null;
       }
     },
-    [loading, messages, tasks, goals, habits, projects, executeActions]
+    [loading, messages, tasks, habits, projects, executeActions]
   );
 
   const clearMessages = useCallback(() => {

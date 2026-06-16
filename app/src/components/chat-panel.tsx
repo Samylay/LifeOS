@@ -161,7 +161,7 @@ export function ChatPanel() {
                 className="text-xs text-center"
                 style={{ color: "var(--text-secondary)" }}
               >
-                I&apos;ll extract tasks, goals, habits, and more from your text.
+                I&apos;ll extract tasks, habits, and more from your text.
               </p>
               <div className="mt-2 flex flex-col gap-1.5 w-full">
                 {[
