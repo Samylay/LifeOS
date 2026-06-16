@@ -19,11 +19,17 @@ import {
   X,
   Target,
   Inbox,
-  BarChart2,
   UtensilsCrossed,
   Activity,
+  Brain,
+  PenSquare,
+  ExternalLink,
 } from "lucide-react";
 import { useAppStore } from "@/lib/store";
+
+// Flux (content engine) is a sibling app on the tailnet. Baked at build time;
+// override with NEXT_PUBLIC_FLUX_URL.
+const FLUX_URL = process.env.NEXT_PUBLIC_FLUX_URL || "http://homelab.tail069527.ts.net";
 
 const NAV_GROUPS = [
   {
@@ -52,6 +58,13 @@ const NAV_GROUPS = [
       { href: "/shopping", label: "Shopping", icon: ShoppingCart },
       { href: "/reminders", label: "Reminders", icon: Bell },
       { href: "/calendar", label: "Calendar", icon: Calendar },
+    ],
+  },
+  {
+    label: "Knowledge & Content",
+    items: [
+      { href: "/knowledge", label: "Knowledge", icon: Brain },
+      { href: FLUX_URL, label: "Content (Flux)", icon: PenSquare, external: true },
     ],
   },
 ];
@@ -152,21 +165,47 @@ export function Sidebar({ mobile }: { mobile?: boolean }) {
               )}
               {group.items.map((item) => {
                 const Icon = item.icon;
-                const active = isActive(item.href);
+                const external = "external" in item && item.external;
+                const active = !external && isActive(item.href);
+                const className =
+                  "group flex items-center gap-3 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors";
+                const style = {
+                  color: active ? "var(--accent)" : "var(--text-secondary)",
+                  background: active ? "var(--accent-bg)" : "transparent",
+                  borderLeft: active
+                    ? "3px solid var(--accent)"
+                    : "3px solid transparent",
+                  transitionDuration: "var(--duration-fast)",
+                };
+                if (external) {
+                  return (
+                    <a
+                      key={item.href}
+                      href={item.href}
+                      target="_blank"
+                      rel="noreferrer"
+                      onClick={handleNavClick}
+                      className={className}
+                      style={style}
+                      title={!expanded ? item.label : undefined}
+                    >
+                      <Icon size={18} className="shrink-0" />
+                      {expanded && (
+                        <span className="truncate flex-1 flex items-center gap-1">
+                          {item.label}
+                          <ExternalLink size={12} className="opacity-50" />
+                        </span>
+                      )}
+                    </a>
+                  );
+                }
                 return (
                   <Link
                     key={item.href}
                     href={item.href}
                     onClick={handleNavClick}
-                    className="group flex items-center gap-3 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors"
-                    style={{
-                      color: active ? "var(--accent)" : "var(--text-secondary)",
-                      background: active ? "var(--accent-bg)" : "transparent",
-                      borderLeft: active
-                        ? "3px solid var(--accent)"
-                        : "3px solid transparent",
-                      transitionDuration: "var(--duration-fast)",
-                    }}
+                    className={className}
+                    style={style}
                     title={!expanded ? item.label : undefined}
                   >
                     <Icon size={18} className="shrink-0" />

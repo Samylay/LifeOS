@@ -20,6 +20,7 @@ import { AREAS } from "@/lib/types";
 import type { AreaId } from "@/lib/types";
 import { CockpitTraining, CockpitHomelab } from "@/components/cockpit-status";
 import { StrengthCard } from "@/components/strength-card";
+import { KnowledgeCard } from "@/components/knowledge-card";
 
 const AREA_ORDER: AreaId[] = ["health", "career", "finance", "brand", "admin"];
 const AREA_HEX: Record<AreaId, string> = {
@@ -195,6 +196,11 @@ export default function Dashboard() {
         {/* 5. Homelab */}
         <div className="col-span-12 lg:col-span-6">
           <CockpitHomelab />
+        </div>
+
+        {/* 5b. Knowledge */}
+        <div className="col-span-12 lg:col-span-6">
+          <KnowledgeCard />
         </div>
 
         {/* Reminders alert */}

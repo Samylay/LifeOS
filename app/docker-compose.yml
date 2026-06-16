@@ -18,6 +18,13 @@ services:
       LIFEOS_DB_PATH: "/data/lifeos.db"
       HERMES_STATUS: "/hermes/status.json"
       DOCKER_SOCK: "/var/run/docker.sock"
+      # The Hermes-managed Obsidian vault, mounted read-write below so LifeOS
+      # can browse/search notes and capture new ones (Hermes then enriches).
+      KB_PATH: "/vault"
+      # Notes LifeOS creates are chowned to this uid/gid so Hermes (host user)
+      # can append its summary/tags. Match `id -u`/`id -g` of the vault owner.
+      KB_UID: "1000"
+      KB_GID: "1000"
     extra_hosts:
       # Lets the container reach the host's Ollama at host.docker.internal.
       - "host.docker.internal:host-gateway"
@@ -25,6 +32,7 @@ services:
       - lifeos-data:/data
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /home/quorky/.hermes:/hermes:ro
+      - /home/quorky/vault/obsidian:/vault
 
 volumes:
   lifeos-data:
