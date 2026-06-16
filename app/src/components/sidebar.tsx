@@ -21,6 +21,7 @@ import {
   Brain,
   PenSquare,
   ExternalLink,
+  Gauge,
 } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 
@@ -64,6 +65,7 @@ const NAV_GROUPS = [
 ];
 
 const BOTTOM_ITEMS = [
+  { href: "/status", label: "Status", icon: Gauge },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 

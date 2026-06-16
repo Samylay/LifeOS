@@ -31,6 +31,12 @@ services:
       GEN_PROVIDER: "claude-cli"
       CLAUDE_CLI_MODEL: "sonnet"
       CLAUDE_CONFIG_DIR: "/root/.claude"
+      # Prometheus (monitoring stack) for the /status host vitals — reached by
+      # service name over the shared monitoring network (declared below).
+      PROM_URL: "http://prometheus:9090"
+    networks:
+      - default
+      - monitoring
     extra_hosts:
       # Lets the container reach the host's Ollama at host.docker.internal.
       - "host.docker.internal:host-gateway"
@@ -44,3 +50,11 @@ services:
 
 volumes:
   lifeos-data:
+
+networks:
+  # Shared with the monitoring stack (~/infra/monitoring) so LifeOS can query
+  # Prometheus by service name for the /status host vitals.
+  monitoring:
+    external: true
+    name: monitoring_monitoring
+  default:

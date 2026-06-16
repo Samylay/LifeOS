@@ -12,6 +12,11 @@ const WATCH: Record<string, string> = {
   "flux-db-1": "Flux DB",
   "flux-nginx-1": "Flux web",
   n8n: "n8n",
+  cloudflared: "Cloudflare tunnel",
+  prometheus: "Prometheus",
+  grafana: "Grafana",
+  cadvisor: "cAdvisor",
+  node_exporter: "node-exporter",
 };
 
 interface DockerContainer {
@@ -107,6 +112,38 @@ function readJsonFile<T>(p: string, fallback: T): T {
   } catch {
     return fallback;
   }
+}
+
+export interface ContainerInfo {
+  name: string;
+  label?: string;
+  up: boolean;
+  state: string;
+  status: string;
+}
+
+/** Every container on the host (not just the curated WATCH list) — for /status. */
+export async function getAllContainers(): Promise<{
+  ok: boolean;
+  containers: ContainerInfo[];
+  reason?: string;
+}> {
+  const containers = await dockerContainers();
+  if (!containers) return { ok: false, containers: [], reason: "docker socket unreachable" };
+  const list = containers
+    .map((c) => {
+      const name = (c.Names && c.Names[0] ? c.Names[0] : "").replace(/^\//, "");
+      return {
+        name,
+        label: WATCH[name],
+        up: c.State === "running",
+        state: c.State ?? "unknown",
+        status: c.Status ?? "",
+      };
+    })
+    .filter((c) => c.name)
+    .sort((a, b) => Number(b.up) - Number(a.up) || a.name.localeCompare(b.name));
+  return { ok: true, containers: list };
 }
 
 export function getHermesStatus(): HermesResult {
