@@ -481,4 +481,117 @@ export function sessionsThisWeekForGoal(goal: Goal, weekOf: string): number {
   return goal.sessions.filter((s) => s.date >= weekOf).length;
 }
 
+// --- Daily Prime (morning priming ritual) ---
+//
+// Three stacked steps run each morning: read-aloud affirmations, one spoken
+// journaling prompt under a soft timer, and a (deferred) audio capture. The
+// affirmation/prompt content lives in editable banks; each morning composes a
+// `PrimeDay` from them and persists acknowledgements.
+//
+// NOTE: capture (step 3) depends on the Hermes HTTP endpoint and is stubbed
+// behind PRIME_CAPTURE_ENABLED — no audio fields are persisted yet.
+
+export type AffirmationType = "anchor" | "rotating" | "contextual";
+
+export interface Affirmation {
+  id: string;
+  text: string;
+  type: AffirmationType; // anchors show most days; rotating/contextual swap in
+  active: boolean;
+  order: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export type PromptCategory = "concrete" | "abstract";
+
+export interface PrimePrompt {
+  id: string;
+  text: string;
+  category: PromptCategory; // concrete leads; abstract mixed in later
+  weight: number; // how often it rotates in (relative)
+  active: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface Principle {
+  id: string;
+  text: string; // standing principle, e.g. "Prayers are rituals."
+  active: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// A single morning's record. id = the date string (YYYY-MM-DD).
+export interface PrimeDay {
+  date: string; // YYYY-MM-DD
+  affirmations: {
+    id: string;
+    text: string;
+    type: AffirmationType;
+    acknowledged: boolean;
+  }[];
+  principleOfDay?: string; // optional standing-principle slot for the day
+  prompt: { id: string; text: string; category: PromptCategory };
+  promptAcknowledged: boolean;
+  completedAt?: Date; // set once every step is acknowledged
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface PrimeSettings {
+  // Soft-timer floor in seconds — a target to reach, not a countdown. Raise
+  // over time (60 → 90 → 120) as fluency builds.
+  timerFloorSec: number;
+}
+
+export const PRIME_TIMER_FLOORS = [60, 90, 120] as const;
+export const DEFAULT_PRIME_SETTINGS: PrimeSettings = { timerFloorSec: 60 };
+
+// Step 3 (audio capture) is gated until the Hermes endpoint is live.
+export const PRIME_CAPTURE_ENABLED = false;
+
+/** Local date as YYYY-MM-DD (used as the PrimeDay id). */
+export function todayKey(d: Date = new Date()): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+// --- Weekend Projects ---
+//
+// "Build your own X" projects, captured so each stays honest about scope and
+// has a real completion signal. Distinct from Things to Learn (those are
+// open-ended).
+
+export type WeekendProjectStatus = "idea" | "active" | "done" | "shelved";
+
+export interface WeekendProject {
+  id: string;
+  title: string;
+  learningGoal: string; // what black box does this open?
+  weekendScope: string; // realistic "done" for one weekend
+  stretch: string; // optional deeper directions
+  notes: string; // language choice, resources, decisions
+  status: WeekendProjectStatus;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// --- Things to Learn ---
+//
+// A deliberately minimal learning backlog: topics parked until there's time.
+// Only these fields — intentionally no "teach"/"content" field.
+
+export type LearnStatus = "parked" | "learning" | "learned";
+
+export interface LearnItem {
+  id: string;
+  topic: string;
+  why: string; // what pulled you toward it
+  firstStep?: string; // smallest concrete entry point
+  status: LearnStatus;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 

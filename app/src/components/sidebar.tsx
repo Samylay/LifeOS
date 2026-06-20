@@ -22,6 +22,9 @@ import {
   PenSquare,
   ExternalLink,
   Gauge,
+  Sunrise,
+  Hammer,
+  GraduationCap,
 } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 
@@ -34,6 +37,7 @@ const NAV_GROUPS = [
     label: "Plan & Do",
     items: [
       { href: "/", label: "Dashboard", icon: LayoutDashboard },
+      { href: "/prime", label: "Daily Prime", icon: Sunrise },
       { href: "/inbox", label: "Inbox", icon: Inbox },
     ],
   },
@@ -53,6 +57,13 @@ const NAV_GROUPS = [
       { href: "/food", label: "Food", icon: UtensilsCrossed },
       { href: "/reminders", label: "Reminders", icon: Bell },
       { href: "/calendar", label: "Calendar", icon: Calendar },
+    ],
+  },
+  {
+    label: "Learn & Build",
+    items: [
+      { href: "/weekend-projects", label: "Weekend Projects", icon: Hammer },
+      { href: "/things-to-learn", label: "Things to Learn", icon: GraduationCap },
     ],
   },
   {

@@ -28,6 +28,13 @@ import type {
   Recipe,
   MealPlan,
   StrengthFocus,
+  Affirmation,
+  PrimePrompt,
+  Principle,
+  PrimeDay,
+  PrimeSettings,
+  WeekendProject,
+  LearnItem,
 } from "./types";
 
 export type { QueryConstraint };
@@ -349,4 +356,82 @@ export const strengthFocuses = {
   delete: (userId: string, id: string) => deleteDocument(userId, "strengthFocuses", id),
   list: (userId: string, ...constraints: QueryConstraint[]) =>
     queryDocuments<StrengthFocus>(userId, "strengthFocuses", ...constraints),
+};
+
+// --- Daily Prime: affirmation bank ---
+
+export const affirmations = {
+  create: (userId: string, data: Omit<Affirmation, "id">) =>
+    createDocument<Affirmation>(userId, "affirmationBank", data),
+  update: (userId: string, id: string, data: Partial<Affirmation>) =>
+    updateDocument(userId, "affirmationBank", id, data),
+  delete: (userId: string, id: string) => deleteDocument(userId, "affirmationBank", id),
+  list: (userId: string, ...constraints: QueryConstraint[]) =>
+    queryDocuments<Affirmation>(userId, "affirmationBank", ...constraints),
+};
+
+// --- Daily Prime: journaling prompt bank ---
+
+export const primePrompts = {
+  create: (userId: string, data: Omit<PrimePrompt, "id">) =>
+    createDocument<PrimePrompt>(userId, "promptBank", data),
+  update: (userId: string, id: string, data: Partial<PrimePrompt>) =>
+    updateDocument(userId, "promptBank", id, data),
+  delete: (userId: string, id: string) => deleteDocument(userId, "promptBank", id),
+  list: (userId: string, ...constraints: QueryConstraint[]) =>
+    queryDocuments<PrimePrompt>(userId, "promptBank", ...constraints),
+};
+
+// --- Daily Prime: standing principles ---
+
+export const principles = {
+  create: (userId: string, data: Omit<Principle, "id">) =>
+    createDocument<Principle>(userId, "principles", data),
+  update: (userId: string, id: string, data: Partial<Principle>) =>
+    updateDocument(userId, "principles", id, data),
+  delete: (userId: string, id: string) => deleteDocument(userId, "principles", id),
+  list: (userId: string, ...constraints: QueryConstraint[]) =>
+    queryDocuments<Principle>(userId, "principles", ...constraints),
+};
+
+// --- Daily Prime: per-day records (id = YYYY-MM-DD) + settings ---
+
+export const primeDays = {
+  get: (userId: string, date: string) => getDocument<PrimeDay>(userId, "primeDays", date),
+  set: (userId: string, date: string, data: Partial<PrimeDay>) =>
+    apiSet(`${userPath(userId, "primeDays")}/${date}`, data as Record<string, unknown>),
+  list: (userId: string, ...constraints: QueryConstraint[]) =>
+    queryDocuments<PrimeDay>(userId, "primeDays", ...constraints),
+};
+
+export const primeSettings = {
+  get: (userId: string) => getDocument<PrimeSettings>(userId, "prime", "settings"),
+  set: (userId: string, data: Partial<PrimeSettings>) =>
+    apiSet(`${userPath(userId, "prime")}/settings`, data as Record<string, unknown>),
+};
+
+// --- Weekend Projects ---
+
+export const weekendProjects = {
+  create: (userId: string, data: Omit<WeekendProject, "id">) =>
+    createDocument<WeekendProject>(userId, "weekendProjects", data),
+  get: (userId: string, id: string) => getDocument<WeekendProject>(userId, "weekendProjects", id),
+  update: (userId: string, id: string, data: Partial<WeekendProject>) =>
+    updateDocument(userId, "weekendProjects", id, data),
+  delete: (userId: string, id: string) => deleteDocument(userId, "weekendProjects", id),
+  list: (userId: string, ...constraints: QueryConstraint[]) =>
+    queryDocuments<WeekendProject>(userId, "weekendProjects", ...constraints),
+};
+
+// --- Things to Learn ---
+
+export const learnItems = {
+  create: (userId: string, data: Omit<LearnItem, "id">) =>
+    createDocument<LearnItem>(userId, "learnItems", data),
+  get: (userId: string, id: string) => getDocument<LearnItem>(userId, "learnItems", id),
+  update: (userId: string, id: string, data: Partial<LearnItem>) =>
+    updateDocument(userId, "learnItems", id, data),
+  delete: (userId: string, id: string) => deleteDocument(userId, "learnItems", id),
+  list: (userId: string, ...constraints: QueryConstraint[]) =>
+    queryDocuments<LearnItem>(userId, "learnItems", ...constraints),
 };
