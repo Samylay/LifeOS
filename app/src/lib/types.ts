@@ -35,16 +35,6 @@ export interface Task {
   updatedAt: Date;
 }
 
-export interface CalendarEvent {
-  id: string;
-  title: string;
-  start: Date;
-  end: Date;
-  category?: string;
-  source: "manual" | "gcal";
-  notes?: string;
-}
-
 export interface Note {
   id: string;
   content: string;
@@ -483,13 +473,10 @@ export function sessionsThisWeekForGoal(goal: Goal, weekOf: string): number {
 
 // --- Daily Prime (morning priming ritual) ---
 //
-// Three stacked steps run each morning: read-aloud affirmations, one spoken
-// journaling prompt under a soft timer, and a (deferred) audio capture. The
-// affirmation/prompt content lives in editable banks; each morning composes a
-// `PrimeDay` from them and persists acknowledgements.
-//
-// NOTE: capture (step 3) depends on the Hermes HTTP endpoint and is stubbed
-// behind PRIME_CAPTURE_ENABLED — no audio fields are persisted yet.
+// Two stacked steps run each morning: read-aloud affirmations, and one spoken
+// journaling prompt under a soft timer. The affirmation/prompt content lives
+// in editable banks; each morning composes a `PrimeDay` from them and
+// persists acknowledgements.
 
 export type AffirmationType = "anchor" | "rotating" | "contextual";
 
@@ -549,32 +536,9 @@ export interface PrimeSettings {
 export const PRIME_TIMER_FLOORS = [60, 90, 120] as const;
 export const DEFAULT_PRIME_SETTINGS: PrimeSettings = { timerFloorSec: 60 };
 
-// Step 3 (audio capture) is gated until the Hermes endpoint is live.
-export const PRIME_CAPTURE_ENABLED = false;
-
 /** Local date as YYYY-MM-DD (used as the PrimeDay id). */
 export function todayKey(d: Date = new Date()): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
-
-// --- Weekend Projects ---
-//
-// "Build your own X" projects, captured so each stays honest about scope and
-// has a real completion signal. Distinct from Things to Learn (those are
-// open-ended).
-
-export type WeekendProjectStatus = "idea" | "active" | "done" | "shelved";
-
-export interface WeekendProject {
-  id: string;
-  title: string;
-  learningGoal: string; // what black box does this open?
-  weekendScope: string; // realistic "done" for one weekend
-  stretch: string; // optional deeper directions
-  notes: string; // language choice, resources, decisions
-  status: WeekendProjectStatus;
-  createdAt: Date;
-  updatedAt: Date;
 }
 
 // --- Things to Learn ---
@@ -590,6 +554,49 @@ export interface LearnItem {
   why: string; // what pulled you toward it
   firstStep?: string; // smallest concrete entry point
   status: LearnStatus;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// --- Content OS ---
+//
+// Operational layer for the content system documented in the Obsidian vault
+// (01-Inbox/content-os/). The vault holds the playbook (brand, strategy,
+// SOP); these types hold the two things that change weekly: the idea bank
+// and the post tracker.
+
+export type ContentPillar = "build-log" | "workflow-win" | "under-the-hood";
+
+// Production pipeline, matching the weekly batch SOP (script Mon → record
+// Tue → edit Wed → publish Thu–Sun).
+export type ContentIdeaStatus = "idea" | "scripted" | "recorded" | "edited" | "posted";
+
+export interface ContentIdea {
+  id: string;
+  title: string;
+  pillar: ContentPillar;
+  hookFormula?: number; // 1–12 from the hook library; unset = topic, not script-ready
+  episode?: number; // Build Log serial number
+  notes?: string;
+  status: ContentIdeaStatus;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// One row of the Friday analytics review. Metrics are optional so a post can
+// be logged on publish day and filled in on Friday.
+export interface ContentPost {
+  id: string;
+  date: string; // YYYY-MM-DD posted
+  title: string;
+  pillar: ContentPillar;
+  hookFormula?: number;
+  retention3s?: number; // % still watching at 3s
+  completion?: number; // % completion rate
+  sendsPerReach?: number; // sends per 1000 reached
+  savesPerReach?: number; // saves per 1000 reached
+  follows?: number; // follows attributed to the post
+  note?: string; // the forced one-sentence diagnosis
   createdAt: Date;
   updatedAt: Date;
 }

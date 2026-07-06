@@ -21,8 +21,13 @@ export default function InboxPage() {
   };
 
   const handleConvertToTask = async (note: Note) => {
+    const title =
+      note.content.length > 100
+        ? `${note.content.substring(0, 100)}…`
+        : note.content;
     await createTask({
-      title: note.content.substring(0, 100),
+      title,
+      description: note.content.length > 100 ? note.content : undefined,
       status: "todo",
       priority: "medium",
       area: note.area,

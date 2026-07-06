@@ -176,7 +176,7 @@ function ItemRow({
 }
 
 export default function ThingsToLearnPage() {
-  const { items, loading, createItem, updateItem, deleteItem, seedDefaults } = useLearnItems();
+  const { items, loading, createItem, updateItem, deleteItem } = useLearnItems();
   const { toast } = useToast();
   const [creating, setCreating] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -216,10 +216,10 @@ export default function ThingsToLearnPage() {
           <GraduationCap size={48} style={{ color: "var(--text-tertiary)" }} className="mb-4" />
           <p className="text-lg font-medium" style={{ color: "var(--text-primary)" }}>Nothing parked yet</p>
           <p className="text-sm mt-1 mb-4 max-w-sm" style={{ color: "var(--text-secondary)" }}>
-            Start with the seed entries (Chess openings, Vocal harmony), or add your own.
+            Add a topic you want to learn or build, and note what pulled you toward it.
           </p>
-          <button onClick={() => { seedDefaults(); toast("Seeded starter items"); }} className="flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium bg-sage-400 text-white hover:bg-sage-500 transition-colors">
-            <Plus size={15} /> Add the seed entries
+          <button onClick={() => setCreating(true)} className="flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium bg-sage-400 text-white hover:bg-sage-500 transition-colors">
+            <Plus size={15} /> New item
           </button>
         </div>
       )}

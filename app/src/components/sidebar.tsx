@@ -7,7 +7,6 @@ import {
   Layers,
   FolderKanban,
   Flag,
-  Calendar,
   Settings,
   ChevronsLeft,
   ChevronsRight,
@@ -23,8 +22,9 @@ import {
   ExternalLink,
   Gauge,
   Sunrise,
-  Hammer,
+  Coffee,
   GraduationCap,
+  Clapperboard,
 } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 
@@ -37,6 +37,7 @@ const NAV_GROUPS = [
     label: "Plan & Do",
     items: [
       { href: "/", label: "Dashboard", icon: LayoutDashboard },
+      { href: "/brief", label: "Morning Brief", icon: Coffee },
       { href: "/prime", label: "Daily Prime", icon: Sunrise },
       { href: "/inbox", label: "Inbox", icon: Inbox },
     ],
@@ -56,13 +57,11 @@ const NAV_GROUPS = [
       { href: "/strength", label: "Strength", icon: Activity },
       { href: "/food", label: "Food", icon: UtensilsCrossed },
       { href: "/reminders", label: "Reminders", icon: Bell },
-      { href: "/calendar", label: "Calendar", icon: Calendar },
     ],
   },
   {
     label: "Learn & Build",
     items: [
-      { href: "/weekend-projects", label: "Weekend Projects", icon: Hammer },
       { href: "/things-to-learn", label: "Things to Learn", icon: GraduationCap },
     ],
   },
@@ -70,6 +69,7 @@ const NAV_GROUPS = [
     label: "Knowledge & Content",
     items: [
       { href: "/knowledge", label: "Knowledge", icon: Brain },
+      { href: "/content", label: "Content OS", icon: Clapperboard },
       { href: FLUX_URL, label: "Content (Flux)", icon: PenSquare, external: true },
     ],
   },

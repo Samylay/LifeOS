@@ -26,12 +26,8 @@ interface HealthAreaData {
 }
 
 const DEFAULT_HEALTH_DATA: HealthAreaData = {
-  skills: [
-    { name: "Handstand", current: "Wall-assisted 15s", target: "Freestanding 30s", progress: 30 },
-    { name: "Pistol Squat", current: "Assisted 3 reps", target: "Unassisted 5 reps", progress: 25 },
-    { name: "One-Arm Pushup", current: "Not started", target: "3 reps each side", progress: 0 },
-  ],
-  jointHealthExercises: ["Bird-dogs", "Glute bridges", "Planks", "Hip circles", "Shoulder dislocates"],
+  skills: [],
+  jointHealthExercises: [],
 };
 
 // --- Helpers ---

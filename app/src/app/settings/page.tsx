@@ -2,18 +2,13 @@
 
 import { useState } from "react";
 import { useAuth } from "@/lib/auth-context";
-import { useIntegrations } from "@/lib/integrations-context";
 import { useToast } from "@/components/toast";
 import { ExternalLink, Check, Loader2, X, Bell, Activity, Webhook, Eye, EyeOff } from "lucide-react";
 import { useGarmin } from "@/lib/use-garmin";
 
 export default function SettingsPage() {
   const { user } = useAuth();
-  const { gcal, connectGoogleCalendar, disconnectGoogleCalendar } = useIntegrations();
   const { toast } = useToast();
-  const [connecting, setConnecting] = useState(false);
-  const [disconnecting, setDisconnecting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const garmin = useGarmin();
   const [garminEmail, setGarminEmail] = useState("");
   const [garminPassword, setGarminPassword] = useState("");
@@ -21,26 +16,6 @@ export default function SettingsPage() {
   const [garminError, setGarminError] = useState<string | null>(null);
   const [garminDisconnecting, setGarminDisconnecting] = useState(false);
   const [n8nNotify, setN8nNotify] = useState(false);
-
-  const handleConnectGcal = async () => {
-    setConnecting(true);
-    setError(null);
-    try {
-      await connectGoogleCalendar();
-      toast("Google Calendar connected successfully");
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Connection failed";
-      if (message.includes("popup-closed")) {
-        setError("Sign-in popup was closed");
-      } else if (message.includes("user-mismatch")) {
-        setError("Please select the same Google account you used to sign in");
-      } else {
-        setError(message);
-      }
-    } finally {
-      setConnecting(false);
-    }
-  };
 
   const handleConnectGarmin = async () => {
     if (!garminEmail.trim() || !garminPassword.trim()) {
@@ -63,18 +38,6 @@ export default function SettingsPage() {
     await garmin.disconnect();
     toast("Garmin Connect disconnected", "info");
     setGarminDisconnecting(false);
-  };
-
-  const handleDisconnectGcal = async () => {
-    setDisconnecting(true);
-    try {
-      await disconnectGoogleCalendar();
-      toast("Google Calendar disconnected", "info");
-    } catch {
-      setError("Failed to disconnect");
-    } finally {
-      setDisconnecting(false);
-    }
   };
 
   return (
@@ -132,113 +95,6 @@ export default function SettingsPage() {
             Connect external services to enhance your Stride experience.
           </p>
           <div className="space-y-4">
-            {/* Google Calendar */}
-            <div
-              className="rounded-lg p-4"
-              style={{ background: "var(--bg-tertiary)" }}
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div
-                    className="flex h-10 w-10 items-center justify-center rounded-lg"
-                    style={{ background: "var(--bg-secondary)" }}
-                  >
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                      <rect x="3" y="4" width="18" height="18" rx="2" stroke="#4285F4" strokeWidth="2" />
-                      <path d="M16 2v4M8 2v4M3 10h18" stroke="#4285F4" strokeWidth="2" strokeLinecap="round" />
-                    </svg>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
-                      Google Calendar
-                    </p>
-                    {gcal.connected ? (
-                      <p className="text-xs" style={{ color: "var(--text-tertiary)" }}>
-                        {gcal.email
-                          ? `Connected as ${gcal.email}`
-                          : "Connected"}
-                        {!gcal.accessToken && " — session expired, reconnect to sync"}
-                      </p>
-                    ) : (
-                      <p className="text-xs" style={{ color: "var(--text-tertiary)" }}>
-                        Sync your schedule and see events in Stride
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  {gcal.connected ? (
-                    <>
-                      {!gcal.accessToken && (
-                        <button
-                          onClick={handleConnectGcal}
-                          disabled={connecting}
-                          className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors"
-                          style={{
-                            background: "var(--accent-bg)",
-                            color: "var(--accent)",
-                          }}
-                        >
-                          {connecting ? <Loader2 size={12} className="animate-spin" /> : <ExternalLink size={12} />}
-                          Reconnect
-                        </button>
-                      )}
-                      {gcal.accessToken && (
-                        <span
-                          className="flex items-center gap-1 text-xs font-medium px-2 py-1 rounded"
-                          style={{ color: "var(--accent)" }}
-                        >
-                          <Check size={12} />
-                          Active
-                        </span>
-                      )}
-                      <button
-                        onClick={handleDisconnectGcal}
-                        disabled={disconnecting}
-                        className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors hover:opacity-80"
-                        style={{
-                          background: "var(--bg-secondary)",
-                          color: "var(--text-secondary)",
-                          border: "1px solid var(--border-primary)",
-                        }}
-                      >
-                        {disconnecting ? <Loader2 size={12} className="animate-spin" /> : <X size={12} />}
-                        Disconnect
-                      </button>
-                    </>
-                  ) : (
-                    <button
-                      onClick={handleConnectGcal}
-                      disabled={connecting}
-                      className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium text-white transition-colors hover:opacity-90"
-                      style={{ background: "#4285F4" }}
-                    >
-                      {connecting ? (
-                        <Loader2 size={14} className="animate-spin" />
-                      ) : (
-                        <ExternalLink size={14} />
-                      )}
-                      Connect
-                    </button>
-                  )}
-                </div>
-              </div>
-              {gcal.connected && gcal.accessToken && (
-                <div className="mt-3 pt-3" style={{ borderTop: "1px solid var(--border-primary)" }}>
-                  <p className="text-xs" style={{ color: "var(--text-tertiary)" }}>
-                    Your calendar events appear on the Dashboard and Calendar page.
-                  </p>
-                </div>
-              )}
-            </div>
-
-            {error && (
-              <p className="text-xs px-1" style={{ color: "#ef4444" }}>
-                {error}
-              </p>
-            )}
-
             {/* Garmin Connect */}
             <div
               className="rounded-lg p-4"

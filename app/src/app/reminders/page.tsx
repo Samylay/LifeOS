@@ -11,10 +11,11 @@ import {
   X,
   Trash2,
   Calendar,
+  Pencil,
 } from "lucide-react";
 import { useReminders } from "@/lib/use-reminders";
 import { AREAS } from "@/lib/types";
-import type { ReminderFrequency, AreaId } from "@/lib/types";
+import type { Reminder, ReminderFrequency, AreaId } from "@/lib/types";
 
 const FREQ_LABELS: Record<ReminderFrequency, string> = {
   once: "One-time",
@@ -41,6 +42,7 @@ export default function RemindersPage() {
     loading,
     createReminder,
     completeReminder,
+    updateReminder,
     deleteReminder,
   } = useReminders();
   const [showForm, setShowForm] = useState(false);
@@ -207,7 +209,7 @@ export default function RemindersPage() {
           </div>
           <div className="space-y-2">
             {overdue.map((r) => (
-              <ReminderItem key={r.id} reminder={r} onComplete={completeReminder} onDelete={deleteReminder} isOverdue />
+              <ReminderItem key={r.id} reminder={r} onComplete={completeReminder} onUpdate={updateReminder} onDelete={deleteReminder} isOverdue />
             ))}
           </div>
         </div>
@@ -228,7 +230,7 @@ export default function RemindersPage() {
         ) : (
           <div className="space-y-2">
             {dueToday.map((r) => (
-              <ReminderItem key={r.id} reminder={r} onComplete={completeReminder} onDelete={deleteReminder} />
+              <ReminderItem key={r.id} reminder={r} onComplete={completeReminder} onUpdate={updateReminder} onDelete={deleteReminder} />
             ))}
           </div>
         )}
@@ -249,7 +251,7 @@ export default function RemindersPage() {
         ) : (
           <div className="space-y-2">
             {upcoming.map((r) => (
-              <ReminderItem key={r.id} reminder={r} onComplete={completeReminder} onDelete={deleteReminder} />
+              <ReminderItem key={r.id} reminder={r} onComplete={completeReminder} onUpdate={updateReminder} onDelete={deleteReminder} />
             ))}
           </div>
         )}
@@ -269,7 +271,7 @@ export default function RemindersPage() {
           {showCompleted && (
             <div className="space-y-2 opacity-60">
               {completed.map((r) => (
-                <ReminderItem key={r.id} reminder={r} onComplete={completeReminder} onDelete={deleteReminder} isDone />
+                <ReminderItem key={r.id} reminder={r} onComplete={completeReminder} onUpdate={updateReminder} onDelete={deleteReminder} isDone />
               ))}
             </div>
           )}
@@ -279,35 +281,177 @@ export default function RemindersPage() {
   );
 }
 
+const AREA_COLORS: Record<string, string> = {
+  teal: "#14B8A6",
+  indigo: "#6366F1",
+  amber: "#F59E0B",
+  violet: "#8B5CF6",
+  slate: "#64748B",
+};
+
+type ReminderItemShape = {
+  id: string;
+  title: string;
+  frequency: ReminderFrequency;
+  dueDate: Date;
+  time?: string;
+  area?: AreaId;
+  notes?: string;
+  completed: boolean;
+};
+
 function ReminderItem({
   reminder,
   onComplete,
+  onUpdate,
   onDelete,
   isOverdue,
   isDone,
 }: {
-  reminder: {
-    id: string;
-    title: string;
-    frequency: ReminderFrequency;
-    dueDate: Date;
-    time?: string;
-    area?: AreaId;
-    notes?: string;
-    completed: boolean;
-  };
+  reminder: ReminderItemShape;
   onComplete: (id: string) => void;
+  onUpdate: (id: string, data: Partial<Reminder>) => void;
   onDelete: (id: string) => void;
   isOverdue?: boolean;
   isDone?: boolean;
 }) {
-  const AREA_COLORS: Record<string, string> = {
-    teal: "#14B8A6",
-    indigo: "#6366F1",
-    amber: "#F59E0B",
-    violet: "#8B5CF6",
-    slate: "#64748B",
+  const [isEditing, setIsEditing] = useState(false);
+  const [title, setTitle] = useState(reminder.title);
+  const [frequency, setFrequency] = useState<ReminderFrequency>(reminder.frequency);
+  const [dueDate, setDueDate] = useState(new Date(reminder.dueDate).toISOString().split("T")[0]);
+  const [time, setTime] = useState(reminder.time || "");
+  const [area, setArea] = useState<AreaId | "">(reminder.area || "");
+  const [notes, setNotes] = useState(reminder.notes || "");
+
+  const startEditing = () => {
+    setTitle(reminder.title);
+    setFrequency(reminder.frequency);
+    setDueDate(new Date(reminder.dueDate).toISOString().split("T")[0]);
+    setTime(reminder.time || "");
+    setArea(reminder.area || "");
+    setNotes(reminder.notes || "");
+    setIsEditing(true);
   };
+
+  const handleSave = async () => {
+    if (!title.trim()) return;
+    await onUpdate(reminder.id, {
+      title: title.trim(),
+      frequency,
+      dueDate: new Date(dueDate),
+      time: time || undefined,
+      area: area || undefined,
+      notes: notes || undefined,
+    });
+    setIsEditing(false);
+  };
+
+  if (isEditing) {
+    return (
+      <div
+        className="rounded-xl p-5"
+        style={{
+          background: "var(--bg-secondary)",
+          border: "1px solid var(--accent)",
+        }}
+      >
+        <input
+          type="text"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="Reminder title..."
+          autoFocus
+          className="w-full text-base font-medium bg-transparent outline-none mb-3"
+          style={{ color: "var(--text-primary)" }}
+          onKeyDown={(e) => e.key === "Enter" && handleSave()}
+        />
+
+        <div className="flex flex-wrap gap-2 mb-3">
+          <select
+            value={frequency}
+            onChange={(e) => setFrequency(e.target.value as ReminderFrequency)}
+            className="text-xs rounded-lg px-3 py-2 outline-none"
+            style={{
+              background: "var(--bg-tertiary)",
+              color: "var(--text-primary)",
+              border: "1px solid var(--border-primary)",
+            }}
+          >
+            {Object.entries(FREQ_LABELS).map(([val, label]) => (
+              <option key={val} value={val}>{label}</option>
+            ))}
+          </select>
+          <input
+            type="date"
+            value={dueDate}
+            onChange={(e) => setDueDate(e.target.value)}
+            className="text-xs rounded-lg px-3 py-2 outline-none"
+            style={{
+              background: "var(--bg-tertiary)",
+              color: "var(--text-primary)",
+              border: "1px solid var(--border-primary)",
+            }}
+          />
+          <input
+            type="time"
+            value={time}
+            onChange={(e) => setTime(e.target.value)}
+            className="text-xs rounded-lg px-3 py-2 outline-none"
+            style={{
+              background: "var(--bg-tertiary)",
+              color: "var(--text-primary)",
+              border: "1px solid var(--border-primary)",
+            }}
+          />
+          <select
+            value={area}
+            onChange={(e) => setArea(e.target.value as AreaId | "")}
+            className="text-xs rounded-lg px-3 py-2 outline-none"
+            style={{
+              background: "var(--bg-tertiary)",
+              color: "var(--text-primary)",
+              border: "1px solid var(--border-primary)",
+            }}
+          >
+            <option value="">No area</option>
+            {Object.entries(AREAS).map(([id, a]) => (
+              <option key={id} value={id}>{a.name}</option>
+            ))}
+          </select>
+        </div>
+
+        <textarea
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          placeholder="Notes (optional)..."
+          rows={2}
+          className="w-full text-sm rounded-lg px-3 py-2 outline-none resize-none mb-3"
+          style={{
+            background: "var(--bg-tertiary)",
+            color: "var(--text-primary)",
+            border: "1px solid var(--border-primary)",
+          }}
+        />
+
+        <div className="flex justify-end gap-2">
+          <button
+            onClick={() => setIsEditing(false)}
+            className="flex items-center gap-1 text-sm px-3 py-1.5 rounded-lg"
+            style={{ color: "var(--text-secondary)" }}
+          >
+            <X size={14} />
+            Cancel
+          </button>
+          <button
+            onClick={handleSave}
+            className="text-sm px-4 py-1.5 rounded-lg bg-sage-400 text-white font-medium"
+          >
+            Save
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -374,6 +518,13 @@ function ReminderItem({
         </div>
       </div>
 
+      <button
+        onClick={startEditing}
+        className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity p-1"
+        style={{ color: "var(--text-tertiary)" }}
+      >
+        <Pencil size={14} />
+      </button>
       <button
         onClick={() => onDelete(reminder.id)}
         className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity p-1"

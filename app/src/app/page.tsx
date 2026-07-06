@@ -14,7 +14,6 @@ import Link from "next/link";
 import { useTasks } from "@/lib/use-tasks";
 import { useHabits } from "@/lib/use-habits";
 import { useReminders } from "@/lib/use-reminders";
-import { useGoogleCalendar } from "@/lib/use-google-calendar";
 import { TaskItem } from "@/components/task-list";
 import { AREAS } from "@/lib/types";
 import type { AreaId } from "@/lib/types";
@@ -44,7 +43,6 @@ export default function Dashboard() {
   const { tasks, updateTask, deleteTask } = useTasks();
   const { habits, toggleToday } = useHabits();
   const { overdue: overdueReminders, dueToday: todayReminders, completeReminder } = useReminders();
-  const { events: calEvents, hasToken: gcalHasToken } = useGoogleCalendar();
 
   const [now] = useState(() => new Date());
 
@@ -70,13 +68,6 @@ export default function Dashboard() {
   const habitsDone = todayHabits.filter((h) =>
     h.history.some((e) => e.date === todayStr && e.completed)
   ).length;
-
-  const todayEvents = gcalHasToken
-    ? calEvents
-        .filter((e) => e.start.toDateString() === new Date().toDateString())
-        .sort((a, b) => a.start.getTime() - b.start.getTime())
-    : [];
-  const nextEvent = todayEvents.find((e) => e.start.getTime() >= Date.now()) ?? todayEvents[0];
 
   const nextReminder = [...overdueReminders, ...todayReminders][0];
 
@@ -112,18 +103,6 @@ export default function Dashboard() {
             >
               {overdueReminders.length > 0 ? <AlertTriangle size={12} /> : <Bell size={12} />}
               {nextReminder.title}
-            </span>
-          )}
-          {nextEvent && (
-            <span
-              className="flex items-center gap-1.5 rounded-full px-3 py-1.5 font-medium"
-              style={{ background: "var(--bg-tertiary)", color: "var(--text-secondary)" }}
-            >
-              <Sun size={12} />
-              {nextEvent.title} ·{" "}
-              {(nextEvent as { allDay?: boolean }).allDay
-                ? "all day"
-                : nextEvent.start.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
             </span>
           )}
         </div>

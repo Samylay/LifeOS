@@ -19,19 +19,8 @@ interface FinanceAreaData {
 }
 
 const DEFAULT_FINANCE_DATA: FinanceAreaData = {
-  budgetCategories: [
-    { name: "Housing", budget: 800, spent: 800 },
-    { name: "Food & Groceries", budget: 300, spent: 245 },
-    { name: "Transport", budget: 100, spent: 78 },
-    { name: "Subscriptions", budget: 50, spent: 42 },
-    { name: "Health & Fitness", budget: 80, spent: 40 },
-    { name: "Entertainment", budget: 100, spent: 65 },
-    { name: "Other", budget: 150, spent: 90 },
-  ],
-  savingsGoals: [
-    { id: "1", name: "Emergency Fund", target: 3000, current: 1200 },
-    { id: "2", name: "Travel Fund", target: 1500, current: 450 },
-  ],
+  budgetCategories: [],
+  savingsGoals: [],
 };
 
 // --- Monthly Snapshot (Editable + Persisted) ---

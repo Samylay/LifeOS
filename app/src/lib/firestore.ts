@@ -11,7 +11,6 @@ import {
 } from "./local-db";
 import type {
   Task,
-  CalendarEvent,
   Note,
   Goal,
   Project,
@@ -33,8 +32,9 @@ import type {
   Principle,
   PrimeDay,
   PrimeSettings,
-  WeekendProject,
   LearnItem,
+  ContentIdea,
+  ContentPost,
 } from "./types";
 
 export type { QueryConstraint };
@@ -166,18 +166,6 @@ export const tasks = {
     queryDocuments<Task>(userId, "tasks", where("status", "in", ["todo", "in_progress"]), orderBy("priority")),
 };
 
-// --- Events ---
-
-export const events = {
-  create: (userId: string, data: Omit<CalendarEvent, "id">) =>
-    createDocument<CalendarEvent>(userId, "events", data),
-  get: (userId: string, id: string) => getDocument<CalendarEvent>(userId, "events", id),
-  update: (userId: string, id: string, data: Partial<CalendarEvent>) =>
-    updateDocument(userId, "events", id, data),
-  delete: (userId: string, id: string) => deleteDocument(userId, "events", id),
-  list: (userId: string, ...constraints: QueryConstraint[]) =>
-    queryDocuments<CalendarEvent>(userId, "events", ...constraints),
-};
 
 // --- Notes ---
 
@@ -410,18 +398,6 @@ export const primeSettings = {
     apiSet(`${userPath(userId, "prime")}/settings`, data as Record<string, unknown>),
 };
 
-// --- Weekend Projects ---
-
-export const weekendProjects = {
-  create: (userId: string, data: Omit<WeekendProject, "id">) =>
-    createDocument<WeekendProject>(userId, "weekendProjects", data),
-  get: (userId: string, id: string) => getDocument<WeekendProject>(userId, "weekendProjects", id),
-  update: (userId: string, id: string, data: Partial<WeekendProject>) =>
-    updateDocument(userId, "weekendProjects", id, data),
-  delete: (userId: string, id: string) => deleteDocument(userId, "weekendProjects", id),
-  list: (userId: string, ...constraints: QueryConstraint[]) =>
-    queryDocuments<WeekendProject>(userId, "weekendProjects", ...constraints),
-};
 
 // --- Things to Learn ---
 
@@ -434,4 +410,28 @@ export const learnItems = {
   delete: (userId: string, id: string) => deleteDocument(userId, "learnItems", id),
   list: (userId: string, ...constraints: QueryConstraint[]) =>
     queryDocuments<LearnItem>(userId, "learnItems", ...constraints),
+};
+
+// --- Content OS ---
+
+export const contentIdeas = {
+  create: (userId: string, data: Omit<ContentIdea, "id">) =>
+    createDocument<ContentIdea>(userId, "contentIdeas", data),
+  get: (userId: string, id: string) => getDocument<ContentIdea>(userId, "contentIdeas", id),
+  update: (userId: string, id: string, data: Partial<ContentIdea>) =>
+    updateDocument(userId, "contentIdeas", id, data),
+  delete: (userId: string, id: string) => deleteDocument(userId, "contentIdeas", id),
+  list: (userId: string, ...constraints: QueryConstraint[]) =>
+    queryDocuments<ContentIdea>(userId, "contentIdeas", ...constraints),
+};
+
+export const contentPosts = {
+  create: (userId: string, data: Omit<ContentPost, "id">) =>
+    createDocument<ContentPost>(userId, "contentPosts", data),
+  get: (userId: string, id: string) => getDocument<ContentPost>(userId, "contentPosts", id),
+  update: (userId: string, id: string, data: Partial<ContentPost>) =>
+    updateDocument(userId, "contentPosts", id, data),
+  delete: (userId: string, id: string) => deleteDocument(userId, "contentPosts", id),
+  list: (userId: string, ...constraints: QueryConstraint[]) =>
+    queryDocuments<ContentPost>(userId, "contentPosts", ...constraints),
 };

@@ -19,16 +19,8 @@ interface AdminAreaData {
 }
 
 const DEFAULT_ADMIN_DATA: AdminAreaData = {
-  recurringTasks: [
-    { id: "1", name: "Pay rent", frequency: "Monthly", nextDue: "2026-03-01" },
-    { id: "2", name: "Check bank statements", frequency: "Monthly", nextDue: "2026-02-28" },
-    { id: "3", name: "Backup important files", frequency: "Weekly", nextDue: "2026-02-22" },
-  ],
-  documents: [
-    { id: "1", name: "ID Card", location: "Wallet", expiryDate: "2028-06-15" },
-    { id: "2", name: "Passport", location: "Home safe", expiryDate: "2030-09-20" },
-    { id: "3", name: "Health Insurance Card", location: "Wallet" },
-  ],
+  recurringTasks: [],
+  documents: [],
 };
 
 // --- Recurring Tasks (Persisted) ---

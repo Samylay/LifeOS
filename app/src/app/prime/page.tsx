@@ -5,20 +5,17 @@ import {
   Sunrise,
   Check,
   Volume2,
-  Mic,
   Play,
   Pause,
   RotateCcw,
   Settings2,
   Plus,
   Trash2,
-  Lock,
 } from "lucide-react";
 import { usePrime } from "@/lib/use-prime";
 import { useToast } from "@/components/toast";
 import {
   PRIME_TIMER_FLOORS,
-  PRIME_CAPTURE_ENABLED,
   type AffirmationType,
 } from "@/lib/types";
 
@@ -435,24 +432,6 @@ export default function PrimePage() {
             >
               <Check size={15} /> {step2Done ? "Answered" : "I answered it"}
             </button>
-          </section>
-
-          {/* Step 3 — Capture (deferred / stubbed) */}
-          <section className="rounded-xl p-5 opacity-70" style={{ background: "var(--bg-secondary)", border: "1px dashed var(--border-primary)" }}>
-            <StepHeader n={3} title="Capture" hint="Record the answer for transcription & the fluency metric." />
-            <div className="flex items-center gap-3">
-              <button
-                disabled
-                className="flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium cursor-not-allowed"
-                style={{ background: "var(--bg-tertiary)", color: "var(--text-tertiary)" }}
-              >
-                <Mic size={15} /> Record
-              </button>
-              <span className="flex items-center gap-1.5 text-xs" style={{ color: "var(--text-tertiary)" }}>
-                <Lock size={12} />
-                {PRIME_CAPTURE_ENABLED ? "Ready" : "Coming soon — waiting on the Hermes endpoint."}
-              </span>
-            </div>
           </section>
 
           {/* Completion / reset */}
