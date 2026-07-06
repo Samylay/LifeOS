@@ -34,6 +34,10 @@ services:
       # Prometheus (monitoring stack) for the /status host vitals — reached by
       # service name over the shared monitoring network (declared below).
       PROM_URL: "http://prometheus:9090"
+      # Morning brief: aggregator output (mounted below) + host whisper service
+      # for prompt-card voice notes.
+      BRIEF_PATH: "/brief/brief.json"
+      WHISPER_URL: "http://host.docker.internal:8091"
     networks:
       - default
       - monitoring
@@ -44,6 +48,8 @@ services:
       - lifeos-data:/data
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /home/quorky/.hermes:/hermes:ro
+      # Morning brief written by ~/services/brief (brief.timer, 06:00).
+      - /home/quorky/services/brief/out:/brief:ro
       - /home/quorky/vault/obsidian:/vault
       # Claude CLI auth/config (container runs as root → /root/.claude).
       - /home/quorky/.claude:/root/.claude
