@@ -1,6 +1,7 @@
 import OpenAI from "openai";
 import { NextRequest, NextResponse } from "next/server";
 import { getOllamaClient, OLLAMA_MODEL } from "@/lib/ollama";
+import { claudeCliEnabled, generateJson } from "@/lib/claude-cli";
 
 const SYSTEM_PROMPT = `You are a helpful assistant embedded inside Stride, a personal productivity app. The user is a triathlete, developer, and business manager — fueling and nutrition logistics matter for his training, but this app does NOT track calories or macros, only groceries/recipes/meal planning. The user may paste raw text (e.g. from Notion, notes, or brain dumps) and you should extract actionable items from it. He may also speak commands via voice — voice transcripts can be short and imperative (e.g. "add eggs and oats to the grocery list", "mark laundry done", "plan chicken stir fry for dinner Wednesday").
 
@@ -295,8 +296,6 @@ export async function POST(req: NextRequest) {
   try {
     const { messages, context } = await req.json();
 
-    const client = getOllamaClient();
-
     // Build system prompt with context
     let systemPrompt = SYSTEM_PROMPT;
     if (context) {
@@ -316,6 +315,41 @@ export async function POST(req: NextRequest) {
       systemPrompt += `\nToday's date: ${new Date().toISOString().split("T")[0]}\n`;
       systemPrompt += `Avoid creating duplicates of existing items.`;
     }
+
+    // Claude Code CLI path: `claude -p` has no native OpenAI-style function
+    // calling, so we describe the tool catalog in the prompt and ask Claude to
+    // return the same { reply, actions } envelope the frontend already consumes
+    // (use-chat.ts → executeActions maps each { tool, input }).
+    if (claudeCliEnabled()) {
+      const toolCatalog = tools
+        .filter((t): t is OpenAI.ChatCompletionFunctionTool => t.type === "function")
+        .map((t) => t.function);
+      const convo = messages
+        .map((m: { role: string; content: string }) => `${m.role.toUpperCase()}: ${m.content}`)
+        .join("\n\n");
+
+      const prompt = [
+        systemPrompt,
+        "",
+        "You can act in the app by emitting tool calls. Available tools (JSON schema):",
+        JSON.stringify(toolCatalog, null, 2),
+        "",
+        "Conversation so far:",
+        convo,
+        "",
+        "Respond with ONLY a JSON object of this exact shape — no markdown, no prose outside it:",
+        `{"reply": "<short natural-language summary for the user>", "actions": [{"tool": "<tool name>", "input": { ...args matching that tool's schema }}]}`,
+        "Put every action you want to take in `actions`. If no tool is needed (a question or normal chat), return an empty `actions` array and put your full answer in `reply`.",
+      ].join("\n");
+
+      const envelope = await generateJson<{ reply?: string; actions?: ChatAction[] }>(prompt);
+      const reply = typeof envelope.reply === "string" ? envelope.reply : "";
+      const actions = Array.isArray(envelope.actions) ? envelope.actions : [];
+      return NextResponse.json({ reply, actions });
+    }
+
+    // ── Ollama fallback: native OpenAI-style tool-calling loop ────────────────
+    const client = getOllamaClient();
 
     // Convert messages to API format
     const openaiMessages: OpenAI.ChatCompletionMessageParam[] = [

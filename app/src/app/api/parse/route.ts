@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getOllamaClient, OLLAMA_MODEL } from "@/lib/ollama";
+import { claudeCliEnabled, generateJson } from "@/lib/claude-cli";
 
 const SYSTEM_PROMPT = `You are a high-precision productivity data extractor for Stride, a personal productivity app.
 Your goal is to parse natural language "quick capture" text into structured data.
@@ -50,6 +51,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing text input" }, { status: 400 });
     }
 
+    if (claudeCliEnabled()) {
+      const parsed = await generateJson(
+        `${SYSTEM_PROMPT}\n\nParse this: "${text}"`
+      );
+      return NextResponse.json(parsed);
+    }
+
     const client = getOllamaClient();
 
     const response = await client.chat.completions.create({
@@ -72,7 +80,7 @@ export async function POST(req: NextRequest) {
   } catch (error: any) {
     console.error("Parse API error:", error);
     return NextResponse.json(
-      { error: "Failed to parse text. Is Ollama running?", details: error.message },
+      { error: "Failed to parse text. Check the Claude CLI (or Ollama if GEN_PROVIDER=ollama).", details: error.message },
       { status: 500 }
     );
   }

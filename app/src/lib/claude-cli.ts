@@ -43,6 +43,21 @@ function extractJson<T>(text: string): T {
   return JSON.parse(slice) as T;
 }
 
+/** Run one `claude -p` query and return the raw assistant text. */
+export async function generateText(prompt: string): Promise<string> {
+  return runClaude(prompt);
+}
+
+/**
+ * Run one `claude -p` query and parse a single JSON value out of the response.
+ * The prompt should instruct Claude to reply with JSON only; this tolerates
+ * stray prose or ```json fences around it.
+ */
+export async function generateJson<T>(prompt: string): Promise<T> {
+  const text = await runClaude(prompt);
+  return extractJson<T>(text);
+}
+
 export interface GoalDraft {
   outcome: string; // refined definition of done
   milestones: string[]; // ~quarter-level steps

@@ -1,16 +1,19 @@
 # LifeOS App — Setup Guide
 
-LifeOS is fully self-hosted: data lives in a local **SQLite** file and the AI
-features run against a local **Ollama** instance. There are no cloud accounts,
-no API keys, and no login (single-user).
+LifeOS is self-hosted: data lives in a local **SQLite** file and the AI
+features (chat / parse / brief / goal-drafting) run through the **Claude Code
+CLI** (`claude -p`) by default, with a local **Ollama** instance as the
+fallback backend. There are no per-token API bills and no login (single-user).
 
 ## Prerequisites
 
 - Node.js 20+ and npm (for local dev), or Docker + Docker Compose (to serve)
-- [Ollama](https://ollama.com) running locally, with a tool-capable model pulled:
-  ```bash
-  ollama pull qwen2.5:7b
-  ```
+- The default AI backend (`GEN_PROVIDER=claude-cli`): the
+  [Claude Code CLI](https://docs.claude.com/en/docs/claude-code) installed, plus
+  a `CLAUDE_CODE_OAUTH_TOKEN` from `claude setup-token` (a standalone `claude -p`
+  can't use a mounted `~/.claude` — it reports "Not logged in").
+- Fallback backend (`GEN_PROVIDER=ollama`): [Ollama](https://ollama.com) running
+  locally with a tool-capable model pulled (`ollama pull qwen2.5:7b`).
 
 ## Quick Start (local dev)
 
@@ -30,8 +33,11 @@ All optional — sensible defaults are baked in. See `.env.local.example`.
 | Variable | Default | Purpose |
 |----------|---------|---------|
 | `LIFEOS_DB_PATH` | `./data/lifeos.db` | SQLite database file location |
-| `OLLAMA_BASE_URL` | `http://127.0.0.1:11434` | Ollama server URL |
-| `OLLAMA_MODEL` | `qwen2.5:7b` | Model used for chat / parse / brief |
+| `GEN_PROVIDER` | `claude-cli` | AI backend: `claude-cli` (default) or `ollama` |
+| `CLAUDE_CLI_MODEL` | `sonnet` | Model for the `claude -p` path |
+| `CLAUDE_CODE_OAUTH_TOKEN` | — | Auth for `claude -p` (from `claude setup-token`) |
+| `OLLAMA_BASE_URL` | `http://127.0.0.1:11434` | Ollama server URL (fallback only) |
+| `OLLAMA_MODEL` | `qwen2.5:7b` | Ollama model for chat / parse / brief (fallback) |
 
 ## Data Model
 

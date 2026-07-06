@@ -311,7 +311,7 @@ export function useChat() {
             content = "The local model is busy. Please wait a moment and try again.";
             break;
           default:
-            content = `Something went wrong: ${err instanceof Error ? err.message : "Unknown error"}. Make sure Ollama is running and OLLAMA_MODEL is pulled.`;
+            content = `Something went wrong: ${err instanceof Error ? err.message : "Unknown error"}. Check that the Claude CLI is reachable (or Ollama, if GEN_PROVIDER=ollama).`;
         }
 
         const errorMsg: ChatMessage = {
