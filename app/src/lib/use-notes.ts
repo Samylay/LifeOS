@@ -1,87 +1,30 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { collection, onSnapshot, query, orderBy } from "@/lib/local-db";
-import { db, isConfigured } from "./firebase";
-import { notes as notesApi } from "./firestore";
-import type { Note, AreaId } from "./types";
-import { useAuth } from "./auth-context";
-
-let localIdCounter = 0;
+import { useCallback } from "react";
+import { useCollection } from "./use-collection";
+import type { Note } from "./types";
 
 export function useNotes() {
-  const { user, isFirebaseConfigured } = useAuth();
-  const [notes, setNotes] = useState<Note[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (!isFirebaseConfigured || !user || !db) {
-      setLoading(false);
-      return;
-    }
-
-    const q = query(
-      collection(db, `users/${user.uid}/notes`),
-      orderBy("createdAt", "desc")
-    );
-
-    const unsubscribe = onSnapshot(q, (snap) => {
-      const items = snap.docs.map((doc) => {
-        const data = doc.data();
-        return {
-          ...data,
-          id: doc.id,
-          createdAt: data.createdAt?.toDate?.() || new Date(),
-        } as Note;
-      });
-      setNotes(items);
-      setLoading(false);
-    });
-
-    return unsubscribe;
-  }, [user, isFirebaseConfigured]);
+  const { items: notes, loading, create, update, remove } = useCollection<Note>(
+    "notes",
+    { orderByField: "createdAt", orderDir: "desc", fallbackDates: ["createdAt"] }
+  );
 
   const createNote = useCallback(
     async (data: Omit<Note, "id" | "createdAt">) => {
-      const now = new Date();
-      if (isFirebaseConfigured && user) {
-        return await notesApi.create(user.uid, { ...data, createdAt: now });
-      } else {
-        const newNote: Note = {
-          ...data,
-          id: `local-note-${++localIdCounter}`,
-          createdAt: now,
-        };
-        setNotes((prev) => [newNote, ...prev]);
-        return newNote.id;
-      }
+      return await create({ ...data, createdAt: new Date() });
     },
-    [user, isFirebaseConfigured]
+    [create]
   );
 
   const updateNote = useCallback(
     async (id: string, data: Partial<Note>) => {
-      if (isFirebaseConfigured && user) {
-        await notesApi.update(user.uid, id, data);
-      } else {
-        setNotes((prev) =>
-          prev.map((n) => (n.id === id ? { ...n, ...data } : n))
-        );
-      }
+      await update(id, data);
     },
-    [user, isFirebaseConfigured]
+    [update]
   );
 
-  const deleteNote = useCallback(
-    async (id: string) => {
-      if (isFirebaseConfigured && user) {
-        await notesApi.delete(user.uid, id);
-      } else {
-        setNotes((prev) => prev.filter((n) => n.id !== id));
-      }
-    },
-    [user, isFirebaseConfigured]
-  );
+  const deleteNote = useCallback(async (id: string) => remove(id), [remove]);
 
   return { notes, loading, createNote, updateNote, deleteNote };
 }

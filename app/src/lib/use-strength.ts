@@ -1,13 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { collection, onSnapshot, query, orderBy } from "@/lib/local-db";
-import { db } from "./firebase";
-import { strengthFocuses as api } from "./firestore";
+import { useCallback } from "react";
+import { useCollection } from "./use-collection";
 import type { StrengthFocus } from "./types";
-import { useAuth } from "./auth-context";
-
-let localIdCounter = 0;
 
 // Default focus queue, seeded on first run. Ordered: foundational work first,
 // plyometrics on top of a built core, shoulders/back last. All in service of
@@ -54,84 +49,32 @@ const SEED_FOCUSES: Omit<StrengthFocus, "id" | "createdAt" | "updatedAt">[] = [
   },
 ];
 
+const FOCUS_DEFAULTS: Partial<StrengthFocus> = { log: [] };
+
 export function useStrength() {
-  const { user, isFirebaseConfigured } = useAuth();
-  const [focuses, setFocuses] = useState<StrengthFocus[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (!isFirebaseConfigured || !user || !db) {
-      setLoading(false);
-      return;
-    }
-
-    const q = query(
-      collection(db, `users/${user.uid}/strengthFocuses`),
-      orderBy("order", "asc")
-    );
-
-    const unsubscribe = onSnapshot(q, (snap) => {
-      const data = snap.docs.map((doc) => {
-        const d = doc.data();
-        return {
-          ...d,
-          id: doc.id,
-          buildStarted: d.buildStarted?.toDate?.() || undefined,
-          createdAt: d.createdAt?.toDate?.() || new Date(),
-          updatedAt: d.updatedAt?.toDate?.() || new Date(),
-          log: (d.log || []).map((e: { date: { toDate?: () => Date } | Date }) => ({
-            date: (e.date as { toDate?: () => Date })?.toDate?.() || new Date(e.date as Date),
-          })),
-        } as StrengthFocus;
-      });
-      setFocuses(data);
-      setLoading(false);
+  const { items: focuses, loading, create, update, remove } =
+    useCollection<StrengthFocus>("strengthFocuses", {
+      orderByField: "order",
+      orderDir: "asc",
+      defaults: FOCUS_DEFAULTS,
     });
-
-    return unsubscribe;
-  }, [user, isFirebaseConfigured]);
 
   const createFocus = useCallback(
     async (data: Omit<StrengthFocus, "id" | "createdAt" | "updatedAt">) => {
       const now = new Date();
-      if (isFirebaseConfigured && user) {
-        return await api.create(user.uid, { ...data, createdAt: now, updatedAt: now });
-      } else {
-        const newFocus: StrengthFocus = {
-          ...data,
-          id: `local-strength-${++localIdCounter}`,
-          createdAt: now,
-          updatedAt: now,
-        };
-        setFocuses((prev) => [...prev, newFocus].sort((a, b) => a.order - b.order));
-        return newFocus.id;
-      }
+      return await create({ ...data, createdAt: now, updatedAt: now });
     },
-    [user, isFirebaseConfigured]
+    [create]
   );
 
   const updateFocus = useCallback(
     async (id: string, data: Partial<StrengthFocus>) => {
-      const patch = { ...data, updatedAt: new Date() };
-      if (isFirebaseConfigured && user) {
-        await api.update(user.uid, id, patch);
-      } else {
-        setFocuses((prev) => prev.map((f) => (f.id === id ? { ...f, ...patch } : f)));
-      }
+      await update(id, { ...data, updatedAt: new Date() });
     },
-    [user, isFirebaseConfigured]
+    [update]
   );
 
-  const deleteFocus = useCallback(
-    async (id: string) => {
-      if (isFirebaseConfigured && user) {
-        await api.delete(user.uid, id);
-      } else {
-        setFocuses((prev) => prev.filter((f) => f.id !== id));
-      }
-    },
-    [user, isFirebaseConfigured]
-  );
+  const deleteFocus = useCallback(async (id: string) => remove(id), [remove]);
 
   // Append a dated session to a focus's log (optimistic; rewrites the array).
   const logSession = useCallback(

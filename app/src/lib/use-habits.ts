@@ -1,82 +1,32 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { collection, onSnapshot, query } from "@/lib/local-db";
-import { db, isConfigured } from "./firebase";
-import { habits as habitsApi } from "./firestore";
+import { useCallback } from "react";
+import { useCollection } from "./use-collection";
 import type { Habit, AreaId } from "./types";
-import { useAuth } from "./auth-context";
-
-let localIdCounter = 0;
 
 export interface HabitWithArea extends Habit {
   area?: AreaId;
 }
 
 export function useHabits() {
-  const { user, isFirebaseConfigured } = useAuth();
-  const [habits, setHabits] = useState<HabitWithArea[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (!isFirebaseConfigured || !user || !db) {
-      setLoading(false);
-      return;
-    }
-
-    const q = query(collection(db, `users/${user.uid}/habits`));
-
-    const unsubscribe = onSnapshot(q, (snap) => {
-      const items = snap.docs.map((doc) => {
-        const data = doc.data();
-        return { ...data, id: doc.id } as HabitWithArea;
-      });
-      setHabits(items);
-      setLoading(false);
-    });
-
-    return unsubscribe;
-  }, [user, isFirebaseConfigured]);
+  const { items: habits, loading, create, update, remove } =
+    useCollection<HabitWithArea>("habits", { fallbackDates: [] });
 
   const createHabit = useCallback(
     async (data: Omit<HabitWithArea, "id">) => {
-      if (isFirebaseConfigured && user) {
-        return await habitsApi.create(user.uid, data);
-      } else {
-        const newHabit: HabitWithArea = {
-          ...data,
-          id: `local-habit-${++localIdCounter}`,
-        };
-        setHabits((prev) => [...prev, newHabit]);
-        return newHabit.id;
-      }
+      return await create(data);
     },
-    [user, isFirebaseConfigured]
+    [create]
   );
 
   const updateHabit = useCallback(
     async (id: string, data: Partial<HabitWithArea>) => {
-      if (isFirebaseConfigured && user) {
-        await habitsApi.update(user.uid, id, data);
-      } else {
-        setHabits((prev) =>
-          prev.map((h) => (h.id === id ? { ...h, ...data } : h))
-        );
-      }
+      await update(id, data);
     },
-    [user, isFirebaseConfigured]
+    [update]
   );
 
-  const deleteHabit = useCallback(
-    async (id: string) => {
-      if (isFirebaseConfigured && user) {
-        await habitsApi.delete(user.uid, id);
-      } else {
-        setHabits((prev) => prev.filter((h) => h.id !== id));
-      }
-    },
-    [user, isFirebaseConfigured]
-  );
+  const deleteHabit = useCallback(async (id: string) => remove(id), [remove]);
 
   const toggleToday = useCallback(
     async (id: string) => {

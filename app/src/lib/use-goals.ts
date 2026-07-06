@@ -1,12 +1,9 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { collection, onSnapshot, query, orderBy } from "@/lib/local-db";
-import { db } from "./firebase";
-import { goals as api } from "./firestore";
+import { useCallback } from "react";
+import { useCollection } from "./use-collection";
 import type { Goal, GoalCommitment } from "./types";
 import { quarterOf, mondayOf } from "./types";
-import { useAuth } from "./auth-context";
 
 interface GoalDraftApplied {
   outcome: string;
@@ -17,38 +14,17 @@ interface GoalDraftApplied {
 let localId = 0;
 const cid = () => `c-${Date.now().toString(36)}-${++localId}`;
 
-export function useGoals() {
-  const { user, isFirebaseConfigured } = useAuth();
-  const [goals, setGoals] = useState<Goal[]>([]);
-  const [loading, setLoading] = useState(true);
+const GOAL_DEFAULTS: Partial<Goal> = {
+  milestones: [],
+  commitments: [],
+  sessions: [],
+};
 
-  useEffect(() => {
-    if (!isFirebaseConfigured || !user || !db) {
-      setLoading(false);
-      return;
-    }
-    const q = query(
-      collection(db, `users/${user.uid}/objectives`),
-      orderBy("createdAt", "desc")
-    );
-    const unsub = onSnapshot(q, (snap) => {
-      const items = snap.docs.map((doc) => {
-        const d = doc.data();
-        return {
-          ...d,
-          id: doc.id,
-          milestones: d.milestones || [],
-          commitments: d.commitments || [],
-          sessions: d.sessions || [],
-          createdAt: d.createdAt?.toDate?.() || new Date(),
-          updatedAt: d.updatedAt?.toDate?.() || new Date(),
-        } as Goal;
-      });
-      setGoals(items);
-      setLoading(false);
-    });
-    return unsub;
-  }, [user, isFirebaseConfigured]);
+export function useGoals() {
+  const { items: goals, loading, create, update, remove } = useCollection<Goal>(
+    "objectives",
+    { orderByField: "createdAt", orderDir: "desc", defaults: GOAL_DEFAULTS }
+  );
 
   const createGoal = useCallback(
     async (data: Pick<Goal, "title"> & Partial<Goal>) => {
@@ -65,38 +41,19 @@ export function useGoals() {
         createdAt: now,
         updatedAt: now,
       };
-      if (isFirebaseConfigured && user) {
-        return await api.create(user.uid, goal);
-      }
-      const local: Goal = { ...goal, id: `local-goal-${++localId}` };
-      setGoals((prev) => [local, ...prev]);
-      return local.id;
+      return await create(goal);
     },
-    [user, isFirebaseConfigured]
+    [create]
   );
 
   const updateGoal = useCallback(
     async (id: string, data: Partial<Goal>) => {
-      const patch = { ...data, updatedAt: new Date() };
-      if (isFirebaseConfigured && user) {
-        await api.update(user.uid, id, patch);
-      } else {
-        setGoals((prev) => prev.map((g) => (g.id === id ? { ...g, ...patch } : g)));
-      }
+      await update(id, { ...data, updatedAt: new Date() });
     },
-    [user, isFirebaseConfigured]
+    [update]
   );
 
-  const deleteGoal = useCallback(
-    async (id: string) => {
-      if (isFirebaseConfigured && user) {
-        await api.delete(user.uid, id);
-      } else {
-        setGoals((prev) => prev.filter((g) => g.id !== id));
-      }
-    },
-    [user, isFirebaseConfigured]
-  );
+  const deleteGoal = useCallback(async (id: string) => remove(id), [remove]);
 
   // --- Commitments (weekly layer) ---
 

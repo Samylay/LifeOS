@@ -96,9 +96,9 @@ async function apiDelete(fullPath: string): Promise<void> {
   await fetch(`/api/data/${fullPath}`, { method: "DELETE" });
 }
 
-// --- Generic CRUD ---
+// --- Generic CRUD (also consumed by the useCollection hook factory) ---
 
-function createDocument<T extends { id?: string }>(
+export function createDocument<T extends { id?: string }>(
   userId: string,
   collectionPath: string,
   data: Omit<T, "id">
@@ -114,7 +114,7 @@ function getDocument<T>(
   return apiGetDoc<T>(`${userPath(userId, collectionPath)}/${docId}`);
 }
 
-function updateDocument(
+export function updateDocument(
   userId: string,
   collectionPath: string,
   docId: string,
@@ -123,7 +123,7 @@ function updateDocument(
   return apiUpdate(`${userPath(userId, collectionPath)}/${docId}`, data);
 }
 
-function deleteDocument(
+export function deleteDocument(
   userId: string,
   collectionPath: string,
   docId: string
