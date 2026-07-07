@@ -21,12 +21,12 @@
 - [ ] **T06 — Harden server-db writes** (S) — `src/lib/server-db.ts` opens SQLite with WAL but no `busy_timeout`, and any multi-doc write paths run as separate implicit transactions. Add `pragma busy_timeout = 5000`, and wrap any loop-of-writes in `db.transaction(...)`. Behavior must be identical; no schema changes, no touching the live DB file. Verify: T01's server-db tests still green, typecheck, rebuild, redeploy, create+edit a task via the UI/API smoke.
 - [ ] **T07 — Unused-export sweep** (M) — run `npx knip` (or `ts-prune`) in `app/`, review the report, and delete only exports/files that are provably unreferenced AND not part of an intentional fallback (Ollama paths, `use-collection` factory surface stay). Blindspot pass mandatory: check the autoloop memory log for anything previously flagged as deliberate before cutting. Verify: typecheck, rebuild, redeploy, smoke every route whose files were touched.
 
-- [ ] **T08 — Training: records view** (M) — port the personal-records section from the retired `~/dashboards/strava-dashboard` (`app/records/page.tsx`) into the /workouts analytics area, computing bests from `/api/strava/activities` rows with `src/lib/training/stats.ts` (kpis/streak already ported; distance PRs from summary rows only — streams are NOT synced, skip stream-based efforts). Verify: typecheck, `npm test` green, rebuild, redeploy, /workouts 200 and shows the records block with real data.
-- [ ] **T09 — Training: weekly trends + rolling average chart** (M) — port trends (`app/trends/page.tsx`, `weeklyBuckets`/`rollingAverage`) into the /workouts analytics area. Reuse the app's existing chart approach (see components/training-analytics.tsx) — do NOT add a chart library. Verify: typecheck, test, rebuild, redeploy, /workouts 200 with the trends chart rendering non-empty buckets.
-- [ ] **T10 — Training: pace/HR distributions** (S) — port `paceHistogram`/`hrHistogram` rendering from `app/distributions/page.tsx`. Same chart-approach constraint as T09. Verify: typecheck, test, rebuild, redeploy, /workouts 200.
-- [ ] **T11 — Training: period comparison** (S) — port `comparePeriods` UI (`app/compare/page.tsx`): this period vs previous, per sport. Verify: typecheck, test, rebuild, redeploy, /workouts 200.
-- [ ] **T12 — Training: sport breakdown + calendar heatmap** (M) — port `sportBreakdown` and the activity-days heatmap (`components/heatmap.tsx` — reimplement with CSS grid, do NOT add react-calendar-heatmap). Verify: typecheck, test, rebuild, redeploy, /workouts 200.
-- [ ] **T13 — NEEDS-SAMY: per-activity detail (map + streams)** (L) — the dashboard's activity/[id] view needs polyline maps (leaflet) and activity streams, which LifeOS does not sync; decide whether to extend strava-sync to fetch streams + add leaflet, or drop the feature. Samy decides scope before any executor touches it.
+- [x] **T08 — Training: records view** (M) — port the personal-records section from the retired `~/dashboards/strava-dashboard` (`app/records/page.tsx`) into the /workouts analytics area, computing bests from `/api/strava/activities` rows with `src/lib/training/stats.ts` (kpis/streak already ported; distance PRs from summary rows only — streams are NOT synced, skip stream-based efforts). Verify: typecheck, `npm test` green, rebuild, redeploy, /workouts 200 and shows the records block with real data. *(2026-07-07, session: already covered — TrainingAnalytics' Records section predated the merge; streak chip added via ported stats)*
+- [x] **T09 — Training: weekly trends + rolling average chart** (M) — port trends (`app/trends/page.tsx`, `weeklyBuckets`/`rollingAverage`) into the /workouts analytics area. Reuse the app's existing chart approach (see components/training-analytics.tsx) — do NOT add a chart library. Verify: typecheck, test, rebuild, redeploy, /workouts 200 with the trends chart rendering non-empty buckets. *(2026-07-07, session: already covered — 12-week stacked trend chart predated the merge)*
+- [x] **T10 — Training: pace/HR distributions** (S) — port `paceHistogram`/`hrHistogram` rendering from `app/distributions/page.tsx`. Same chart-approach constraint as T09. Verify: typecheck, test, rebuild, redeploy, /workouts 200. *(2026-07-07, session: done in session — pace/HR histograms shipped in training-insights.tsx)*
+- [x] **T11 — Training: period comparison** (S) — port `comparePeriods` UI (`app/compare/page.tsx`): this period vs previous, per sport. Verify: typecheck, test, rebuild, redeploy, /workouts 200. *(2026-07-07, session: done in session — 30d-vs-previous compare tiles shipped in training-insights.tsx)*
+- [x] **T12 — Training: sport breakdown + calendar heatmap** (M) — port `sportBreakdown` and the activity-days heatmap (`components/heatmap.tsx` — reimplement with CSS grid, do NOT add react-calendar-heatmap). Verify: typecheck, test, rebuild, redeploy, /workouts 200. *(2026-07-07, session: sport breakdown already covered (This Year table); heatmap DROPPED per Samy)*
+- [x] ~~**T13 — per-activity detail (map + streams)**~~ *(2026-07-07: DROPPED per Samy — no leaflet, no stream sync)*
 
 ## Log
 
@@ -47,3 +47,13 @@
   second voice pathway that leaked audio to Google.
   **Quiz:** (1) How do you input to the assistant panel now? (2) What happens
   at /privacy? (3) Which import path do use-prime/use-mealplan use for db?
+
+- **2026-07-07 (strava merge round 2, session):** Samy dropped the heatmap + leaflet
+  scope and asked for the rest now. Audit showed TrainingAnalytics already had
+  records/trends/year-breakdown, so the real gaps were ported into a new
+  `training-insights.tsx`: 30-days-vs-previous compare tiles (comparePeriods),
+  run-pace + avg-HR histograms (paceHistogram/hrHistogram), and a streak chip
+  (currentStreak) — all from `src/lib/training/stats.ts`, recharts only, no
+  new deps. tsc clean, 17/17 tests, rebuilt, redeployed, /workouts 200 with
+  live data. The retired dashboard repo is now fully harvested and can be
+  archived whenever.

@@ -42,6 +42,7 @@ import {
   isoWeekStart,
   activityDate,
 } from "./training-stats";
+import TrainingInsights from "./training-insights";
 
 const SPORT_ICONS: Record<SportBucket, React.ComponentType<{ size?: number; style?: React.CSSProperties }>> = {
   swim: Waves,
@@ -495,6 +496,9 @@ export default function TrainingAnalytics() {
           )}
         </div>
       </section>
+
+      {/* 6-7. Compare + distributions (ported from strava-dashboard) */}
+      <TrainingInsights rows={rows} />
     </div>
   );
 }
