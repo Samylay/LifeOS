@@ -25,6 +25,7 @@ import {
   Coffee,
   GraduationCap,
   Clapperboard,
+  BellRing,
 } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 
@@ -76,6 +77,7 @@ const NAV_GROUPS = [
 ];
 
 const BOTTOM_ITEMS = [
+  { href: "/pager", label: "Pager", icon: BellRing },
   { href: "/status", label: "Status", icon: Gauge },
   { href: "/settings", label: "Settings", icon: Settings },
 ];

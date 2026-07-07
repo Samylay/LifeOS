@@ -42,6 +42,12 @@ services:
       OBJECTIVES_DIR: "/objectives"
       BRIEF_PATH: "/brief/brief.json"
       WHISPER_URL: "http://host.docker.internal:8091"
+      # Pager push arm: self-hosted ntfy (~/infra/ntfy), reached via the host
+      # tailscale IP (docker-proxy binds it there; host.docker.internal maps
+      # to the bridge gateway, where nothing listens). Click opens /pager.
+      NTFY_URL: "http://100.124.149.101:8096"
+      NTFY_TOPIC: "homelab"
+      PAGER_CLICK_URL: "https://homelab.tail069527.ts.net/pager"
     networks:
       - default
       - monitoring

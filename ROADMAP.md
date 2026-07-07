@@ -57,3 +57,10 @@
   new deps. tsc clean, 17/17 tests, rebuilt, redeployed, /workouts 200 with
   live data. The retired dashboard repo is now fully harvested and can be
   archived whenever.
+
+## Pager (homelab notification hub — shipped 2026-07-07: /pager + /api/notify + ntfy push)
+
+- [ ] **T14 — Pager retention** (S) — prune pager messages: read messages older than 30 days and `system`-stream heartbeats older than 7 days get deleted server-side (add to the `/api/notify` POST handler as an opportunistic sweep, or a tiny GET /api/notify?prune=1 hit by the heartbeat cron — pick the simpler; no new cron). Verify: typecheck, rebuild, redeploy; insert a fake old doc via `/api/data`, trigger, confirm gone; /pager 200.
+- [ ] **T15 — Pager unread badge in sidebar** (S) — show the unread count on the Pager entry in `sidebar.tsx` (reuse the pill style from /pager; live via `useNotifications`). Verify: typecheck, rebuild, redeploy, /pager 200, badge visible with an unread message present.
+- [ ] **T16 — Pager actions v1: ack** (M) — messages gain an optional `actions` field on ingest (`[{label, kind:"ack"}]` only for now); /pager renders the button; "ack" = markRead + append `acked <date>` to the body. NO arbitrary shell/webhook execution — that design is NEEDS-SAMY (see T17). Verify: typecheck, rebuild, redeploy, post a message with an ack action, click it, state persists.
+- [ ] **T17 — NEEDS-SAMY: action dispatcher design + RN companion accounts** (M) — two decisions before the pager can replace Telegram fully: (1) action buttons that touch homelab state (adopt compost proposal, rm strikes) need a dispatcher with a signed-verb allowlist — approve the verb list; (2) the React Native companion (Expo + expo-notifications + share-intent) needs Samy's Google account for FCM and $99/yr Apple dev for iOS push — until then Android push runs via the ntfy app (zero accounts). Decide, then split into executor tasks.
