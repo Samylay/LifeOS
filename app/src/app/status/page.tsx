@@ -4,8 +4,10 @@ import { useEffect, useState, useCallback } from "react";
 import { Activity, Cpu, MemoryStick, HardDrive, Boxes, ExternalLink, Sparkles, RefreshCw } from "lucide-react";
 
 // Grafana for deep dives. Reachable once it has a Cloudflare route (pending the
-// tunnel-token refresh); override with NEXT_PUBLIC_GRAFANA_URL.
-const GRAFANA_URL = process.env.NEXT_PUBLIC_GRAFANA_URL || "https://grafana.samylayaida.com";
+// tunnel-token refresh); override the base with NEXT_PUBLIC_GRAFANA_URL.
+// Links straight to the provisioned Homelab dashboard rather than the Grafana home.
+const GRAFANA_BASE = (process.env.NEXT_PUBLIC_GRAFANA_URL || "https://grafana.samylayaida.com").replace(/\/$/, "");
+const GRAFANA_URL = `${GRAFANA_BASE}/d/homelab/homelab`;
 
 interface HostMetrics {
   enabled: boolean;
