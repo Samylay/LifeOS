@@ -7,13 +7,15 @@ import type { PromptBody } from "@/lib/brief-types";
 type RecState = "idle" | "recording" | "transcribing" | "review" | "saving" | "done" | "error";
 
 /**
- * The one bidirectional card: shows the rotating prompt, records voice via
- * MediaRecorder, POSTs the audio to /api/voice which transcribes it (local
- * Whisper on the host). The transcript is shown for editing before the user
- * confirms — /api/voice/save then appends the final text to the dated vault
- * inbox note.
+ * The one bidirectional card: ALL of today's prompts (morning prompt +
+ * objective continuity questions) as a single "things to talk about" list,
+ * with ONE recorder. The whole take is saved as a `talk-session` entry;
+ * classify.py splits the transcript across the listed topics and routes each
+ * segment (objective logs / ideas / content candidates). Answering by Telegram
+ * voice note lands in the same pipeline — this card and the bot are the only
+ * two mouths of one funnel.
  */
-export function PromptCard({ body, date }: { body: PromptBody; date: string }) {
+export function TalkCard({ prompts, date }: { prompts: PromptBody[]; date: string }) {
   const [state, setState] = useState<RecState>("idle");
   const [transcript, setTranscript] = useState<string | null>(null);
   const [editedText, setEditedText] = useState("");
@@ -21,6 +23,10 @@ export function PromptCard({ body, date }: { body: PromptBody; date: string }) {
   const [errMsg, setErrMsg] = useState<string | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
+
+  // Bracketed categories ride along into the saved note's quote line so the
+  // classifier knows which topics were on the table.
+  const topics = prompts.map((p) => `[${p.category}] ${p.prompt_text}`).join("\n");
 
   const start = async () => {
     try {
@@ -75,7 +81,7 @@ export function PromptCard({ body, date }: { body: PromptBody; date: string }) {
       const res = await fetch("/api/voice/save", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ transcript: text, prompt: body.prompt_text, category: body.category, date }),
+        body: JSON.stringify({ transcript: text, prompt: topics, category: "talk-session", date }),
       });
       const data = await res.json();
       if (!res.ok || data.error) throw new Error(data.error || `HTTP ${res.status}`);
@@ -95,8 +101,18 @@ export function PromptCard({ body, date }: { body: PromptBody; date: string }) {
 
   return (
     <div className="space-y-3">
-      <p className="text-sm leading-relaxed italic" style={{ color: "var(--text-primary)" }}>
-        &quot;{body.prompt_text}&quot;
+      <ul className="space-y-1.5">
+        {prompts.map((p) => (
+          <li key={p.category} className="flex gap-2 text-sm leading-relaxed"
+            style={{ color: "var(--text-primary)" }}>
+            <span aria-hidden style={{ color: "var(--accent)" }}>•</span>
+            <span className="italic">{p.prompt_text}</span>
+          </li>
+        ))}
+      </ul>
+      <p className="text-xs" style={{ color: "var(--text-tertiary)" }}>
+        One take covers everything — it gets split and routed per topic. A Telegram
+        voice note to the bot works too.
       </p>
 
       {state !== "review" && (
@@ -113,7 +129,7 @@ export function PromptCard({ body, date }: { body: PromptBody; date: string }) {
               style={{ background: "var(--accent-bg)", color: "var(--accent)" }}>
               {state === "transcribing"
                 ? <><Loader2 size={14} className="animate-spin" /> Transcribing…</>
-                : <><Mic size={14} /> {state === "done" ? "Record another" : "Record answer"}</>}
+                : <><Mic size={14} /> {state === "done" ? "Record another" : "Record"}</>}
             </button>
           )}
           {state === "recording" && (
@@ -130,7 +146,7 @@ export function PromptCard({ body, date }: { body: PromptBody; date: string }) {
           <textarea
             value={editedText}
             onChange={(e) => setEditedText(e.target.value)}
-            rows={4}
+            rows={6}
             className="w-full rounded-lg p-3 text-sm"
             style={{ background: "var(--bg-tertiary)", color: "var(--text-primary)", border: "1px solid var(--border-primary)" }}
             autoFocus
@@ -144,7 +160,7 @@ export function PromptCard({ body, date }: { body: PromptBody; date: string }) {
             <button onClick={discard}
               className="rounded-lg px-4 py-2 text-sm font-medium"
               style={{ background: "var(--bg-tertiary)", color: "var(--text-secondary)" }}>
-              Discard & re-record
+              Discard &amp; re-record
             </button>
           </div>
         </div>

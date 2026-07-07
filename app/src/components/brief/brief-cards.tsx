@@ -9,7 +9,7 @@ import type {
   Brief, BriefCard, FtHeadlinesBody, FuiteBody, HomelabBody, PromptBody,
   WorkBody, WorkoutBody,
 } from "@/lib/brief-types";
-import { PromptCard } from "./prompt-card";
+import { TalkCard } from "./talk-card";
 
 const STATUS_COLOR: Record<string, string> = {
   green: "#22C55E",
@@ -293,7 +293,8 @@ function CardBody({ card, date }: { card: BriefCard; date: string }) {
     case "fuite": return <FuiteCard card={card} />;
     case "ft_headlines": return <FtCard card={card} />;
     case "quorky_digest": return <DigestCard card={card} />;
-    case "prompt": return <PromptCard body={card.body as unknown as PromptBody} date={date} />;
+    // "prompt" cards never reach CardBody individually — BriefCards merges
+    // them into one TalkCard (errored ones fall through to ErrorBody above).
     default:
       return (
         <pre className="text-xs overflow-x-auto" style={{ color: "var(--text-tertiary)" }}>
@@ -313,13 +314,32 @@ export function BriefCards({ brief }: { brief: Brief }) {
     return 0;
   });
 
+  // One list of things to talk about, one recorder: all healthy prompt cards
+  // (morning prompt + objective questions) collapse into a single TalkCard,
+  // rendered where the first of them would have appeared. Errored prompt
+  // cards keep their individual error display.
+  const talkPrompts = cards
+    .filter((c) => c.type === "prompt" && !c.error)
+    .map((c) => c.body as unknown as PromptBody);
+  const firstTalkId = cards.find((c) => c.type === "prompt" && !c.error)?.id;
+
   return (
     <div className="space-y-3">
-      {cards.map((card) => (
-        <CardShell key={card.id} card={card}>
-          <CardBody card={card} date={brief.date} />
-        </CardShell>
-      ))}
+      {cards.map((card) => {
+        if (card.type === "prompt" && !card.error) {
+          if (card.id !== firstTalkId) return null;
+          return (
+            <CardShell key="talk" card={{ ...card, title: "Things to talk about" }}>
+              <TalkCard prompts={talkPrompts} date={brief.date} />
+            </CardShell>
+          );
+        }
+        return (
+          <CardShell key={card.id} card={card}>
+            <CardBody card={card} date={brief.date} />
+          </CardShell>
+        );
+      })}
     </div>
   );
 }

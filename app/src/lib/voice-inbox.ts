@@ -18,7 +18,10 @@ export function appendToInbox(date: string, prompt: string, category: string, tr
 
   const time = new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
   const header = isNew ? `# Voice inbox — ${date}\n` : "";
-  const entry = `${header}\n## ${time} · ${category}\n> ${prompt}\n\n${transcript}\n`;
+  // Quote every prompt line — talk-session prompts are a multi-line topic
+  // list, and unquoted lines would be swept up as transcript by classify.py.
+  const quoted = prompt.split("\n").map((l) => `> ${l}`).join("\n");
+  const entry = `${header}\n## ${time} · ${category}\n${quoted}\n\n${transcript}\n`;
   fs.appendFileSync(full, entry, "utf-8");
   try {
     fs.chownSync(dir, KB_UID, KB_GID);
