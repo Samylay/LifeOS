@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { collection, doc, onSnapshot, query, orderBy } from "@/lib/local-db";
-import { db } from "./firebase";
+import { db } from "./local-db";
 import {
   affirmations as affirmationsApi,
   primePrompts as promptsApi,

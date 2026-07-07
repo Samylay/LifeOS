@@ -13,7 +13,6 @@ import {
 } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { useChat, type ActionResult } from "@/lib/use-chat";
-import { VoiceMicButton } from "@/components/voice-mic-button";
 
 function ActionBadge({ result }: { result: ActionResult }) {
   const failed = result.summary.startsWith("Failed");
@@ -311,7 +310,6 @@ export function ChatPanel() {
               <Send size={14} />
             )}
           </button>
-          <VoiceMicButton onResult={(text) => sendMessage(text)} />
         </div>
       </aside>
     </>

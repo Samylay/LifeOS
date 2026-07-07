@@ -9,10 +9,8 @@
     "lint": "eslint"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.76.0",
     "@fontsource/jetbrains-mono": "^5.2.8",
     "@fontsource/plus-jakarta-sans": "^5.2.8",
-    "@vercel/analytics": "^1.6.1",
     "better-sqlite3": "^11.8.1",
     "garmin-connect": "^1.6.2",
     "lucide-react": "^0.564.0",

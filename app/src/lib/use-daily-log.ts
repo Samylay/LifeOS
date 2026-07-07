@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { doc, onSnapshot, Timestamp } from "@/lib/local-db";
-import { db, isConfigured } from "./firebase";
+import { db, isConfigured } from "./local-db";
 import { dailyLogs } from "./firestore";
 import type { DailyLog } from "./types";
 import { useAuth } from "./auth-context";

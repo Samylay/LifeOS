@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { doc, onSnapshot, setDoc } from "@/lib/local-db";
-import { db } from "./firebase";
+import { db } from "./local-db";
 import { useAuth } from "./auth-context";
 import type { AreaId } from "./types";
 

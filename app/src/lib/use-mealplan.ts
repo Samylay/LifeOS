@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { doc, onSnapshot } from "@/lib/local-db";
-import { db } from "./firebase";
+import { db } from "./local-db";
 import { mealPlans as api } from "./firestore";
 import type { MealPlan, MealDay, MealSlot, MealPlanEntry } from "./types";
 import { useAuth } from "./auth-context";

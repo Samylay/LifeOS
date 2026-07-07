@@ -18,29 +18,19 @@ type LocalUser = typeof LOCAL_USER;
 interface AuthContextType {
   user: LocalUser | null;
   loading: boolean;
-  signInWithGoogle: () => Promise<void>;
-  signOut: () => Promise<void>;
   isFirebaseConfigured: boolean;
 }
 
 const AuthContext = createContext<AuthContextType>({
   user: LOCAL_USER,
   loading: false,
-  signInWithGoogle: async () => {},
-  signOut: async () => {},
   isFirebaseConfigured: true,
 });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   return (
     <AuthContext.Provider
-      value={{
-        user: LOCAL_USER,
-        loading: false,
-        signInWithGoogle: async () => {},
-        signOut: async () => {},
-        isFirebaseConfigured: true,
-      }}
+      value={{ user: LOCAL_USER, loading: false, isFirebaseConfigured: true }}
     >
       {children}
     </AuthContext.Provider>

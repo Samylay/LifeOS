@@ -1,35 +1,15 @@
 "use client";
 
-import { useState, useCallback, useRef, useEffect } from "react";
-import { Zap, Bell, Menu, Check, Sparkles, LogOut, User, ChevronDown } from "lucide-react";
+import { useState, useCallback } from "react";
+import { Zap, Menu, Check, Sparkles } from "lucide-react";
 import { useAppStore } from "@/lib/store";
-import { useAuth } from "@/lib/auth-context";
 import { useTasks } from "@/lib/use-tasks";
-import { VoiceCommandButton } from "@/components/voice-command-button";
 
 export function TopBar() {
   const { sidebarExpanded, setMobileSidebarOpen, toggleChatPanel } = useAppStore();
-  const { user, signOut } = useAuth();
-  const { tasks, createTask, updateTask, deleteTask } = useTasks();
+  const { createTask } = useTasks();
   const [input, setInput] = useState("");
   const [flash, setFlash] = useState(false);
-  const [notifOpen, setNotifOpen] = useState(false);
-  const [profileOpen, setProfileOpen] = useState(false);
-  const notifRef = useRef<HTMLDivElement>(null);
-  const profileRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
-        setNotifOpen(false);
-      }
-      if (profileRef.current && !profileRef.current.contains(e.target as Node)) {
-        setProfileOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
 
   const handleCapture = useCallback(async () => {
     const text = input.trim();
@@ -102,13 +82,6 @@ export function TopBar() {
             style={{ color: "var(--text-primary)" }}
           />
         </div>
-        <VoiceCommandButton
-          tasks={tasks}
-          onDelete={deleteTask}
-          onUpdate={updateTask}
-          onCreate={createTask}
-          compact
-        />
       </div>
 
       {/* Right side */}
@@ -122,109 +95,6 @@ export function TopBar() {
         >
           <Sparkles size={20} />
         </button>
-
-        {/* Notifications */}
-        <div className="relative" ref={notifRef}>
-          <button
-            onClick={() => setNotifOpen((prev) => !prev)}
-            className="rounded-lg p-2 transition-colors"
-            style={{ color: "var(--text-secondary)" }}
-          >
-            <Bell size={20} />
-          </button>
-          {notifOpen && (
-            <div
-              className="absolute right-0 top-full mt-2 w-72 rounded-xl p-4 shadow-lg"
-              style={{
-                background: "var(--bg-secondary)",
-                border: "1px solid var(--border-primary)",
-                zIndex: 50,
-              }}
-            >
-              <p className="text-xs font-semibold mb-2" style={{ color: "var(--text-primary)" }}>
-                Notifications
-              </p>
-              <p className="text-xs" style={{ color: "var(--text-tertiary)" }}>
-                No notifications yet. Reminders and alerts will show up here.
-              </p>
-            </div>
-          )}
-        </div>
-
-        {/* Profile dropdown */}
-        {user && (
-          <div className="relative" ref={profileRef}>
-            <button
-              onClick={() => setProfileOpen((prev) => !prev)}
-              className="flex items-center gap-1.5 rounded-full transition-colors"
-              title={user.displayName || user.email || "Profile"}
-            >
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-sage-400 text-white text-xs font-semibold">
-                {user.displayName?.[0]?.toUpperCase() || user.email?.[0]?.toUpperCase() || "U"}
-              </div>
-              <ChevronDown
-                size={14}
-                style={{
-                  color: "var(--text-tertiary)",
-                  transform: profileOpen ? "rotate(180deg)" : "rotate(0deg)",
-                  transition: "transform 150ms ease",
-                }}
-              />
-            </button>
-            {profileOpen && (
-              <div
-                className="absolute right-0 top-full mt-2 w-56 rounded-xl overflow-hidden shadow-lg"
-                style={{
-                  background: "var(--bg-secondary)",
-                  border: "1px solid var(--border-primary)",
-                  zIndex: 50,
-                }}
-              >
-                {/* User info */}
-                <div
-                  className="px-4 py-3"
-                  style={{ borderBottom: "1px solid var(--border-primary)" }}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-sage-400 text-white text-sm font-semibold">
-                      {user.displayName?.[0]?.toUpperCase() || user.email?.[0]?.toUpperCase() || "U"}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      {user.displayName && (
-                        <p
-                          className="text-sm font-medium truncate"
-                          style={{ color: "var(--text-primary)" }}
-                        >
-                          {user.displayName}
-                        </p>
-                      )}
-                      <p
-                        className="text-xs truncate"
-                        style={{ color: "var(--text-secondary)" }}
-                      >
-                        {user.email}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-                {/* Actions */}
-                <div className="py-1">
-                  <button
-                    onClick={() => {
-                      setProfileOpen(false);
-                      signOut();
-                    }}
-                    className="flex w-full items-center gap-3 px-4 py-2.5 text-sm transition-colors"
-                    style={{ color: "var(--color-danger)" }}
-                  >
-                    <LogOut size={16} />
-                    Sign out
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
       </div>
     </header>
   );
