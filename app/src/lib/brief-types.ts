@@ -43,6 +43,13 @@ export interface HomelabBody {
   disk_pct: number | null;
   tailscale_ok: boolean;
   ollama_ok: boolean;
+  // Standing goals (~/infra/goals) — optional: absent in briefs generated
+  // before 2026-07-07, and goals_enabled=false when Prometheus has no metrics.
+  goals_enabled?: boolean;
+  goals_ok?: number;
+  goals_total?: number;
+  goals_violated?: string[];
+  goals_flapped_24h?: string[];
   issues: string[];
 }
 

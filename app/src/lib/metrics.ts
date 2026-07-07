@@ -17,6 +17,68 @@ async function instant(expr: string): Promise<number | null> {
   }
 }
 
+async function instantVector(
+  expr: string
+): Promise<{ labels: Record<string, string>; value: number }[] | null> {
+  try {
+    const url = `${PROM_URL}/api/v1/query?query=${encodeURIComponent(expr)}`;
+    const res = await fetch(url, { signal: AbortSignal.timeout(4000) });
+    if (!res.ok) return null;
+    const json = await res.json();
+    const r = json?.data?.result;
+    if (!Array.isArray(r)) return null;
+    return r
+      .map((s: { metric: Record<string, string>; value: [number, string] }) => ({
+        labels: s.metric,
+        value: Number(s.value[1]),
+      }))
+      .filter((s) => Number.isFinite(s.value));
+  } catch {
+    return null;
+  }
+}
+
+export interface StandingGoals {
+  enabled: boolean; // false when the metrics aren't in Prometheus at all
+  total: number;
+  ok: number;
+  violated: string[]; // currently failing
+  flapped24h: string[]; // ok now, but violated at some point in the last 24h
+  lastRunAgeSeconds: number | null;
+}
+
+/** Standing-goals invariants (~/infra/goals) as scraped from node_exporter's
+ *  textfile collector. `flapped24h` surfaces overnight dips the 06:00 brief
+ *  would otherwise never see (transition alerts fire at night; this is the
+ *  morning recap). */
+export async function getStandingGoals(): Promise<StandingGoals> {
+  const [now, floor24h, runAge] = await Promise.all([
+    instantVector("homelab_goal_up"),
+    instantVector("min_over_time(homelab_goal_up[24h])"),
+    instant("time() - homelab_goals_last_run_timestamp_seconds"),
+  ]);
+
+  if (!now || now.length === 0) {
+    return { enabled: false, total: 0, ok: 0, violated: [], flapped24h: [], lastRunAgeSeconds: runAge };
+  }
+
+  const violated = now.filter((g) => g.value < 1).map((g) => g.labels.goal ?? "?");
+  const okNow = new Set(now.filter((g) => g.value >= 1).map((g) => g.labels.goal ?? "?"));
+  const flapped24h = (floor24h ?? [])
+    .filter((g) => g.value < 1)
+    .map((g) => g.labels.goal ?? "?")
+    .filter((goal) => okNow.has(goal));
+
+  return {
+    enabled: true,
+    total: now.length,
+    ok: okNow.size,
+    violated,
+    flapped24h,
+    lastRunAgeSeconds: runAge,
+  };
+}
+
 export interface HostMetrics {
   enabled: boolean;
   cpuPct: number | null;

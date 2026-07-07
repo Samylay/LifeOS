@@ -220,6 +220,9 @@ function HomelabCard({ card }: { card: BriefCard }) {
         {body.disk_pct != null && <span>disk {body.disk_pct}%</span>}
         <span>tailscale {body.tailscale_ok ? "✓" : "✗"}</span>
         <span>ollama {body.ollama_ok ? "✓" : "✗"}</span>
+        {body.goals_enabled && (
+          <span>goals {body.goals_ok}/{body.goals_total} {body.goals_violated?.length ? "✗" : "✓"}</span>
+        )}
       </div>
       {(body.issues ?? []).map((issue, i) => (
         <div key={i} className="flex items-start gap-2 text-sm rounded-lg px-3 py-2"
