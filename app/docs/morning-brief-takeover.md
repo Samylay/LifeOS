@@ -1,9 +1,15 @@
 # Morning Brief — LifeOS takeover spec
 
-**Status:** the standalone host service `~/services/brief` (Python, systemd timer) is
-being retired. This document captures its complete design so LifeOS absorbs the
-responsibility. When the in-app implementation reaches parity, kill the host service
-(checklist at the bottom).
+**Status: DONE (2026-07-07).** The brief is now built in-app: `src/lib/brief/`
+(fetchers + builder), scheduled daily at 06:00 `BRIEF_TZ` by `src/instrumentation.ts`
+with boot-time catch-up; manual trigger `POST /api/brief/run[?force=1][&quiet=1]`.
+Parity was verified against the host aggregator's output (identical cards incl. the
+empty-TODOIST_API_TOKEN error) and a live Telegram send, then `brief.timer` was
+disabled and its units removed. `~/services/brief` remains on GitHub
+(homelab-services) as the reference implementation. One deliberate improvement:
+"today" is computed in `BRIEF_TZ` throughout — the host version used server-local
+(UTC) time, so its 06:00-JST brief carried the previous day's date and workout.
+The rest of this document is the design capture that drove the port.
 
 ## The idea
 

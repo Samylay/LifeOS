@@ -1,0 +1,11 @@
+{
+  "prompts": [
+    { "category": "spoken-english", "text": "In spoken English: what's the one thing that would make today a win, and why?" },
+    { "category": "journaling", "text": "What's on your mind this morning? Empty the buffer — no structure needed." },
+    { "category": "spoken-english", "text": "In spoken English: explain something you're building right now as if to a colleague who just joined." },
+    { "category": "recurring", "text": "What did you avoid yesterday that you should tackle today?" },
+    { "category": "journaling", "text": "What are you grateful for right now? Small things count." },
+    { "category": "spoken-english", "text": "In spoken English: argue for or against a technical decision you made this week." },
+    { "category": "recurring", "text": "If today had only two hours of focus in it, what would you spend them on?" }
+  ]
+}

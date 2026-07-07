@@ -2,26 +2,28 @@ import { NextResponse } from "next/server";
 import fs from "node:fs";
 import path from "node:path";
 import fixture from "@/components/brief/fixture.json";
+import { BRIEF_OUT } from "@/lib/brief/builder";
 
-// The aggregator on the host writes brief.json to ~/services/brief/out/,
-// mounted read-only into this container at /brief. Until the first real run
-// (or if the mount is missing) we serve the bundled fixture, flagged as such
-// so the page can show a "sample data" badge.
-const BRIEF_PATH = process.env.BRIEF_PATH || "/brief/brief.json";
+// The brief is built in-app (lib/brief, daily scheduler) and written to
+// BRIEF_OUT on the data volume. The legacy path is the retired host
+// aggregator's output (~/services/brief/out mounted ro at /brief), kept as a
+// fallback during the transition. Fixture (flagged) if neither exists.
+const LEGACY_BRIEF_PATH = process.env.BRIEF_PATH || "/brief/brief.json";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+function readBrief(p: string) {
   try {
-    const raw = fs.readFileSync(path.resolve(BRIEF_PATH), "utf8");
-    return NextResponse.json(
-      { source: "live", brief: JSON.parse(raw) },
-      { headers: { "Cache-Control": "no-store" } }
-    );
+    return JSON.parse(fs.readFileSync(path.resolve(p), "utf8"));
   } catch {
-    return NextResponse.json(
-      { source: "fixture", brief: fixture },
-      { headers: { "Cache-Control": "no-store" } }
-    );
+    return null;
   }
+}
+
+export async function GET() {
+  const brief = readBrief(BRIEF_OUT) ?? readBrief(LEGACY_BRIEF_PATH);
+  return NextResponse.json(
+    brief ? { source: "live", brief } : { source: "fixture", brief: fixture },
+    { headers: { "Cache-Control": "no-store" } }
+  );
 }
