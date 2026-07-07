@@ -6,32 +6,37 @@
 
 import { card, type FetchResult } from "../registry";
 
-const API_URL = "https://api.todoist.com/rest/v2/tasks";
+// Unified API (rest/v2 returns 410 Gone since 2025).
+const API_URL = "https://api.todoist.com/api/v1/tasks/filter";
 const MAX_TASKS = 10;
 
 interface TodoistTask {
+  id?: string;
   content?: string;
   due?: { date?: string } | null;
   priority?: number;
-  url?: string;
 }
 
 export async function fetch(): Promise<FetchResult> {
   const token = process.env.TODOIST_API_TOKEN;
   if (!token) throw new Error("TODOIST_API_TOKEN not set");
 
-  const r = await globalThis.fetch(`${API_URL}?filter=${encodeURIComponent("overdue | today")}`, {
-    headers: { Authorization: `Bearer ${token}` },
-    signal: AbortSignal.timeout(20_000),
-  });
+  const r = await globalThis.fetch(
+    `${API_URL}?query=${encodeURIComponent("overdue | today")}&limit=${MAX_TASKS}`,
+    {
+      headers: { Authorization: `Bearer ${token}` },
+      signal: AbortSignal.timeout(20_000),
+    },
+  );
   if (!r.ok) throw new Error(`todoist ${r.status}`);
-  const raw = (await r.json()) as TodoistTask[];
+  const raw = (await r.json()) as { results: TodoistTask[] };
 
-  const tasks = raw.slice(0, MAX_TASKS).map((t) => ({
+  const tasks = raw.results.slice(0, MAX_TASKS).map((t) => ({
     content: t.content || "",
     due: t.due?.date,
     priority: t.priority ?? 1,
-    url: t.url,
+    // v1 dropped the url field; the app URL is derived from the id.
+    url: t.id ? `https://app.todoist.com/app/task/${t.id}` : undefined,
   }));
   // Todoist priority 4 = p1 (most urgent); show urgent first.
   tasks.sort((a, b) => (b.priority || 1) - (a.priority || 1));
