@@ -13,7 +13,7 @@
 
 ## Tasks
 
-- [ ] **T01 — Add a test harness (vitest) with first real tests** (M) — the app has zero tests and no `test` script. Add vitest as a devDependency + `"test": "vitest run"` script, then write tests for the two most break-prone pure modules: `src/lib/brief/tz.ts` (`msUntilNextRun`, `isPastHourInTz` across TZ/date boundaries, using fixed `Date` inputs) and `src/lib/server-db.ts` query semantics (`where` ops incl. date-marker comparison, `orderBy`, `limit`) against a temp-file DB via `LIFEOS_DB_PATH`. Do not restructure the modules to make them testable beyond exporting what's needed. Verify: `npx vitest run` all green, `npx tsc --noEmit` clean, docker build still succeeds.
+- [x] **T01 — Add a test harness (vitest) with first real tests** (M) — the app has zero tests and no `test` script. Add vitest as a devDependency + `"test": "vitest run"` script, then write tests for the two most break-prone pure modules: `src/lib/brief/tz.ts` (`msUntilNextRun`, `isPastHourInTz` across TZ/date boundaries, using fixed `Date` inputs) and `src/lib/server-db.ts` query semantics (`where` ops incl. date-marker comparison, `orderBy`, `limit`) against a temp-file DB via `LIFEOS_DB_PATH`. Do not restructure the modules to make them testable beyond exporting what's needed. Verify: `npx vitest run` all green, `npx tsc --noEmit` clean, docker build still succeeds. *(2026-07-08: done in autoloop — vitest/test script were already present from an earlier session; added tz.test.ts (TZ/date-boundary coverage) and server-db.test.ts (where/orderBy/limit + CRUD against a temp-file DB), 38/38 tests green, tsc clean, docker build succeeds)*
 - [x] **T02 — Remove @vercel/analytics** (S) — `src/app/layout.tsx` renders `<Analytics />` from `@vercel/analytics/next` in a self-hosted, tailnet-only app: it phones home to a third party and can never report anything useful here. Remove the import + JSX + dependency. Verify: `grep -r "@vercel/analytics" src package.json` empty, typecheck, rebuild, redeploy, `/` returns 200. *(2026-07-07, session: done in fluff-audit session — Analytics import+JSX+dep removed)*
 - [x] **T03 — Drop unused @anthropic-ai/sdk dependency** (S) — it appears in `package.json` but nothing in `src/` imports it (LLM calls go through `claude-cli.ts` / the OpenAI-compat Ollama client). Remove from package.json + lockfile. Verify: `grep -r "@anthropic-ai" src` empty, typecheck, docker build succeeds. *(2026-07-07, session: done in fluff-audit session — dep removed from package.json+lockfile)*
 - [x] **T04 — Collapse the firebase.ts compatibility shim** (S) — `src/lib/firebase.ts` is now an 8-line re-export of `local-db` kept only for old import paths (4 hooks + firestore.ts still import it, plus dead `auth`/`googleProvider` nulls). Point those imports at `./local-db` directly, delete `firebase.ts`, and remove any now-unused `auth`/`googleProvider` references. Verify: `grep -rn "firebase" src/` only matches comments/`firestore.ts` filename, typecheck, rebuild, redeploy, smoke the dashboard + one hook-backed route (e.g. `/prime`). *(2026-07-07, session: done in fluff-audit session — 4 hooks repointed to local-db, shim deleted)*
@@ -57,6 +57,23 @@
   new deps. tsc clean, 17/17 tests, rebuilt, redeployed, /workouts 200 with
   live data. The retired dashboard repo is now fully harvested and can be
   archived whenever.
+
+- **2026-07-08 (autoloop, T01):** vitest + the `test` script turned out to already
+  be in place (added in an earlier interactive session for the training-stats
+  tests), so the actual gap was the two modules the task named: `tz.ts` and
+  `server-db.ts` had zero coverage. Added `tz.test.ts` (msUntilNextRun /
+  isPastHourInTz / todayInTz / weekdayLabelInTz, including the UTC/JST
+  date-boundary case the old server-local aggregator got wrong) and
+  `server-db.test.ts` (all `where` ops incl. date-marker comparison, orderBy
+  asc/desc, limit, full CRUD) against a temp-file DB via `LIFEOS_DB_PATH` —
+  never touches the real `data/lifeos.db`. 38/38 tests green, tsc clean,
+  docker build succeeds.
+  **Pitch:** the two modules most likely to silently break on a timezone edge
+  case or a query-semantics regression now have fixed-input tests pinning
+  their behavior.
+  **Quiz:** (1) What UTC/local edge case does the tz test suite specifically
+  guard against? (2) Where does server-db.test.ts point its DB file, and why?
+  (3) Which two modules had test coverage before this task ran?
 
 ## Pager (homelab notification hub — shipped 2026-07-07: /pager + /api/notify + ntfy push)
 
