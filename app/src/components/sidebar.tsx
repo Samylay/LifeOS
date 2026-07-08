@@ -28,6 +28,7 @@ import {
   BellRing,
 } from "lucide-react";
 import { useAppStore } from "@/lib/store";
+import { useNotifications } from "@/lib/use-notifications";
 
 // Flux (content engine) is a sibling app on the tailnet. Baked at build time;
 // override with NEXT_PUBLIC_FLUX_URL.
@@ -93,6 +94,8 @@ export function Sidebar({ mobile }: { mobile?: boolean }) {
   } = useAppStore();
 
   const expanded = mobile ? true : sidebarExpanded;
+  const { messages } = useNotifications();
+  const pagerUnread = messages.filter((m) => !m.readAt).length;
 
   const isActive = (href: string) => {
     if (href === "/") return pathname === "/";
@@ -274,7 +277,15 @@ export function Sidebar({ mobile }: { mobile?: boolean }) {
                   title={!expanded ? item.label : undefined}
                 >
                   <Icon size={18} className="shrink-0" />
-                  {expanded && <span>{item.label}</span>}
+                  {expanded && <span className="flex-1">{item.label}</span>}
+                  {item.href === "/pager" && pagerUnread > 0 && expanded && (
+                    <span
+                      className="text-xs font-semibold rounded-full px-2 py-0.5"
+                      style={{ background: "var(--accent)", color: "white" }}
+                    >
+                      {pagerUnread}
+                    </span>
+                  )}
                 </Link>
               );
             })}

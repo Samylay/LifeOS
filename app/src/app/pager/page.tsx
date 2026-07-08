@@ -35,7 +35,7 @@ function timeAgo(d: Date): string {
 }
 
 export default function PagerPage() {
-  const { messages, loading, markRead, markAllRead, remove } = useNotifications();
+  const { messages, loading, markRead, markAllRead, ack, remove } = useNotifications();
   const [stream, setStream] = useState<PagerStream | "all">("all");
 
   const visible = stream === "all" ? messages : messages.filter((m) => m.stream === stream);
@@ -136,6 +136,23 @@ export default function PagerPage() {
                 >
                   {m.body}
                 </p>
+                {!m.readAt && (m.actions?.length ?? 0) > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {m.actions!.map((a, i) => (
+                      <button
+                        key={i}
+                        onClick={() => ack(m)}
+                        className="text-xs rounded-lg px-3 py-1.5 font-medium transition-colors"
+                        style={{
+                          background: "var(--accent)",
+                          color: "white",
+                        }}
+                      >
+                        {a.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
               <div className="flex items-center gap-1 shrink-0">
                 {!m.readAt && (
