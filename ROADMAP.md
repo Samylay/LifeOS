@@ -18,7 +18,8 @@
 - [x] **T03 — Drop unused @anthropic-ai/sdk dependency** (S) — it appears in `package.json` but nothing in `src/` imports it (LLM calls go through `claude-cli.ts` / the OpenAI-compat Ollama client). Remove from package.json + lockfile. Verify: `grep -r "@anthropic-ai" src` empty, typecheck, docker build succeeds. *(2026-07-07, session: done in fluff-audit session — dep removed from package.json+lockfile)*
 - [x] **T04 — Collapse the firebase.ts compatibility shim** (S) — `src/lib/firebase.ts` is now an 8-line re-export of `local-db` kept only for old import paths (4 hooks + firestore.ts still import it, plus dead `auth`/`googleProvider` nulls). Point those imports at `./local-db` directly, delete `firebase.ts`, and remove any now-unused `auth`/`googleProvider` references. Verify: `grep -rn "firebase" src/` only matches comments/`firestore.ts` filename, typecheck, rebuild, redeploy, smoke the dashboard + one hook-backed route (e.g. `/prime`). *(2026-07-07, session: done in fluff-audit session — 4 hooks repointed to local-db, shim deleted)*
 - [ ] **T05 — Retire the legacy morning-brief fallback (GATED)** (M) — only proceed if the in-app brief has run ≥3 consecutive days (check dated entries/log at `BRIEF_OUT` `/data/brief.json` inside the container or scheduler logs via `docker logs lifeos | grep brief-scheduler`); otherwise leave unchecked with a dated note. Remove the `BRIEF_PATH` read-fallback code, the `/home/quorky/services/brief/out:/brief:ro` mount, and the `BRIEF_PATH` env from `docker-compose.yml`. Compose change is its own commit stating the operational effect. Verify: typecheck, rebuild, redeploy, `/brief` route 200 and still shows today's brief.
-- [ ] **T06 — Harden server-db writes** (S) — `src/lib/server-db.ts` opens SQLite with WAL but no `busy_timeout`, and any multi-doc write paths run as separate implicit transactions. Add `pragma busy_timeout = 5000`, and wrap any loop-of-writes in `db.transaction(...)`. Behavior must be identical; no schema changes, no touching the live DB file. Verify: T01's server-db tests still green, typecheck, rebuild, redeploy, create+edit a task via the UI/API smoke.
+  BLOCKED (2026-07-08): gate not met — the in-app brief was only built 2026-07-07 (commit 21eba5d), so it has run at most since then, nowhere near 3 consecutive days. Left unchecked; re-check after 2026-07-10.
+- [x] **T06 — Harden server-db writes** (S) — `src/lib/server-db.ts` opens SQLite with WAL but no `busy_timeout`, and any multi-doc write paths run as separate implicit transactions. Add `pragma busy_timeout = 5000`, and wrap any loop-of-writes in `db.transaction(...)`. Behavior must be identical; no schema changes, no touching the live DB file. Verify: T01's server-db tests still green, typecheck, rebuild, redeploy, create+edit a task via the UI/API smoke. *(2026-07-08: done in autoloop — added `pragma busy_timeout=5000` + a `runInTransaction` helper, wrapped the pager retention prune loop in `api/notify/route.ts` (the only loop-of-writes found) in a single transaction; 38/38 tests green, tsc clean, rebuilt/redeployed, create+edit+delete a task via /api/data verified)*
 - [ ] **T07 — Unused-export sweep** (M) — run `npx knip` (or `ts-prune`) in `app/`, review the report, and delete only exports/files that are provably unreferenced AND not part of an intentional fallback (Ollama paths, `use-collection` factory surface stay). Blindspot pass mandatory: check the autoloop memory log for anything previously flagged as deliberate before cutting. Verify: typecheck, rebuild, redeploy, smoke every route whose files were touched.
 
 - [x] **T08 — Training: records view** (M) — port the personal-records section from the retired `~/dashboards/strava-dashboard` (`app/records/page.tsx`) into the /workouts analytics area, computing bests from `/api/strava/activities` rows with `src/lib/training/stats.ts` (kpis/streak already ported; distance PRs from summary rows only — streams are NOT synced, skip stream-based efforts). Verify: typecheck, `npm test` green, rebuild, redeploy, /workouts 200 and shows the records block with real data. *(2026-07-07, session: already covered — TrainingAnalytics' Records section predated the merge; streak chip added via ported stats)*
@@ -74,6 +75,25 @@
   **Quiz:** (1) What UTC/local edge case does the tz test suite specifically
   guard against? (2) Where does server-db.test.ts point its DB file, and why?
   (3) Which two modules had test coverage before this task ran?
+
+- **2026-07-08 (autoloop, T05 attempted then blocked, T06 done):** T05 was the
+  first unchecked non-NEEDS-SAMY task, but its gate (in-app brief running ≥3
+  consecutive days) isn't met — `git log` shows the in-app brief build landed
+  only yesterday (21eba5d, 2026-07-07), so it can't have 3 days of history
+  yet. Left unchecked with a BLOCKED note, moved to T06. `server-db.ts` had no
+  `busy_timeout` and, per the task's own description, needed any loop-of-writes
+  wrapped in a transaction — a repo-wide grep found exactly one such loop: the
+  pager retention sweep (T14) in `api/notify/route.ts`, which deletes docs one
+  at a time inside a `for` loop. Added `pragma busy_timeout = 5000` to
+  `getDb()` and a `runInTransaction()` helper, and wrapped that prune loop in
+  it. No schema/behavior change otherwise.
+  **Pitch:** concurrent writers (the pager ingest route firing on every phone
+  push, the UI's task/brief writes) now wait up to 5s instead of throwing
+  SQLITE_BUSY under WAL contention, and the retention sweep's deletes commit
+  atomically instead of as N separate implicit transactions.
+  **Quiz:** (1) Which single call site had a loop-of-writes before this task?
+  (2) What does `busy_timeout` change about a writer that hits a WAL lock?
+  (3) Why couldn't T05 proceed tonight?
 
 ## Pager (homelab notification hub — shipped 2026-07-07: /pager + /api/notify + ntfy push)
 
