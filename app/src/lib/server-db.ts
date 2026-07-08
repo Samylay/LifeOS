@@ -34,6 +34,7 @@ function getDb(): Database.Database {
   fs.mkdirSync(path.dirname(dbPath), { recursive: true });
   _db = new Database(dbPath);
   _db.pragma("journal_mode = WAL");
+  _db.pragma("busy_timeout = 5000");
   _db.exec(
     `CREATE TABLE IF NOT EXISTS docs (
        path TEXT NOT NULL,
@@ -167,4 +168,9 @@ export function setDoc(
 
 export function deleteDoc(collectionPath: string, id: string): void {
   getDb().prepare("DELETE FROM docs WHERE path = ? AND id = ?").run(collectionPath, id);
+}
+
+/** Run a loop-of-writes as a single SQLite transaction. */
+export function runInTransaction<T>(fn: () => T): T {
+  return getDb().transaction(fn)();
 }

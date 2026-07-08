@@ -10,7 +10,7 @@
 // Stream/severity are inferred from the emoji conventions the homelab
 // notifiers already use, so callers can stay dumb (`curl -d '{"text":…}'`).
 import { NextRequest, NextResponse } from "next/server";
-import { createDoc, listDocs, deleteDoc } from "@/lib/server-db";
+import { createDoc, listDocs, deleteDoc, runInTransaction } from "@/lib/server-db";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -42,15 +42,18 @@ const DAY_MS = 86_400_000;
 // collection stays small, so a full scan per POST is fine.
 function prune() {
   const now = Date.now();
-  for (const d of listDocs(COLLECTION)) {
-    const iso = (d.createdAt as { __date?: string } | undefined)?.__date;
-    const created = iso ? Date.parse(iso) : NaN;
-    if (Number.isNaN(created)) continue;
-    const age = now - created;
-    if ((d.stream === "system" && age > 7 * DAY_MS) || (d.readAt != null && age > 30 * DAY_MS)) {
-      deleteDoc(COLLECTION, d.id);
+  const docs = listDocs(COLLECTION);
+  runInTransaction(() => {
+    for (const d of docs) {
+      const iso = (d.createdAt as { __date?: string } | undefined)?.__date;
+      const created = iso ? Date.parse(iso) : NaN;
+      if (Number.isNaN(created)) continue;
+      const age = now - created;
+      if ((d.stream === "system" && age > 7 * DAY_MS) || (d.readAt != null && age > 30 * DAY_MS)) {
+        deleteDoc(COLLECTION, d.id);
+      }
     }
-  }
+  });
 }
 
 function inferStream(text: string): Stream {
