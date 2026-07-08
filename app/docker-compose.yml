@@ -9,6 +9,11 @@ services:
     # The app has no login, and `tailscale serve` only accepts tailnet traffic.
     ports:
       - "127.0.0.1:3000:3000"
+      # Also bound to the tailscale IP (same pattern as n8n): phones on the
+      # tailnet reach the app by raw IP (http://100.124.149.101:3000) with no
+      # MagicDNS dependency — ts.net names are NOT in public DNS, and Samy's
+      # phone runs with 'Use Tailscale DNS' off (carrier DNS conflict).
+      - "100.124.149.101:3000:3000"
     env_file:
       - .env
     environment:
@@ -47,7 +52,8 @@ services:
       # to the bridge gateway, where nothing listens). Click opens /pager.
       NTFY_URL: "http://100.124.149.101:8096"
       NTFY_TOPIC: "homelab"
-      PAGER_CLICK_URL: "https://homelab.tail069527.ts.net/pager"
+      # IP-based so notification taps work regardless of the phone's DNS state.
+      PAGER_CLICK_URL: "http://100.124.149.101:3000/pager"
     networks:
       - default
       - monitoring
