@@ -53,3 +53,16 @@ export function isPastHourInTz(hour: number, tz: string = BRIEF_TZ, now: Date = 
   );
   return h >= hour;
 }
+
+/** ISO-8601 UTC instant for `hour`:`minute` wall-clock on `dateStr` (YYYY-MM-DD) in `tz`. */
+export function localTimeToUtcIso(
+  dateStr: string,
+  hour: number,
+  minute: number,
+  tz: string = BRIEF_TZ
+): string {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const naive = Date.UTC(y, m - 1, d, hour, minute, 0);
+  const target = naive - tzOffsetMs(tz, new Date(naive));
+  return new Date(target).toISOString();
+}
