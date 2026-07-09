@@ -1,0 +1,90 @@
+// Cross-language drift guard for the Capacitor Android wrapper (T18b).
+// The auth logic lives twice — TypeScript spec (cf-access.ts) and the native
+// Java that actually runs (CfAccess.java) — and the secret plumbing lives in
+// build.gradle. Nothing compiles across that boundary, so these tests read
+// the native sources as text and assert the load-bearing strings stay in
+// sync, and that no credential-shaped literal ever lands in the repo.
+import { describe, it, expect } from "vitest";
+import fs from "node:fs";
+import path from "node:path";
+import {
+  APP_URL,
+  CF_ACCESS_ID_ENV,
+  CF_ACCESS_SECRET_ENV,
+  CF_ACCESS_ID_HEADER,
+  CF_ACCESS_SECRET_HEADER,
+  appHost,
+} from "./cf-access";
+
+const appRoot = path.resolve(__dirname, "../../..");
+const read = (rel: string) => fs.readFileSync(path.join(appRoot, rel), "utf8");
+
+const cfAccessJava = read("android/app/src/main/java/com/samylayaida/lifeos/CfAccess.java");
+const mainActivityJava = read(
+  "android/app/src/main/java/com/samylayaida/lifeos/MainActivity.java"
+);
+const buildGradle = read("android/app/build.gradle");
+
+describe("CfAccess.java mirrors cf-access.ts", () => {
+  it("uses the same Cloudflare Access header names", () => {
+    expect(cfAccessJava).toContain(`"${CF_ACCESS_ID_HEADER}"`);
+    expect(cfAccessJava).toContain(`"${CF_ACCESS_SECRET_HEADER}"`);
+  });
+
+  it("reads the token from BuildConfig fields, not literals", () => {
+    expect(cfAccessJava).toContain(`BuildConfig.${CF_ACCESS_ID_ENV}`);
+    expect(cfAccessJava).toContain(`BuildConfig.${CF_ACCESS_SECRET_ENV}`);
+  });
+
+  it("keeps the both-or-nothing rule (empty map when either half is missing)", () => {
+    expect(cfAccessJava).toMatch(/id\.isEmpty\(\)\s*\|\|\s*secret\.isEmpty\(\)/);
+  });
+});
+
+describe("build.gradle secret plumbing", () => {
+  it("reads both env vars with an empty-string fallback (build never needs the real token)", () => {
+    expect(buildGradle).toContain(`System.getenv("${CF_ACCESS_ID_ENV}") ?: ""`);
+    expect(buildGradle).toContain(`System.getenv("${CF_ACCESS_SECRET_ENV}") ?: ""`);
+  });
+
+  it("injects both BuildConfig fields from the env vars, never from literals", () => {
+    expect(buildGradle).toContain(
+      `buildConfigField "String", "${CF_ACCESS_ID_ENV}", "\\"\${cfAccessClientId}\\""`
+    );
+    expect(buildGradle).toContain(
+      `buildConfigField "String", "${CF_ACCESS_SECRET_ENV}", "\\"\${cfAccessClientSecret}\\""`
+    );
+    expect(buildGradle).toMatch(/buildConfig true/);
+  });
+
+  it("contains no credential-shaped literal (Access client ids end in .access)", () => {
+    for (const source of [cfAccessJava, mainActivityJava]) {
+      expect(source).not.toMatch(/[0-9a-f]{16,}/i);
+    }
+    for (const source of [buildGradle, cfAccessJava, mainActivityJava]) {
+      expect(source).not.toMatch(/\w+\.access["']/);
+    }
+  });
+});
+
+describe("MainActivity.java", () => {
+  it("re-issues the initial load with the token headers via the Bridge", () => {
+    expect(mainActivityJava).toContain("CfAccess.headers()");
+    expect(mainActivityJava).toContain("getServerUrl()");
+    expect(mainActivityJava).toMatch(/loadUrl\(serverUrl,\s*headers\)/);
+  });
+});
+
+describe("generated Capacitor config (android assets)", () => {
+  const generated = JSON.parse(read("android/app/src/main/assets/capacitor.config.json"));
+
+  it("points the WebView at the tunnel domain from cf-access.ts", () => {
+    expect(generated.server.url).toBe(APP_URL);
+    expect(generated.server.allowNavigation).toEqual([appHost()]);
+  });
+
+  it("keeps the LifeOS app identity", () => {
+    expect(generated.appId).toBe("com.samylayaida.lifeos");
+    expect(generated.appName).toBe("LifeOS");
+  });
+});
