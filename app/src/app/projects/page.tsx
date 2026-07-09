@@ -1,12 +1,13 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { FolderKanban, Plus, X, ChevronRight, Archive, RotateCcw, MoreHorizontal, AlertCircle } from "lucide-react";
+import { FolderKanban, Plus, X, Archive, MoreHorizontal, AlertCircle, Rocket } from "lucide-react";
 import { useProjects } from "@/lib/use-projects";
+import { useShipLog } from "@/lib/use-ship-log";
 import { useTasks } from "@/lib/use-tasks";
 import { useToast } from "@/components/toast";
 import { ConfirmDialog } from "@/components/confirm-dialog";
-import type { Project, ProjectStatus, AreaId, Task } from "@/lib/types";
+import type { Project, ProjectStatus, AreaId, Task, ShipLogEntry } from "@/lib/types";
 import { AREAS } from "@/lib/types";
 import { TaskItem, TaskCreateForm } from "@/components/task-list";
 
@@ -77,6 +78,7 @@ function ProjectCreateForm({ onSubmit, onCancel }: { onSubmit: (data: Omit<Proje
   const [area, setArea] = useState<AreaId | "">("");
   const [status, setStatus] = useState<ProjectStatus>("planning");
   const [nextAction, setNextAction] = useState("");
+  const [shippingEvent, setShippingEvent] = useState("");
   const [targetDate, setTargetDate] = useState("");
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -87,6 +89,7 @@ function ProjectCreateForm({ onSubmit, onCancel }: { onSubmit: (data: Omit<Proje
       area: area || undefined,
       status,
       nextAction: nextAction.trim() || undefined,
+      shippingEvent: shippingEvent.trim() || undefined,
       targetDate: targetDate ? new Date(targetDate) : undefined,
       linkedTaskIds: [],
     });
@@ -97,6 +100,9 @@ function ProjectCreateForm({ onSubmit, onCancel }: { onSubmit: (data: Omit<Proje
       <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Project title..."
         autoFocus className="w-full bg-transparent text-sm font-medium outline-none" style={{ color: "var(--text-primary)" }} />
       <input type="text" value={nextAction} onChange={(e) => setNextAction(e.target.value)} placeholder="Next action..."
+        className="w-full bg-transparent text-xs outline-none" style={{ color: "var(--text-secondary)" }} />
+      <input type="text" value={shippingEvent} onChange={(e) => setShippingEvent(e.target.value)}
+        placeholder="Shipping event — what leaves the machine, to whom? (required to be Active)"
         className="w-full bg-transparent text-xs outline-none" style={{ color: "var(--text-secondary)" }} />
       <div className="flex flex-wrap items-center gap-2">
         <select value={area} onChange={(e) => setArea(e.target.value as AreaId | "")}
@@ -187,7 +193,20 @@ function ProjectCard({
                     </button>
                   ))}
                   <button
-                    onClick={(e) => { e.stopPropagation(); onUpdate(project.id, { status: "archived" as ProjectStatus }); setShowMenu(false); }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowMenu(false);
+                      // Kills are fine, but they're a decision: in-flight
+                      // projects don't get archived without a logged reason.
+                      const inFlight = project.status === "active" || project.status === "planning";
+                      let killReason: string | undefined;
+                      if (inFlight) {
+                        const reason = window.prompt("One-line reason for killing this project:");
+                        if (reason === null) return;
+                        killReason = reason.trim() || undefined;
+                      }
+                      onUpdate(project.id, { status: "archived" as ProjectStatus, ...(killReason ? { killReason } : {}) });
+                    }}
                     className="w-full text-left text-xs px-3 py-1.5 hover:opacity-80 flex items-center gap-2"
                     style={{ color: "var(--text-tertiary)" }}>
                     <Archive size={12} /> Archive
@@ -224,6 +243,16 @@ function ProjectCard({
         {project.nextAction && (
           <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
             Next: {project.nextAction}
+          </p>
+        )}
+        {project.shippingEvent ? (
+          <p className="text-xs mt-1 flex items-center gap-1" style={{ color: "var(--text-secondary)" }}>
+            <Rocket size={11} style={{ color: "var(--accent)", flexShrink: 0 }} />
+            Ships: {project.shippingEvent}
+          </p>
+        ) : (project.status === "active" || project.status === "planning") && (
+          <p className="text-xs mt-1" style={{ color: "#F59E0B" }}>
+            No shipping event — what leaves the machine, and to whom?
           </p>
         )}
         {project.targetDate && (
@@ -275,15 +304,191 @@ function ProjectCard({
   );
 }
 
+// --- Ship Log ---
+// One row per thing that left the machine. Predicted vs. actual reaction is
+// the belief-updating column — entries stay "awaiting reality" until filled.
+
+const DAY_MS = 86_400_000;
+
+function ShipLogSection({ entries, projects, onLog, onUpdate }: {
+  entries: ShipLogEntry[];
+  projects: Project[];
+  onLog: (data: Omit<ShipLogEntry, "id" | "createdAt">) => Promise<unknown>;
+  onUpdate: (id: string, data: Partial<ShipLogEntry>) => Promise<void>;
+}) {
+  const [showForm, setShowForm] = useState(false);
+  const [what, setWhat] = useState("");
+  const [toWhom, setToWhom] = useState("");
+  const [predicted, setPredicted] = useState("");
+  const [projectId, setProjectId] = useState("");
+  const [actualDrafts, setActualDrafts] = useState<Record<string, string>>({});
+  // Snapshot: the 30-day window doesn't need to tick while the page is open.
+  const [now] = useState(() => Date.now());
+
+  const shipped30 = entries.filter((e) => now - new Date(e.date).getTime() <= 30 * DAY_MS).length;
+  const projectTitle = (id?: string) => projects.find((p) => p.id === id)?.title;
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!what.trim() || !toWhom.trim()) return;
+    await onLog({
+      date: new Date(),
+      what: what.trim(),
+      toWhom: toWhom.trim(),
+      predictedReaction: predicted.trim() || "(none recorded)",
+      projectId: projectId || undefined,
+    });
+    setWhat(""); setToWhom(""); setPredicted(""); setProjectId("");
+    setShowForm(false);
+  };
+
+  const saveActual = async (id: string) => {
+    const text = actualDrafts[id]?.trim();
+    if (!text) return;
+    await onUpdate(id, { actualReaction: text });
+    setActualDrafts((d) => ({ ...d, [id]: "" }));
+  };
+
+  return (
+    <div className="mt-10">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <Rocket size={16} style={{ color: "var(--accent)" }} />
+          <h2 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>Ship Log</h2>
+          <span className="text-xs px-2 py-0.5 rounded-full font-mono"
+            style={{
+              background: shipped30 === 0 ? "#EF444420" : "var(--bg-tertiary)",
+              color: shipped30 === 0 ? "#EF4444" : "var(--text-secondary)",
+            }}>
+            {shipped30} shipped / 30d
+          </span>
+        </div>
+        <button onClick={() => setShowForm(true)}
+          className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-sage-400 text-white hover:bg-sage-500 transition-colors font-medium">
+          <Plus size={12} /> Log a ship
+        </button>
+      </div>
+
+      {shipped30 === 0 && entries.length === 0 && !showForm && (
+        <p className="text-xs mb-3" style={{ color: "var(--text-tertiary)" }}>
+          Nothing has left the machine yet. Progress here beats progress on the tracker.
+        </p>
+      )}
+
+      {showForm && (
+        <form onSubmit={submit} className="rounded-xl p-4 space-y-3 mb-4"
+          style={{ background: "var(--bg-secondary)", border: "1px solid var(--accent)" }}>
+          <input type="text" value={what} onChange={(e) => setWhat(e.target.value)} autoFocus
+            placeholder="What shipped? (rough is fine — it left the machine)"
+            className="w-full bg-transparent text-sm font-medium outline-none" style={{ color: "var(--text-primary)" }} />
+          <input type="text" value={toWhom} onChange={(e) => setToWhom(e.target.value)}
+            placeholder="To whom? (a person, a public post, a deploy someone was told about)"
+            className="w-full bg-transparent text-xs outline-none" style={{ color: "var(--text-secondary)" }} />
+          <input type="text" value={predicted} onChange={(e) => setPredicted(e.target.value)}
+            placeholder="Predicted reaction — write it down before reality answers"
+            className="w-full bg-transparent text-xs outline-none" style={{ color: "var(--text-secondary)" }} />
+          <div className="flex items-center gap-2">
+            <select value={projectId} onChange={(e) => setProjectId(e.target.value)}
+              className="text-xs rounded-lg px-2 py-1.5 outline-none"
+              style={{ background: "var(--bg-tertiary)", color: "var(--text-primary)", border: "1px solid var(--border-primary)" }}>
+              <option value="">No project</option>
+              {projects.filter((p) => p.status !== "archived").map((p) => (
+                <option key={p.id} value={p.id}>{p.title}</option>
+              ))}
+            </select>
+            <div className="flex-1" />
+            <button type="button" onClick={() => setShowForm(false)}
+              className="text-xs px-3 py-1.5 rounded-lg" style={{ color: "var(--text-secondary)" }}>Cancel</button>
+            <button type="submit"
+              className="text-xs px-3 py-1.5 rounded-lg bg-sage-400 text-white hover:bg-sage-500 transition-colors font-medium">Log it</button>
+          </div>
+        </form>
+      )}
+
+      <div className="space-y-2">
+        {entries.map((entry) => {
+          const awaiting = !entry.actualReaction;
+          return (
+            <div key={entry.id} className="rounded-xl p-4"
+              style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-primary)" }}>
+              <div className="flex items-start justify-between gap-2 mb-1">
+                <p className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>{entry.what}</p>
+                <span className="text-xs font-mono flex-shrink-0" style={{ color: "var(--text-tertiary)" }}>
+                  {new Date(entry.date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                </span>
+              </div>
+              <p className="text-xs mb-2" style={{ color: "var(--text-secondary)" }}>
+                → {entry.toWhom}
+                {projectTitle(entry.projectId) && (
+                  <span className="ml-2 px-1.5 py-0.5 rounded" style={{ background: "var(--bg-tertiary)", color: "var(--text-tertiary)" }}>
+                    {projectTitle(entry.projectId)}
+                  </span>
+                )}
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                <div className="rounded-lg px-3 py-2" style={{ background: "var(--bg-tertiary)" }}>
+                  <span style={{ color: "var(--text-tertiary)" }}>Predicted: </span>
+                  <span style={{ color: "var(--text-secondary)" }}>{entry.predictedReaction}</span>
+                </div>
+                <div className="rounded-lg px-3 py-2"
+                  style={{ background: awaiting ? "#F59E0B10" : "var(--bg-tertiary)", border: awaiting ? "1px solid #F59E0B40" : "none" }}>
+                  {awaiting ? (
+                    <div className="flex items-center gap-2">
+                      <input type="text" value={actualDrafts[entry.id] || ""}
+                        onChange={(e) => setActualDrafts((d) => ({ ...d, [entry.id]: e.target.value }))}
+                        onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); saveActual(entry.id); } }}
+                        placeholder="Actual reaction — what really happened?"
+                        className="flex-1 bg-transparent outline-none" style={{ color: "var(--text-primary)" }} />
+                      <button onClick={() => saveActual(entry.id)} className="flex-shrink-0" style={{ color: "#F59E0B" }}>
+                        Save
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <span style={{ color: "var(--text-tertiary)" }}>Actual: </span>
+                      <span style={{ color: "var(--text-secondary)" }}>{entry.actualReaction}</span>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // --- Main Page ---
 
 export default function ProjectsPage() {
   const { projects, loading, createProject, updateProject, deleteProject } = useProjects();
+  const { entries: shipLog, logShip, updateEntry } = useShipLog();
   const { tasks, updateTask, deleteTask, createTask } = useTasks();
   const { toast } = useToast();
   const [showForm, setShowForm] = useState(false);
   const [viewMode, setViewMode] = useState<"kanban" | "list">("kanban");
   const [reviewDismissed, setReviewDismissed] = useState(false);
+
+  // Invariant violations (missing shipping event, WIP limit) reject the write;
+  // surface them instead of swallowing the rejection.
+  const handleProjectUpdate = async (id: string, data: Partial<Project>) => {
+    try {
+      await updateProject(id, data);
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "Update failed");
+    }
+  };
+
+  const handleProjectCreate = async (data: Omit<Project, "id" | "createdAt">) => {
+    try {
+      await createProject(data);
+      setShowForm(false);
+      toast("Project created");
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "Create failed");
+    }
+  };
 
   const activeProjects = projects.filter((p) => p.status !== "archived");
 
@@ -324,7 +529,7 @@ export default function ProjectsPage() {
       {showForm && (
         <div className="mb-6">
           <ProjectCreateForm
-            onSubmit={(data) => { createProject(data); setShowForm(false); toast("Project created"); }}
+            onSubmit={handleProjectCreate}
             onCancel={() => setShowForm(false)}
           />
         </div>
@@ -355,7 +560,7 @@ export default function ProjectsPage() {
                 <div className="space-y-3">
                   {colProjects.map((project) => (
                     <ProjectCard key={project.id} project={project} tasks={tasks}
-                      onUpdate={updateProject} onDelete={deleteProject}
+                      onUpdate={handleProjectUpdate} onDelete={deleteProject}
                       onTaskUpdate={updateTask} onTaskDelete={deleteTask} onTaskCreate={createTask} />
                   ))}
                   {colProjects.length === 0 && (
@@ -372,11 +577,13 @@ export default function ProjectsPage() {
         <div className="space-y-3">
           {activeProjects.map((project) => (
             <ProjectCard key={project.id} project={project} tasks={tasks}
-              onUpdate={updateProject} onDelete={deleteProject}
+              onUpdate={handleProjectUpdate} onDelete={deleteProject}
               onTaskUpdate={updateTask} onTaskDelete={deleteTask} onTaskCreate={createTask} />
           ))}
         </div>
       )}
+
+      <ShipLogSection entries={shipLog} projects={projects} onLog={logShip} onUpdate={updateEntry} />
     </div>
   );
 }

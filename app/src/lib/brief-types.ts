@@ -53,6 +53,12 @@ export interface HomelabBody {
   issues: string[];
 }
 
+export interface ShipsBody {
+  projects: { title: string; days: number; never_shipped: boolean; shipping_event: string | null }[];
+  shipped_30d: number;
+  tripwire: boolean; // zero ships in 30 days with active projects
+}
+
 export interface FuiteBody {
   entries: { org: string; status: "green" | "orange" | "red"; data_types: string[]; url?: string }[];
 }

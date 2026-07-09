@@ -51,7 +51,27 @@ export interface Project {
   status: ProjectStatus;
   targetDate?: Date;
   nextAction?: string;
+  // Concrete external contact point that counts as this project shipping
+  // (e.g. "demo to one JECT member", "screenshot + writeup posted").
+  // Required to be active — enforced in use-projects.ts, not by convention.
+  shippingEvent?: string;
+  // One-line reason recorded when a project is archived from active/planning.
+  // Kills are allowed and healthy, but they're a logged decision, not drift.
+  killReason?: string;
   linkedTaskIds: string[];
+  createdAt: Date;
+}
+
+// One row per thing that left the machine. The predicted-vs-actual pair is
+// the point: it makes prediction error visible.
+export interface ShipLogEntry {
+  id: string;
+  date: Date;
+  projectId?: string;
+  what: string;
+  toWhom: string;
+  predictedReaction: string;
+  actualReaction?: string;
   createdAt: Date;
 }
 

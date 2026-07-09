@@ -3,11 +3,11 @@
 import { useState } from "react";
 import {
   AlertTriangle, Calendar, CheckSquare, ChevronDown, Dumbbell, ExternalLink,
-  Link2, Mic, Newspaper, Server, ShieldAlert, Square,
+  Link2, Mic, Newspaper, Rocket, Server, ShieldAlert, Square,
 } from "lucide-react";
 import type {
   Brief, BriefCard, FtHeadlinesBody, FuiteBody, HomelabBody, PromptBody,
-  WorkBody, WorkoutBody,
+  ShipsBody, WorkBody, WorkoutBody,
 } from "@/lib/brief-types";
 import { TalkCard } from "./talk-card";
 
@@ -26,6 +26,7 @@ const TYPE_ICON: Record<string, React.ReactNode> = {
   ft_headlines: <Newspaper size={15} />,
   quorky_digest: <Link2 size={15} />,
   prompt: <Mic size={15} />,
+  ships: <Rocket size={15} />,
 };
 
 /** Single-line summary shown when a state card is collapsed. */
@@ -284,9 +285,47 @@ function DigestCard({ card }: { card: BriefCard }) {
   );
 }
 
+function ShipsCard({ card }: { card: BriefCard }) {
+  const b = card.body as unknown as ShipsBody;
+  return (
+    <div className="space-y-2">
+      {b.tripwire && (
+        <p className="text-xs rounded-lg p-3" style={{ background: "#EF444415", color: "#EF4444" }}>
+          Nothing has left the machine in 30 days. Building is not shipping —
+          what&apos;s the smallest thing that can ship this week?
+        </p>
+      )}
+      {b.projects.length === 0 ? (
+        <p className="text-xs" style={{ color: "var(--text-tertiary)" }}>No active projects.</p>
+      ) : (
+        <div className="space-y-1.5">
+          {b.projects.map((p) => (
+            <div key={p.title} className="flex items-baseline justify-between gap-3 text-sm">
+              <div className="min-w-0">
+                <span style={{ color: "var(--text-primary)" }}>{p.title}</span>
+                {!p.shipping_event && (
+                  <span className="ml-2 text-xs" style={{ color: "#F59E0B" }}>no shipping event</span>
+                )}
+              </div>
+              <span className="text-xs font-mono shrink-0"
+                style={{ color: p.days > 14 ? "#EF4444" : p.days > 7 ? "#F59E0B" : "var(--text-tertiary)" }}>
+                {p.never_shipped ? `never shipped · ${p.days}d old` : `${p.days}d since ship`}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+      <p className="text-xs pt-1" style={{ color: "var(--text-tertiary)" }}>
+        {b.shipped_30d} shipped in the last 30 days
+      </p>
+    </div>
+  );
+}
+
 function CardBody({ card, date }: { card: BriefCard; date: string }) {
   if (card.error) return <ErrorBody error={card.error} />;
   switch (card.type) {
+    case "ships": return <ShipsCard card={card} />;
     case "workout": return <WorkoutCard card={card} date={date} />;
     case "work": return <WorkCard card={card} />;
     case "homelab": return <HomelabCard card={card} />;

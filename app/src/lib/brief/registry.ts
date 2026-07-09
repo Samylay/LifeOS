@@ -44,8 +44,10 @@ import * as homelab from "./fetchers/homelab";
 import * as fuite from "./fetchers/fuite";
 import * as ft from "./fetchers/ft";
 import * as digest from "./fetchers/digest";
+import * as ships from "./fetchers/ships";
 
 export const REGISTRY: RegisteredFetcher[] = [
+  { fetch: ships.fetch, meta: { id: "ships", type: "ships", priority: "action", title: "Exit velocity" } },
   { fetch: workout.fetch, meta: { id: "workout", type: "workout", priority: "action", title: "Workout" } },
   { fetch: work.fetch, meta: { id: "work", type: "work", priority: "action", title: "Today's work" } },
   { fetch: prompt.fetch, meta: { id: "prompt", type: "prompt", priority: "action", title: "Morning prompt" } },
