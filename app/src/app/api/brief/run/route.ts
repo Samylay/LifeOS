@@ -5,18 +5,15 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 // Manual trigger for the morning brief (the scheduler handles the daily run).
-// POST /api/brief/run            → build+send unless today's brief already exists
-// POST /api/brief/run?force=1    → rebuild and re-send regardless
-// POST /api/brief/run?force=1&quiet=1 → rebuild without the Telegram send
+// POST /api/brief/run         → build unless today's brief already exists
+// POST /api/brief/run?force=1 → rebuild regardless
 export async function POST(req: NextRequest) {
   const force = req.nextUrl.searchParams.get("force") === "1";
-  const quiet = req.nextUrl.searchParams.get("quiet") === "1";
   try {
-    const result = await runBrief({ force, skipTelegram: quiet });
+    const result = await runBrief({ force });
     return NextResponse.json({
       ran: result.ran,
       reason: result.reason,
-      telegram_ok: result.telegramOk,
       date: result.brief?.date,
       cards: result.brief?.cards.map((c) => ({ id: c.id, status: c.status, error: c.error })),
     });

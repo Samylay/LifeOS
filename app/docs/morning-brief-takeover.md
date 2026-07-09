@@ -2,7 +2,12 @@
 
 **Status: DONE (2026-07-07).** The brief is now built in-app: `src/lib/brief/`
 (fetchers + builder), scheduled daily at 06:00 `BRIEF_TZ` by `src/instrumentation.ts`
-with boot-time catch-up; manual trigger `POST /api/brief/run[?force=1][&quiet=1]`.
+with boot-time catch-up; manual trigger `POST /api/brief/run[?force=1]`.
+
+**Update 2026-07-09:** the Telegram send described below was dropped — Samy
+called it redundant with the in-app `/brief` cards page. `runBrief`/`renderMarkdown`
+no longer send anything; the brief is written to `brief.json` only. Sections
+below describing the Telegram render are kept as history, not current behavior.
 Parity was verified against the host aggregator's output (identical cards incl. the
 empty-TODOIST_API_TOKEN error) and a live Telegram send, then `brief.timer` was
 disabled and its units removed. `~/services/brief` remains on GitHub

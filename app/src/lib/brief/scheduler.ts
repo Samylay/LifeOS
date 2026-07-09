@@ -20,11 +20,7 @@ function log(msg: string) {
 async function runSafely(trigger: string) {
   try {
     const result = await runBrief();
-    log(
-      result.ran
-        ? `${trigger} run done (telegram ${result.telegramOk ? "ok" : "FAILED"})`
-        : `${trigger} run skipped: ${result.reason}`
-    );
+    log(result.ran ? `${trigger} run done` : `${trigger} run skipped: ${result.reason}`);
   } catch (e) {
     log(`${trigger} run crashed: ${e instanceof Error ? e.message : e}`);
   }
