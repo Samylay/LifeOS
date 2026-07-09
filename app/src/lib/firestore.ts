@@ -10,31 +10,13 @@ import {
   type QueryConstraint,
 } from "./local-db";
 import type {
-  Task,
-  Note,
-  Goal,
-  Project,
-  Habit,
   DailyLog,
-  UserProfile,
-  Transaction,
-  Subscription,
-  Area,
-  Workout,
-  WorkoutTemplate,
-  Reminder,
-  BodyMeasurement,
-  Recipe,
   MealPlan,
-  StrengthFocus,
   Affirmation,
   PrimePrompt,
   Principle,
   PrimeDay,
   PrimeSettings,
-  LearnItem,
-  ContentIdea,
-  ContentPost,
 } from "./types";
 
 export type { QueryConstraint };
@@ -139,188 +121,12 @@ function queryDocuments<T>(
   return apiGetCollection<T>(userPath(userId, collectionPath), constraints);
 }
 
-// --- Profile ---
-
-export async function getProfile(userId: string): Promise<UserProfile | null> {
-  return getDocument<UserProfile>(userId, "profile", "settings");
-}
-
-export async function setProfile(userId: string, data: Partial<UserProfile>): Promise<void> {
-  await apiSet(`${userPath(userId, "profile")}/settings`, data as Record<string, unknown>);
-}
-
-// --- Tasks ---
-
-export const tasks = {
-  create: (userId: string, data: Omit<Task, "id">) =>
-    createDocument<Task>(userId, "tasks", data),
-  get: (userId: string, id: string) => getDocument<Task>(userId, "tasks", id),
-  update: (userId: string, id: string, data: Partial<Task>) =>
-    updateDocument(userId, "tasks", id, data),
-  delete: (userId: string, id: string) => deleteDocument(userId, "tasks", id),
-  list: (userId: string, ...constraints: QueryConstraint[]) =>
-    queryDocuments<Task>(userId, "tasks", ...constraints),
-  listByArea: (userId: string, area: string) =>
-    queryDocuments<Task>(userId, "tasks", where("area", "==", area)),
-  listActive: (userId: string) =>
-    queryDocuments<Task>(userId, "tasks", where("status", "in", ["todo", "in_progress"]), orderBy("priority")),
-};
-
-
-// --- Notes ---
-
-export const notes = {
-  create: (userId: string, data: Omit<Note, "id">) =>
-    createDocument<Note>(userId, "notes", data),
-  get: (userId: string, id: string) => getDocument<Note>(userId, "notes", id),
-  update: (userId: string, id: string, data: Partial<Note>) =>
-    updateDocument(userId, "notes", id, data),
-  delete: (userId: string, id: string) => deleteDocument(userId, "notes", id),
-  listUnprocessed: (userId: string) =>
-    queryDocuments<Note>(userId, "notes", where("processed", "==", false), orderBy("createdAt", "desc")),
-};
-
-// --- Goals (quarterly objectives). Stored as "objectives" to avoid clashing
-// with any legacy "goals" docs from the removed year-goal feature. ---
-
-export const goals = {
-  create: (userId: string, data: Omit<Goal, "id">) =>
-    createDocument<Goal>(userId, "objectives", data),
-  get: (userId: string, id: string) => getDocument<Goal>(userId, "objectives", id),
-  update: (userId: string, id: string, data: Partial<Goal>) =>
-    updateDocument(userId, "objectives", id, data),
-  delete: (userId: string, id: string) => deleteDocument(userId, "objectives", id),
-  list: (userId: string, ...constraints: QueryConstraint[]) =>
-    queryDocuments<Goal>(userId, "objectives", ...constraints),
-};
-
-// --- Projects ---
-
-export const projects = {
-  create: (userId: string, data: Omit<Project, "id">) =>
-    createDocument<Project>(userId, "projects", data),
-  get: (userId: string, id: string) => getDocument<Project>(userId, "projects", id),
-  update: (userId: string, id: string, data: Partial<Project>) =>
-    updateDocument(userId, "projects", id, data),
-  delete: (userId: string, id: string) => deleteDocument(userId, "projects", id),
-  listActive: (userId: string) =>
-    queryDocuments<Project>(userId, "projects", where("status", "in", ["planning", "active"])),
-  list: (userId: string, ...constraints: QueryConstraint[]) =>
-    queryDocuments<Project>(userId, "projects", ...constraints),
-};
-
-// --- Habits ---
-
-export const habits = {
-  create: (userId: string, data: Omit<Habit, "id">) =>
-    createDocument<Habit>(userId, "habits", data),
-  get: (userId: string, id: string) => getDocument<Habit>(userId, "habits", id),
-  update: (userId: string, id: string, data: Partial<Habit>) =>
-    updateDocument(userId, "habits", id, data),
-  delete: (userId: string, id: string) => deleteDocument(userId, "habits", id),
-  list: (userId: string, ...constraints: QueryConstraint[]) =>
-    queryDocuments<Habit>(userId, "habits", ...constraints),
-};
-
 // --- Daily Logs ---
 
 export const dailyLogs = {
   get: (userId: string, date: string) => getDocument<DailyLog>(userId, "dailyLogs", date),
   set: (userId: string, date: string, data: Partial<DailyLog>) =>
     apiSet(`${userPath(userId, "dailyLogs")}/${date}`, data as Record<string, unknown>),
-};
-
-// --- Finance ---
-
-export const finance = {
-  transactions: {
-    create: (userId: string, data: Omit<Transaction, "id">) =>
-      createDocument<Transaction>(userId, "finance/data/transactions", data),
-    list: (userId: string, ...constraints: QueryConstraint[]) =>
-      queryDocuments<Transaction>(userId, "finance/data/transactions", ...constraints),
-  },
-  subscriptions: {
-    create: (userId: string, data: Omit<Subscription, "id">) =>
-      createDocument<Subscription>(userId, "finance/data/subscriptions", data),
-    list: (userId: string, ...constraints: QueryConstraint[]) =>
-      queryDocuments<Subscription>(userId, "finance/data/subscriptions", ...constraints),
-    update: (userId: string, id: string, data: Partial<Subscription>) =>
-      updateDocument(userId, "finance/data/subscriptions", id, data),
-    delete: (userId: string, id: string) =>
-      deleteDocument(userId, "finance/data/subscriptions", id),
-  },
-};
-
-// --- Areas ---
-
-export const areas = {
-  get: (userId: string, areaId: string) => getDocument<Area>(userId, "areas", areaId),
-  set: (userId: string, areaId: string, data: Partial<Area>) =>
-    apiSet(`${userPath(userId, "areas")}/${areaId}`, data as Record<string, unknown>),
-  list: (userId: string) => queryDocuments<Area>(userId, "areas"),
-};
-
-// --- Workouts ---
-
-export const workouts = {
-  create: (userId: string, data: Omit<Workout, "id">) =>
-    createDocument<Workout>(userId, "workouts", data),
-  get: (userId: string, id: string) => getDocument<Workout>(userId, "workouts", id),
-  update: (userId: string, id: string, data: Partial<Workout>) =>
-    updateDocument(userId, "workouts", id, data),
-  delete: (userId: string, id: string) => deleteDocument(userId, "workouts", id),
-  list: (userId: string, ...constraints: QueryConstraint[]) =>
-    queryDocuments<Workout>(userId, "workouts", ...constraints),
-};
-
-// --- Workout Templates ---
-
-export const workoutTemplates = {
-  create: (userId: string, data: Omit<WorkoutTemplate, "id">) =>
-    createDocument<WorkoutTemplate>(userId, "workoutTemplates", data),
-  get: (userId: string, id: string) => getDocument<WorkoutTemplate>(userId, "workoutTemplates", id),
-  update: (userId: string, id: string, data: Partial<WorkoutTemplate>) =>
-    updateDocument(userId, "workoutTemplates", id, data),
-  delete: (userId: string, id: string) => deleteDocument(userId, "workoutTemplates", id),
-  list: (userId: string) => queryDocuments<WorkoutTemplate>(userId, "workoutTemplates"),
-};
-
-// --- Reminders ---
-
-export const reminders = {
-  create: (userId: string, data: Omit<Reminder, "id">) =>
-    createDocument<Reminder>(userId, "reminders", data),
-  get: (userId: string, id: string) => getDocument<Reminder>(userId, "reminders", id),
-  update: (userId: string, id: string, data: Partial<Reminder>) =>
-    updateDocument(userId, "reminders", id, data),
-  delete: (userId: string, id: string) => deleteDocument(userId, "reminders", id),
-  list: (userId: string, ...constraints: QueryConstraint[]) =>
-    queryDocuments<Reminder>(userId, "reminders", ...constraints),
-};
-
-// --- Body Measurements ---
-
-export const bodyMeasurements = {
-  create: (userId: string, data: Omit<BodyMeasurement, "id">) =>
-    createDocument<BodyMeasurement>(userId, "bodyMeasurements", data),
-  list: (userId: string, ...constraints: QueryConstraint[]) =>
-    queryDocuments<BodyMeasurement>(userId, "bodyMeasurements", ...constraints),
-  delete: (userId: string, id: string) => deleteDocument(userId, "bodyMeasurements", id),
-};
-
-
-
-// --- Recipes ---
-
-export const recipes = {
-  create: (userId: string, data: Omit<Recipe, "id">) =>
-    createDocument<Recipe>(userId, "recipes", data),
-  get: (userId: string, id: string) => getDocument<Recipe>(userId, "recipes", id),
-  update: (userId: string, id: string, data: Partial<Recipe>) =>
-    updateDocument(userId, "recipes", id, data),
-  delete: (userId: string, id: string) => deleteDocument(userId, "recipes", id),
-  list: (userId: string, ...constraints: QueryConstraint[]) =>
-    queryDocuments<Recipe>(userId, "recipes", ...constraints),
 };
 
 // --- Meal Plan ---
@@ -331,19 +137,6 @@ export const mealPlans = {
     apiSet(`${userPath(userId, "mealplan")}/${weekId}`, data as Record<string, unknown>),
   list: (userId: string, ...constraints: QueryConstraint[]) =>
     queryDocuments<MealPlan>(userId, "mealplan", ...constraints),
-};
-
-// --- Strength focuses ---
-
-export const strengthFocuses = {
-  create: (userId: string, data: Omit<StrengthFocus, "id">) =>
-    createDocument<StrengthFocus>(userId, "strengthFocuses", data),
-  get: (userId: string, id: string) => getDocument<StrengthFocus>(userId, "strengthFocuses", id),
-  update: (userId: string, id: string, data: Partial<StrengthFocus>) =>
-    updateDocument(userId, "strengthFocuses", id, data),
-  delete: (userId: string, id: string) => deleteDocument(userId, "strengthFocuses", id),
-  list: (userId: string, ...constraints: QueryConstraint[]) =>
-    queryDocuments<StrengthFocus>(userId, "strengthFocuses", ...constraints),
 };
 
 // --- Daily Prime: affirmation bank ---
@@ -396,42 +189,4 @@ export const primeSettings = {
   get: (userId: string) => getDocument<PrimeSettings>(userId, "prime", "settings"),
   set: (userId: string, data: Partial<PrimeSettings>) =>
     apiSet(`${userPath(userId, "prime")}/settings`, data as Record<string, unknown>),
-};
-
-
-// --- Things to Learn ---
-
-export const learnItems = {
-  create: (userId: string, data: Omit<LearnItem, "id">) =>
-    createDocument<LearnItem>(userId, "learnItems", data),
-  get: (userId: string, id: string) => getDocument<LearnItem>(userId, "learnItems", id),
-  update: (userId: string, id: string, data: Partial<LearnItem>) =>
-    updateDocument(userId, "learnItems", id, data),
-  delete: (userId: string, id: string) => deleteDocument(userId, "learnItems", id),
-  list: (userId: string, ...constraints: QueryConstraint[]) =>
-    queryDocuments<LearnItem>(userId, "learnItems", ...constraints),
-};
-
-// --- Content OS ---
-
-export const contentIdeas = {
-  create: (userId: string, data: Omit<ContentIdea, "id">) =>
-    createDocument<ContentIdea>(userId, "contentIdeas", data),
-  get: (userId: string, id: string) => getDocument<ContentIdea>(userId, "contentIdeas", id),
-  update: (userId: string, id: string, data: Partial<ContentIdea>) =>
-    updateDocument(userId, "contentIdeas", id, data),
-  delete: (userId: string, id: string) => deleteDocument(userId, "contentIdeas", id),
-  list: (userId: string, ...constraints: QueryConstraint[]) =>
-    queryDocuments<ContentIdea>(userId, "contentIdeas", ...constraints),
-};
-
-export const contentPosts = {
-  create: (userId: string, data: Omit<ContentPost, "id">) =>
-    createDocument<ContentPost>(userId, "contentPosts", data),
-  get: (userId: string, id: string) => getDocument<ContentPost>(userId, "contentPosts", id),
-  update: (userId: string, id: string, data: Partial<ContentPost>) =>
-    updateDocument(userId, "contentPosts", id, data),
-  delete: (userId: string, id: string) => deleteDocument(userId, "contentPosts", id),
-  list: (userId: string, ...constraints: QueryConstraint[]) =>
-    queryDocuments<ContentPost>(userId, "contentPosts", ...constraints),
 };
