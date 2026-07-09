@@ -578,6 +578,8 @@ export interface ContentIdea {
   hookFormula?: number; // 1–12 from the hook library; unset = topic, not script-ready
   episode?: number; // Build Log serial number
   notes?: string;
+  script?: string; // full draft script to the pillar's skeleton (Monday scripting block output)
+  caption?: string; // caption + hashtags per the publishing conventions in 05
   status: ContentIdeaStatus;
   createdAt: Date;
   updatedAt: Date;
