@@ -373,3 +373,25 @@ Nine centres (LifeOS, Flux, Ecole, Scout, reels-reader, homelab-infra, workouts,
   (3) What proved the "never overlap an existing event" rule works against
   live data, not just tests? (4) Why won't anything fire automatically
   tomorrow morning from tonight's change?
+
+## Content OS — scripting automation (shipped 2026-07-09: feat/content-os-scripting branch)
+
+Monday scripting block automated: per-idea "draft script" + "draft week's batch" in /content
+(claude -p via the existing claude-cli path; skeletons/captions mirror the vault docs; batch
+respects the 12-unscripted-ideas floor). Deliberately NOT built — each needs Samy's call or
+credentials an unattended agent may not invent:
+
+- [ ] **T25 — NEEDS-SAMY: auto-publishing to TikTok/Instagram/YouTube** (L) — needs real
+  platform API credentials + app registrations (Meta app review, TikTok developer account,
+  YouTube Data API quota) that don't exist today. Until then the SOP stays: post natively
+  from the phone drafts folders. Decide if/when platform apps are worth registering.
+- [ ] **T25b — NEEDS-SAMY: analytics auto-pull for the /content Post Tracker** (M) — same
+  credential blocker as T25; the Friday 20-min manual review stands. Decide together with T25.
+- [ ] **T25c — NEEDS-SAMY: schedule the weekly batch draft (Monday 06:30 auto-run)** (S) —
+  the batch generator is a manual button in v1, deliberately: it drafts words Samy will
+  publish under his own voice, so a human trigger keeps him in the loop while trust builds.
+  Mirroring the brief scheduler (`src/lib/brief/scheduler.ts` instrumentation pattern) is a
+  small task once he's happy with a few weeks of manual batches. Decide when.
+- One-line flag for later: editing automation (whisper auto-captions / silence-cut via the
+  homelab's local whisper) is possible but out of scope — the SOP's "ship rough or drop"
+  keeps a human in the edit loop for now.
