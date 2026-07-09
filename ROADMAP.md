@@ -20,7 +20,7 @@
 - [ ] **T05 — Retire the legacy morning-brief fallback (GATED)** (M) — only proceed if the in-app brief has run ≥3 consecutive days (check dated entries/log at `BRIEF_OUT` `/data/brief.json` inside the container or scheduler logs via `docker logs lifeos | grep brief-scheduler`); otherwise leave unchecked with a dated note. Remove the `BRIEF_PATH` read-fallback code, the `/home/quorky/services/brief/out:/brief:ro` mount, and the `BRIEF_PATH` env from `docker-compose.yml`. Compose change is its own commit stating the operational effect. Verify: typecheck, rebuild, redeploy, `/brief` route 200 and still shows today's brief.
   BLOCKED (2026-07-08): gate not met — the in-app brief was only built 2026-07-07 (commit 21eba5d), so it has run at most since then, nowhere near 3 consecutive days. Left unchecked; re-check after 2026-07-10.
 - [x] **T06 — Harden server-db writes** (S) — `src/lib/server-db.ts` opens SQLite with WAL but no `busy_timeout`, and any multi-doc write paths run as separate implicit transactions. Add `pragma busy_timeout = 5000`, and wrap any loop-of-writes in `db.transaction(...)`. Behavior must be identical; no schema changes, no touching the live DB file. Verify: T01's server-db tests still green, typecheck, rebuild, redeploy, create+edit a task via the UI/API smoke. *(2026-07-08: done in autoloop — added `pragma busy_timeout=5000` + a `runInTransaction` helper, wrapped the pager retention prune loop in `api/notify/route.ts` (the only loop-of-writes found) in a single transaction; 38/38 tests green, tsc clean, rebuilt/redeployed, create+edit+delete a task via /api/data verified)*
-- [ ] **T07 — Unused-export sweep** (M) — run `npx knip` (or `ts-prune`) in `app/`, review the report, and delete only exports/files that are provably unreferenced AND not part of an intentional fallback (Ollama paths, `use-collection` factory surface stay). Blindspot pass mandatory: check the autoloop memory log for anything previously flagged as deliberate before cutting. Verify: typecheck, rebuild, redeploy, smoke every route whose files were touched.
+- [x] **T07 — Unused-export sweep** (M) — run `npx knip` (or `ts-prune`) in `app/`, review the report, and delete only exports/files that are provably unreferenced AND not part of an intentional fallback (Ollama paths, `use-collection` factory surface stay). Blindspot pass mandatory: check the autoloop memory log for anything previously flagged as deliberate before cutting. Verify: typecheck, rebuild, redeploy, smoke every route whose files were touched. *(2026-07-09: done in autoloop — deleted 2 unreferenced files (`components/daily-log.tsx`, `lib/use-profile.ts`) and 18 dead Firestore-shim collection exports from `lib/firestore.ts` (tasks/notes/goals/projects/habits/finance/areas/workouts/workoutTemplates/reminders/bodyMeasurements/recipes/strengthFocuses/learnItems/contentIdeas/contentPosts/getProfile/setProfile) — all superseded by the generic `useCollection` factory; kept dailyLogs/mealPlans/affirmations/primePrompts/principles/primeDays/primeSettings (still imported). Left knip's remaining ~30 flagged exports (training/format.ts, training/stats.ts, brief/builder.ts, local-db.ts, strava-db.ts, area-module.tsx, task-list.tsx, plus type-only exports) untouched — riskier calls (shared-module public surface, possible false positives from knip's static analysis) not worth cutting in one pass; a future task can revisit with more scrutiny per export. 38/38 tests green, tsc clean, docker build succeeds, redeployed, smoked / /prime /tasks /areas /areas/health /workouts /pager all 200. Split into two commits (222 + 245 lines) to stay under the 400-line unattended cap.)*
 
 - [x] **T08 — Training: records view** (M) — port the personal-records section from the retired `~/dashboards/strava-dashboard` (`app/records/page.tsx`) into the /workouts analytics area, computing bests from `/api/strava/activities` rows with `src/lib/training/stats.ts` (kpis/streak already ported; distance PRs from summary rows only — streams are NOT synced, skip stream-based efforts). Verify: typecheck, `npm test` green, rebuild, redeploy, /workouts 200 and shows the records block with real data. *(2026-07-07, session: already covered — TrainingAnalytics' Records section predated the merge; streak chip added via ported stats)*
 - [x] **T09 — Training: weekly trends + rolling average chart** (M) — port trends (`app/trends/page.tsx`, `weeklyBuckets`/`rollingAverage`) into the /workouts analytics area. Reuse the app's existing chart approach (see components/training-analytics.tsx) — do NOT add a chart library. Verify: typecheck, test, rebuild, redeploy, /workouts 200 with the trends chart rendering non-empty buckets. *(2026-07-07, session: already covered — 12-week stacked trend chart predated the merge)*
@@ -94,6 +94,39 @@
   **Quiz:** (1) Which single call site had a loop-of-writes before this task?
   (2) What does `busy_timeout` change about a writer that hits a WAL lock?
   (3) Why couldn't T05 proceed tonight?
+
+- **2026-07-09 (autoloop, T05 re-checked/still blocked, T07 done):** Re-checked
+  T05's gate before picking a task: `docker logs lifeos | grep brief-scheduler`
+  shows only one scheduled run so far (2026-07-08T21:00:02Z), so the ≥3-day
+  bar still isn't met. Left blocked, moved to T07 (first unchecked
+  non-NEEDS-SAMY task after T05). Ran `npx knip` in `app/`: 2 unreferenced
+  files (`components/daily-log.tsx`, `lib/use-profile.ts` — the latter's
+  Firestore auth path is dead since T04 removed firebase.ts) and 50 unused
+  exports. Traced the unused exports back to `lib/firestore.ts`'s per-collection
+  CRUD objects (`tasks`, `notes`, `goals`, …) — confirmed via grep that every
+  hook (`use-tasks.ts`, `use-habits.ts`, etc.) now calls the generic
+  `useCollection` factory with a raw collection-path string instead, so this
+  whole Firestore-era API surface (18 exports) was genuinely dead, not the
+  intentional `use-collection` factory surface the task warned to keep (that
+  surface is `createDocument`/`updateDocument`/`deleteDocument`, which
+  `use-collection.ts` imports directly and knip correctly did NOT flag).
+  Deleted the 2 files and the 18 dead exports; kept `dailyLogs`/`mealPlans`/
+  `affirmations`/`primePrompts`/`principles`/`primeDays`/`primeSettings`
+  (still imported by their hooks). Left knip's remaining ~30 flags (mostly
+  `training/format.ts`, `training/stats.ts`, `brief/builder.ts` internals,
+  and type-only exports) alone — those read as a shared-module public API
+  rather than provably dead code, and cutting them needs closer per-export
+  scrutiny than a first pass warrants. Split the change into two commits
+  (222 + 245 lines) to stay under the 400-line unattended cap. 38/38 tests
+  green, tsc clean, docker build succeeded, redeployed, smoked
+  `/ /prime /tasks /areas /areas/health /workouts /pager` all 200.
+  **Pitch:** the app no longer carries a second, unused Firestore-style CRUD
+  API alongside the generic collection hook that actually powers every list
+  view — one less place for a future edit to silently target dead code.
+  **Quiz:** (1) Which generic factory replaced the per-collection `tasks`/
+  `notes`/`goals`/… objects, and what does it take as its first argument?
+  (2) Which 7 firestore.ts exports were kept, and why? (3) Why was the change
+  split into two commits instead of one?
 
 ## Pager (homelab notification hub — shipped 2026-07-07: /pager + /api/notify + ntfy push)
 
