@@ -39,13 +39,15 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Unit tests (includes the android-consistency suite)
-        run: npm run test
-
       # Pinned to the same version as @capacitor/core — the CLI is
       # intentionally not a package.json dependency (see ROADMAP T18b).
+      # Runs BEFORE the tests: the android-consistency suite checks the
+      # gitignored capacitor.config.json this generates into android assets.
       - name: Capacitor sync
         run: npx -y @capacitor/cli@8.4.1 sync android
+
+      - name: Unit tests (includes the android-consistency suite)
+        run: npm run test
 
       - name: Build debug APK
         working-directory: app/android
