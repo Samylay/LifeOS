@@ -147,7 +147,7 @@ Nine centres (LifeOS, Flux, Ecole, Scout, reels-reader, homelab-infra, workouts,
 
 - [ ] **T19 — NEEDS-SAMY: Google Calendar API credentials** (S) — daily-planning needs to read existing events and write tentative time-blocks. No Google OAuth client exists in `~/.config/homelab/secrets.env` or LifeOS's env today (checked 2026-07-09) — this is a real external dependency + secret, not something an unattended agent may invent. Samy needs to: create a Google Cloud project + OAuth client (or reuse one if he already has one for another purpose — ask before assuming), grant Calendar API scope, and drop the client id/secret/refresh token into `~/.config/homelab/secrets.env`. T23 is gated on this; T20–T22 are not and can proceed in parallel.
 - [x] **T20 — Backlog files for untracked centres** (S) — add `workouts.md`, `polymath.md`, `swe-learning.md` to LifeOS's data directory (alongside `data/lifeos.db`, not `~/loop-me/`), each a simple markdown checklist the brief can read/append to, carrying unfinished items across days. No UI needed yet — just the file convention + a small read/write helper in `src/lib`. Verify: typecheck, unit test for the helper (create/append/mark-done/read-unfinished), rebuild. *(2026-07-09: done in autoloop — added `src/lib/backlog.ts` (readBacklog/readUnfinishedBacklog/appendBacklogItem/markBacklogItemDone) storing each centre's items as a markdown checklist file next to `data/lifeos.db` (via the existing `LIFEOS_DB_PATH`-derived `dataDir()` convention from `strava.ts`); files are created lazily on first append, not pre-seeded. 42/42 tests green (4 new backlog tests), tsc clean, docker build succeeds. No route touched, so no redeploy/smoke needed this pass.)*
-- [ ] **T21 — Todoist centre-inference pull** (M) — using the existing Todoist v1 fetcher (`src/lib/brief/fetchers/work.ts` or sibling — check what's already there from the 2026-07-07 Todoist integration before adding a second client), pull all open tasks and infer a centre (one of the nine) per task from title/content. Cache the inference per task id so it isn't re-run every day. Only surface a task as "needs categorization" when confidence is low — don't gate on 100% coverage. Verify: typecheck, unit test the inference function against a handful of fixture task titles per centre, rebuild.
+- [x] **T21 — Todoist centre-inference pull** (M) — using the existing Todoist v1 fetcher (`src/lib/brief/fetchers/work.ts` or sibling — check what's already there from the 2026-07-07 Todoist integration before adding a second client), pull all open tasks and infer a centre (one of the nine) per task from title/content. Cache the inference per task id so it isn't re-run every day. Only surface a task as "needs categorization" when confidence is low — don't gate on 100% coverage. Verify: typecheck, unit test the inference function against a handful of fixture task titles per centre, rebuild. *(2026-07-09: done in autoloop — added `src/lib/brief/centre-inference.ts` (`inferCentre` keyword/word-boundary match over title+description, ambiguous or 0-match tasks come back low-confidence/null centre) with a JSON cache file next to `lifeos.db` (same `dataDir()` convention as T20's `backlog.ts`) keyed by task id + content, so unchanged tasks skip re-inference; `src/lib/brief/fetchers/todoist-centres.ts` pulls all open tasks via Todoist's paginated `/tasks` endpoint (separate from `fetchers/work.ts`'s overdue|today card fetcher) and runs them through the cache. 14 fixture-title tests (one per centre) plus ambiguous/cache-hit/cache-invalidation cases — 56/56 tests green, tsc clean, docker build succeeds. Not wired into the brief UI yet, out of this task's scope — T22+ consumes it — so no redeploy/route smoke this pass.)*
 - [ ] **T22 — Tracked-centre aggregator** (M) — for LifeOS/Flux/Ecole/Scout/reels-reader: read each project's `ROADMAP.md` (path convention: `~/apps/<project>/ROADMAP.md`) for `NEEDS-SAMY` items + the next unchecked non-NEEDS-SAMY task (same parse LifeOS itself already needs nothing external for — this runs from LifeOS's host context, so file reads are local). For homelab-infra: read `~/infra/goals` standing-goal state for pass→FAIL transitions (top priority) else next NEEDS-SAMY across `~/infra/*/ROADMAP.md`. Output a normalized list of `{centre, title, urgency}` items GitHub issues can be layered onto later — don't build the GitHub-issues half yet, ROADMAP.md + standing-goals is enough for v1. Verify: typecheck, unit test the ROADMAP.md parser against fixture files, rebuild.
 - [ ] **T23 — Calendar read + tentative block writer (GATED on T19)** (M) — do not start until T19's credentials exist. Read the day's existing events first (hard constraints, never propose over them); write proposed blocks as real tentative calendar events (title-prefix marker, e.g. `〜`) for: fixed 6am workout anchor, 30-min protected minimums for polymath + SWE-learning, then dynamic-priority items from T21+T22 filling 7am–10pm. Verify: typecheck, rebuild, manual smoke against Samy's actual calendar for one day (document the result in the log entry — this one can't be fully verified by an unattended agent alone, flag for a human glance next session if the calendar-write looks wrong).
 - [ ] **T24 — Checkpoint: fold into Morning Brief + reply handling (GATED on T20–T23)** (M) — add the daily-planning section to the existing brief output (same delivery: pager → Telegram dual-write), listing: today's blocks (referencing the live tentative events), any low-confidence Todoist placements from T21, and an open invite to extend the list. Parse plain-text replies in the pager/Telegram thread for: reschedule ("push X to Ypm"), decline ("won't do X today" → removes the tentative event, leaves source/backlog untouched), placement answers, and free-form additions. Keep intent-parsing as its own function separate from the Telegram ingestion path (voice input is a planned future reply channel — don't hardcode text-only assumptions into the parsing logic itself, just the transport). Verify: typecheck, rebuild, unit tests for the reply parser against fixture replies (one per intent type), manual smoke of one real reply round-trip.
@@ -181,3 +181,37 @@ Nine centres (LifeOS, Flux, Ecole, Scout, reels-reader, homelab-infra, workouts,
   **Quiz:** (1) Where do backlog files live, and what existing convention did
   `dataDir()` reuse? (2) What happens if `readBacklog` is called for a centre
   whose file doesn't exist yet? (3) Why was T05 left blocked again tonight?
+
+- **2026-07-09 (autoloop, T05 re-checked/still blocked, T21 done):** Re-checked
+  T05's gate first: `docker exec lifeos cat /data/brief.json` still shows only
+  one in-app-brief generation (`generated_at: 2026-07-08T21:00:02Z`), and
+  `docker logs lifeos | grep brief-scheduler` shows a single 2026-07-09
+  catch-up-skipped line — no third day of history yet, so the ≥3-day bar
+  still isn't met. Left T05 blocked. T17–T19 are NEEDS-SAMY; T20 is done; so
+  moved to T21, the first unchecked non-NEEDS-SAMY task. Implemented the
+  Todoist centre-inference pull per the daily-planning spec's "Todoist
+  integration" section: `centre-inference.ts` does a lightweight
+  word-boundary keyword match per centre (had to switch from plain substring
+  matching after "reels-reader" spuriously matched polymath's "read"
+  keyword inside "reader") and caches each task's inference by id in a JSON
+  file next to `lifeos.db`, reusing T20's `dataDir()` convention rather than
+  writing into the app's SQLite doc store or inventing a new location; a
+  cached entry is invalidated automatically if the task's content changed
+  since the last run. `fetchers/todoist-centres.ts` pulls *all* open tasks
+  via Todoist's paginated `/tasks` endpoint — deliberately separate from
+  `fetchers/work.ts`, which only pulls overdue|today for the brief's "Today's
+  work" card and stays untouched. Ambiguous (multi-centre match) or
+  zero-match tasks come back `{centre: null, confidence: "low"}` per the
+  spec's "only ask Samy when genuinely ambiguous" rule — no UI surfaces that
+  yet since wiring it into the brief is T22+'s job, not this task's. 14
+  fixture-title tests (one per centre) plus ambiguous/description-only/cache-
+  hit/cache-invalidation cases: 56/56 tests green, tsc clean, docker build
+  succeeds. No route was touched, so no redeploy/smoke this pass.
+  **Pitch:** Todoist's flat, uncategorized task list can now be sorted into
+  the nine daily-planning centres automatically, with the inference cost
+  paid once per task instead of on every brief run, and the plumbing already
+  distinguishes "confidently placed" from "needs Samy to decide" per task.
+  **Quiz:** (1) Why did "reels-reader" need a word-boundary match instead of
+  a plain substring check? (2) Where is the per-task inference cached, and
+  what invalidates a cache entry? (3) What does a task get back when it
+  matches two centres' keywords at once?
