@@ -25,6 +25,24 @@ export const CF_ACCESS_SECRET_ENV = "CF_ACCESS_CLIENT_SECRET";
 export const CF_ACCESS_ID_HEADER = "CF-Access-Client-Id";
 export const CF_ACCESS_SECRET_HEADER = "CF-Access-Client-Secret";
 
+/**
+ * Host suffix of Cloudflare Access's interactive login pages
+ * (`<team>.cloudflareaccess.com`). When Access challenges a request it 302s
+ * to this host — outside Capacitor's allowNavigation, so the stock
+ * BridgeWebViewClient would punt it to the EXTERNAL browser, whose separate
+ * cookie jar can never authenticate the app's WebView (the 2026-07-09
+ * first-device-run failure). CfAccessWebViewClient.java keeps navigations to
+ * this suffix in-app instead; the consistency suite pins the two literals
+ * together.
+ */
+export const CF_ACCESS_LOGIN_HOST_SUFFIX = ".cloudflareaccess.com";
+
+/** True when a host is a Cloudflare Access team login host — the WebView
+ * must handle these itself, never hand them to the external browser. */
+export function isAccessLoginHost(host: string): boolean {
+  return host.endsWith(CF_ACCESS_LOGIN_HOST_SUFFIX);
+}
+
 /** Host the WebView is allowed to navigate within (Capacitor
  * allowNavigation). Throws on a non-HTTPS or malformed URL so a bad
  * override fails at sync time, not silently on the phone. */

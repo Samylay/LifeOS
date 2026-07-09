@@ -13,6 +13,7 @@ import {
   CF_ACCESS_SECRET_ENV,
   CF_ACCESS_ID_HEADER,
   CF_ACCESS_SECRET_HEADER,
+  CF_ACCESS_LOGIN_HOST_SUFFIX,
   appHost,
 } from "./cf-access";
 
@@ -22,6 +23,9 @@ const read = (rel: string) => fs.readFileSync(path.join(appRoot, rel), "utf8");
 const cfAccessJava = read("android/app/src/main/java/com/samylayaida/lifeos/CfAccess.java");
 const mainActivityJava = read(
   "android/app/src/main/java/com/samylayaida/lifeos/MainActivity.java"
+);
+const webViewClientJava = read(
+  "android/app/src/main/java/com/samylayaida/lifeos/CfAccessWebViewClient.java"
 );
 const buildGradle = read("android/app/build.gradle");
 
@@ -58,10 +62,10 @@ describe("build.gradle secret plumbing", () => {
   });
 
   it("contains no credential-shaped literal (Access client ids end in .access)", () => {
-    for (const source of [cfAccessJava, mainActivityJava]) {
+    for (const source of [cfAccessJava, mainActivityJava, webViewClientJava]) {
       expect(source).not.toMatch(/[0-9a-f]{16,}/i);
     }
-    for (const source of [buildGradle, cfAccessJava, mainActivityJava]) {
+    for (const source of [buildGradle, cfAccessJava, mainActivityJava, webViewClientJava]) {
       expect(source).not.toMatch(/\w+\.access["']/);
     }
   });
@@ -72,6 +76,61 @@ describe("MainActivity.java", () => {
     expect(mainActivityJava).toContain("CfAccess.headers()");
     expect(mainActivityJava).toContain("getServerUrl()");
     expect(mainActivityJava).toMatch(/loadUrl\(serverUrl,\s*headers\)/);
+  });
+
+  it("installs CfAccessWebViewClient BEFORE re-issuing the load (external-browser race)", () => {
+    const install = mainActivityJava.indexOf("setWebViewClient(new CfAccessWebViewClient(");
+    const reissue = mainActivityJava.indexOf("loadUrl(serverUrl, headers)");
+    expect(install).toBeGreaterThan(-1);
+    expect(reissue).toBeGreaterThan(-1);
+    expect(install).toBeLessThan(reissue);
+  });
+
+  it("flushes the cookie store on pause so CF_Authorization survives process death", () => {
+    expect(mainActivityJava).toMatch(/onPause\(\)[\s\S]*CookieManager\.getInstance\(\)\.flush\(\)/);
+  });
+});
+
+describe("CfAccessWebViewClient.java (keeps the Access flow in-app)", () => {
+  it("extends Capacitor's BridgeWebViewClient (stock behavior for everything else)", () => {
+    expect(webViewClientJava).toMatch(/class CfAccessWebViewClient extends BridgeWebViewClient/);
+    expect(webViewClientJava).toContain("super.shouldOverrideUrlLoading(view, request)");
+  });
+
+  it("uses the same Access login host suffix as the TS spec", () => {
+    expect(webViewClientJava).toContain(`"${CF_ACCESS_LOGIN_HOST_SUFFIX}"`);
+    // Suffix match must be host-boundary safe: a leading dot in the literal.
+    expect(CF_ACCESS_LOGIN_HOST_SUFFIX.startsWith(".")).toBe(true);
+    expect(webViewClientJava).toMatch(/host\.endsWith\(ACCESS_LOGIN_HOST_SUFFIX\)/);
+  });
+
+  it("re-issues the load with the token headers a BOUNDED number of times", () => {
+    expect(webViewClientJava).toContain("CfAccess.headers()");
+    expect(webViewClientJava).toMatch(/headerRetriesLeft > 0/);
+    expect(webViewClientJava).toMatch(/headerRetriesLeft--/);
+  });
+
+  it("falls back to showing the Access login IN the WebView, never the external browser", () => {
+    // The login-host branch must end in `return false` (WebView handles it),
+    // never fall through to Bridge.launchIntent's ACTION_VIEW punt.
+    expect(webViewClientJava).toMatch(
+      /Keeping Access interactive login in-app[\s\S]{0,120}return false;/
+    );
+  });
+
+  it("never logs the token values", () => {
+    // Log lines may mention the URL and retry count, never the header map
+    // contents or BuildConfig fields.
+    for (const source of [webViewClientJava, mainActivityJava]) {
+      const logLines = source.match(/Log\.\w+\([\s\S]*?\);/g) ?? [];
+      expect(logLines.length).toBeGreaterThan(0);
+      for (const line of logLines) {
+        // Never concatenate the header map or a BuildConfig field into a log.
+        expect(line).not.toMatch(/\+\s*headers\b/);
+        expect(line).not.toMatch(/headers\.(get|toString|values|entrySet)/);
+        expect(line).not.toContain("BuildConfig");
+      }
+    }
   });
 });
 

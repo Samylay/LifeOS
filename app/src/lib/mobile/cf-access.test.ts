@@ -3,8 +3,10 @@ import {
   APP_URL,
   CF_ACCESS_ID_HEADER,
   CF_ACCESS_SECRET_HEADER,
+  CF_ACCESS_LOGIN_HOST_SUFFIX,
   appHost,
   buildCfAccessHeaders,
+  isAccessLoginHost,
 } from "./cf-access";
 
 describe("buildCfAccessHeaders", () => {
@@ -57,5 +59,23 @@ describe("appHost / APP_URL", () => {
   it("rejects non-https URLs so a bad override fails at sync time", () => {
     expect(() => appHost("http://lab.samylayaida.com")).toThrow(/https/);
     expect(() => appHost("not a url")).toThrow();
+  });
+});
+
+describe("isAccessLoginHost", () => {
+  it("matches any Cloudflare Access team login host", () => {
+    expect(isAccessLoginHost("old-flower-092e.cloudflareaccess.com")).toBe(true);
+    expect(isAccessLoginHost("anything.cloudflareaccess.com")).toBe(true);
+  });
+
+  it("does not match the app host or lookalike hosts", () => {
+    expect(isAccessLoginHost(appHost())).toBe(false);
+    expect(isAccessLoginHost("cloudflareaccess.com")).toBe(false);
+    expect(isAccessLoginHost("evil-cloudflareaccess.com")).toBe(false);
+    expect(isAccessLoginHost("cloudflareaccess.com.evil.example")).toBe(false);
+  });
+
+  it("keeps the suffix a real host-boundary suffix (leading dot)", () => {
+    expect(CF_ACCESS_LOGIN_HOST_SUFFIX.startsWith(".")).toBe(true);
   });
 });
