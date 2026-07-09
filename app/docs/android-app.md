@@ -4,8 +4,11 @@ A native Android APK whose WebView wraps the **live** LifeOS web UI at
 `https://lab.samylayaida.com` (the Cloudflare Tunnel domain — never the
 tailnet IP; the phone can't resolve `.ts.net`). Nothing from the Next.js
 build ships in the APK; `mobile/www/index.html` is only an offline stub.
-Push notifications are unchanged: they stay on the separate ntfy Android app,
-which is why this path has none of T18's Firebase/Expo blockers.
+Push notifications are native since 2026-07-09: the app itself subscribes to
+the homelab's self-hosted ntfy instance and renders messages as LifeOS
+notifications, **replacing the standalone ntfy Android app** (see
+"Native notifications" below). Still zero Firebase/Google dependencies —
+none of T18's blockers apply.
 
 ## Pieces
 
@@ -14,7 +17,8 @@ which is why this path has none of T18's Firebase/Expo blockers.
 | `capacitor.config.ts` | appId `com.samylayaida.lifeos`, `server.url` = tunnel domain, `allowNavigation` locked to that host |
 | `src/lib/mobile/cf-access.ts` | single source of truth: app URL, env-var names, header names, both-or-nothing header rule |
 | `src/lib/mobile/*.test.ts` | unit tests + a consistency suite that greps the native sources so Java/gradle can't drift from the TS spec |
-| `android/` | generated Capacitor project (committed). Hand-edited: `app/build.gradle`, `MainActivity.java`, new `CfAccess.java` + `CfAccessWebViewClient.java` |
+| `android/` | generated Capacitor project (committed). Hand-edited: `app/build.gradle`, `MainActivity.java`, new `CfAccess.java` + `CfAccessWebViewClient.java` + `NtfyService.java` + `NtfyBootReceiver.java`, `AndroidManifest.xml`, `res/xml/network_security_config.xml` |
+| `src/lib/mobile/ntfy.ts` | single source of truth for the ntfy endpoint, notification channels, priority mapping; mirrored by `NtfyService.java` via `ntfy-consistency.test.ts` |
 | `mobile/www/` | offline fallback stub (webDir) |
 | `.github/workflows/android-build.yml` | CI build of the debug APK |
 
@@ -89,6 +93,74 @@ curl -s -o /dev/null -w '%{http_code}\n' \
 ```
 
 The real token values exist nowhere in this repo, ever.
+
+## Native notifications (replaces the standalone ntfy app — 2026-07-09, T17b)
+
+The homelab's notification transport is unchanged: everything still flows
+through `POST /api/notify` on quorky, which stores to `/pager` and publishes
+to the self-hosted ntfy instance (`http://100.124.149.101:8096`, topic
+`homelab`, tailnet-only, no TLS — the tailnet link is already WireGuard).
+What changed is the phone side: instead of the standalone ntfy app owning
+the subscription, **the LifeOS app is the subscriber**.
+
+### Delivery mechanism: foreground service, not polling
+
+Two options were considered:
+
+1. **Persistent connection from a foreground service** (chosen) —
+   `NtfyService` holds ntfy's newline-delimited JSON stream
+   (`GET /homelab/json`) open on a background thread and renders each
+   message immediately. This is the accepted Android pattern for always-on
+   self-hosted push and literally what the ntfy app does under the hood
+   (binwiederhier/ntfy-android's instant-delivery mode). Cost: a permanent
+   low-priority "LifeOS pager connected" notification (Android requires one
+   for any foreground service) and a small battery draw.
+2. **Periodic polling** (WorkManager / Capacitor Background Runner) —
+   simpler, no persistent notification, but Android's practical floor is
+   ~15 minutes. A `page`-severity alert arriving up to 15 minutes late
+   fails the bar of "replaces ntfy", which is real-time today. Rejected.
+
+Implementation notes (`NtfyService.java`, mirrored by `ntfy.ts` and pinned
+by `ntfy-consistency.test.ts`):
+
+- Plain `HttpURLConnection` + `org.json` — **no new dependencies** (the
+  only approved packages remain `@capacitor/core` + `@capacitor/android`).
+- Foreground-service type `specialUse` (with the required
+  `PROPERTY_SPECIAL_USE_FGS_SUBTYPE` declaration): self-hosted push has no
+  matching platform type, and `dataSync` gets killed after ~6h on
+  Android 15+.
+- Reconnects with exponential backoff (5 s → 5 min), and resumes with
+  `?since=<last rendered message id>` (SharedPreferences), so messages
+  missed while disconnected/rebooting replay instead of dropping.
+- ntfy priorities map to three notification channels: urgent/high (4–5,
+  i.e. pager severity `page`) → heads-up `pager_urgent`; default (3,
+  severity `info`) → `pager_default`; min/low (1–2) → silent `pager_low`.
+  The persistent service notification sits on a MIN-importance channel.
+- Notifications carry the LifeOS mark (`splash_mark`) and tapping one opens
+  the app at `/pager` (intent extra → `MainActivity.openRequestedPath`,
+  which rides the usual CF Access headers; the ntfy connection itself never
+  touches `lab.samylayaida.com`, so no Access headers there).
+- Restarts on boot (`NtfyBootReceiver`, `BOOT_COMPLETED` — on the FGS
+  background-start exemption list for `specialUse`).
+- Cleartext HTTP is allowed **only** for `100.124.149.101` via
+  `res/xml/network_security_config.xml`; the WebView's app URL stays
+  HTTPS-only.
+
+### Phone-side switchover checklist
+
+- Grant the app notification permission (it asks on first launch,
+  Android 13+).
+- Give LifeOS **unrestricted battery** (GrapheneOS/doze will otherwise cut
+  the connection while idle — same exemption the ntfy app needed).
+- **Uninstall or mute the standalone ntfy app**, or every message arrives
+  twice (both subscribe to the same topic).
+- The phone must be on the tailnet (Tailscale app up) for pushes, exactly
+  as before — that dependency is unchanged from the ntfy-app era.
+
+Server-side, the routing half of the same decision lives in
+`~/services/health/notify-telegram.sh`: routine traffic is sent with
+`--severity=info` (pager + this app only), critical pages keep the Telegram
+fan-out because this app cannot report its own death.
 
 ## CI build
 

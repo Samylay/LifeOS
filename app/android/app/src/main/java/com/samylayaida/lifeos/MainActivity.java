@@ -1,5 +1,9 @@
 package com.samylayaida.lifeos;
 
+import android.Manifest;
+import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
 import android.webkit.CookieManager;
@@ -44,6 +48,41 @@ public class MainActivity extends BridgeActivity {
         } else {
             Log.i(TAG, "No Service Token baked into this build; Access login will show in-app");
         }
+
+        // Native ntfy push (replaces the standalone ntfy app): ask for
+        // notification permission on 13+, then keep the subscription
+        // foreground service running. See NtfyService.java / ntfy.ts.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
+            && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)
+                != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(new String[] { Manifest.permission.POST_NOTIFICATIONS }, 1);
+        }
+        NtfyService.start(this);
+
+        // Launched from a pager notification: navigate to the requested path.
+        openRequestedPath(getIntent());
+    }
+
+    @Override
+    public void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        // launchMode is singleTask: a notification tap while the app is
+        // already running lands here instead of onCreate.
+        openRequestedPath(intent);
+    }
+
+    /** Navigate the WebView to an in-app path (e.g. /pager) requested via
+     * the OPEN_PATH intent extra a notification tap carries. The Service
+     * Token headers ride along (a no-op once CF_Authorization is set). */
+    private void openRequestedPath(Intent intent) {
+        String path = intent == null ? null : intent.getStringExtra(NtfyService.OPEN_PATH_EXTRA);
+        String serverUrl = this.bridge.getServerUrl();
+        if (path == null || !path.startsWith("/") || serverUrl == null) {
+            return;
+        }
+        Log.i(TAG, "Opening requested path " + path);
+        this.bridge.getWebView().loadUrl(serverUrl + path, CfAccess.headers());
     }
 
     @Override
