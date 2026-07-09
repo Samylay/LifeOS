@@ -146,7 +146,7 @@
 Nine centres (LifeOS, Flux, Ecole, Scout, reels-reader, homelab-infra, workouts, polymath, SWE-learning), folded into the existing 06:00 Morning Brief. Split into independently-executable increments so no single commit approaches the 400-line cap. Do them in order — later tasks depend on earlier ones' output shape.
 
 - [ ] **T19 — NEEDS-SAMY: Google Calendar API credentials** (S) — daily-planning needs to read existing events and write tentative time-blocks. No Google OAuth client exists in `~/.config/homelab/secrets.env` or LifeOS's env today (checked 2026-07-09) — this is a real external dependency + secret, not something an unattended agent may invent. Samy needs to: create a Google Cloud project + OAuth client (or reuse one if he already has one for another purpose — ask before assuming), grant Calendar API scope, and drop the client id/secret/refresh token into `~/.config/homelab/secrets.env`. T23 is gated on this; T20–T22 are not and can proceed in parallel.
-- [ ] **T20 — Backlog files for untracked centres** (S) — add `workouts.md`, `polymath.md`, `swe-learning.md` to LifeOS's data directory (alongside `data/lifeos.db`, not `~/loop-me/`), each a simple markdown checklist the brief can read/append to, carrying unfinished items across days. No UI needed yet — just the file convention + a small read/write helper in `src/lib`. Verify: typecheck, unit test for the helper (create/append/mark-done/read-unfinished), rebuild.
+- [x] **T20 — Backlog files for untracked centres** (S) — add `workouts.md`, `polymath.md`, `swe-learning.md` to LifeOS's data directory (alongside `data/lifeos.db`, not `~/loop-me/`), each a simple markdown checklist the brief can read/append to, carrying unfinished items across days. No UI needed yet — just the file convention + a small read/write helper in `src/lib`. Verify: typecheck, unit test for the helper (create/append/mark-done/read-unfinished), rebuild. *(2026-07-09: done in autoloop — added `src/lib/backlog.ts` (readBacklog/readUnfinishedBacklog/appendBacklogItem/markBacklogItemDone) storing each centre's items as a markdown checklist file next to `data/lifeos.db` (via the existing `LIFEOS_DB_PATH`-derived `dataDir()` convention from `strava.ts`); files are created lazily on first append, not pre-seeded. 42/42 tests green (4 new backlog tests), tsc clean, docker build succeeds. No route touched, so no redeploy/smoke needed this pass.)*
 - [ ] **T21 — Todoist centre-inference pull** (M) — using the existing Todoist v1 fetcher (`src/lib/brief/fetchers/work.ts` or sibling — check what's already there from the 2026-07-07 Todoist integration before adding a second client), pull all open tasks and infer a centre (one of the nine) per task from title/content. Cache the inference per task id so it isn't re-run every day. Only surface a task as "needs categorization" when confidence is low — don't gate on 100% coverage. Verify: typecheck, unit test the inference function against a handful of fixture task titles per centre, rebuild.
 - [ ] **T22 — Tracked-centre aggregator** (M) — for LifeOS/Flux/Ecole/Scout/reels-reader: read each project's `ROADMAP.md` (path convention: `~/apps/<project>/ROADMAP.md`) for `NEEDS-SAMY` items + the next unchecked non-NEEDS-SAMY task (same parse LifeOS itself already needs nothing external for — this runs from LifeOS's host context, so file reads are local). For homelab-infra: read `~/infra/goals` standing-goal state for pass→FAIL transitions (top priority) else next NEEDS-SAMY across `~/infra/*/ROADMAP.md`. Output a normalized list of `{centre, title, urgency}` items GitHub issues can be layered onto later — don't build the GitHub-issues half yet, ROADMAP.md + standing-goals is enough for v1. Verify: typecheck, unit test the ROADMAP.md parser against fixture files, rebuild.
 - [ ] **T23 — Calendar read + tentative block writer (GATED on T19)** (M) — do not start until T19's credentials exist. Read the day's existing events first (hard constraints, never propose over them); write proposed blocks as real tentative calendar events (title-prefix marker, e.g. `〜`) for: fixed 6am workout anchor, 30-min protected minimums for polymath + SWE-learning, then dynamic-priority items from T21+T22 filling 7am–10pm. Verify: typecheck, rebuild, manual smoke against Samy's actual calendar for one day (document the result in the log entry — this one can't be fully verified by an unattended agent alone, flag for a human glance next session if the calendar-write looks wrong).
@@ -154,3 +154,30 @@ Nine centres (LifeOS, Flux, Ecole, Scout, reels-reader, homelab-infra, workouts,
 
 ## Log — daily planning
 - **2026-07-09 (interactive session, /loop-me grilling):** Samy asked for a daily-organizing/scheduling workflow across all 9 centres of interest — the one thing he still does by hand. Ran a full grilling session (see `~/loop-me/`); every structural decision resolved (trigger, prioritization, calendar-write timing, checkpoint/reply shape, backlog storage, Todoist mapping) — zero open questions left in the spec. Decomposed into T19–T24 above so the nightly autoloop can chew through it incrementally; T19 (Calendar OAuth) is the only real blocker and needs Samy directly.
+
+- **2026-07-09 (autoloop, T05 re-checked/still blocked, T20 done):** Re-checked
+  T05's gate first: `docker exec lifeos cat /data/brief.json` shows only one
+  in-app-brief generation so far (`generated_at: 2026-07-08T21:00:02Z`, for
+  date 2026-07-09) — the legacy `/brief/brief.json` mount's last entry is from
+  2026-07-07, predating the in-app brief entirely, so it doesn't count toward
+  the 3-day bar. Gate still not met; left T05 blocked. T17–T19 are
+  NEEDS-SAMY, so moved to T20, the first unchecked non-NEEDS-SAMY task. Added
+  `src/lib/backlog.ts` implementing the "Backlog files" section of the
+  daily-planning spec: one markdown-checklist file per untracked centre
+  (workouts/polymath/swe-learning), stored next to `data/lifeos.db` via the
+  same `LIFEOS_DB_PATH`-derived `dataDir()` pattern `strava.ts` already uses
+  for its token file (kept the convention rather than inventing a new one).
+  Four functions: `readBacklog`, `readUnfinishedBacklog`, `appendBacklogItem`,
+  `markBacklogItemDone` — files are created lazily on first append rather
+  than pre-seeded, and a missing file just reads as an empty backlog. Added
+  `backlog.test.ts` covering create/append/mark-done/read-unfinished against
+  temp dirs (never touches the real data dir). 42/42 tests green, tsc clean,
+  docker build succeeds. No UI/route was touched (task explicitly scoped to
+  the file convention + helper only), so no redeploy or route smoke this pass.
+  **Pitch:** the three centres with no external task source (workouts,
+  polymath, SWE-learning) now have a durable place to carry unfinished items
+  day to day — the next daily-planning task (T21+) has somewhere concrete to
+  read from and write to instead of inventing storage mid-implementation.
+  **Quiz:** (1) Where do backlog files live, and what existing convention did
+  `dataDir()` reuse? (2) What happens if `readBacklog` is called for a centre
+  whose file doesn't exist yet? (3) Why was T05 left blocked again tonight?
