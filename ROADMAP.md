@@ -148,7 +148,7 @@ Nine centres (LifeOS, Flux, Ecole, Scout, reels-reader, homelab-infra, workouts,
 - [ ] **T19 — NEEDS-SAMY: Google Calendar API credentials** (S) — daily-planning needs to read existing events and write tentative time-blocks. No Google OAuth client exists in `~/.config/homelab/secrets.env` or LifeOS's env today (checked 2026-07-09) — this is a real external dependency + secret, not something an unattended agent may invent. Samy needs to: create a Google Cloud project + OAuth client (or reuse one if he already has one for another purpose — ask before assuming), grant Calendar API scope, and drop the client id/secret/refresh token into `~/.config/homelab/secrets.env`. T23 is gated on this; T20–T22 are not and can proceed in parallel.
 - [x] **T20 — Backlog files for untracked centres** (S) — add `workouts.md`, `polymath.md`, `swe-learning.md` to LifeOS's data directory (alongside `data/lifeos.db`, not `~/loop-me/`), each a simple markdown checklist the brief can read/append to, carrying unfinished items across days. No UI needed yet — just the file convention + a small read/write helper in `src/lib`. Verify: typecheck, unit test for the helper (create/append/mark-done/read-unfinished), rebuild. *(2026-07-09: done in autoloop — added `src/lib/backlog.ts` (readBacklog/readUnfinishedBacklog/appendBacklogItem/markBacklogItemDone) storing each centre's items as a markdown checklist file next to `data/lifeos.db` (via the existing `LIFEOS_DB_PATH`-derived `dataDir()` convention from `strava.ts`); files are created lazily on first append, not pre-seeded. 42/42 tests green (4 new backlog tests), tsc clean, docker build succeeds. No route touched, so no redeploy/smoke needed this pass.)*
 - [x] **T21 — Todoist centre-inference pull** (M) — using the existing Todoist v1 fetcher (`src/lib/brief/fetchers/work.ts` or sibling — check what's already there from the 2026-07-07 Todoist integration before adding a second client), pull all open tasks and infer a centre (one of the nine) per task from title/content. Cache the inference per task id so it isn't re-run every day. Only surface a task as "needs categorization" when confidence is low — don't gate on 100% coverage. Verify: typecheck, unit test the inference function against a handful of fixture task titles per centre, rebuild. *(2026-07-09: done in autoloop — added `src/lib/brief/centre-inference.ts` (`inferCentre` keyword/word-boundary match over title+description, ambiguous or 0-match tasks come back low-confidence/null centre) with a JSON cache file next to `lifeos.db` (same `dataDir()` convention as T20's `backlog.ts`) keyed by task id + content, so unchanged tasks skip re-inference; `src/lib/brief/fetchers/todoist-centres.ts` pulls all open tasks via Todoist's paginated `/tasks` endpoint (separate from `fetchers/work.ts`'s overdue|today card fetcher) and runs them through the cache. 14 fixture-title tests (one per centre) plus ambiguous/cache-hit/cache-invalidation cases — 56/56 tests green, tsc clean, docker build succeeds. Not wired into the brief UI yet, out of this task's scope — T22+ consumes it — so no redeploy/route smoke this pass.)*
-- [ ] **T22 — Tracked-centre aggregator** (M) — for LifeOS/Flux/Ecole/Scout/reels-reader: read each project's `ROADMAP.md` (path convention: `~/apps/<project>/ROADMAP.md`) for `NEEDS-SAMY` items + the next unchecked non-NEEDS-SAMY task (same parse LifeOS itself already needs nothing external for — this runs from LifeOS's host context, so file reads are local). For homelab-infra: read `~/infra/goals` standing-goal state for pass→FAIL transitions (top priority) else next NEEDS-SAMY across `~/infra/*/ROADMAP.md`. Output a normalized list of `{centre, title, urgency}` items GitHub issues can be layered onto later — don't build the GitHub-issues half yet, ROADMAP.md + standing-goals is enough for v1. Verify: typecheck, unit test the ROADMAP.md parser against fixture files, rebuild.
+- [x] **T22 — Tracked-centre aggregator** (M) — for LifeOS/Flux/Ecole/Scout/reels-reader: read each project's `ROADMAP.md` (path convention: `~/apps/<project>/ROADMAP.md`) for `NEEDS-SAMY` items + the next unchecked non-NEEDS-SAMY task (same parse LifeOS itself already needs nothing external for — this runs from LifeOS's host context, so file reads are local). For homelab-infra: read `~/infra/goals` standing-goal state for pass→FAIL transitions (top priority) else next NEEDS-SAMY across `~/infra/*/ROADMAP.md`. Output a normalized list of `{centre, title, urgency}` items GitHub issues can be layered onto later — don't build the GitHub-issues half yet, ROADMAP.md + standing-goals is enough for v1. Verify: typecheck, unit test the ROADMAP.md parser against fixture files, rebuild. *(2026-07-09: done in autoloop — added `src/lib/brief/roadmap-parser.ts` (pure `parseRoadmap`: all unchecked NEEDS-SAMY tasks + first unchecked non-NEEDS-SAMY task, same rule the executor itself follows) and `src/lib/brief/fetchers/tracked-centres.ts` (`trackedCentreItems` over LifeOS/Flux/Ecole/Scout/reels-reader ROADMAP.md paths; `homelabInfraItems` checks `~/infra/goals/state/<name>.status` for FAIL first — skipping `retired: true` goals — and only falls back to the first NEEDS-SAMY task discovered across `~/infra/*/ROADMAP.md` when nothing is failing; `aggregateTrackedCentres` concatenates both). All paths are dependency-injected with real-host defaults so the parser/aggregator are unit-testable against fixture files without touching the actual host tree. 66/66 tests green (24 new), tsc clean, docker build succeeds. Not wired into the brief builder/registry yet — same as T21 — since T24 is the checkpoint task that consumes this output; no route touched, so no redeploy/smoke this pass.)*
 - [ ] **T23 — Calendar read + tentative block writer (GATED on T19)** (M) — do not start until T19's credentials exist. Read the day's existing events first (hard constraints, never propose over them); write proposed blocks as real tentative calendar events (title-prefix marker, e.g. `〜`) for: fixed 6am workout anchor, 30-min protected minimums for polymath + SWE-learning, then dynamic-priority items from T21+T22 filling 7am–10pm. Verify: typecheck, rebuild, manual smoke against Samy's actual calendar for one day (document the result in the log entry — this one can't be fully verified by an unattended agent alone, flag for a human glance next session if the calendar-write looks wrong).
 - [ ] **T24 — Checkpoint: fold into Morning Brief + reply handling (GATED on T20–T23)** (M) — add the daily-planning section to the existing brief output (same delivery: pager → Telegram dual-write), listing: today's blocks (referencing the live tentative events), any low-confidence Todoist placements from T21, and an open invite to extend the list. Parse plain-text replies in the pager/Telegram thread for: reschedule ("push X to Ypm"), decline ("won't do X today" → removes the tentative event, leaves source/backlog untouched), placement answers, and free-form additions. Keep intent-parsing as its own function separate from the Telegram ingestion path (voice input is a planned future reply channel — don't hardcode text-only assumptions into the parsing logic itself, just the transport). Verify: typecheck, rebuild, unit tests for the reply parser against fixture replies (one per intent type), manual smoke of one real reply round-trip.
 
@@ -215,3 +215,44 @@ Nine centres (LifeOS, Flux, Ecole, Scout, reels-reader, homelab-infra, workouts,
   a plain substring check? (2) Where is the per-task inference cached, and
   what invalidates a cache entry? (3) What does a task get back when it
   matches two centres' keywords at once?
+
+- **2026-07-09 (autoloop, T05 re-checked/still blocked, T22 done):** Re-checked
+  T05's gate first: `docker exec lifeos cat /data/brief.json` still shows
+  only one in-app-brief generation (`generated_at: 2026-07-08T21:00:02Z`),
+  and `docker logs lifeos | grep brief-scheduler` shows only a next-run
+  countdown for tonight's 06:00 JST slot — no third day of history yet, so
+  the ≥3-day bar still isn't met. Left T05 blocked. T17–T19 are NEEDS-SAMY;
+  T20–T21 are done; so moved to T22, the first unchecked non-NEEDS-SAMY
+  task. Implemented the tracked-centre aggregator per the daily-planning
+  spec: `src/lib/brief/roadmap-parser.ts` is a pure `parseRoadmap(contents)`
+  that walks `- [ ]`/`- [x]` task lines and returns every unchecked
+  NEEDS-SAMY title plus the first unchecked non-NEEDS-SAMY title (the exact
+  "first match wins" rule this executor itself follows), so it needs no
+  filesystem access and is trivially fixture-testable.
+  `src/lib/brief/fetchers/tracked-centres.ts` layers file I/O on top:
+  `trackedCentreItems` reads LifeOS/Flux/Ecole/Scout/reels-reader's
+  `~/apps/<project>/ROADMAP.md` (paths dependency-injected, defaulting to the
+  real host tree) and emits one item per NEEDS-SAMY task plus one for the
+  next task; `homelabInfraItems` reads `~/infra/goals/state/<name>.status`
+  for any `FAIL` (skipping goals marked `retired: true`) — if any goal is
+  failing, that's the *only* output (top priority per the spec), otherwise
+  it walks `~/infra/*/ROADMAP.md` and returns the first NEEDS-SAMY task
+  found. `aggregateTrackedCentres` concatenates both. Not wired into the
+  brief builder/registry yet — same posture as T21's `todoist-centres.ts` —
+  since T24 is the checkpoint task that actually consumes this output; the
+  container also doesn't mount `~/apps`/`~/infra` today, so wiring it live
+  is deferred to whichever task adds that mount. 24 new tests (parser
+  fixtures covering checked/unchecked/NEEDS-SAMY/dropped-task lines; the
+  aggregator against temp-dir fixture ROADMAPs and goal-state files,
+  including the retired-goal-skip and violation-beats-NEEDS-SAMY cases):
+  66/66 tests green, tsc clean, docker build succeeds. No route was
+  touched, so no redeploy/smoke this pass.
+  **Pitch:** every tracked project's open decisions and next task can now be
+  pulled into one normalized list with a single pure-function parser reused
+  across all five projects plus homelab-infra, instead of each future
+  consumer re-implementing ROADMAP.md parsing.
+  **Quiz:** (1) What single rule does `parseRoadmap`'s `nextTask` selection
+  share with the nightly executor itself? (2) Why does `homelabInfraItems`
+  return *only* violations when one exists, instead of violations plus the
+  next NEEDS-SAMY task? (3) Why isn't the aggregator wired into the brief
+  registry yet?
