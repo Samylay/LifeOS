@@ -105,6 +105,43 @@ export async function listEventsForDay(
     .map((e) => ({ id: e.id, summary: e.summary ?? "", startIso: e.start.dateTime!, endIso: e.end.dateTime! }));
 }
 
+/** Moves an existing event to a new start/end. Returns true on success. */
+export async function patchEventTime(
+  eventId: string,
+  startIso: string,
+  endIso: string
+): Promise<boolean> {
+  const token = await googleCalendarToken();
+  if (!token) return false;
+  try {
+    const r = await fetch(`${EVENTS_URL}/${encodeURIComponent(eventId)}`, {
+      method: "PATCH",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ start: { dateTime: startIso }, end: { dateTime: endIso } }),
+      signal: AbortSignal.timeout(20_000),
+    });
+    return r.ok;
+  } catch {
+    return false;
+  }
+}
+
+/** Deletes an event from the primary calendar. Returns true on success. */
+export async function deleteEvent(eventId: string): Promise<boolean> {
+  const token = await googleCalendarToken();
+  if (!token) return false;
+  try {
+    const r = await fetch(`${EVENTS_URL}/${encodeURIComponent(eventId)}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+      signal: AbortSignal.timeout(20_000),
+    });
+    return r.ok || r.status === 410; // already gone counts as deleted
+  } catch {
+    return false;
+  }
+}
+
 /** Inserts a timed event on the primary calendar. Returns the created event's id, or null on failure. */
 export async function insertTentativeEvent(
   summary: string,

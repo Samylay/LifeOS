@@ -45,8 +45,10 @@ import * as fuite from "./fetchers/fuite";
 import * as ft from "./fetchers/ft";
 import * as digest from "./fetchers/digest";
 import * as ships from "./fetchers/ships";
+import * as planning from "./fetchers/planning";
 
 export const REGISTRY: RegisteredFetcher[] = [
+  { fetch: planning.fetch, meta: { id: "planning", type: "planning", priority: "action", title: "Today's plan" } },
   { fetch: ships.fetch, meta: { id: "ships", type: "ships", priority: "action", title: "Exit velocity" } },
   { fetch: workout.fetch, meta: { id: "workout", type: "workout", priority: "action", title: "Workout" } },
   { fetch: work.fetch, meta: { id: "work", type: "work", priority: "action", title: "Today's work" } },

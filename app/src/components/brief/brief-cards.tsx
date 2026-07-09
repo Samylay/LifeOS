@@ -27,6 +27,7 @@ const TYPE_ICON: Record<string, React.ReactNode> = {
   quorky_digest: <Link2 size={15} />,
   prompt: <Mic size={15} />,
   ships: <Rocket size={15} />,
+  planning: <Calendar size={15} />,
 };
 
 /** Single-line summary shown when a state card is collapsed. */
@@ -285,6 +286,99 @@ function DigestCard({ card }: { card: BriefCard }) {
   );
 }
 
+interface PlanningCardBody {
+  date?: string;
+  blocks?: { eventId: string; title: string; startIso: string; endIso: string }[];
+  placements?: { id: string; content: string }[];
+  placements_error?: string | null;
+  invite?: string;
+  error_hint?: string;
+}
+
+function PlanningCard({ card }: { card: BriefCard }) {
+  const b = card.body as unknown as PlanningCardBody;
+  const [reply, setReply] = useState("");
+  const [feedback, setFeedback] = useState<string | null>(null);
+  const [sending, setSending] = useState(false);
+
+  const sendReply = async () => {
+    const text = reply.trim();
+    if (!text || sending) return;
+    setSending(true);
+    setFeedback(null);
+    try {
+      const r = await fetch("/api/plan/reply", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text }),
+      });
+      const data = (await r.json()) as { ok: boolean; summary?: string; error?: string };
+      setFeedback(data.summary ?? data.error ?? "No response.");
+      if (data.ok) setReply("");
+    } catch {
+      setFeedback("Request failed.");
+    } finally {
+      setSending(false);
+    }
+  };
+
+  if (b.error_hint) {
+    return <p className="text-xs" style={{ color: "#F59E0B" }}>{b.error_hint}</p>;
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="space-y-1">
+        {(b.blocks ?? []).map((blk) => (
+          <div key={blk.eventId} className="flex items-baseline gap-3 text-sm">
+            <span className="font-mono text-xs shrink-0" style={{ color: "var(--text-tertiary)" }}>
+              {fmtTime(blk.startIso)}–{fmtTime(blk.endIso)}
+            </span>
+            <span style={{ color: "var(--text-primary)" }}>{blk.title}</span>
+          </div>
+        ))}
+        {(b.blocks ?? []).length === 0 && (
+          <p className="text-xs" style={{ color: "var(--text-tertiary)" }}>No tentative blocks today.</p>
+        )}
+      </div>
+
+      {(b.placements ?? []).length > 0 && (
+        <div>
+          <p className="text-xs font-medium mb-1" style={{ color: "var(--text-secondary)" }}>
+            Where should these go? (unscheduled Todoist tasks)
+          </p>
+          <ul className="space-y-0.5">
+            {(b.placements ?? []).map((p) => (
+              <li key={p.id} className="text-xs" style={{ color: "var(--text-secondary)" }}>• {p.content}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {b.placements_error && (
+        <p className="text-xs" style={{ color: "var(--text-tertiary)" }}>Todoist unavailable — placements skipped.</p>
+      )}
+
+      {b.invite && <p className="text-xs" style={{ color: "var(--text-tertiary)" }}>{b.invite}</p>}
+
+      <div className="flex items-center gap-2">
+        <input
+          type="text" value={reply}
+          onChange={(e) => setReply(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") sendReply(); }}
+          placeholder='e.g. "push the workout to 6pm"'
+          className="flex-1 text-xs rounded-lg px-3 py-2 outline-none"
+          style={{ background: "var(--bg-tertiary)", color: "var(--text-primary)", border: "1px solid var(--border-primary)" }}
+        />
+        <button onClick={sendReply} disabled={sending}
+          className="text-xs px-3 py-2 rounded-lg bg-sage-400 text-white font-medium disabled:opacity-50">
+          {sending ? "…" : "Send"}
+        </button>
+      </div>
+      {feedback && <p className="text-xs" style={{ color: "var(--accent)" }}>{feedback}</p>}
+    </div>
+  );
+}
+
 function ShipsCard({ card }: { card: BriefCard }) {
   const b = card.body as unknown as ShipsBody;
   return (
@@ -325,6 +419,7 @@ function ShipsCard({ card }: { card: BriefCard }) {
 function CardBody({ card, date }: { card: BriefCard; date: string }) {
   if (card.error) return <ErrorBody error={card.error} />;
   switch (card.type) {
+    case "planning": return <PlanningCard card={card} />;
     case "ships": return <ShipsCard card={card} />;
     case "workout": return <WorkoutCard card={card} date={date} />;
     case "work": return <WorkCard card={card} />;
