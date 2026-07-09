@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="ic_launcher_background">#FFFFFF</color>
+    <!-- LifeOS brand warm-950 (matches the web app's warm-950 CSS token). -->
+    <color name="ic_launcher_background">#0F0E0D</color>
 </resources>

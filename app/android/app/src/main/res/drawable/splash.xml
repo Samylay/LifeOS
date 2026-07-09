@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- LifeOS splash: brand warm-950 background with the centered LifeOS mark
+     (sage ring + white triangle, same mark as the web favicon / launcher
+     icon). A layer-list with a gravity-centered bitmap replaces the stock
+     full-bleed Capacitor splash.png set, which stretched to the window and
+     distorted on non-matching aspect ratios. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="#0F0E0D" />
+        </shape>
+    </item>
+    <item>
+        <bitmap
+            android:gravity="center"
+            android:src="@drawable/splash_mark" />
+    </item>
+</layer-list>
