@@ -5,11 +5,7 @@ import fixture from "@/components/brief/fixture.json";
 import { BRIEF_OUT } from "@/lib/brief/builder";
 
 // The brief is built in-app (lib/brief, daily scheduler) and written to
-// BRIEF_OUT on the data volume. The legacy path is the retired host
-// aggregator's output (~/services/brief/out mounted ro at /brief), kept as a
-// fallback during the transition. Fixture (flagged) if neither exists.
-const LEGACY_BRIEF_PATH = process.env.BRIEF_PATH || "/brief/brief.json";
-
+// BRIEF_OUT on the data volume. Fixture (flagged) if it doesn't exist yet.
 export const dynamic = "force-dynamic";
 
 function readBrief(p: string) {
@@ -21,7 +17,7 @@ function readBrief(p: string) {
 }
 
 export async function GET() {
-  const brief = readBrief(BRIEF_OUT) ?? readBrief(LEGACY_BRIEF_PATH);
+  const brief = readBrief(BRIEF_OUT);
   return NextResponse.json(
     brief ? { source: "live", brief } : { source: "fixture", brief: fixture },
     { headers: { "Cache-Control": "no-store" } }
