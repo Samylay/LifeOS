@@ -1,0 +1,60 @@
+# Builds the Capacitor Android debug APK for LifeOS (ROADMAP T18b).
+#
+# This deliberately builds WITHOUT the Cloudflare Access Service Token: the
+# repo is PUBLIC, and artifacts on public repos are downloadable by anyone
+# logged into GitHub, so an APK with the token baked into BuildConfig must
+# never be produced here. android/app/build.gradle reads
+# CF_ACCESS_CLIENT_ID / CF_ACCESS_CLIENT_SECRET from the environment with an
+# empty-string fallback, so this build always succeeds; the resulting APK
+# simply falls back to Access's interactive email-OTP page. To build the
+# authenticated APK, export those two env vars and run the same gradle
+# command on a trusted machine — see app/docs/android-app.md.
+name: android-build
+
+on:
+  push:
+    branches: [feat/android-app]
+  workflow_dispatch:
+
+jobs:
+  debug-apk:
+    runs-on: ubuntu-latest # ships JDK + Android SDK preinstalled
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21" # Capacitor 8 targets JDK 21
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Pinned to the same version as @capacitor/core — the CLI is
+      # intentionally not a package.json dependency (see ROADMAP T18b).
+      # Runs BEFORE the tests: the android-consistency suite checks the
+      # gitignored capacitor.config.json this generates into android assets.
+      - name: Capacitor sync
+        run: npx -y @capacitor/cli@8.4.1 sync android
+
+      - name: Unit tests (includes the android-consistency suite)
+        run: npm run test
+
+      - name: Build debug APK
+        working-directory: app/android
+        run: ./gradlew assembleDebug --no-daemon
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lifeos-debug-apk
+          path: app/android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error

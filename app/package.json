@@ -10,6 +10,8 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@capacitor/android": "8.4.1",
+    "@capacitor/core": "8.4.1",
     "@fontsource/jetbrains-mono": "^5.2.8",
     "@fontsource/plus-jakarta-sans": "^5.2.8",
     "better-sqlite3": "^11.8.1",
