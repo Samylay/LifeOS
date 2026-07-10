@@ -54,8 +54,19 @@ const cardStyle = {
   border: "1px solid var(--border-primary)",
 };
 
-function PillarBadge({ pillar }: { pillar: ContentPillar }) {
-  const meta = PILLAR_META[pillar];
+function PillarBadge({ pillar }: { pillar: ContentPillar | "" }) {
+  const meta = pillar ? PILLAR_META[pillar] : undefined;
+  if (!meta) {
+    return (
+      <span
+        className="text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full"
+        style={{ background: "var(--bg-tertiary)", color: "var(--text-tertiary)" }}
+        title="No pillar assigned — sort this idea into a pillar"
+      >
+        unsorted
+      </span>
+    );
+  }
   return (
     <span
       className="text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full"
@@ -416,9 +427,9 @@ function IdeaBank() {
                   {idea.status === "idea" && (
                     <button
                       onClick={() => runScriptIdea(idea.id)}
-                      disabled={busy || idea.hookFormula == null}
+                      disabled={busy || !idea.hookFormula}
                       title={
-                        idea.hookFormula == null
+                        !idea.hookFormula
                           ? "Assign a hook formula first — a topic isn't a post"
                           : "Draft script + caption with Claude"
                       }

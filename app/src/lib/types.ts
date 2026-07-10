@@ -594,7 +594,7 @@ export type ContentIdeaStatus = "idea" | "scripted" | "recorded" | "edited" | "p
 export interface ContentIdea {
   id: string;
   title: string;
-  pillar: ContentPillar;
+  pillar: ContentPillar | ""; // "" = banked unsorted (e.g. by bookmark triage), needs a pillar before scripting
   hookFormula?: number; // 1–12 from the hook library; unset = topic, not script-ready
   episode?: number; // Build Log serial number
   notes?: string;

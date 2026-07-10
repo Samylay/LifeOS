@@ -39,7 +39,7 @@ function fileToVault(url: string, source: string, p: QProposal): void {
 function fileToIdeaBank(url: string, p: QProposal): void {
   createDoc("users/local/contentIdeas", {
     title: (p.summary ?? url).slice(0, 120),
-    pillar: "", hookFormula: "", episode: "",
+    pillar: "", // unsorted — assigned during review; hookFormula/episode omitted (numbers, unset)
     status: "idea",
     content: `${p.why_relevant ?? ""}\n\nSource: ${url}`.trim(),
     createdAt: { __date: new Date().toISOString() },

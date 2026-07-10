@@ -72,7 +72,7 @@ export function useContentIdeas() {
     async (id: string) => {
       const idea = ideas.find((i) => i.id === id);
       if (!idea) throw new Error("idea not found");
-      if (idea.hookFormula == null)
+      if (!idea.hookFormula) // covers unset AND the "" that pre-fix triage banking wrote
         throw new Error("assign a hook formula first — a topic isn't a post");
       const draft = await fetchScriptDraft(idea);
       await updateIdea(id, { ...draft, status: "scripted" });

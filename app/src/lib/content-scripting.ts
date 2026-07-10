@@ -247,7 +247,7 @@ export function planWeeklyBatch(ideas: ContentIdea[]): BatchPlan {
       (i) =>
         i.status === "idea" &&
         i.pillar === pillar &&
-        i.hookFormula != null &&
+        !!i.hookFormula &&
         !picked.includes(i)
     );
     if (candidate) picked.push(candidate);
@@ -262,7 +262,7 @@ export function planWeeklyBatch(ideas: ContentIdea[]): BatchPlan {
   const toGenerate = picked.slice(0, safe);
   for (const idea of picked.slice(safe)) {
     blocked.push({
-      pillar: idea.pillar,
+      pillar: idea.pillar as ContentPillar, // picked ideas matched a WEEKLY_SLOTS pillar, so never ""
       reason: `bank floor: scripting "${idea.title}" would drop unscripted ideas below ${BANK_FLOOR} — bank more ideas first`,
     });
   }
