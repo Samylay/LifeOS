@@ -71,6 +71,11 @@ services:
       - /home/quorky/vault/obsidian:/vault
       # Claude CLI auth/config (container runs as root → /root/.claude).
       - /home/quorky/.claude:/root/.claude
+      # T28: tracked-centres (daily-planning dynamic blocks) reads host-path
+      # ROADMAP.md files + ~/infra/goals state; mounted read-only at the SAME
+      # absolute paths so the module's host defaults work unchanged in-container.
+      - /home/quorky/apps:/home/quorky/apps:ro
+      - /home/quorky/infra:/home/quorky/infra:ro
 
 volumes:
   lifeos-data:
