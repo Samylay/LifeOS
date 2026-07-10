@@ -6,10 +6,7 @@ import { useHabits } from "./use-habits";
 import { useNotes } from "./use-notes";
 import { useReminders } from "./use-reminders";
 import { useProjects } from "./use-projects";
-import { useRecipes } from "./use-recipes";
-import { useMealPlan, getWeekStart } from "./use-mealplan";
 import type { ChatAction } from "@/app/api/chat/route";
-import type { ShoppingCategory, MealDay, MealSlot } from "./types";
 
 export interface ChatMessage {
   id: string;
@@ -37,9 +34,6 @@ export function useChat() {
   const { notes, createNote } = useNotes();
   const { reminders, createReminder } = useReminders();
   const { projects, createProject } = useProjects();
-  const { recipes, createRecipe } = useRecipes();
-  const weekId = getWeekStart();
-  const { setMeal } = useMealPlan(weekId);
 
   const executeActions = useCallback(
     async (actions: ChatAction[]): Promise<ActionResult[]> => {
@@ -149,44 +143,6 @@ export function useChat() {
               });
               break;
             }
-            case "create_recipe": {
-              const r = action.input as {
-                name: string;
-                ingredients: Array<{ name: string; quantity?: string; category?: ShoppingCategory }>;
-                steps?: string[];
-              };
-              await createRecipe({
-                name: r.name,
-                ingredients: r.ingredients,
-                steps: r.steps,
-              });
-              results.push({
-                tool: "create_recipe",
-                summary: `Saved recipe: "${r.name}"`,
-              });
-              break;
-            }
-            case "plan_meal": {
-              const m = action.input as {
-                day: MealDay;
-                slot: MealSlot;
-                recipe_name?: string;
-                text?: string;
-              };
-              const matchedRecipe = m.recipe_name
-                ? recipes.find((r) => r.name.toLowerCase().includes(m.recipe_name!.toLowerCase()))
-                : undefined;
-              await setMeal(m.day, m.slot, {
-                recipeId: matchedRecipe?.id,
-                recipeName: matchedRecipe?.name || m.recipe_name,
-                text: matchedRecipe ? undefined : m.text,
-              });
-              results.push({
-                tool: "plan_meal",
-                summary: `Planned ${m.slot} on ${m.day}: ${matchedRecipe?.name || m.recipe_name || m.text || ""}`,
-              });
-              break;
-            }
             case "complete_task": {
               const c = action.input as { title: string };
               const target = tasks.find(
@@ -228,9 +184,6 @@ export function useChat() {
       createNote,
       createReminder,
       createProject,
-      createRecipe,
-      recipes,
-      setMeal,
     ]
   );
 

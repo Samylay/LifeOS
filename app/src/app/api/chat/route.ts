@@ -3,9 +3,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { getOllamaClient, OLLAMA_MODEL } from "@/lib/ollama";
 import { claudeCliEnabled, generateJson } from "@/lib/claude-cli";
 
-const SYSTEM_PROMPT = `You are a helpful assistant embedded inside Stride, a personal productivity app. The user is a triathlete, developer, and business manager — fueling and nutrition logistics matter for his training, but this app does NOT track calories or macros, only groceries/recipes/meal planning. The user may paste raw text (e.g. from Notion, notes, or brain dumps) and you should extract actionable items from it. He may also speak commands via voice — voice transcripts can be short and imperative (e.g. "add eggs and oats to the grocery list", "mark laundry done", "plan chicken stir fry for dinner Wednesday").
+const SYSTEM_PROMPT = `You are a helpful assistant embedded inside LifeOS, a personal productivity app. The user is a triathlete, developer, and business manager. The user may paste raw text (e.g. from Notion, notes, or brain dumps) and you should extract actionable items from it. He may also speak commands via voice — voice transcripts can be short and imperative (e.g. "mark laundry done", "remind me to call the landlord Friday").
 
-You have access to tools that let you create items in the app. When the user pastes content, analyze it and use the appropriate tools to create tasks, habits, notes, reminders, projects, recipes, or meal plan entries — and to mark tasks complete.
+You have access to tools that let you create items in the app. When the user pastes content, analyze it and use the appropriate tools to create tasks, habits, notes, reminders, or projects — and to mark tasks complete.
 
 Guidelines:
 - Extract clear, actionable tasks from unstructured text
@@ -15,10 +15,8 @@ Guidelines:
 - For recurring activities, create habits instead of tasks
 - For time-sensitive items with deadlines, create reminders
 - Keep task titles concise and actionable (start with a verb)
-- For recipe requests ("save this recipe", "remember how to make X"), use create_recipe
-- For meal planning ("plan X for dinner Tuesday", "lunch tomorrow is leftovers"), use plan_meal — map relative days (today/tomorrow/this week) to mon..sun
 - For "mark X done", "I finished X", "complete the X task", use complete_task to fuzzy-match an existing task
-- You can also answer questions about productivity, fueling/grocery logistics, or have a normal conversation
+- You can also answer questions about productivity or have a normal conversation
 - When creating many items, use the batch create_tasks tool to create them efficiently
 - After creating items, give the user a brief summary of what you added
 
@@ -172,75 +170,6 @@ const tools: OpenAI.ChatCompletionTool[] = [
           },
         },
         required: ["title"],
-      },
-    },
-  },
-  {
-    type: "function",
-    function: {
-      name: "create_recipe",
-      description:
-        "Save a recipe with its ingredients and optional steps, so it can be planned into the weekly meal plan.",
-      parameters: {
-        type: "object",
-        properties: {
-          name: { type: "string", description: "Recipe name" },
-          ingredients: {
-            type: "array",
-            items: {
-              type: "object",
-              properties: {
-                name: { type: "string", description: "Ingredient name" },
-                quantity: { type: "string", description: "Quantity (optional)" },
-                category: {
-                  type: "string",
-                  enum: ["groceries", "household", "personal_care", "snacks", "beverages", "frozen", "other"],
-                  description: "Shopping category (optional, defaults to groceries)",
-                },
-              },
-              required: ["name"],
-            },
-            description: "Ingredients needed for the recipe",
-          },
-          steps: {
-            type: "array",
-            items: { type: "string" },
-            description: "Preparation steps, in order (optional)",
-          },
-        },
-        required: ["name", "ingredients"],
-      },
-    },
-  },
-  {
-    type: "function",
-    function: {
-      name: "plan_meal",
-      description:
-        "Assign a recipe or free-text meal to a day and slot in the weekly meal plan.",
-      parameters: {
-        type: "object",
-        properties: {
-          day: {
-            type: "string",
-            enum: ["mon", "tue", "wed", "thu", "fri", "sat", "sun"],
-            description: "Day of the week",
-          },
-          slot: {
-            type: "string",
-            enum: ["lunch", "dinner"],
-            description: "Meal slot",
-          },
-          recipe_name: {
-            type: "string",
-            description: "Name of an existing recipe to plan (matched by name, optional)",
-          },
-          text: {
-            type: "string",
-            description: "Free-text meal description if no recipe applies (optional)",
-          },
-        },
-        required: ["day", "slot"],
       },
     },
   },
