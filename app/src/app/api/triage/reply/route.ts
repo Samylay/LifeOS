@@ -11,13 +11,16 @@ export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
   let text: string;
+  let source: string | undefined;
   try {
-    text = String(((await req.json()) as { text?: string }).text ?? "").trim();
+    const body = (await req.json()) as { text?: string; source?: string };
+    text = String(body.text ?? "").trim();
+    source = body.source ? String(body.source) : undefined;
   } catch {
     return NextResponse.json({ ok: false, error: "invalid JSON" }, { status: 400 });
   }
   if (!text) return NextResponse.json({ ok: false, error: "empty text" }, { status: 400 });
 
-  const result = applyTriageReply(text);
+  const result = applyTriageReply(text, source);
   return NextResponse.json(result, { status: result.ok ? 200 : 422 });
 }

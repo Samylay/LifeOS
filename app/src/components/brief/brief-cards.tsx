@@ -418,7 +418,7 @@ function TriageCard({ card }: { card: BriefCard }) {
       const r = await fetch("/api/triage/reply", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text }),
+        body: JSON.stringify({ text, source: b.source }),
       });
       const data = (await r.json()) as { ok: boolean; summary?: string; error?: string };
       setFeedback(data.summary ?? data.error ?? "No response.");

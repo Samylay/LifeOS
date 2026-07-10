@@ -57,6 +57,7 @@ export interface HomelabBody {
 }
 
 export interface TriageBody {
+  source: string; // "x" | "instagram" | "other" — this card's slice
   keep: { n: number; id: string; url: string; source: string; summary: string; destination: string; confidence: string; rationale: string }[];
   drop: { n: number; id: string; url: string; source: string; summary: string; destination: string; confidence: string; rationale: string }[];
   total: number;

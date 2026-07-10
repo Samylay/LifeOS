@@ -58,11 +58,33 @@ export interface TriageApplyResult {
   count: number;
 }
 
-export function applyTriageReply(text: string): TriageApplyResult {
-  const proposed = listDocs(COLLECTION, {
-    where: [["status", "==", "proposed"]],
-    orderBy: ["createdAt", "asc"],
-  });
+// Voice/text may carry the source as a leading word ("ig 1 approve", "x 2
+// skip") when the caller can't pass it out-of-band (the card reply box passes
+// it explicitly; a spoken verdict can't).
+function detectSource(text: string): { source?: string; rest: string } {
+  const m = text.match(/^\s*(x|twitter|tweets?|ig|insta(?:gram)?|reels?|links?|other)\b[\s:,-]*/i);
+  if (!m) return { rest: text };
+  const w = m[1].toLowerCase();
+  const source = /^(x|twitter|tweet)/.test(w) ? "x"
+    : /^(ig|insta|reel)/.test(w) ? "instagram"
+    : /^(link|other)/.test(w) ? "other" : undefined;
+  return { source, rest: text.slice(m[0].length) };
+}
+
+export function applyTriageReply(text: string, source?: string): TriageApplyResult {
+  // Numbers on the Triage card are per-source (the card is split by source),
+  // so resolve verdicts against the same source-filtered, createdAt-asc list.
+  let effectiveSource = source;
+  let body = text;
+  if (!effectiveSource) {
+    const d = detectSource(text);
+    effectiveSource = d.source;
+    body = d.rest;
+  }
+  const where: [string, "==", unknown][] = [["status", "==", "proposed"]];
+  if (effectiveSource) where.push(["source", "==", effectiveSource]);
+  const proposed = listDocs(COLLECTION, { where, orderBy: ["createdAt", "asc"] });
+  text = body;
   const verdicts = parseTriageReply(text);
   if (verdicts.length === 0) {
     return { ok: false, count: 0, summary: 'Couldn\'t read a verdict. Try: "1 approve, 2 to vault, 3 skip".' };

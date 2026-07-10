@@ -1,65 +1,80 @@
-// T35 — Triage card: the morning surface for bookmark/save proposals.
-// The nightly study step (~/services/triage/study.py) leaves triageQueue items
-// at status:"proposed" with an Opus-written proposal (summary + destination).
-// This lists them, numbered, for a same-morning voice/reply verdict (T36).
-// Discards are surfaced separately and collapsed — Samy still gets to veto a
-// discard, but they don't crowd the actionable proposals.
+// T35 — Triage cards: the morning surface for bookmark/save proposals, split
+// by source so X bookmarks and IG saves are ruled on separately (Samy's call
+// 2026-07-10). One card per source that has proposed items; within each card,
+// items are numbered 1..N over that source's proposed set (createdAt asc) — the
+// same order /api/triage/reply re-derives per source, so the number is the
+// handle. Discards are collapsed behind a review toggle; keeps always show.
 import { listDocs } from "../../server-db";
 import { card, type FetchResult } from "../registry";
+import type { BriefCard } from "@/lib/brief-types";
 
 const MAX_ITEMS = 12;
 
 interface QueuedProposal {
-  summary?: string;
-  why_relevant?: string;
-  destination?: string;
-  confidence?: string;
-  rationale?: string;
+  summary?: string; why_relevant?: string; destination?: string;
+  confidence?: string; rationale?: string;
 }
 
-export async function fetch(): Promise<FetchResult> {
-  // Stable order (createdAt asc) so the card's row numbers match what the
-  // reply endpoint re-derives from the same query — the number is the handle.
-  const proposed = listDocs("users/local/triageQueue", {
-    where: [["status", "==", "proposed"]],
-    orderBy: ["createdAt", "asc"],
-  });
-  if (proposed.length === 0) return null; // nothing to triage → no card
+const SOURCE_META: Record<string, { title: string; label: string }> = {
+  x: { title: "Triage · X", label: "x" },
+  instagram: { title: "Triage · Instagram", label: "instagram" },
+  other: { title: "Triage · Links", label: "other" },
+};
+const SOURCE_ORDER = ["x", "instagram", "other"];
 
-  // Number over the FULL proposed list (createdAt-asc) so each row's n is the
-  // same handle the reply endpoint resolves via proposed[n-1]. Then prioritize:
-  // show every keep (the actionable ones must never be crowded out by the cap),
-  // and fill the rest of the display budget with discards to review.
-  const all = proposed.map((d, i) => {
+function cardForSource(source: string, docs: Record<string, unknown>[]): BriefCard {
+  const all = docs.map((d, i) => {
     const p = (d.proposal ?? {}) as QueuedProposal;
     return {
       n: i + 1,
       id: String(d.id),
       url: String(d.url ?? ""),
-      source: String(d.source ?? "other"),
+      source,
       summary: p.summary ?? "",
       destination: p.destination ?? "discard",
       confidence: p.confidence ?? "low",
       rationale: p.rationale ?? "",
     };
   });
-
   const keep = all.filter((i) => i.destination !== "discard");
-  const drop = all.filter((i) => i.destination === "discard").slice(0, Math.max(0, MAX_ITEMS - keep.length));
+  const drop = all
+    .filter((i) => i.destination === "discard")
+    .slice(0, Math.max(0, MAX_ITEMS - keep.length));
 
+  const meta = SOURCE_META[source] ?? { title: `Triage · ${source}`, label: source };
   return card({
-    id: "triage",
+    id: `triage-${source}`,
     type: "triage",
     priority: "action",
     status: keep.length > 0 ? "neutral" : "green",
-    title: "Triage",
+    title: meta.title,
     link: "/pager",
     body: {
+      source: meta.label,
       keep,
       drop,
-      total: proposed.length,
+      total: docs.length,
       shown: keep.length + drop.length,
       hint: 'Reply to file: "1 approve, 2 to vault, 3 skip". Unruled items wait.',
     },
   });
+}
+
+export async function fetch(): Promise<FetchResult> {
+  const proposed = listDocs("users/local/triageQueue", {
+    where: [["status", "==", "proposed"]],
+    orderBy: ["createdAt", "asc"],
+  });
+  if (proposed.length === 0) return null;
+
+  const bySource = new Map<string, Record<string, unknown>[]>();
+  for (const d of proposed) {
+    const src = String(d.source ?? "other");
+    (bySource.get(src) ?? bySource.set(src, []).get(src)!).push(d);
+  }
+
+  const sources = [...bySource.keys()].sort(
+    (a, b) => (SOURCE_ORDER.indexOf(a) + 1 || 99) - (SOURCE_ORDER.indexOf(b) + 1 || 99)
+  );
+  return sources.map((s) => cardForSource(s, bySource.get(s)!));
 }
