@@ -23,10 +23,9 @@ export function AppShell({ children }: { children: ReactNode }) {
       </div>
       <TopBar />
       <main
-        className="transition-all p-4 lg:p-6"
+        className="p-4 lg:p-6"
         style={{
           marginLeft: 0,
-          transitionDuration: "var(--duration-slow)",
           maxWidth: 1280,
           paddingBottom: 80, // space for bottom nav on mobile
         }}
