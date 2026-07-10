@@ -63,6 +63,13 @@ const CENTRES: Record<string, string> = {
   "software-engineering": "swe-learning", coding: "swe-learning",
 };
 
+// Exact alias first, then substring — the study step emits verbose labels like
+// "software-engineering learning" that no exact key would catch.
 export function normalizeCentre(word: string): string | null {
-  return CENTRES[word.toLowerCase()] ?? null;
+  const w = word.toLowerCase().trim();
+  if (CENTRES[w]) return CENTRES[w];
+  if (/\b(swe|software|coding|engineering)\b/.test(w)) return "swe-learning";
+  if (w.includes("polymath")) return "polymath";
+  if (w.includes("workout")) return "workouts";
+  return null;
 }

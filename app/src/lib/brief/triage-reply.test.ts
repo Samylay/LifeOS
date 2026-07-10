@@ -54,4 +54,10 @@ describe("normalizeCentre", () => {
     expect(normalizeCentre("coding")).toBe("swe-learning");
     expect(normalizeCentre("nope")).toBeNull();
   });
+
+  it("handles the study step's verbose destination labels", () => {
+    expect(normalizeCentre("software-engineering learning")).toBe("swe-learning");
+    expect(normalizeCentre("polymath learning")).toBe("polymath");
+    expect(normalizeCentre("workouts")).toBe("workouts");
+  });
 });

@@ -7,7 +7,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { listDocs, updateDoc, createDoc } from "@/lib/server-db";
 import { appendBacklogItem, type BacklogCentre } from "@/lib/backlog";
-import { parseTriageReply, type TriageAction } from "./triage-reply";
+import { parseTriageReply, normalizeCentre, type TriageAction } from "./triage-reply";
 
 const COLLECTION = "users/local/triageQueue";
 const KB_PATH = process.env.KB_PATH || "/vault";
@@ -80,12 +80,18 @@ export function applyTriageReply(text: string): TriageApplyResult {
     const source = String(item.source ?? "other");
 
     // "approve" honors the proposed destination; explicit verbs override it.
+    // When approving a backlog item, take the centre from the proposal's
+    // destination ("backlog:<centre>") — the verdict has no centre of its own.
     let action = v.action;
+    let centre = v.centre ?? null;
     if (action === "approve") {
       const dest = p.destination ?? "discard";
       if (dest === "vault") action = "vault";
       else if (dest === "idea-bank") action = "idea-bank";
-      else if (dest.startsWith("backlog")) action = "backlog";
+      else if (dest.startsWith("backlog")) {
+        action = "backlog";
+        centre = centre ?? normalizeCentre(dest.replace(/^backlog:?\s*/i, "").trim());
+      }
       else if (dest === "discard") action = "discard";
       else action = "vault"; // roadmap:* etc. → park in the vault note for now
     }
@@ -94,8 +100,7 @@ export function applyTriageReply(text: string): TriageApplyResult {
       if (action === "vault") fileToVault(url, source, p);
       else if (action === "idea-bank") fileToIdeaBank(url, p);
       else if (action === "backlog") {
-        const centre = (v.centre ?? "polymath") as BacklogCentre;
-        appendBacklogItem(centre, `${p.summary ?? url} — ${url}`);
+        appendBacklogItem((centre ?? "polymath") as BacklogCentre, `${p.summary ?? url} — ${url}`);
       }
       const status = action === "discard" ? "discarded" : "filed";
       updateDoc(COLLECTION, item.id, { status, filedAs: action, filedAt: { __date: new Date().toISOString() } });

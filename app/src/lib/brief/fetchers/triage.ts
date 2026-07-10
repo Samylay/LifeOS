@@ -26,7 +26,11 @@ export async function fetch(): Promise<FetchResult> {
   });
   if (proposed.length === 0) return null; // nothing to triage → no card
 
-  const items = proposed.slice(0, MAX_ITEMS).map((d, i) => {
+  // Number over the FULL proposed list (createdAt-asc) so each row's n is the
+  // same handle the reply endpoint resolves via proposed[n-1]. Then prioritize:
+  // show every keep (the actionable ones must never be crowded out by the cap),
+  // and fill the rest of the display budget with discards to review.
+  const all = proposed.map((d, i) => {
     const p = (d.proposal ?? {}) as QueuedProposal;
     return {
       n: i + 1,
@@ -40,8 +44,8 @@ export async function fetch(): Promise<FetchResult> {
     };
   });
 
-  const keep = items.filter((i) => i.destination !== "discard");
-  const drop = items.filter((i) => i.destination === "discard");
+  const keep = all.filter((i) => i.destination !== "discard");
+  const drop = all.filter((i) => i.destination === "discard").slice(0, Math.max(0, MAX_ITEMS - keep.length));
 
   return card({
     id: "triage",
@@ -54,7 +58,7 @@ export async function fetch(): Promise<FetchResult> {
       keep,
       drop,
       total: proposed.length,
-      shown: items.length,
+      shown: keep.length + drop.length,
       hint: 'Reply to file: "1 approve, 2 to vault, 3 skip". Unruled items wait.',
     },
   });
