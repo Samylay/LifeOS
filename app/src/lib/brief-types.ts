@@ -34,6 +34,9 @@ export interface WorkoutBody {
 export interface WorkBody {
   tasks: { content: string; due?: string; priority?: number; url?: string }[];
   events: { title: string; start: string; end?: string }[];
+  // T31 feedback leg: Todoist tasks completed since yesterday 00:00 BRIEF_TZ.
+  // Optional/absent when the completed fetch fails (card degrades gracefully).
+  completed_yesterday?: { count: number; items: string[] };
 }
 
 export interface HomelabBody {

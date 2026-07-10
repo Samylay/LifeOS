@@ -178,11 +178,23 @@ function WorkCard({ card }: { card: BriefCard }) {
   const body = card.body as unknown as WorkBody;
   const tasks = body.tasks ?? [];
   const events = body.events ?? [];
+  const done = body.completed_yesterday;
+  const doneLine = done && done.count > 0 && (
+    <p className="text-xs" style={{ color: "var(--text-tertiary)" }}>
+      ✓ {done.count} done yesterday: {done.items.join(", ")}{done.count > done.items.length ? ", …" : ""}
+    </p>
+  );
   if (tasks.length === 0 && events.length === 0) {
-    return <p className="text-sm" style={{ color: "var(--text-secondary)" }}>Nothing due today. Pick a project.</p>;
+    return (
+      <div className="space-y-2">
+        <p className="text-sm" style={{ color: "var(--text-secondary)" }}>Nothing due today. Pick a project.</p>
+        {doneLine}
+      </div>
+    );
   }
   return (
     <div className="space-y-3">
+      {doneLine}
       {events.length > 0 && (
         <div className="space-y-1">
           {events.map((ev, i) => (

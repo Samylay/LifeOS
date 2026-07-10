@@ -5,10 +5,39 @@
 // stays empty until one exists.
 
 import { card, type FetchResult } from "../registry";
+import { BRIEF_TZ, todayInTz, localTimeToUtcIso } from "../tz";
 
 // Unified API (rest/v2 returns 410 Gone since 2025).
 const API_URL = "https://api.todoist.com/api/v1/tasks/filter";
+const COMPLETED_URL = "https://api.todoist.com/api/v1/tasks/completed/by_completion_date";
 const MAX_TASKS = 10;
+const MAX_COMPLETED = 5;
+
+// T31: the morning loop's feedback leg — what actually got DONE since
+// yesterday 00:00 (BRIEF_TZ). Best-effort: any failure returns null and the
+// card renders without the line; completions must never kill today's plan.
+async function fetchCompletedYesterday(
+  token: string
+): Promise<{ count: number; items: string[] } | null> {
+  try {
+    const { dateStr } = todayInTz();
+    const yesterday = new Date(Date.parse(`${dateStr}T00:00:00Z`) - 86_400_000)
+      .toISOString()
+      .slice(0, 10);
+    const since = localTimeToUtcIso(yesterday, 0, 0, BRIEF_TZ);
+    const until = new Date().toISOString().slice(0, 19) + "Z";
+    const r = await globalThis.fetch(
+      `${COMPLETED_URL}?since=${encodeURIComponent(since)}&until=${encodeURIComponent(until)}`,
+      { headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(20_000) }
+    );
+    if (!r.ok) return null;
+    const raw = (await r.json()) as { items?: { content?: string }[] };
+    const items = (raw.items ?? []).map((t) => t.content || "").filter(Boolean);
+    return { count: items.length, items: items.slice(0, MAX_COMPLETED) };
+  } catch {
+    return null;
+  }
+}
 
 interface TodoistTask {
   id?: string;
@@ -41,8 +70,11 @@ export async function fetch(): Promise<FetchResult> {
   // Todoist priority 4 = p1 (most urgent); show urgent first.
   tasks.sort((a, b) => (b.priority || 1) - (a.priority || 1));
 
+  const completedYesterday = await fetchCompletedYesterday(token);
+
   return card({
     id: "work", type: "work", priority: "action", status: "neutral",
-    title: "Today's work", body: { tasks, events: [] },
+    title: "Today's work",
+    body: { tasks, events: [], ...(completedYesterday ? { completed_yesterday: completedYesterday } : {}) },
   });
 }
