@@ -2,12 +2,12 @@
 
 import { useState } from "react";
 import {
-  AlertTriangle, Calendar, CheckSquare, ChevronDown, Dumbbell, ExternalLink,
+  AlertTriangle, Bookmark, Calendar, CheckSquare, ChevronDown, Dumbbell, ExternalLink,
   Link2, Mic, Newspaper, Rocket, Server, ShieldAlert, Square,
 } from "lucide-react";
 import type {
   Brief, BriefCard, FtHeadlinesBody, FuiteBody, HomelabBody, PromptBody,
-  ShipsBody, WorkBody, WorkoutBody,
+  ShipsBody, TriageBody, WorkBody, WorkoutBody,
 } from "@/lib/brief-types";
 import { TalkCard } from "./talk-card";
 
@@ -28,7 +28,19 @@ const TYPE_ICON: Record<string, React.ReactNode> = {
   prompt: <Mic size={15} />,
   ships: <Rocket size={15} />,
   planning: <Calendar size={15} />,
+  triage: <Bookmark size={15} />,
 };
+
+const TRIAGE_DEST_COLOR: Record<string, string> = {
+  "idea-bank": "#8B5CF6",
+  vault: "#6366F1",
+  discard: "var(--text-tertiary)",
+};
+function destColor(dest: string): string {
+  if (dest.startsWith("backlog")) return "#14B8A6";
+  if (dest.startsWith("roadmap")) return "#F59E0B";
+  return TRIAGE_DEST_COLOR[dest] ?? "var(--accent)";
+}
 
 /** Single-line summary shown when a state card is collapsed. */
 function oneLiner(card: BriefCard): string {
@@ -391,6 +403,80 @@ function PlanningCard({ card }: { card: BriefCard }) {
   );
 }
 
+function TriageCard({ card }: { card: BriefCard }) {
+  const b = card.body as unknown as TriageBody;
+  const [reply, setReply] = useState("");
+  const [feedback, setFeedback] = useState<string | null>(null);
+  const [sending, setSending] = useState(false);
+
+  const send = async () => {
+    const text = reply.trim();
+    if (!text || sending) return;
+    setSending(true);
+    setFeedback(null);
+    try {
+      const r = await fetch("/api/triage/reply", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text }),
+      });
+      const data = (await r.json()) as { ok: boolean; summary?: string; error?: string };
+      setFeedback(data.summary ?? data.error ?? "No response.");
+      if (data.ok) setReply("");
+    } catch {
+      setFeedback("Request failed.");
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const row = (it: TriageBody["keep"][number]) => (
+    <div key={it.id} className="flex items-baseline gap-2 text-sm">
+      <span className="font-mono text-xs shrink-0" style={{ color: "var(--text-tertiary)", minWidth: 16 }}>{it.n}</span>
+      <div className="min-w-0">
+        <span style={{ color: "var(--text-primary)" }}>{it.summary || it.url}</span>
+        <span className="ml-2 text-xs px-1.5 py-0.5 rounded-full whitespace-nowrap"
+          style={{ background: `${destColor(it.destination)}20`, color: destColor(it.destination) }}>
+          {it.destination}
+        </span>
+        <a href={it.url} target="_blank" rel="noreferrer" className="ml-1.5 inline-block align-middle" style={{ color: "var(--text-tertiary)" }}>
+          <ExternalLink size={11} />
+        </a>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="space-y-3">
+      <div className="space-y-1.5">{b.keep.map(row)}</div>
+      {b.keep.length === 0 && (
+        <p className="text-xs" style={{ color: "var(--text-tertiary)" }}>Nothing worth filing — {b.drop.length} to discard.</p>
+      )}
+      {b.drop.length > 0 && (
+        <details>
+          <summary className="text-xs cursor-pointer" style={{ color: "var(--text-tertiary)" }}>
+            {b.drop.length} proposed discard{b.drop.length > 1 ? "s" : ""} (tap to review before they go)
+          </summary>
+          <div className="space-y-1 mt-1.5 pl-1">{b.drop.map(row)}</div>
+        </details>
+      )}
+      <p className="text-xs" style={{ color: "var(--text-tertiary)" }}>{b.hint}</p>
+      <div className="flex items-center gap-2">
+        <input type="text" value={reply} onChange={(e) => setReply(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") send(); }}
+          placeholder='e.g. "1 approve, 4 to idea-bank, 2 skip"'
+          className="flex-1 text-xs rounded-lg px-3 py-2 outline-none"
+          style={{ background: "var(--bg-tertiary)", color: "var(--text-primary)", border: "1px solid var(--border-primary)" }} />
+        <button onClick={send} disabled={sending}
+          className="text-xs px-3 py-2 rounded-lg bg-sage-400 text-white font-medium disabled:opacity-50 transition-transform active:scale-[0.97]">
+          {sending ? "…" : "File"}
+        </button>
+      </div>
+      {feedback && <p className="text-xs" style={{ color: "var(--accent)" }}>{feedback}</p>}
+    </div>
+  );
+}
+
 function ShipsCard({ card }: { card: BriefCard }) {
   const b = card.body as unknown as ShipsBody;
   return (
@@ -432,6 +518,7 @@ function CardBody({ card, date }: { card: BriefCard; date: string }) {
   if (card.error) return <ErrorBody error={card.error} />;
   switch (card.type) {
     case "planning": return <PlanningCard card={card} />;
+    case "triage": return <TriageCard card={card} />;
     case "ships": return <ShipsCard card={card} />;
     case "workout": return <WorkoutCard card={card} date={date} />;
     case "work": return <WorkCard card={card} />;

@@ -56,6 +56,14 @@ export interface HomelabBody {
   issues: string[];
 }
 
+export interface TriageBody {
+  keep: { n: number; id: string; url: string; source: string; summary: string; destination: string; confidence: string; rationale: string }[];
+  drop: { n: number; id: string; url: string; source: string; summary: string; destination: string; confidence: string; rationale: string }[];
+  total: number;
+  shown: number;
+  hint: string;
+}
+
 export interface ShipsBody {
   projects: { title: string; days: number; never_shipped: boolean; shipping_event: string | null }[];
   shipped_30d: number;
