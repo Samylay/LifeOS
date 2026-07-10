@@ -40,12 +40,10 @@ services:
       # service name over the shared monitoring network (declared below).
       PROM_URL: "http://prometheus:9090"
       # Morning brief — built in-app (src/lib/brief, daily 06:00 BRIEF_TZ).
-      # BRIEF_PATH is the retired host aggregator's output, kept as a read
-      # fallback during the transition. Todoist token + n8n webhook in .env.
+      # Todoist token + n8n webhook in .env.
       BRIEF_TZ: "Asia/Tokyo"
       BRIEF_OUT: "/data/brief.json"
       OBJECTIVES_DIR: "/objectives"
-      BRIEF_PATH: "/brief/brief.json"
       WHISPER_URL: "http://host.docker.internal:8091"
       # Pager push arm: self-hosted ntfy (~/infra/ntfy), reached via the host
       # tailscale IP (docker-proxy binds it there; host.docker.internal maps
@@ -64,8 +62,6 @@ services:
       - lifeos-data:/data
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /home/quorky/.hermes:/hermes:ro
-      # Legacy morning-brief output (retired host aggregator) — read fallback.
-      - /home/quorky/services/brief/out:/brief:ro
       # Objectives rotation config+state (shared with host classify.py).
       - /home/quorky/services/objectives:/objectives
       - /home/quorky/vault/obsidian:/vault
