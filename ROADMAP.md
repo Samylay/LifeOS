@@ -481,3 +481,25 @@ Nine centres (LifeOS, Flux, Ecole, Scout, reels-reader, homelab-infra, workouts,
   QUEUED — NOTE (2026-07-10, IA restructure): original wording referenced "task detail / quick-add" and "task completion" — the local **tasks** feature was cut (Todoist is the system of record). Retargeted the example surfaces above (knowledge/project/pager) and the vibrate trigger to habit completion. Left unchecked per Samy's "skip T37/T38 for now".
 - [ ] **T38 — Delight + stats polish** (M) — celebration animation (SVG stroke draw-in or scale spring, ≤400ms, transform/opacity only) on rare meaningful events: goal shipped, streak milestone, prime completion. Count-up numbers on /status and /workouts (Training) headline stat tiles; staggered tile load-in + ~400ms ease-out chart mount on /workouts (absorbs the retired strava-dashboard polish plan). Respect reduced-motion (skip count-ups/celebrations). Verify: typecheck, tests, rebuild, redeploy, /status /workouts 200.
   QUEUED — NOTE (2026-07-10, IA restructure): wording unchanged except /workouts is now the "Training" page (manual logger removed, Strava/Garmin timeline + strength card kept). Celebration events (goal shipped, streak, prime completion) all survive. Left unchecked per Samy's "skip T37/T38 for now".
+
+## Content OS — scripting automation (shipped 2026-07-09: feat/content-os-scripting branch; merged to master 2026-07-10 — tasks renumbered T25*→T39* on merge, T25 was already taken by the default-public pipeline task)
+
+Monday scripting block automated: per-idea "draft script" + "draft week's batch" in /content
+(claude -p via the existing claude-cli path; skeletons/captions mirror the vault docs; batch
+respects the 12-unscripted-ideas floor). Deliberately NOT built — each needs Samy's call or
+credentials an unattended agent may not invent:
+
+- [ ] **T39 — NEEDS-SAMY: auto-publishing to TikTok/Instagram/YouTube** (L) — needs real
+  platform API credentials + app registrations (Meta app review, TikTok developer account,
+  YouTube Data API quota) that don't exist today. Until then the SOP stays: post natively
+  from the phone drafts folders. Decide if/when platform apps are worth registering.
+- [ ] **T39b — NEEDS-SAMY: analytics auto-pull for the /content Post Tracker** (M) — same
+  credential blocker as T25; the Friday 20-min manual review stands. Decide together with T25.
+- [ ] **T39c — NEEDS-SAMY: schedule the weekly batch draft (Monday 06:30 auto-run)** (S) —
+  the batch generator is a manual button in v1, deliberately: it drafts words Samy will
+  publish under his own voice, so a human trigger keeps him in the loop while trust builds.
+  Mirroring the brief scheduler (`src/lib/brief/scheduler.ts` instrumentation pattern) is a
+  small task once he's happy with a few weeks of manual batches. Decide when.
+- One-line flag for later: editing automation (whisper auto-captions / silence-cut via the
+  homelab's local whisper) is possible but out of scope — the SOP's "ship rough or drop"
+  keeps a human in the edit loop for now.

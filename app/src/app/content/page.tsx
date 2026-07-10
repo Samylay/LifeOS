@@ -11,6 +11,9 @@ import {
   Download,
   AlertTriangle,
   TrendingUp,
+  Wand2,
+  FileText,
+  Loader2,
 } from "lucide-react";
 import { useContentIdeas, useContentPosts } from "@/lib/use-content";
 import { useToast } from "@/components/toast";
@@ -193,7 +196,8 @@ function IdeaEditor({
 }
 
 function IdeaBank() {
-  const { ideas, loading, createIdea, updateIdea, deleteIdea, seedIdeas } = useContentIdeas();
+  const { ideas, loading, createIdea, updateIdea, deleteIdea, seedIdeas, scriptIdea, scriptWeeklyBatch } =
+    useContentIdeas();
   const { toast } = useToast();
   const [creating, setCreating] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -201,6 +205,63 @@ function IdeaBank() {
   const [pillarFilter, setPillarFilter] = useState<ContentPillar | "all">("all");
   const [hidePosted, setHidePosted] = useState(true);
   const [seeding, setSeeding] = useState(false);
+  const [scriptingId, setScriptingId] = useState<string | null>(null);
+  const [batchProgress, setBatchProgress] = useState<{ done: number; total: number } | null>(null);
+  const [openScriptIds, setOpenScriptIds] = useState<Set<string>>(new Set());
+  const busy = scriptingId !== null || batchProgress !== null;
+
+  const toggleScript = (id: string) =>
+    setOpenScriptIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
+  const runScriptIdea = async (id: string) => {
+    setScriptingId(id);
+    try {
+      await scriptIdea(id);
+      setOpenScriptIds((prev) => new Set(prev).add(id));
+      toast("Script drafted — review, read aloud, cut 15%");
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "Script draft failed", "error");
+    } finally {
+      setScriptingId(null);
+    }
+  };
+
+  const runBatch = async () => {
+    setBatchProgress({ done: 0, total: 0 });
+    try {
+      const result = await scriptWeeklyBatch((done, total) => setBatchProgress({ done, total }));
+      if (result.scripted.length > 0) {
+        setOpenScriptIds((prev) => {
+          const next = new Set(prev);
+          for (const i of result.scripted) next.add(i.id);
+          return next;
+        });
+        toast(`Drafted ${result.scripted.length} script${result.scripted.length === 1 ? "" : "s"} — Monday block done, review before Tuesday`);
+      }
+      for (const f of result.failed) toast(`"${f.idea.title}": ${f.error}`, "error");
+      if (result.blocked.length > 0) {
+        const floorBlocked = result.blocked.filter((b) => b.reason.startsWith("bank floor"));
+        if (floorBlocked.length > 0) {
+          toast(
+            `${floorBlocked.length} held back — bank floor is 12 unscripted ideas (${result.unscripted} in bank). Brainstorm first.`,
+            "warning"
+          );
+        }
+        for (const b of result.blocked.filter((x) => !x.reason.startsWith("bank floor"))) {
+          toast(b.reason, "warning");
+        }
+      }
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "Batch draft failed", "error");
+    } finally {
+      setBatchProgress(null);
+    }
+  };
 
   const visible = ideas.filter(
     (i) => (pillarFilter === "all" || i.pillar === pillarFilter) && (!hidePosted || i.status !== "posted")
@@ -239,14 +300,36 @@ function IdeaBank() {
             hide posted
           </label>
         </div>
-        {!creating && (
-          <button
-            onClick={() => setCreating(true)}
-            className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium bg-sage-400 text-white hover:bg-sage-500 transition-colors"
-          >
-            <Plus size={15} /> New idea
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {ideas.length > 0 && (
+            <button
+              onClick={runBatch}
+              disabled={busy}
+              title="Monday block: draft 2 Build Log + 1 Workflow Win + 1 carousel from the bank (never drains unscripted ideas below 12)"
+              className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors disabled:opacity-50"
+              style={{ color: "var(--accent)", background: "var(--accent-bg)" }}
+            >
+              {batchProgress ? (
+                <>
+                  <Loader2 size={15} className="animate-spin" />
+                  Drafting{batchProgress.total > 0 ? ` ${batchProgress.done}/${batchProgress.total}` : "…"}
+                </>
+              ) : (
+                <>
+                  <Wand2 size={15} /> Draft week&rsquo;s batch
+                </>
+              )}
+            </button>
+          )}
+          {!creating && (
+            <button
+              onClick={() => setCreating(true)}
+              className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium bg-sage-400 text-white hover:bg-sage-500 transition-colors"
+            >
+              <Plus size={15} /> New idea
+            </button>
+          )}
+        </div>
       </div>
 
       {unscripted < 12 && ideas.length > 0 && (
@@ -330,6 +413,35 @@ function IdeaBank() {
                   )}
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
+                  {idea.status === "idea" && (
+                    <button
+                      onClick={() => runScriptIdea(idea.id)}
+                      disabled={busy || idea.hookFormula == null}
+                      title={
+                        idea.hookFormula == null
+                          ? "Assign a hook formula first — a topic isn't a post"
+                          : "Draft script + caption with Claude"
+                      }
+                      className="p-1.5 rounded-lg disabled:opacity-40"
+                      style={{ color: "var(--accent)" }}
+                    >
+                      {scriptingId === idea.id ? (
+                        <Loader2 size={14} className="animate-spin" />
+                      ) : (
+                        <Wand2 size={14} />
+                      )}
+                    </button>
+                  )}
+                  {idea.script && (
+                    <button
+                      onClick={() => toggleScript(idea.id)}
+                      title={openScriptIds.has(idea.id) ? "Hide script" : "Show script"}
+                      className="p-1.5 rounded-lg"
+                      style={{ color: openScriptIds.has(idea.id) ? "var(--accent)" : "var(--text-tertiary)" }}
+                    >
+                      <FileText size={14} />
+                    </button>
+                  )}
                   <button onClick={() => setEditingId(idea.id)} title="Edit" className="p-1.5 rounded-lg" style={{ color: "var(--text-tertiary)" }}>
                     <Pencil size={14} />
                   </button>
@@ -353,6 +465,28 @@ function IdeaBank() {
                   </button>
                 ))}
               </div>
+              {idea.script && openScriptIds.has(idea.id) && (
+                <div className="mt-3 space-y-3 rounded-lg p-3" style={{ background: "var(--bg-tertiary)" }}>
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-widest mb-1" style={{ color: "var(--text-tertiary)" }}>
+                      Script — read aloud once, cut 15%
+                    </p>
+                    <p className="text-sm whitespace-pre-wrap" style={{ color: "var(--text-secondary)" }}>
+                      {idea.script}
+                    </p>
+                  </div>
+                  {idea.caption && (
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-widest mb-1" style={{ color: "var(--text-tertiary)" }}>
+                        Caption
+                      </p>
+                      <p className="text-sm whitespace-pre-wrap" style={{ color: "var(--text-secondary)" }}>
+                        {idea.caption}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )
         )}
