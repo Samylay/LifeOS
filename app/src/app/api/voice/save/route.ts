@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { appendToInbox } from "@/lib/voice-inbox";
+import { applyTriageReply } from "@/lib/brief/triage-apply";
 
 // Commits the (possibly human-edited) transcript from /api/voice to the
 // dated vault inbox note. Kept separate from transcription so the client can
@@ -16,6 +17,14 @@ export async function POST(req: NextRequest) {
     const prompt = String(body.prompt || "");
     const category = String(body.category || "note");
     const date = String(body.date || new Date().toISOString().slice(0, 10));
+
+    // T36 voice path: a "triage" voice note is verdicts, not a journal entry —
+    // route the transcript through the same applier the reply box uses instead
+    // of appending it to the inbox.
+    if (category === "triage") {
+      const result = applyTriageReply(transcript);
+      return NextResponse.json({ transcript, triage: result });
+    }
 
     const note = appendToInbox(date, prompt, category, transcript);
     return NextResponse.json({ transcript, note });

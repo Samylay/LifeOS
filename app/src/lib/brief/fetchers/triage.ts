@@ -18,8 +18,11 @@ interface QueuedProposal {
 }
 
 export async function fetch(): Promise<FetchResult> {
+  // Stable order (createdAt asc) so the card's row numbers match what the
+  // reply endpoint re-derives from the same query — the number is the handle.
   const proposed = listDocs("users/local/triageQueue", {
     where: [["status", "==", "proposed"]],
+    orderBy: ["createdAt", "asc"],
   });
   if (proposed.length === 0) return null; // nothing to triage → no card
 
