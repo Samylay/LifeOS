@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { Activity, Check, GraduationCap } from "lucide-react";
 import { useStrength } from "@/lib/use-strength";
 import { weekOfBuild, sessionsThisWeek, buildComplete, targetFreq } from "@/lib/types";
@@ -10,12 +9,11 @@ export function StrengthCard() {
 
   if (loading) return null;
 
-  // Nothing set up yet — quiet prompt to open the page.
+  // Nothing set up yet — stay quiet (strength is a light-touch focus tracker).
   if (!building && maintaining.length === 0) {
     return (
-      <Link
-        href="/strength"
-        className="block rounded-xl p-4 lg:p-5 transition-colors hover:bg-[var(--bg-tertiary)]"
+      <div
+        className="rounded-xl p-4 lg:p-5"
         style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-primary)", boxShadow: "var(--shadow-sm)" }}
       >
         <div className="flex items-center gap-2 mb-1">
@@ -25,9 +23,9 @@ export function StrengthCard() {
           </h2>
         </div>
         <p className="text-sm" style={{ color: "var(--text-tertiary)" }}>
-          Set up your build-then-maintain plan →
+          No active build-then-maintain focus.
         </p>
-      </Link>
+      </div>
     );
   }
 
@@ -48,9 +46,6 @@ export function StrengthCard() {
             Strength
           </h2>
         </div>
-        <Link href="/strength" className="text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--accent)" }}>
-          Open
-        </Link>
       </div>
 
       {building ? (
@@ -66,7 +61,7 @@ export function StrengthCard() {
 
           <div className="mt-2 flex items-center gap-2">
             <div className="h-2 flex-1 rounded-full overflow-hidden" style={{ background: "var(--bg-tertiary)" }}>
-              <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: "var(--accent)" }} />
+              <div className="h-full w-full rounded-full origin-left transition-transform" style={{ transform: `scaleX(${pct / 100})`, background: "var(--accent)" }} />
             </div>
             <span className="text-xs font-mono shrink-0" style={{ color: "var(--accent)" }}>
               {done}/{target}
@@ -75,17 +70,16 @@ export function StrengthCard() {
 
           <div className="mt-3 flex items-center gap-2">
             {complete ? (
-              <Link
-                href="/strength"
+              <span
                 className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium"
                 style={{ color: "var(--accent)", background: "var(--accent-bg)" }}
               >
                 <GraduationCap size={14} /> Ready to graduate
-              </Link>
+              </span>
             ) : (
               <button
                 onClick={() => logSession(building.id)}
-                className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium bg-sage-400 text-white hover:bg-sage-500 transition-colors"
+                className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium bg-sage-400 text-white hover:bg-sage-500 transition-transform duration-150 active:scale-[0.97]"
               >
                 <Check size={14} /> Log session
               </button>

@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { useKnowledge, type Note } from "@/lib/use-kb";
 import { useToast } from "@/components/toast";
+import { LearningBacklog } from "@/components/learning-backlog";
 
 function timeAgo(ms: number): string {
   const d = Date.now() - ms;
@@ -181,7 +182,7 @@ export default function KnowledgePage() {
   return (
     <div className="space-y-5 max-w-3xl">
       {/* Header */}
-      <div className="flex items-center justify-between gap-4 flex-wrap">
+      <div className="flex items-center justify-between gap-4 flex-wrap enter">
         <div>
           <h1 className="text-2xl font-semibold flex items-center gap-2" style={{ color: "var(--text-primary)" }}>
             <Brain size={22} style={{ color: "var(--accent)" }} /> Knowledge
@@ -308,6 +309,14 @@ export default function KnowledgePage() {
           )}
         </div>
       )}
+
+      {/* Learning backlog (merged from the retired /things-to-learn route) */}
+      <div
+        className="pt-5 enter"
+        style={{ borderTop: "1px solid var(--border-primary)", ["--enter-delay" as string]: "60ms" }}
+      >
+        <LearningBacklog />
+      </div>
     </div>
   );
 }
