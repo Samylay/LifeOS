@@ -28,6 +28,16 @@ reality answers). The predicted-vs-actual column is the point: it makes
 prediction error visible, which is what actually updates the "not ready"
 instinct.
 
+**Logging rule (added 2026-07-10 after the log sat empty while real work
+shipped):** whoever delivers — Samy or an agent session — logs the ship *in
+the same session*, via the /projects UI or one command:
+`~/services/attention/log-ship.sh "what" "to whom" ["predicted"] [projectId]`.
+A shipped thing that isn't logged keeps the tripwire red and teaches everyone
+to ignore the metric. What counts: a deliverable reaching its real surface
+(deployed and in daily use, a doc delivered for review, a post published, a
+demo shown). What does not: commits, refactors, or work on the tracker
+itself. Backfills are allowed but must say so in `predictedReaction`.
+
 ## Exit-velocity brief card (`brief/fetchers/ships.ts`)
 
 Per active project: days since anything shipped, stalest first. Footer:
