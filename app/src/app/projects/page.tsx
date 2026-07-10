@@ -162,7 +162,7 @@ function ProjectCard({
 
   return (
     <div
-      className="rounded-xl transition-all"
+      className="rounded-xl transition-[background,border-color]"
       style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-primary)" }}
     >
       <div className="p-4 cursor-pointer" onClick={() => setExpanded(!expanded)}>
@@ -236,7 +236,7 @@ function ProjectCard({
             <span className="text-xs font-mono" style={{ color: "var(--accent)" }}>{progress}%</span>
           </div>
           <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "var(--bg-tertiary)" }}>
-            <div className="h-full rounded-full transition-all" style={{ width: `${progress}%`, background: "var(--accent)" }} />
+            <div className="h-full w-full rounded-full origin-left transition-transform" style={{ transform: `scaleX(${progress / 100})`, background: "var(--accent)" }} />
           </div>
         </div>
 

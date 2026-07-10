@@ -59,7 +59,7 @@ function Vital({
         </span>
       </div>
       <div className="h-2 rounded-full overflow-hidden" style={{ background: "var(--bg-tertiary)" }}>
-        <div className="h-full rounded-full transition-all" style={{ width: `${pct ?? 0}%`, background: barColor(pct) }} />
+        <div className="h-full w-full rounded-full origin-left transition-transform" style={{ transform: `scaleX(${(pct ?? 0) / 100})`, background: barColor(pct) }} />
       </div>
       <p className="text-xs mt-1.5" style={{ color: "var(--text-tertiary)" }}>{sub}</p>
     </div>

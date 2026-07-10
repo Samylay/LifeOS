@@ -72,7 +72,7 @@ function CardShell({ card, children }: { card: BriefCard; children: React.ReactN
 
   return (
     <div
-      className="rounded-xl transition-all"
+      className="rounded-xl transition-[background,border-color]"
       style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-primary)" }}
     >
       <button

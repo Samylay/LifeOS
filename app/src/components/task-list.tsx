@@ -41,7 +41,7 @@ export function TaskItem({ task, onUpdate, onDelete }: TaskItemProps) {
 
   return (
     <div
-      className="group flex items-center gap-3 rounded-lg px-4 py-3 transition-all"
+      className="group flex items-center gap-3 rounded-lg px-4 py-3 transition-[background,border-color]"
       style={{
         background: "var(--bg-secondary)",
         border: "1px solid var(--border-primary)",

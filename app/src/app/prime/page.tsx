@@ -96,7 +96,7 @@ function SoftTimer({ floorSec }: { floorSec: number }) {
         </span>
       </div>
       <div className="h-2 rounded-full overflow-hidden mb-3" style={{ background: "var(--bg-secondary)" }}>
-        <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: "var(--accent)" }} />
+        <div className="h-full w-full rounded-full origin-left transition-transform" style={{ transform: `scaleX(${pct / 100})`, background: "var(--accent)" }} />
       </div>
       <div className="flex items-center gap-2">
         <button
