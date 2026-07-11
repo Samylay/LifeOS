@@ -34,6 +34,22 @@
 
 ## Log
 
+- **2026-07-11 (interactive session, UX/UI audit — Samy's ask, fable agent):**
+  Full-surface audit against the 9-surface IA, interaction-craft doctrine, and
+  WCAG AA; written up in `app/docs/ux-audit-2026-07-11.md`. IA and motion
+  doctrine both hold (no orphan pages, doctrine greps clean). Fixed now, one
+  commit per concern: (1) Decide tab added to the mobile bottom nav — the deck
+  is phone-first but was two taps deep behind "More"; (2) pinch zoom
+  re-enabled (WCAG 1.4.4) with a 16px mobile form-control rule so iOS doesn't
+  auto-zoom inputs, plus Sonner mobile toasts lifted above the bottom nav so
+  the swipe deck's Undo is always tappable; (3) aria-labels on the 7 genuinely
+  unlabeled icon-only buttons + press feedback on the status refresh;
+  (4) safe-area-aware main padding. Remaining findings queued as T40
+  (skeletons), T41 (/decide touch targets + keyboard + sidebar Escape + voice
+  live-region), T42 (per-route titles). Verified: tsc clean, 168/168 tests,
+  rebuild+redeploy, all 11 routes 200, viewport meta no longer emits
+  maximum-scale/user-scalable, "Decide" present in both navs.
+
 - **2026-07-11 (interactive session, follow-up — swipe sensitivity fix + restore):**
   Samy's first phone session: cards discarded "before I can even read them" —
   v1's commit condition (24px OR any velocity blip) was a hair trigger.
@@ -578,6 +594,9 @@ Nine centres (LifeOS, Flux, Ecole, Scout, reels-reader, homelab-infra, workouts,
   QUEUED — NOTE (2026-07-10, IA restructure): original wording referenced "task detail / quick-add" and "task completion" — the local **tasks** feature was cut (Todoist is the system of record). Retargeted the example surfaces above (knowledge/project/pager) and the vibrate trigger to habit completion. Left unchecked per Samy's "skip T37/T38 for now".
 - [ ] **T38 — Delight + stats polish** (M) — celebration animation (SVG stroke draw-in or scale spring, ≤400ms, transform/opacity only) on rare meaningful events: goal shipped, streak milestone, prime completion. Count-up numbers on /status and /workouts (Training) headline stat tiles; staggered tile load-in + ~400ms ease-out chart mount on /workouts (absorbs the retired strava-dashboard polish plan). Respect reduced-motion (skip count-ups/celebrations). Verify: typecheck, tests, rebuild, redeploy, /status /workouts 200.
   QUEUED — NOTE (2026-07-10, IA restructure): wording unchanged except /workouts is now the "Training" page (manual logger removed, Strava/Garmin timeline + strength card kept). Celebration events (goal shipped, streak, prime completion) all survive. Left unchecked per Samy's "skip T37/T38 for now".
+- [ ] **T40 — Skeleton loading states for the slow initial fetches** (S) — from the 2026-07-11 UX audit (app/docs/ux-audit-2026-07-11.md, M2). Today's Morning-brief section, /status, and /workouts render nothing (or pop in with layout shift) until their first fetch resolves. Add subtle skeleton placeholders (shimmer via opacity/transform only, respecting reduced-motion) sized to the eventual content so the layout is stable: brief card column on /, the vitals grid + container list on /status, the stats tiles on /workouts. No new deps. Verify: typecheck, tests green, rebuild, redeploy, / /status /workouts 200, and `grep -n 'skeleton' app/src` shows the new components used on all three surfaces.
+- [ ] **T41 — /decide interaction pass: touch targets, keyboard, sidebar escape, voice live-region** (M) — from the 2026-07-11 UX audit (M3/M4/L2/L4). (a) Deck action buttons and the Saved/Approvals tab switcher in `components/decide/card-stack.tsx` + `app/decide/page.tsx` get ≥44px hit areas on touch (`min-height: 44px` at <1024px is fine; visual size may stay). (b) Arrow-key verdicts on the focused deck: ←/→ trigger the same swipe-left/right actions incl. the undo toast; ignore keys while voice is recording. (c) Mobile sidebar closes on Escape and its scrim becomes a focusable/labelled button (`components/sidebar.tsx`). (d) Voice states announce via a `role="status"` visually-hidden live region ("recording…", "thinking…"). No new deps. Verify: typecheck, tests, rebuild, redeploy, /decide 200; grep shows `min-height` on the deck buttons, `role="status"` in card-stack, and an `Escape` handler in sidebar.
+- [ ] **T42 — Per-route document titles** (S) — from the 2026-07-11 UX audit (M5). Every page is titled "LifeOS", so browser history/tabs are indistinguishable. Pages are client components, so add a tiny `useDocumentTitle("Decide — LifeOS")`-style hook (or per-segment `layout.tsx` metadata where a segment has no client constraint) covering all 11 surfaces; keep the bare "LifeOS" for /. Verify: typecheck, tests, rebuild, redeploy, `curl -s http://127.0.0.1:3000/decide | grep -o '<title>[^<]*</title>'` shows the per-route title (App Router streams the title tag for client pages via the segment metadata — if the hook approach keeps SSR title generic, assert via a rendered-DOM check note instead and say so in the log).
 
 ## Content OS — scripting automation (shipped 2026-07-09: feat/content-os-scripting branch; merged to master 2026-07-10 — tasks renumbered T25*→T39* on merge, T25 was already taken by the default-public pipeline task)
 
