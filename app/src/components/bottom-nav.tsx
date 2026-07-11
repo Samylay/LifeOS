@@ -7,13 +7,17 @@ import {
   BellRing,
   Clapperboard,
   FolderKanban,
+  Layers,
   Menu,
 } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { useNotifications } from "@/lib/use-notifications";
 
+// /decide added 2026-07-11 (ux-audit H1): the decision deck is built for the
+// phone — it can't live two taps deep behind "More". 6 items still fit 360px.
 const TABS = [
   { href: "/", label: "Home", icon: LayoutDashboard },
+  { href: "/decide", label: "Decide", icon: Layers },
   { href: "/pager", label: "Pager", icon: BellRing },
   { href: "/content", label: "Content", icon: Clapperboard },
   { href: "/projects", label: "Projects", icon: FolderKanban },
@@ -49,10 +53,10 @@ export function BottomNav() {
           <Link
             key={tab.href}
             href={tab.href}
-            className="relative flex flex-col items-center justify-center gap-0.5 py-1 px-3 rounded-lg transition-transform duration-150 active:scale-[0.90]"
+            className="relative flex flex-col items-center justify-center gap-0.5 py-1 px-2 rounded-lg transition-transform duration-150 active:scale-[0.90]"
             style={{
               color: active ? "var(--accent)" : "var(--text-tertiary)",
-              minWidth: 56,
+              minWidth: 52,
             }}
           >
             <div className="relative">
@@ -75,8 +79,8 @@ export function BottomNav() {
       {/* "More" — opens mobile sidebar */}
       <button
         onClick={() => setMobileSidebarOpen(true)}
-        className="flex flex-col items-center justify-center gap-0.5 py-1 px-3 rounded-lg transition-transform duration-150 active:scale-[0.90]"
-        style={{ color: "var(--text-tertiary)", minWidth: 56 }}
+        className="flex flex-col items-center justify-center gap-0.5 py-1 px-2 rounded-lg transition-transform duration-150 active:scale-[0.90]"
+        style={{ color: "var(--text-tertiary)", minWidth: 52 }}
         aria-label="More"
       >
         <Menu size={22} strokeWidth={2} />

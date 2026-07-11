@@ -27,7 +27,8 @@ export function AppShell({ children }: { children: ReactNode }) {
         style={{
           marginLeft: 0,
           maxWidth: 1280,
-          paddingBottom: 80, // space for bottom nav on mobile
+          // space for the bottom nav on mobile, incl. gesture-nav safe area
+          paddingBottom: "calc(80px + env(safe-area-inset-bottom, 0px))",
         }}
       >
         <style>{`
