@@ -6,7 +6,8 @@
 // ROADMAP.md). Swipe right = approve, left = discard/reject; buttons for the
 // finer verdicts; voice for anything nuanced.
 import { useCallback, useEffect, useState } from "react";
-import { Archive, Check, Clock, Lightbulb, ListTodo, MessageCircleQuestion, Layers, X } from "lucide-react";
+import Link from "next/link";
+import { Archive, Check, Clock, Lightbulb, ListTodo, MessageCircleQuestion, Layers, Sparkles, X } from "lucide-react";
 import { CardStack, type DeckAction } from "@/components/decide/card-stack";
 import { TriageCard, type TriageQueueItem } from "@/components/decide/triage-card";
 import { DecisionCard } from "@/components/decide/decision-card";
@@ -67,6 +68,12 @@ export default function DecidePage() {
       <div className="flex items-center gap-3 mb-5">
         <Layers size={24} style={{ color: "var(--accent)" }} />
         <h1 className="text-2xl font-semibold" style={{ color: "var(--text-primary)" }}>Decide</h1>
+        {/* PROTOTYPE link — adaptive workspaces for approved cards */}
+        <Link href="/decide/adaptive" aria-label="Adaptive UI prototype for approved cards"
+          className="rounded-lg p-1.5 transition-transform duration-150 active:scale-[0.9]"
+          style={{ background: "var(--bg-tertiary)", color: "var(--accent)" }}>
+          <Sparkles size={16} />
+        </Link>
         <div className="ml-auto flex rounded-lg p-0.5" style={{ background: "var(--bg-tertiary)" }}>
           {tabs.map((t) => (
             <button key={t.id} onClick={() => setDeck(t.id)}
