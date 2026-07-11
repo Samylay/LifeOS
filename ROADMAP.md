@@ -34,6 +34,34 @@
 
 ## Log
 
+- **2026-07-11 (autoloop, T40):** T17/T18/T18b/T25 are NEEDS-SAMY (T18b's
+  remaining work is dashboard config + a build-location decision only Samy
+  can make, per the 2026-07-09/10 precedent); T27/T29 stay blocked (design
+  captures with no `Verify:` note / an infra mount decision, per the prior
+  autoloop note above); T30/T32 are NEEDS-SAMY; T37/T38 are left unchecked
+  per Samy's explicit "skip T37/T38 for now"; T40 was the first genuinely
+  actionable unchecked task. Added a shared `Skeleton` primitive
+  (`components/skeleton.tsx`, opacity-only shimmer keyframe reusing the
+  motion-token vars, automatically squashed by the existing global
+  reduced-motion rule — no extra opt-out code needed) and wired it into the
+  three surfaces the UX audit flagged: `/` (6-row placeholder for the brief
+  card list while `brief` is null and there's no error), `/status` (3-tile
+  vitals-grid placeholder while `host` is unset, 4-row container-list
+  placeholder while `data` hasn't loaded — kept distinct from the real
+  "reason" text shown once data arrives so a genuine backend error doesn't
+  get masked as a loading state), and `/workouts`' `TrainingAnalytics`
+  component (3-tile "This Week" skeleton replacing the old bare spinner
+  card). No new deps. 168/168 tests green, tsc clean, docker build+redeploy
+  succeeded, `/` `/status` `/workouts` all 200, grep confirms the component
+  is used on all three surfaces.
+  **Pitch:** the three slowest-to-populate surfaces in the app now hold their
+  layout and show a placeholder shaped like the real content instead of a
+  blank flash or a spinner that doesn't match what's coming.
+  **Quiz:** (1) Why does the container-list skeleton check `!data && !err`
+  instead of just `!data`? (2) Why doesn't the shimmer animation need its own
+  reduced-motion override? (3) Why was the `/workouts` loading state replaced
+  entirely rather than just adding a skeleton alongside the old spinner?
+
 - **2026-07-11 (interactive session, UX/UI audit — Samy's ask, fable agent):**
   Full-surface audit against the 9-surface IA, interaction-craft doctrine, and
   WCAG AA; written up in `app/docs/ux-audit-2026-07-11.md`. IA and motion
@@ -594,7 +622,7 @@ Nine centres (LifeOS, Flux, Ecole, Scout, reels-reader, homelab-infra, workouts,
   QUEUED — NOTE (2026-07-10, IA restructure): original wording referenced "task detail / quick-add" and "task completion" — the local **tasks** feature was cut (Todoist is the system of record). Retargeted the example surfaces above (knowledge/project/pager) and the vibrate trigger to habit completion. Left unchecked per Samy's "skip T37/T38 for now".
 - [ ] **T38 — Delight + stats polish** (M) — celebration animation (SVG stroke draw-in or scale spring, ≤400ms, transform/opacity only) on rare meaningful events: goal shipped, streak milestone, prime completion. Count-up numbers on /status and /workouts (Training) headline stat tiles; staggered tile load-in + ~400ms ease-out chart mount on /workouts (absorbs the retired strava-dashboard polish plan). Respect reduced-motion (skip count-ups/celebrations). Verify: typecheck, tests, rebuild, redeploy, /status /workouts 200.
   QUEUED — NOTE (2026-07-10, IA restructure): wording unchanged except /workouts is now the "Training" page (manual logger removed, Strava/Garmin timeline + strength card kept). Celebration events (goal shipped, streak, prime completion) all survive. Left unchecked per Samy's "skip T37/T38 for now".
-- [ ] **T40 — Skeleton loading states for the slow initial fetches** (S) — from the 2026-07-11 UX audit (app/docs/ux-audit-2026-07-11.md, M2). Today's Morning-brief section, /status, and /workouts render nothing (or pop in with layout shift) until their first fetch resolves. Add subtle skeleton placeholders (shimmer via opacity/transform only, respecting reduced-motion) sized to the eventual content so the layout is stable: brief card column on /, the vitals grid + container list on /status, the stats tiles on /workouts. No new deps. Verify: typecheck, tests green, rebuild, redeploy, / /status /workouts 200, and `grep -n 'skeleton' app/src` shows the new components used on all three surfaces.
+- [x] **T40 — Skeleton loading states for the slow initial fetches** (S) — from the 2026-07-11 UX audit (app/docs/ux-audit-2026-07-11.md, M2). Today's Morning-brief section, /status, and /workouts render nothing (or pop in with layout shift) until their first fetch resolves. Add subtle skeleton placeholders (shimmer via opacity/transform only, respecting reduced-motion) sized to the eventual content so the layout is stable: brief card column on /, the vitals grid + container list on /status, the stats tiles on /workouts. No new deps. Verify: typecheck, tests green, rebuild, redeploy, / /status /workouts 200, and `grep -n 'skeleton' app/src` shows the new components used on all three surfaces. *(2026-07-11: done in autoloop — added a shared `Skeleton` primitive (opacity-only shimmer keyframe, killed by the existing reduced-motion wildcard rule) and wired it into `/` (6-row placeholder for the brief card list while `brief` is null and no error), `/status` (3-tile vitals-grid placeholder while `host` is unset, 4-row container-list placeholder while `data` hasn't loaded yet, distinct from the real "reason" text once data arrives), and `/workouts`' `TrainingAnalytics` (3-tile "This Week" skeleton replacing the old bare spinner card). No new deps. 168/168 tests green, tsc clean, docker build+redeploy succeeded, `/` `/status` `/workouts` all 200, `grep -n 'skeleton' app/src/app/page.tsx app/src/app/status/page.tsx app/src/components/training-analytics.tsx app/src/components/skeleton.tsx` shows the component used on all three surfaces.)*
 - [ ] **T41 — /decide interaction pass: touch targets, keyboard, sidebar escape, voice live-region** (M) — from the 2026-07-11 UX audit (M3/M4/L2/L4). (a) Deck action buttons and the Saved/Approvals tab switcher in `components/decide/card-stack.tsx` + `app/decide/page.tsx` get ≥44px hit areas on touch (`min-height: 44px` at <1024px is fine; visual size may stay). (b) Arrow-key verdicts on the focused deck: ←/→ trigger the same swipe-left/right actions incl. the undo toast; ignore keys while voice is recording. (c) Mobile sidebar closes on Escape and its scrim becomes a focusable/labelled button (`components/sidebar.tsx`). (d) Voice states announce via a `role="status"` visually-hidden live region ("recording…", "thinking…"). No new deps. Verify: typecheck, tests, rebuild, redeploy, /decide 200; grep shows `min-height` on the deck buttons, `role="status"` in card-stack, and an `Escape` handler in sidebar.
 - [ ] **T42 — Per-route document titles** (S) — from the 2026-07-11 UX audit (M5). Every page is titled "LifeOS", so browser history/tabs are indistinguishable. Pages are client components, so add a tiny `useDocumentTitle("Decide — LifeOS")`-style hook (or per-segment `layout.tsx` metadata where a segment has no client constraint) covering all 11 surfaces; keep the bare "LifeOS" for /. Verify: typecheck, tests, rebuild, redeploy, `curl -s http://127.0.0.1:3000/decide | grep -o '<title>[^<]*</title>'` shows the per-route title (App Router streams the title tag for client pages via the segment metadata — if the hook approach keeps SSR title generic, assert via a rendered-DOM check note instead and say so in the log).
 
