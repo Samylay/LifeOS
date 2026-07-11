@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { Activity, Cpu, MemoryStick, HardDrive, Boxes, ExternalLink, Sparkles, RefreshCw } from "lucide-react";
+import { Skeleton } from "@/components/skeleton";
 
 // Grafana for deep dives. Reachable once it has a Cloudflare route (pending the
 // tunnel-token refresh); override the base with NEXT_PUBLIC_GRAFANA_URL.
@@ -125,7 +126,7 @@ export default function StatusPage() {
       )}
 
       {/* Host vitals */}
-      {host && (
+      {host ? (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <Vital icon={<Cpu size={15} />} label="CPU" pct={host.cpuPct}
             sub={host.enabled ? "16 threads" : "metrics offline"} />
@@ -133,6 +134,12 @@ export default function StatusPage() {
             sub={`${gb(host.memUsedBytes)} / ${gb(host.memTotalBytes)}`} />
           <Vital icon={<HardDrive size={15} />} label="Disk /" pct={host.diskPct}
             sub={`${gb(host.diskUsedBytes)} / ${gb(host.diskTotalBytes)}`} />
+        </div>
+      ) : !err && (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Skeleton key={i} className="h-[92px]" />
+          ))}
         </div>
       )}
       {host && !host.enabled && (
@@ -149,7 +156,13 @@ export default function StatusPage() {
             Containers
           </h2>
         </div>
-        {!data?.containers.ok ? (
+        {!data && !err ? (
+          <div className="space-y-1.5">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Skeleton key={i} className="h-[42px]" />
+            ))}
+          </div>
+        ) : !data?.containers.ok ? (
           <p className="text-sm" style={{ color: "var(--text-tertiary)" }}>
             {data?.containers.reason || "Loading…"}
           </p>

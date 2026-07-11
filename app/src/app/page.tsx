@@ -21,6 +21,7 @@ import { useNotifications } from "@/lib/use-notifications";
 import { useShipLog } from "@/lib/use-ship-log";
 import { GoalsCard } from "@/components/goals-card";
 import { BriefCards } from "@/components/brief/brief-cards";
+import { Skeleton } from "@/components/skeleton";
 import type { Brief } from "@/lib/brief-types";
 
 interface BriefResponse {
@@ -241,6 +242,13 @@ export default function Today() {
           <div className="rounded-xl p-4 text-sm"
             style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-primary)", color: "var(--text-secondary)" }}>
             Couldn&apos;t load the brief.
+          </div>
+        )}
+        {!brief && !briefErr && (
+          <div className="space-y-1">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <Skeleton key={i} className="h-10" />
+            ))}
           </div>
         )}
         {brief?.brief && <BriefCards brief={brief.brief} />}

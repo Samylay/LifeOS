@@ -199,6 +199,16 @@ body {
   box-shadow: 0 8px 24px -12px rgba(0, 0, 0, 0.25);
 }
 
+/* Skeleton loading placeholders (T40) — opacity-only shimmer, killed by the
+   reduced-motion block below. */
+@keyframes skeleton-pulse {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 1; }
+}
+.skeleton-pulse {
+  animation: skeleton-pulse 1.4s var(--ease-in-out-custom) infinite;
+}
+
 /* Reduced motion */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

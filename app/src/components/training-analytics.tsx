@@ -1,5 +1,7 @@
 "use client";
 
+import { Skeleton } from "@/components/skeleton";
+
 import { useEffect, useMemo, useState } from "react";
 import {
   Activity,
@@ -170,9 +172,15 @@ export default function TrainingAnalytics() {
 
   if (loading) {
     return (
-      <div className="rounded-xl p-8 text-center" style={cardStyle()}>
-        <Loader2 size={24} className="animate-spin mx-auto mb-2" style={{ color: "var(--text-tertiary)" }} />
-        <p className="text-sm" style={{ color: "var(--text-secondary)" }}>Loading training data...</p>
+      <div className="space-y-6">
+        <section>
+          <SectionLabel>This Week</SectionLabel>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <Skeleton key={i} className="h-[84px]" />
+            ))}
+          </div>
+        </section>
       </div>
     );
   }
