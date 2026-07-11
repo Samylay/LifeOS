@@ -5,12 +5,29 @@
 export type TriageSource = "x" | "instagram" | "other";
 export type TriageStatus = "queued" | "proposed" | "filed" | "discarded";
 
+export type TriageCategory = "business-idea" | "ai-tip" | "ai-project" | "swe" | "other";
+
+// Category-specific decision aid written by the nightly study step: for
+// business ideas `detail` is a validity call (real opportunity or hype);
+// for ai/swe content it's an exploration (what it is + how it works).
+export interface TriageAssessment {
+  verdict: string; // business-idea: pursue|maybe|pass — others: adopt|try|skim|skip
+  detail: string;
+  effort: string;
+  payoff: string;
+  apply: string; // concrete first step naming the project/centre, or "none"
+}
+
 export interface TriageProposal {
   summary: string;
   why_relevant: string;
   destination: string; // "vault" | "idea-bank" | "backlog:<centre>" | "roadmap:<project>" | "discard"
   confidence: "high" | "medium" | "low";
   rationale: string;
+  // Added with the /decide cards (2026-07-11); absent on older proposals.
+  title?: string;
+  category?: TriageCategory;
+  assessment?: TriageAssessment;
 }
 
 export interface TriageItem {

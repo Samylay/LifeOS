@@ -58,6 +58,45 @@ export interface TriageApplyResult {
   count: number;
 }
 
+// Apply one action to one already-loaded queue item — the unit the numbered
+// reply loop below and the /decide swipe/voice routes share. "approve" honors
+// the proposed destination; explicit verbs override it. Throws on I/O failure.
+export function applyActionToItem(
+  item: Record<string, unknown>,
+  rawAction: TriageAction,
+  rawCentre?: string | null
+): string {
+  const p = (item.proposal ?? {}) as QProposal;
+  const url = String(item.url ?? "");
+  const source = String(item.source ?? "other");
+
+  let action = rawAction;
+  let centre = rawCentre ?? null;
+  if (action === "approve") {
+    const dest = p.destination ?? "discard";
+    if (dest === "vault") action = "vault";
+    else if (dest === "idea-bank") action = "idea-bank";
+    else if (dest.startsWith("backlog")) {
+      action = "backlog";
+      centre = centre ?? normalizeCentre(dest.replace(/^backlog:?\s*/i, "").trim());
+    } else if (dest === "discard") action = "discard";
+    else action = "vault"; // roadmap:* etc. → park in the vault note for now
+  }
+
+  if (action === "vault") fileToVault(url, source, p);
+  else if (action === "idea-bank") fileToIdeaBank(url, p);
+  else if (action === "backlog") {
+    appendBacklogItem((centre ?? "polymath") as BacklogCentre, `${p.summary ?? url} — ${url}`);
+  }
+  const status = action === "discard" ? "discarded" : "filed";
+  updateDoc(COLLECTION, String(item.id), {
+    status,
+    filedAs: action,
+    filedAt: { __date: new Date().toISOString() },
+  });
+  return ACTION_LABEL[action];
+}
+
 // Voice/text may carry the source as a leading word ("ig 1 approve", "x 2
 // skip") when the caller can't pass it out-of-band (the card reply box passes
 // it explicitly; a spoken verdict can't).
@@ -97,36 +136,9 @@ export function applyTriageReply(text: string, source?: string): TriageApplyResu
       results.push(`${v.n}: no such item`);
       continue;
     }
-    const p = (item.proposal ?? {}) as QProposal;
-    const url = String(item.url ?? "");
-    const source = String(item.source ?? "other");
-
-    // "approve" honors the proposed destination; explicit verbs override it.
-    // When approving a backlog item, take the centre from the proposal's
-    // destination ("backlog:<centre>") — the verdict has no centre of its own.
-    let action = v.action;
-    let centre = v.centre ?? null;
-    if (action === "approve") {
-      const dest = p.destination ?? "discard";
-      if (dest === "vault") action = "vault";
-      else if (dest === "idea-bank") action = "idea-bank";
-      else if (dest.startsWith("backlog")) {
-        action = "backlog";
-        centre = centre ?? normalizeCentre(dest.replace(/^backlog:?\s*/i, "").trim());
-      }
-      else if (dest === "discard") action = "discard";
-      else action = "vault"; // roadmap:* etc. → park in the vault note for now
-    }
-
     try {
-      if (action === "vault") fileToVault(url, source, p);
-      else if (action === "idea-bank") fileToIdeaBank(url, p);
-      else if (action === "backlog") {
-        appendBacklogItem((centre ?? "polymath") as BacklogCentre, `${p.summary ?? url} — ${url}`);
-      }
-      const status = action === "discard" ? "discarded" : "filed";
-      updateDoc(COLLECTION, item.id, { status, filedAs: action, filedAt: { __date: new Date().toISOString() } });
-      results.push(`${v.n} ${ACTION_LABEL[action]}`);
+      const label = applyActionToItem(item, v.action, v.centre ?? null);
+      results.push(`${v.n} ${label}`);
     } catch (e) {
       results.push(`${v.n}: failed (${e instanceof Error ? e.message : "error"})`);
     }
