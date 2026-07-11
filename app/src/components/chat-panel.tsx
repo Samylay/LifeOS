@@ -126,6 +126,7 @@ export function ChatPanel() {
                 className="rounded-lg p-1.5 transition-colors"
                 style={{ color: "var(--text-tertiary)" }}
                 title="Clear conversation"
+                aria-label="Clear conversation"
               >
                 <Trash2 size={16} />
               </button>
@@ -270,6 +271,7 @@ export function ChatPanel() {
         >
           <button
             onClick={handlePaste}
+            aria-label="Paste from clipboard"
             className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors"
             style={{
               background: "var(--bg-tertiary)",
@@ -297,6 +299,7 @@ export function ChatPanel() {
           <button
             onClick={handleSend}
             disabled={!input.trim() || loading}
+            aria-label="Send message"
             className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors"
             style={{
               background: input.trim() && !loading ? "var(--accent)" : "var(--bg-tertiary)",

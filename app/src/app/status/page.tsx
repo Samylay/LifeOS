@@ -105,7 +105,7 @@ export default function StatusPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={load} title="Refresh" className="p-2 rounded-lg" style={{ color: "var(--text-tertiary)", background: "var(--bg-tertiary)" }}>
+          <button onClick={load} title="Refresh" aria-label="Refresh status" className="p-2 rounded-lg transition-transform duration-150 active:scale-[0.92]" style={{ color: "var(--text-tertiary)", background: "var(--bg-tertiary)" }}>
             <RefreshCw size={15} />
           </button>
           {GRAFANA_URL && (

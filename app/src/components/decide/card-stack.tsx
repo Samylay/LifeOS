@@ -336,7 +336,7 @@ export function CardStack<T extends { id: string }>({
         })}
         {interpret && (
           voice === "recording" ? (
-            <button onClick={stopVoice}
+            <button onClick={stopVoice} aria-label="Stop recording"
               className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-transform duration-150 active:scale-[0.97]"
               style={{ background: "#EF4444", color: "white" }}>
               <Square size={15} />

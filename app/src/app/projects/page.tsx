@@ -52,7 +52,7 @@ function WeeklyReviewBanner({ projects, tasks, onDismiss }: {
           <AlertCircle size={16} style={{ color: "#F59E0B" }} />
           <h3 className="text-sm font-semibold" style={{ color: "#F59E0B" }}>Weekly Review</h3>
         </div>
-        <button onClick={onDismiss} className="p-0.5" style={{ color: "var(--text-tertiary)" }}><X size={14} /></button>
+        <button onClick={onDismiss} aria-label="Dismiss weekly review" className="p-0.5" style={{ color: "var(--text-tertiary)" }}><X size={14} /></button>
       </div>
       <p className="text-xs mb-3" style={{ color: "var(--text-secondary)" }}>
         These projects need attention - no next action or all tasks complete:

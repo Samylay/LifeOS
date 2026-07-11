@@ -50,6 +50,7 @@ export function TaskItem({ task, onUpdate, onDelete }: TaskItemProps) {
     >
       <button
         onClick={cycleStatus}
+        aria-label="Cycle task status"
         className="shrink-0 rounded-full p-0.5 transition-colors"
         style={{ color: isDone ? "var(--accent)" : "var(--text-tertiary)" }}
       >
