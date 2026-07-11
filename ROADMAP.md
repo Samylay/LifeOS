@@ -34,6 +34,25 @@
 
 ## Log
 
+- **2026-07-11 (interactive session, follow-up — swipe sensitivity fix + restore):**
+  Samy's first phone session: cards discarded "before I can even read them" —
+  v1's commit condition (24px OR any velocity blip) was a hair trigger.
+  (1) Restored the 6 items his accidental swipes discarded (identified as the
+  04:19:31–43 UTC burst of `filedAs: discard`, one every ~2s — no `filedAt`
+  since deploy was a legit verdict besides seeded tests; approvals deck had
+  zero decided items). DB+WAL backed up first to
+  `~/backups/lifeos-db/lifeos-2026-07-11-pre-swipe-restore.db*`; queue back
+  to 56. (2) Rebuilt the gesture on library-standard thresholds (researched
+  react-tinder-card source, use-gesture docs, framer-motion pattern, Vaul
+  source): 12px slop + axis lock (scroll never drags), commit only at ≥45%
+  card width OR flick ≥0.5 px/ms over the last ≤120ms AND ≥60px, same
+  direction; else spring back. (3) Undo toast (6s) on every commit → new
+  `/api/triage/restore` + `/api/decide/restore`. Verified: tsc + 168 tests,
+  rebuild+redeploy, /decide 200, discard→restore and verdict→restore
+  round-trips with guards. Thresholds are deliberately conservative — real
+  touch feel still needs Samy's hands; loosen COMMIT_FRACTION/FLICK_VELOCITY
+  in card-stack.tsx if committing now feels too hard.
+
 - **2026-07-11 (interactive session, Samy's ask — /decide decision deck):**
   Samy: triage output was "a list of descriptions, which isn't useful" — he
   needs to *assess* IG saves (business/money ideas → validity call; AI
