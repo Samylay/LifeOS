@@ -16,13 +16,16 @@ import {
   Gauge,
   Clapperboard,
   BellRing,
+  Layers,
 } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { useNotifications } from "@/lib/use-notifications";
 
-// Primary destinations (IA restructure 2026-07-10: 6 core + 3 footer).
+// Primary destinations (IA restructure 2026-07-10: 6 core + 3 footer;
+// /decide added 2026-07-11 — the swipeable decision deck, Samy's ask).
 const NAV_ITEMS = [
   { href: "/", label: "Today", icon: LayoutDashboard },
+  { href: "/decide", label: "Decide", icon: Layers },
   { href: "/projects", label: "Projects", icon: FolderKanban },
   { href: "/goals", label: "Goals", icon: Flag },
   { href: "/content", label: "Content", icon: Clapperboard },

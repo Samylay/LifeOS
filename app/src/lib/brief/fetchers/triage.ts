@@ -48,7 +48,7 @@ function cardForSource(source: string, docs: Record<string, unknown>[]): BriefCa
     priority: "action",
     status: keep.length > 0 ? "neutral" : "green",
     title: meta.title,
-    link: "/pager",
+    link: "/decide",
     body: {
       source: meta.label,
       keep,
