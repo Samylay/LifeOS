@@ -207,3 +207,19 @@ body {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Mobile ergonomics (ux-audit 2026-07-11) */
+@media (max-width: 640px) {
+  /* 16px form controls stop iOS auto-zoom on focus, which is what let us
+     re-enable pinch zoom (WCAG 1.4.4) in the viewport config. */
+  input, select, textarea {
+    font-size: 16px;
+  }
+}
+@media (max-width: 1023px) {
+  /* Lift Sonner toasts above the fixed 64px bottom nav so the swipe deck's
+     Undo action is always visible and tappable (sonner 1.x hardcodes 16px). */
+  [data-sonner-toaster][data-y-position="bottom"] {
+    --mobile-offset: calc(80px + env(safe-area-inset-bottom, 0px));
+  }
+}
