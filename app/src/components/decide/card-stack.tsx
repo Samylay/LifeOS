@@ -3,8 +3,22 @@
 // Tinder-style decision stack shared by the /decide decks (saved-content
 // triage + NEEDS-SAMY approvals). Gesture-driven: the top card tracks the
 // pointer 1:1 while dragging (no transition — direct manipulation), then
-// either flies out (past the threshold) or springs back. Cards beneath
-// promote via a CSS transform transition. Buttons reuse the same exit paths.
+// either flies out (past the commit thresholds) or springs back. Cards
+// beneath promote via a CSS transform transition. Buttons reuse the same
+// exit paths, and every commit gets an Undo toast.
+//
+// Gesture thresholds follow the established swipe libraries (2026-07-11 fix —
+// v1 committed on a 24px nudge and ate cards before Samy could read them):
+// - 12px slop before the card tracks at all, with axis intent locked at slop
+//   crossing so vertical scrolling never drags the card (Vaul's
+//   swipeStartThreshold=10px touch + shouldDrag; use-gesture `axis: 'lock'`).
+// - Commit on release only when displacement ≥ 45% of card width (Vaul's
+//   CLOSE_THRESHOLD is 25% of dimension; we run conservative) OR a real
+//   flick: velocity ≥ 0.5 px/ms (use-gesture swipe.velocity default 0.5,
+//   react-tinder-card swipeThreshold default 0.5) AND ≥ 60px displacement
+//   (use-gesture swipe.distance 50px) AND the flick direction matches the
+//   displacement sign. Velocity is measured over the last ≤120ms of motion,
+//   not the whole gesture. Everything else springs back.
 import { useRef, useState, type ReactNode } from "react";
 import { Loader2, Mic, Square } from "lucide-react";
 import { toast } from "sonner";
@@ -28,6 +42,10 @@ interface CardStackProps<T extends { id: string }> {
   perform: (item: T, actionId: string) => Promise<string>;
   /** Remove the item from the parent's list (optimistic, fired at exit start). */
   onResolved: (item: T) => void;
+  /** Server call reverting a verdict (the Undo toast); throws on failure. */
+  undo?: (item: T) => Promise<void>;
+  /** Re-insert an undone item at the front of the parent's list. */
+  onRestore?: (item: T) => void;
   /** Voice: interpret + apply a transcript server-side; resolves to the reply. */
   interpret?: (item: T, transcript: string) => Promise<string>;
   emptyLabel: string;
@@ -40,24 +58,52 @@ const TONE: Record<DeckAction["tone"], { bg: string; fg: string }> = {
   neutral: { bg: "var(--bg-tertiary)", fg: "var(--text-secondary)" },
 };
 
-const SWIPE_PX = 90;
-const SWIPE_VELOCITY = 0.6; // px/ms
+const SLOP_PX = 12; // movement before the card tracks at all (Vaul: 10px touch)
+const COMMIT_FRACTION = 0.45; // of card width (Vaul: 0.25 of dimension; conservative)
+const FLICK_VELOCITY = 0.5; // px/ms (use-gesture + react-tinder-card default)
+const FLICK_MIN_PX = 60; // a flick also needs real displacement (use-gesture: 50)
+const VELOCITY_WINDOW_MS = 120; // measure velocity over recent motion only
+const UNDO_MS = 6000;
 
 type VoiceState = "idle" | "recording" | "thinking";
 
+interface Gesture {
+  startX: number;
+  startY: number;
+  axis: "x" | "y" | null; // locked at slop crossing; 'y' = scroll, card never moves
+  history: { x: number; t: number }[];
+}
+
 export function CardStack<T extends { id: string }>({
   items, renderCard, actions, swipeLeftId, swipeRightId,
-  perform, onResolved, interpret, emptyLabel,
+  perform, onResolved, undo, onRestore, interpret, emptyLabel,
 }: CardStackProps<T>) {
   const [drag, setDrag] = useState<{ dx: number; dy: number } | null>(null);
   const [exiting, setExiting] = useState<{ item: T; dir: "left" | "right" | "none" } | null>(null);
   const [voice, setVoice] = useState<VoiceState>("idle");
-  const dragStart = useRef<{ x: number; y: number; t: number } | null>(null);
+  const gestureRef = useRef<Gesture | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
 
   const top = items[0];
   const busy = exiting !== null || voice !== "idle";
+
+  const undoToast = (item: T, label: string) =>
+    toast.success(label, {
+      duration: UNDO_MS,
+      action: undo && onRestore
+        ? {
+            label: "Undo",
+            onClick: () =>
+              undo(item)
+                .then(() => {
+                  onRestore(item);
+                  toast.success("returned to the deck");
+                })
+                .catch((e) => toast.error(e instanceof Error ? e.message : "undo failed")),
+          }
+        : undefined,
+    });
 
   const decide = (item: T, actionId: string, dir: "left" | "right" | "none") => {
     setDrag(null);
@@ -65,7 +111,7 @@ export function CardStack<T extends { id: string }>({
     onResolved(item); // optimistic — the next card promotes immediately
     window.setTimeout(() => setExiting(null), 280);
     perform(item, actionId)
-      .then((label) => toast.success(label))
+      .then((label) => undoToast(item, label))
       .catch((e) => toast.error(e instanceof Error ? e.message : "failed — refresh to retry"));
   };
 
@@ -74,19 +120,57 @@ export function CardStack<T extends { id: string }>({
     // Let links/buttons inside the card work untouched.
     if ((e.target as HTMLElement).closest("a,button")) return;
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-    dragStart.current = { x: e.clientX, y: e.clientY, t: performance.now() };
+    gestureRef.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      axis: null,
+      history: [{ x: e.clientX, t: performance.now() }],
+    };
   };
+
   const onPointerMove = (e: React.PointerEvent) => {
-    if (!dragStart.current) return;
-    setDrag({ dx: e.clientX - dragStart.current.x, dy: e.clientY - dragStart.current.y });
+    const g = gestureRef.current;
+    if (!g) return;
+    const dx = e.clientX - g.startX;
+    const dy = e.clientY - g.startY;
+
+    if (g.axis === null) {
+      // Inside the slop radius: the card does not move (taps/jitter never drag).
+      if (Math.max(Math.abs(dx), Math.abs(dy)) < SLOP_PX) return;
+      // Lock axis at intent: mostly-vertical means scroll — never grab the card.
+      g.axis = Math.abs(dx) > Math.abs(dy) ? "x" : "y";
+      if (g.axis === "y") return;
+    }
+    if (g.axis !== "x") return;
+
+    const now = performance.now();
+    g.history.push({ x: e.clientX, t: now });
+    while (g.history.length > 2 && now - g.history[0].t > VELOCITY_WINDOW_MS) g.history.shift();
+    setDrag({ dx, dy });
   };
+
   const onPointerUp = (e: React.PointerEvent) => {
-    const start = dragStart.current;
-    dragStart.current = null;
-    if (!start || !top) return;
-    const dx = e.clientX - start.x;
-    const velocity = Math.abs(dx) / Math.max(1, performance.now() - start.t);
-    if (Math.abs(dx) > SWIPE_PX || (Math.abs(dx) > 24 && velocity > SWIPE_VELOCITY)) {
+    const g = gestureRef.current;
+    gestureRef.current = null;
+    if (!g || g.axis !== "x" || !top) {
+      setDrag(null);
+      return;
+    }
+    const dx = e.clientX - g.startX;
+    const width = (e.currentTarget as HTMLElement).offsetWidth || 360;
+
+    // Signed velocity in px/ms over the last ≤120ms of motion.
+    const oldest = g.history[0];
+    const dt = Math.max(1, performance.now() - oldest.t);
+    const velocity = (e.clientX - oldest.x) / dt;
+
+    const bigDrag = Math.abs(dx) >= width * COMMIT_FRACTION;
+    const flick =
+      Math.abs(velocity) >= FLICK_VELOCITY &&
+      Math.abs(dx) >= FLICK_MIN_PX &&
+      Math.sign(velocity) === Math.sign(dx);
+
+    if (bigDrag || flick) {
       const dir = dx > 0 ? "right" : "left";
       decide(top, dir === "right" ? swipeRightId : swipeLeftId, dir);
     } else {
@@ -114,7 +198,7 @@ export function CardStack<T extends { id: string }>({
           const data = await res.json();
           if (!res.ok || data.error) throw new Error(data.error || `HTTP ${res.status}`);
           const reply = await interpret(top, data.transcript);
-          toast.success(reply);
+          undoToast(top, reply);
           setVoice("idle");
           setExiting({ item: top, dir: "none" });
           onResolved(top);
@@ -133,7 +217,7 @@ export function CardStack<T extends { id: string }>({
   };
   const stopVoice = () => recorderRef.current?.stop();
 
-  const dragging = drag !== null && dragStart.current !== null;
+  const dragging = gestureRef.current?.axis === "x";
   const dx = drag?.dx ?? 0;
   const swipeTarget = dx > 0
     ? actions.find((a) => a.id === swipeRightId)
@@ -141,7 +225,7 @@ export function CardStack<T extends { id: string }>({
 
   const cardStyle = (index: number): React.CSSProperties => {
     if (index === 0) {
-      const t = dragging || drag
+      const t = drag
         ? `translate(${dx}px, ${(drag?.dy ?? 0) * 0.2}px) rotate(${dx * 0.04}deg)`
         : "translate(0px, 0px) rotate(0deg)";
       return {
@@ -200,7 +284,7 @@ export function CardStack<T extends { id: string }>({
               ? { onPointerDown, onPointerMove, onPointerUp, onPointerCancel: onPointerUp }
               : {})}
           >
-            {i === 0 && swipeTarget && Math.abs(dx) > 12 && (
+            {i === 0 && swipeTarget && Math.abs(dx) > 24 && (
               <div
                 className="absolute top-4 rounded-md px-2 py-1 text-xs font-bold uppercase tracking-wider"
                 style={{
@@ -209,7 +293,7 @@ export function CardStack<T extends { id: string }>({
                   background: TONE[swipeTarget.tone].bg,
                   color: TONE[swipeTarget.tone].fg,
                   border: `1.5px solid ${TONE[swipeTarget.tone].fg}`,
-                  opacity: Math.min(Math.abs(dx) / 110, 1),
+                  opacity: Math.min(Math.abs(dx) / 160, 1),
                   zIndex: 20,
                 }}
               >

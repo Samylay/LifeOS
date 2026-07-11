@@ -97,6 +97,8 @@ export default function DecidePage() {
           perform={async (item, actionId) =>
             (await post("/api/triage/decide", { id: item.id, action: actionId })).result}
           onResolved={(item) => setTriage((xs) => xs.filter((x) => x.id !== item.id))}
+          undo={async (item) => { await post("/api/triage/restore", { id: item.id }); }}
+          onRestore={(item) => setTriage((xs) => [item, ...xs.filter((x) => x.id !== item.id)])}
           interpret={async (item, transcript) => {
             const d = await post("/api/triage/interpret", { id: item.id, transcript });
             return d.reply || d.result;
@@ -113,6 +115,8 @@ export default function DecidePage() {
           perform={async (item, actionId) =>
             (await post("/api/decide/verdict", { id: item.id, verdict: actionId })).result}
           onResolved={(item) => setDecisions((xs) => xs.filter((x) => x.id !== item.id))}
+          undo={async (item) => { await post("/api/decide/restore", { id: item.id }); }}
+          onRestore={(item) => setDecisions((xs) => [item, ...xs.filter((x) => x.id !== item.id)])}
           interpret={async (item, transcript) => {
             const d = await post("/api/decide/interpret", { id: item.id, transcript });
             return d.reply || d.result;
