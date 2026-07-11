@@ -34,7 +34,32 @@
 
 ## Log
 
-- **2026-07-11 (autoloop, T27/T29 blocked, T38 done):** Walked the file in
+- **2026-07-11 (interactive session, Samy's ask — /decide decision deck):**
+  Samy: triage output was "a list of descriptions, which isn't useful" — he
+  needs to *assess* IG saves (business/money ideas → validity call; AI
+  tips/projects → explored + summarized) and X saves (SWE/AI → same), in a
+  separate Tinder-like swipe view with voice input per card. Built in three
+  layers. (1) Host study step (`~/services/triage/study.py`) now classifies
+  each save (business-idea / ai-tip / ai-project / swe / other) and writes a
+  category-specific assessment (verdict + validity-or-mechanism detail +
+  effort/payoff + concrete first step); `--restudy` re-enriched the 56
+  pre-schema proposals. (2) New `/decide` surface: shared card-stack
+  component (pointer-drag swipe right=approve/left=discard, spring-back,
+  fly-out exits, under-card promotion — interaction-craft compliant), cards
+  render the assessment; button row for vault/idea-bank/backlog; mic button
+  records → `/api/voice` (whisper) → `/api/triage/interpret` (claude maps the
+  spoken instruction to an action, applied server-side via the same
+  `applyActionToItem` the brief replies use). (3) Second deck "Approvals" for
+  NEEDS-SAMY asks: `~/services/triage/decisions.py` scans all autoloop
+  ROADMAP globs, enriches each ask with a claude context brief (what's asked,
+  real blocker, approve-vs-ignore, concrete command, recommendation) into
+  `users/local/decisionQueue`; verdicts (approve/defer/reject/discuss or
+  voice) are recorded in the DB and written back as dated `SAMY:` ROADMAP
+  annotations + committed by the script's nightly `apply` step — never
+  auto-executed. Verified: tsc + 168 vitest green, rebuild+redeploy, `/` and
+  `/decide` 200, seeded-item decide/interpret/verdict/apply round-trips incl.
+  the ROADMAP annotation, whisper reachable through `/api/voice`. Nightly
+  freshness rides the existing 00:30 grabbers cron (no cron edit).
   order past the already-checked tasks. T27 ("goals → grilling → granular
   todos pipeline") is the first unchecked non-NEEDS-SAMY task, but it has no
   `Verify:` note and its own text says to split it into executor-sized tasks
