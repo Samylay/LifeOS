@@ -326,7 +326,7 @@ export async function sweepStaleSessions(): Promise<{ swept: string[]; retried: 
   return { swept, retried };
 }
 
-function toMs(v: unknown): number | null {
+export function toMs(v: unknown): number | null {
   if (v instanceof Date) return v.getTime();
   // server-db stores client-written dates as { __date: "<iso>" } markers.
   if (v && typeof v === "object" && "__date" in v) {

@@ -9,6 +9,8 @@ import {
   executeHomelabTool,
   type HomelabToolResult,
 } from "@/lib/homelab-tools";
+import { executeAppActions } from "@/lib/app-actions";
+import { logChatMessage } from "@/lib/chat-log";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -235,7 +237,16 @@ async function callWithRetry(
 
 export async function POST(req: NextRequest) {
   try {
-    const { messages, context } = await req.json();
+    const { messages, context, sessionId: rawSessionId } = await req.json();
+    // T45: every exchange is persisted server-side as it happens, keyed by a
+    // client-generated conversation id (fallback keeps logging even for old
+    // clients that don't send one — each request becomes its own session).
+    const sessionId: string =
+      typeof rawSessionId === "string" && rawSessionId ? rawSessionId : `anon-${Date.now()}`;
+    const lastMsg = Array.isArray(messages) ? messages[messages.length - 1] : null;
+    if (lastMsg?.role === "user" && typeof lastMsg.content === "string") {
+      logChatMessage(sessionId, "user", lastMsg.content);
+    }
 
     // Build system prompt with context
     let systemPrompt = SYSTEM_PROMPT;
@@ -259,8 +270,9 @@ export async function POST(req: NextRequest) {
 
     // Claude Code CLI path: `claude -p` has no native OpenAI-style function
     // calling, so we describe the tool catalog in the prompt and ask Claude to
-    // return the same { reply, actions } envelope the frontend already consumes
-    // (use-chat.ts → executeActions maps each client-side { tool, input }).
+    // return a { reply, actions } envelope. Since T45 app-item actions are
+    // executed server-side (app-actions.ts) and the client only receives
+    // their results — `actions` in the final payload is always empty.
     //
     // Homelab tools are executed HERE (server-side) in a bounded loop: each
     // round's results are appended to the conversation and Claude is called
@@ -296,7 +308,7 @@ export async function POST(req: NextRequest) {
                 "You can act by emitting tool calls. Available tools (JSON schema):",
                 JSON.stringify(toolCatalog, null, 2),
                 "",
-                `Homelab tools (${[...HOMELAB_TOOL_NAMES].join(", ")}) are executed by the server and their results are appended to the conversation as TOOL_RESULT lines — call them and WAIT for results before answering about homelab state or emitting app-item actions. App-item tools (create_tasks, create_habit, create_note, create_reminder, create_project, complete_task) are executed by the app after your FINAL response — only emit them in a response that contains no homelab tool calls, and never repeat ones you already emitted.`,
+                `Homelab tools (${[...HOMELAB_TOOL_NAMES].join(", ")}) are executed by the server and their results are appended to the conversation as TOOL_RESULT lines — call them and WAIT for results before answering about homelab state or emitting app-item actions. App-item tools (create_tasks, create_habit, create_note, create_reminder, create_project, complete_task) are executed by the server from your FINAL response — only emit them in a response that contains no homelab tool calls, and never repeat ones you already emitted.`,
                 "",
                 "Conversation so far:",
                 convoParts.join("\n\n"),
@@ -319,6 +331,12 @@ export async function POST(req: NextRequest) {
                 emit({ type: "status", text: HOMELAB_TOOL_STATUS[call.tool] ?? `Running ${call.tool}…` });
                 const result = await executeHomelabTool(call.tool, call.input ?? {});
                 serverResults.push(result);
+                // Tool results are part of the conversation record — a
+                // service-health snapshot or approvals brief fetched into the
+                // chat must survive the tab (loss-audit F1).
+                logChatMessage(sessionId, "tool", JSON.stringify(result.data).slice(0, 8000), [
+                  { tool: result.tool, summary: result.summary, failed: result.failed },
+                ]);
                 convoParts.push(
                   `TOOL_RESULT (${result.tool}${result.failed ? ", FAILED" : ""}): ${JSON.stringify(result.data)}`
                 );
@@ -326,11 +344,21 @@ export async function POST(req: NextRequest) {
               emit({ type: "status", text: "Thinking…" });
             }
 
+            // T45: app-item actions commit HERE, before the reply reaches the
+            // client — closing the tab can no longer drop what the model
+            // decided to create. The client receives them as results only.
+            const appResults = clientActions.length ? await executeAppActions(clientActions) : [];
+            const allResults = [
+              ...serverResults.map(({ tool, summary, failed }) => ({ tool, summary, failed })),
+              ...appResults,
+            ];
+            logChatMessage(sessionId, "assistant", reply, allResults);
+
             emit({
               type: "final",
               reply,
-              actions: clientActions,
-              serverResults: serverResults.map(({ tool, summary, failed }) => ({ tool, summary, failed })),
+              actions: [],
+              serverResults: allResults,
             });
           } catch (err) {
             emit({
@@ -414,7 +442,11 @@ export async function POST(req: NextRequest) {
     // Extract final text
     reply += choice.message.content || "";
 
-    return NextResponse.json({ reply, actions });
+    // T45: same server-side commit + logging contract as the claude path.
+    const appResults = actions.length ? await executeAppActions(actions) : [];
+    logChatMessage(sessionId, "assistant", reply, appResults);
+
+    return NextResponse.json({ reply, actions: [], serverResults: appResults });
   } catch (error: unknown) {
     console.error("Chat API error:", error);
 

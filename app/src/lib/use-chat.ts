@@ -25,6 +25,11 @@ export interface ActionResult {
 
 let msgId = 0;
 
+const newSessionId = () =>
+  typeof crypto !== "undefined" && "randomUUID" in crypto
+    ? crypto.randomUUID()
+    : `s-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
 export function useChat() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(false);
@@ -32,6 +37,9 @@ export function useChat() {
   // while homelab tools run, so the panel never sits on a silent spinner.
   const [statusText, setStatusText] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  // T45: conversation id — the server persists every exchange under it, and
+  // clearing the panel finishes the session (routes it to the vault).
+  const sessionRef = useRef<string>(newSessionId());
 
   const { tasks, createTask, updateTask } = useTasks();
   const { habits, createHabit } = useHabits();
@@ -226,7 +234,7 @@ export function useChat() {
         const res = await fetch("/api/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ messages: history, context }),
+          body: JSON.stringify({ messages: history, context, sessionId: sessionRef.current }),
           signal: controller.signal,
         });
 
@@ -315,6 +323,16 @@ export function useChat() {
   );
 
   const clearMessages = useCallback(() => {
+    // Clearing = the conversation is finished: tell the server to route it to
+    // the vault (fire-and-forget — the transcript is already persisted
+    // server-side, so even a lost request only delays routing to the sweep).
+    const sessionId = sessionRef.current;
+    fetch("/api/chat/end", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sessionId }),
+    }).catch(() => {});
+    sessionRef.current = newSessionId();
     setMessages([]);
   }, []);
 
