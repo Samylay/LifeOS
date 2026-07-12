@@ -21,7 +21,10 @@ export async function POST(req: NextRequest) {
   }
   const item = getDoc("users/local/triageQueue", body.id);
   if (!item) return NextResponse.json({ error: "no such item" }, { status: 404 });
-  if (item.status !== "proposed") {
+  // Filed items may still be discarded (the Approved view's second look);
+  // anything else on a non-proposed item stays a conflict.
+  const lateDiscard = item.status === "filed" && body.action === "discard";
+  if (item.status !== "proposed" && !lateDiscard) {
     return NextResponse.json({ error: `item is ${item.status}, not proposed` }, { status: 409 });
   }
   try {
