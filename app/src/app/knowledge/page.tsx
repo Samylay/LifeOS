@@ -15,6 +15,7 @@ import {
 import { useKnowledge, type Note } from "@/lib/use-kb";
 import { useToast } from "@/components/toast";
 import { LearningBacklog } from "@/components/learning-backlog";
+import { TeachSection } from "@/components/teach/teach-section";
 
 function timeAgo(ms: number): string {
   const d = Date.now() - ms;
@@ -309,6 +310,11 @@ export default function KnowledgePage() {
           )}
         </div>
       )}
+
+      {/* Voice teaching sessions — queue, suggestions, session launcher */}
+      <div className="pt-5 enter" style={{ ["--enter-delay" as string]: "40ms" }}>
+        <TeachSection />
+      </div>
 
       {/* Learning backlog (merged from the retired /things-to-learn route) */}
       <div

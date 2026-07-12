@@ -126,6 +126,19 @@ export const HOMELAB_TOOLS = [
       required: ["verdict"],
     },
   },
+  {
+    name: "add_learning_topic",
+    description:
+      "Add a topic to the user's teaching queue (the 'Teach me' section on /knowledge) when he says he wants to learn/study/go deep on something. Capture WHY he wants it as the mission — ask if he didn't say.",
+    parameters: {
+      type: "object",
+      properties: {
+        topic: { type: "string", description: "What he wants to learn" },
+        mission: { type: "string", description: "Why — grounds every future lesson" },
+      },
+      required: ["topic"],
+    },
+  },
 ] as const;
 
 export const HOMELAB_TOOL_NAMES = new Set<string>(HOMELAB_TOOLS.map((t) => t.name));
@@ -139,6 +152,7 @@ export const HOMELAB_TOOL_STATUS: Record<string, string> = {
   get_autoloop_summary: "Reading the last nightly run…",
   list_pending_approvals: "Fetching pending approvals…",
   record_approval_verdict: "Recording your verdict…",
+  add_learning_topic: "Adding it to your learning queue…",
 };
 
 // ── executors ────────────────────────────────────────────────────────────────
@@ -308,6 +322,17 @@ export async function executeHomelabTool(
         tool,
         summary: `Recorded "${verdict}" on ${String(item.title).slice(0, 60)}`,
         data: { id, verdict, note: "ROADMAP write-back happens on the nightly pass; nothing executes automatically." },
+      };
+    }
+    case "add_learning_topic": {
+      const topic = String(input.topic ?? "").trim();
+      if (!topic) return { tool, summary: "Failed: no topic", data: { error: "topic required" }, failed: true };
+      const { addTopic } = await import("./teach");
+      const id = addTopic(topic, String(input.mission ?? "").trim(), "chat");
+      return {
+        tool,
+        summary: `Queued "${topic.slice(0, 60)}" for teaching`,
+        data: { id, note: "Visible in the Teach me section on /knowledge; schedule or start a session from there." },
       };
     }
     default:

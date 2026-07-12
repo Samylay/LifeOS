@@ -12,6 +12,13 @@ export type VoiceRecorderState = "idle" | "recording" | "transcribing";
 export function useVoiceRecorder(opts: {
   onTranscript: (transcript: string) => void | Promise<void>;
   onError: (message: string) => void;
+  /** Override the default /api/voice target — e.g. a teach-session turn
+   * endpoint that persists the audio server-side and answers in the same
+   * round-trip. */
+  endpoint?: string;
+  /** With `endpoint`, receive the endpoint's full JSON (still under the
+   * "transcribing" busy state); onTranscript is not called. */
+  onResponse?: (data: Record<string, unknown>) => void | Promise<void>;
 }) {
   const [state, setState] = useState<VoiceRecorderState>("idle");
   const recorderRef = useRef<MediaRecorder | null>(null);
@@ -37,10 +44,17 @@ export function useVoiceRecorder(opts: {
             new Blob(chunksRef.current, { type: rec.mimeType || "audio/webm" }),
             "capture.webm"
           );
-          const res = await fetch("/api/voice", { method: "POST", body: form });
+          const res = await fetch(optsRef.current.endpoint || "/api/voice", {
+            method: "POST",
+            body: form,
+          });
           const data = await res.json();
           if (!res.ok || data.error) throw new Error(data.error || `HTTP ${res.status}`);
-          await optsRef.current.onTranscript(String(data.transcript ?? ""));
+          if (optsRef.current.endpoint && optsRef.current.onResponse) {
+            await optsRef.current.onResponse(data);
+          } else {
+            await optsRef.current.onTranscript(String(data.transcript ?? ""));
+          }
         } catch (err) {
           optsRef.current.onError(err instanceof Error ? err.message : "voice capture failed");
         } finally {
