@@ -17,7 +17,7 @@ import { useToast } from "@/components/toast";
 import type { TriageQueueItem } from "@/components/decide/triage-card";
 import { AdaptiveWorkspace } from "@/components/decide/adaptive-prototype/templates";
 import { ExpandingWorkspace } from "@/components/decide/adaptive-prototype/expanding-card";
-import { fallbackSpec, TEMPLATE_REGISTRY, type AdaptiveSpec } from "@/lib/adaptive-prototype";
+import { fallbackSpec, SEED_TEMPLATES, type AdaptiveSpec, type TemplateDef } from "@/lib/adaptive-prototype";
 
 interface Row {
   item: TriageQueueItem & { filedAs?: string };
@@ -64,6 +64,9 @@ function buildPrompt(item: TriageQueueItem, spec: AdaptiveSpec): string {
 
 export default function AdaptivePrototypePage() {
   const [rows, setRows] = useState<Row[]>([]);
+  const [templates, setTemplates] = useState<Record<string, TemplateDef>>(
+    () => Object.fromEntries(SEED_TEMPLATES.map((t) => [t.name, t])),
+  );
   const [loading, setLoading] = useState(true);
   const [openId, setOpenId] = useState<string | null>(null);
   const [fromRect, setFromRect] = useState<DOMRect | null>(null);
@@ -78,6 +81,7 @@ export default function AdaptivePrototypePage() {
       fetch("/api/triage/prompt-queue").then((r) => r.json()).catch(() => ({ items: [] })),
     ]).then(([a, q]) => {
       setRows(a.items ?? []);
+      if (a.templates) setTemplates((seeds) => ({ ...seeds, ...a.templates }));
       setQueued(new Map(
         (q.items ?? []).map((d: { itemId: string; id: string }) => [d.itemId, d.id])
       ));
@@ -212,7 +216,7 @@ export default function AdaptivePrototypePage() {
             const p = item.proposal ?? {};
             const resolved = spec ?? fallbackSpec(item);
             const cat = CATEGORY_META[p.category ?? "other"] ?? CATEGORY_META.other;
-            const tpl = TEMPLATE_REGISTRY[resolved.template] ?? TEMPLATE_REGISTRY.file;
+            const tpl = templates[resolved.template] ?? templates.file;
             const isQueued = queued.has(item.id);
             const skill = mentionsSkill(item, resolved);
             return (
@@ -267,7 +271,13 @@ export default function AdaptivePrototypePage() {
       )}
 
       <ExpandingWorkspace open={openId !== null} fromRect={fromRect} onClose={() => setOpenId(null)}>
-        {active && activeSpec && <AdaptiveWorkspace spec={activeSpec} item={active.item} />}
+        {active && activeSpec && (
+          <AdaptiveWorkspace
+            spec={activeSpec}
+            item={active.item}
+            template={templates[activeSpec.template] ?? templates.file}
+          />
+        )}
       </ExpandingWorkspace>
     </div>
   );
