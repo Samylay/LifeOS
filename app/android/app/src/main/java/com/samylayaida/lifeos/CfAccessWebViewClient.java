@@ -60,8 +60,18 @@ public class CfAccessWebViewClient extends BridgeWebViewClient {
         Uri url = request.getUrl();
         String host = url.getHost();
         if (host != null && host.endsWith(ACCESS_LOGIN_HOST_SUFFIX)) {
+            // Which Access application challenged? The login path is
+            // /cdn-cgi/access/login/<protected-hostname>. The Service Token
+            // is only in the LifeOS app's Access policy, so re-issuing with
+            // headers is only correct for OUR host; a sibling in-app host
+            // (e.g. Grafana) must fall through to its interactive login in
+            // the WebView — re-issuing server.url here would silently hijack
+            // the navigation back to the app home.
+            String challenged = url.getLastPathSegment();
+            String serverHost = Uri.parse(bridge.getServerUrl()).getHost();
+            boolean forOwnApp = serverHost != null && serverHost.equals(challenged);
             Map<String, String> headers = CfAccess.headers();
-            if (!headers.isEmpty() && headerRetriesLeft > 0) {
+            if (forOwnApp && !headers.isEmpty() && headerRetriesLeft > 0) {
                 headerRetriesLeft--;
                 Log.i(
                     TAG,
@@ -74,7 +84,7 @@ public class CfAccessWebViewClient extends BridgeWebViewClient {
                 view.loadUrl(bridge.getServerUrl(), headers);
                 return true;
             }
-            Log.i(TAG, "Keeping Access interactive login in-app (host " + host + ")");
+            Log.i(TAG, "Keeping Access interactive login in-app (login host " + host + ", app " + challenged + ")");
             return false;
         }
         // Everything else: Capacitor's stock behavior (in-app for the LifeOS

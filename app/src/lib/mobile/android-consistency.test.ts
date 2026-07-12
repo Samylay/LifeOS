@@ -14,7 +14,7 @@ import {
   CF_ACCESS_ID_HEADER,
   CF_ACCESS_SECRET_HEADER,
   CF_ACCESS_LOGIN_HOST_SUFFIX,
-  appHost,
+  inAppHosts,
 } from "./cf-access";
 
 const appRoot = path.resolve(__dirname, "../../..");
@@ -152,7 +152,7 @@ describe.skipIf(!fs.existsSync(generatedConfigPath))(
     it("points the WebView at the tunnel domain from cf-access.ts", () => {
       const generated = loadGenerated();
       expect(generated.server.url).toBe(APP_URL);
-      expect(generated.server.allowNavigation).toEqual([appHost()]);
+      expect(generated.server.allowNavigation).toEqual(inAppHosts());
     });
 
     it("keeps the LifeOS app identity", () => {

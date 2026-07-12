@@ -55,6 +55,20 @@ export function appHost(url: string = APP_URL): string {
 }
 
 /**
+ * Sibling Access-protected hosts that must open INSIDE the app's WebView.
+ * The WebView's cookie jar holds their CF_Authorization (and the app's own
+ * session cookie, e.g. grafana_session) across launches, so one interactive
+ * login sticks; punting them to the external browser forces a fresh Access
+ * OTP every time. Everything not listed here still opens externally.
+ */
+export const SIBLING_IN_APP_HOSTS = ["grafana.samylayaida.com"] as const;
+
+/** Full allowNavigation list for capacitor.config.ts. */
+export function inAppHosts(url: string = APP_URL): string[] {
+  return [appHost(url), ...SIBLING_IN_APP_HOSTS];
+}
+
+/**
  * Build the Service Token headers from a (client id, client secret) pair.
  * Returns BOTH headers when both values are present, and an EMPTY object
  * otherwise — a half-configured token must never send one header alone

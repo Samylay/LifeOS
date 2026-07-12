@@ -68,6 +68,13 @@ function Vital({
 }
 
 export default function StatusPage() {
+  // In the Capacitor wrapper, Grafana must stay in THIS WebView (its cookie
+  // jar keeps the Access + grafana_session cookies, so no re-login); in a
+  // desktop browser a new tab is nicer. The bridge global marks the wrapper.
+  const [native, setNative] = useState(false);
+  useEffect(() => {
+    setNative(!!(window as { Capacitor?: unknown }).Capacitor);
+  }, []);
   const [data, setData] = useState<StatusData | null>(null);
   const [err, setErr] = useState(false);
 
@@ -110,7 +117,7 @@ export default function StatusPage() {
             <RefreshCw size={15} />
           </button>
           {GRAFANA_URL && (
-            <a href={GRAFANA_URL} target="_blank" rel="noreferrer"
+            <a href={GRAFANA_URL} target={native ? "_self" : "_blank"} rel="noreferrer"
               className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium"
               style={{ color: "var(--accent)", background: "var(--accent-bg)" }}>
               <Sparkles size={14} /> Open Grafana <ExternalLink size={12} className="opacity-50" />

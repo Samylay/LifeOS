@@ -4,7 +4,7 @@
 // offline fallback stub in mobile/www. Auth (Cloudflare Access Service
 // Token headers) is handled natively — see
 // android/app/src/main/java/com/samylayaida/lifeos/CfAccess.java.
-import { APP_URL, appHost } from "./src/lib/mobile/cf-access";
+import { APP_URL, inAppHosts } from "./src/lib/mobile/cf-access";
 
 // Structural subset of @capacitor/cli's CapacitorConfig. The CLI is not a
 // package.json dependency (only @capacitor/core + @capacitor/android are
@@ -24,7 +24,7 @@ const config: CapacitorConfig = {
   webDir: "mobile/www",
   server: {
     url: APP_URL,
-    allowNavigation: [appHost()],
+    allowNavigation: inAppHosts(),
   },
 };
 
