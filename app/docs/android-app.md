@@ -181,8 +181,10 @@ The Capacitor CLI is pinned via `npx`, not a package.json dependency (only
 
 ## Building the authenticated APK + sideloading
 
-On any trusted machine with JDK 21 + Android SDK (not quorky — no toolchain,
-disk full):
+On any trusted machine with JDK 21 + Android SDK. Since 2026-07-12 that
+includes **quorky itself**: `openjdk-21-jdk-headless` (apt) + SDK 36 at
+`~/Android/sdk` (cmdline-tools; `local.properties` already points there), and
+the two `CF_ACCESS_*` values live in `~/.config/homelab/secrets.env`:
 
 ```sh
 cd app
@@ -190,12 +192,44 @@ npm ci
 npx -y @capacitor/cli@8.4.1 sync android
 export CF_ACCESS_CLIENT_ID='<client id>.access'      # from Cloudflare Zero Trust
 export CF_ACCESS_CLIENT_SECRET='<client secret>'     # never commit these
-cd android && ./gradlew assembleDebug
+# on quorky instead: set -a; source ~/.config/homelab/secrets.env; set +a
+cd android && ./gradlew --no-daemon assembleDebug
 ```
 
 APK lands at `android/app/build/outputs/apk/debug/app-debug.apk`. Sideload:
 copy it to the phone (or `adb install app-debug.apk`), allow
-install-unknown-apps for the file manager on GrapheneOS, open it. First
+install-unknown-apps for the file manager on GrapheneOS, open it.
+
+### Installing from quorky via the Arch PC (proven 2026-07-12)
+
+quorky usually can't see the phone directly; the working path is adb **on the
+Arch PC** (`ssh arch`, from `~/.ssh/config`) with the phone plugged into it:
+
+```sh
+scp app/android/app/build/outputs/apk/debug/app-debug.apk arch:/tmp/lifeos-debug.apk
+ssh arch 'adb install -r /tmp/lifeos-debug.apk && rm /tmp/lifeos-debug.apk'
+```
+
+**Debug-keystore gotcha:** each build machine has its own debug key, so
+`install -r` over an APK built elsewhere fails with
+`INSTALL_FAILED_UPDATE_INCOMPATIBLE` — `adb uninstall com.samylayaida.lifeos`
+first (the app holds no durable data; you just re-auth on next launch).
+Launch + auth check without touching the phone:
+`ssh arch 'adb shell am start -n com.samylayaida.lifeos/.MainActivity'` then
+`ssh arch 'adb logcat -d -s CfAccess'`.
+
+**Mic / voice input:** `RECORD_AUDIO` + `MODIFY_AUDIO_SETTINGS` are declared
+in the manifest (2026-07-12) — without them Android hides the mic permission
+from Settings entirely and the WebView can never be granted `getUserMedia`.
+Capacitor's stock `BridgeWebChromeClient` handles the runtime prompt on first
+mic tap; nothing custom needed.
+
+**Known server-side gap (2026-07-12):** the Service Token in
+`~/.config/homelab/secrets.env` is currently rejected by Access (curl with the
+headers still 302s to the login page, same as without them) — either expired
+or the Service Auth policy was never added to the Access app. Until fixed in
+the Cloudflare Zero Trust dashboard, every fresh install falls back to the
+in-app OTP login (by design). First
 launch should go straight to LifeOS with no OTP prompt; if the OTP page
 appears, the token isn't in the Access policy or wasn't baked in.
 
