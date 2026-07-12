@@ -34,6 +34,25 @@
 
 ## Log
 
+- **2026-07-12 (session, voice teaching agent):** VoicePal × Matt Pocock /teach
+  (github.com/mattpocock/skills productivity/teach — mission grounding, zone of
+  proximal development from learning records, retrieval practice, 2–3 follow-up
+  questions per turn). New: `src/lib/teach.ts` + `/api/teach{,/session/[id],/sweep}`,
+  "Teach me" section on /knowledge (queue + adopt-from-triage suggestions +
+  schedule + session launcher), voice session page at /knowledge/teach/[id]
+  (capture-first big mic; audio persisted to /data/teach-audio BEFORE the
+  whisper verdict; every turn durably saved before the tutor call), chat tool
+  `add_learning_topic`. Sessions route to `01-Inbox/teaching/` in the vault
+  (Hermes's watched intake) with a summary + ADR-style learning record that
+  feeds the topic's next session. NO-LOSS: nightly sweep (grabbers cron →
+  POST /api/teach/sweep) force-ends stale live sessions (>3h idle) and retries
+  ended-but-unrouted ones; verified by abandoning a real session, backdating
+  it, and watching the sweep file it with an "abandoned … no turns lost" note.
+  Scheduled topics reach the 06:33 push (morning-attention.sh reads GET
+  /api/teach/sweep). Verified: tsc clean, 170/170 tests, rebuild+redeploy,
+  full topic→schedule→session→turns→end→vault round-trip with real claude
+  tutor replies; test artifacts (3 topics/3 sessions/7 turns, 2 vault notes,
+  audio dir) removed after. DB backed up to ~/backups/lifeos-db/pre-teach-2026-07-12/.
 - **2026-07-12 (autoloop, T41):** File order after T25/T30/T32 (NEEDS-SAMY) and
   T18b/T27/T29 (blocked pending Samy per prior autoloop notes) put T37/T38 next,
   but both carry an explicit "left unchecked per Samy's skip T37/T38 for now"
