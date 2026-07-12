@@ -72,6 +72,8 @@ services:
       # absolute paths so the module's host defaults work unchanged in-container.
       - /home/quorky/apps:/home/quorky/apps:ro
       - /home/quorky/infra:/home/quorky/infra:ro
+      # Chat homelab bridge: get_autoloop_summary reads the nightly log.
+      - /home/quorky/services/autoloop:/home/quorky/services/autoloop:ro
 
 volumes:
   lifeos-data:
