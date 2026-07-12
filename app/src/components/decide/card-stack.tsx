@@ -19,7 +19,7 @@
 //   (use-gesture swipe.distance 50px) AND the flick direction matches the
 //   displacement sign. Velocity is measured over the last ≤120ms of motion,
 //   not the whole gesture. Everything else springs back.
-import { useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Loader2, Mic, Square } from "lucide-react";
 import { toast } from "sonner";
 import type { LucideIcon } from "lucide-react";
@@ -114,6 +114,17 @@ export function CardStack<T extends { id: string }>({
       .then((label) => undoToast(item, label))
       .catch((e) => toast.error(e instanceof Error ? e.message : "failed — refresh to retry"));
   };
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (voice !== "idle" || busy || !top) return;
+      if (e.key === "ArrowRight") decide(top, swipeRightId, "right");
+      else if (e.key === "ArrowLeft") decide(top, swipeLeftId, "left");
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [top, busy, voice, swipeLeftId, swipeRightId]);
 
   const onPointerDown = (e: React.PointerEvent) => {
     if (busy || !top) return;
@@ -327,7 +338,7 @@ export function CardStack<T extends { id: string }>({
               key={a.id}
               disabled={!top || busy}
               onClick={() => top && decide(top, a.id, a.direction)}
-              className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-transform duration-150 active:scale-[0.97] disabled:opacity-40"
+              className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-transform duration-150 active:scale-[0.97] disabled:opacity-40 max-lg:[min-height:44px]"
               style={{ background: TONE[a.tone].bg, color: TONE[a.tone].fg }}
             >
               <Icon size={15} /> {a.label}
@@ -337,14 +348,14 @@ export function CardStack<T extends { id: string }>({
         {interpret && (
           voice === "recording" ? (
             <button onClick={stopVoice} aria-label="Stop recording"
-              className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-transform duration-150 active:scale-[0.97]"
+              className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-transform duration-150 active:scale-[0.97] max-lg:[min-height:44px]"
               style={{ background: "#EF4444", color: "white" }}>
               <Square size={15} />
               <span className="h-2 w-2 rounded-full animate-pulse" style={{ background: "white" }} />
             </button>
           ) : (
             <button onClick={startVoice} disabled={!top || busy}
-              className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-transform duration-150 active:scale-[0.97] disabled:opacity-40"
+              className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-transform duration-150 active:scale-[0.97] disabled:opacity-40 max-lg:[min-height:44px]"
               style={{ background: "var(--accent-bg)", color: "var(--accent)" }}>
               {voice === "thinking" ? <Loader2 size={15} className="animate-spin" /> : <Mic size={15} />}
               Voice
@@ -352,6 +363,9 @@ export function CardStack<T extends { id: string }>({
           )
         )}
       </div>
+      <p role="status" className="sr-only">
+        {voice === "recording" ? "recording…" : voice === "thinking" ? "thinking…" : ""}
+      </p>
       <p className="text-center text-xs" style={{ color: "var(--text-tertiary)" }}>
         {items.length} to decide · swipe or use the buttons — voice for anything nuanced
       </p>

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect } from "react";
 import {
   LayoutDashboard,
   FolderKanban,
@@ -62,6 +63,15 @@ export function Sidebar({ mobile }: { mobile?: boolean }) {
     if (mobile) setMobileSidebarOpen(false);
   };
 
+  useEffect(() => {
+    if (!mobile || !mobileSidebarOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMobileSidebarOpen(false);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [mobile, mobileSidebarOpen, setMobileSidebarOpen]);
+
   const linkClass =
     "group flex items-center gap-3 rounded-lg px-3 py-1.5 text-sm font-medium transition-[color,background,transform] duration-150 active:scale-[0.97]";
 
@@ -69,7 +79,9 @@ export function Sidebar({ mobile }: { mobile?: boolean }) {
     <>
       {/* Mobile overlay */}
       {mobile && mobileSidebarOpen && (
-        <div
+        <button
+          type="button"
+          aria-label="Close menu"
           className="fixed inset-0"
           style={{ background: "rgba(0,0,0,0.4)", zIndex: 39 }}
           onClick={() => setMobileSidebarOpen(false)}

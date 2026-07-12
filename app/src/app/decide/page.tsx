@@ -77,7 +77,7 @@ export default function DecidePage() {
         <div className="ml-auto flex rounded-lg p-0.5" style={{ background: "var(--bg-tertiary)" }}>
           {tabs.map((t) => (
             <button key={t.id} onClick={() => setDeck(t.id)}
-              className="rounded-md px-3 py-1.5 text-sm font-medium transition-transform duration-150 active:scale-[0.97]"
+              className="rounded-md px-3 py-1.5 text-sm font-medium transition-transform duration-150 active:scale-[0.97] max-lg:[min-height:44px]"
               style={{
                 background: deck === t.id ? "var(--bg-secondary)" : "transparent",
                 color: deck === t.id ? "var(--text-primary)" : "var(--text-tertiary)",
