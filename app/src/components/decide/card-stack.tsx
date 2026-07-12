@@ -22,6 +22,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Loader2, Mic, Square } from "lucide-react";
 import { toast } from "sonner";
+import { useVoiceRecorder } from "@/lib/use-voice-recorder";
 import type { LucideIcon } from "lucide-react";
 
 export interface DeckAction {
@@ -65,8 +66,6 @@ const FLICK_MIN_PX = 60; // a flick also needs real displacement (use-gesture: 5
 const VELOCITY_WINDOW_MS = 120; // measure velocity over recent motion only
 const UNDO_MS = 6000;
 
-type VoiceState = "idle" | "recording" | "thinking";
-
 interface Gesture {
   startX: number;
   startY: number;
@@ -80,13 +79,9 @@ export function CardStack<T extends { id: string }>({
 }: CardStackProps<T>) {
   const [drag, setDrag] = useState<{ dx: number; dy: number } | null>(null);
   const [exiting, setExiting] = useState<{ item: T; dir: "left" | "right" | "none" } | null>(null);
-  const [voice, setVoice] = useState<VoiceState>("idle");
   const gestureRef = useRef<Gesture | null>(null);
-  const recorderRef = useRef<MediaRecorder | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
 
   const top = items[0];
-  const busy = exiting !== null || voice !== "idle";
 
   const undoToast = (item: T, label: string) =>
     toast.success(label, {
@@ -104,6 +99,22 @@ export function CardStack<T extends { id: string }>({
           }
         : undefined,
     });
+
+  // --- voice verdict: shared recorder hook (MediaRecorder → /api/voice →
+  // transcript); the interpret step runs inside onTranscript so the deck
+  // stays busy until the verdict is applied ---
+  const { state: voice, start: startVoice, stop: stopVoice } = useVoiceRecorder({
+    onTranscript: async (transcript) => {
+      if (!top || !interpret) return;
+      const reply = await interpret(top, transcript);
+      undoToast(top, reply);
+      setExiting({ item: top, dir: "none" });
+      onResolved(top);
+      window.setTimeout(() => setExiting(null), 280);
+    },
+    onError: (msg) => toast.error(msg),
+  });
+  const busy = exiting !== null || voice !== "idle";
 
   const decide = (item: T, actionId: string, dir: "left" | "right" | "none") => {
     setDrag(null);
@@ -188,45 +199,6 @@ export function CardStack<T extends { id: string }>({
       setDrag(null); // transition springs it back
     }
   };
-
-  // --- voice verdict (MediaRecorder → /api/voice happens in `interpret`'s
-  // caller-supplied pipeline; here we only gather audio and hand off) ---
-  const startVoice = async () => {
-    if (!top || !interpret) return;
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mime = MediaRecorder.isTypeSupported("audio/webm") ? "audio/webm" : "";
-      const rec = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
-      chunksRef.current = [];
-      rec.ondataavailable = (ev) => ev.data.size > 0 && chunksRef.current.push(ev.data);
-      rec.onstop = async () => {
-        stream.getTracks().forEach((t) => t.stop());
-        setVoice("thinking");
-        try {
-          const form = new FormData();
-          form.append("audio", new Blob(chunksRef.current, { type: rec.mimeType || "audio/webm" }), "verdict.webm");
-          const res = await fetch("/api/voice", { method: "POST", body: form });
-          const data = await res.json();
-          if (!res.ok || data.error) throw new Error(data.error || `HTTP ${res.status}`);
-          const reply = await interpret(top, data.transcript);
-          undoToast(top, reply);
-          setVoice("idle");
-          setExiting({ item: top, dir: "none" });
-          onResolved(top);
-          window.setTimeout(() => setExiting(null), 280);
-        } catch (err) {
-          setVoice("idle");
-          toast.error(err instanceof Error ? err.message : "voice verdict failed");
-        }
-      };
-      recorderRef.current = rec;
-      rec.start();
-      setVoice("recording");
-    } catch {
-      toast.error("Microphone unavailable — check browser permissions.");
-    }
-  };
-  const stopVoice = () => recorderRef.current?.stop();
 
   const dragging = gestureRef.current?.axis === "x";
   const dx = drag?.dx ?? 0;
@@ -357,14 +329,14 @@ export function CardStack<T extends { id: string }>({
             <button onClick={startVoice} disabled={!top || busy}
               className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-transform duration-150 active:scale-[0.97] disabled:opacity-40 max-lg:[min-height:44px]"
               style={{ background: "var(--accent-bg)", color: "var(--accent)" }}>
-              {voice === "thinking" ? <Loader2 size={15} className="animate-spin" /> : <Mic size={15} />}
+              {voice === "transcribing" ? <Loader2 size={15} className="animate-spin" /> : <Mic size={15} />}
               Voice
             </button>
           )
         )}
       </div>
       <p role="status" className="sr-only">
-        {voice === "recording" ? "recording…" : voice === "thinking" ? "thinking…" : ""}
+        {voice === "recording" ? "recording…" : voice === "transcribing" ? "thinking…" : ""}
       </p>
       <p className="text-center text-xs" style={{ color: "var(--text-tertiary)" }}>
         {items.length} to decide · swipe or use the buttons — voice for anything nuanced

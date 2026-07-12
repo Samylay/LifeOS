@@ -10,9 +10,13 @@ import {
   CheckCircle2,
   Loader2,
   ClipboardPaste,
+  Mic,
+  Square,
 } from "lucide-react";
+import { toast } from "sonner";
 import { useAppStore } from "@/lib/store";
 import { useChat, type ActionResult } from "@/lib/use-chat";
+import { useVoiceRecorder } from "@/lib/use-voice-recorder";
 
 function ActionBadge({ result }: { result: ActionResult }) {
   const failed = result.failed || result.summary.startsWith("Failed");
@@ -81,6 +85,22 @@ export function ChatPanel() {
       textareaRef.current?.focus();
     }
   };
+
+  // Voice dictation: transcript lands in the input for review before sending
+  // (chat is open-ended — unlike /decide's one-card verdicts, auto-send here
+  // would fire misheard commands at the homelab tools).
+  const { state: voice, start: startVoice, stop: stopVoice } = useVoiceRecorder({
+    onTranscript: (transcript) => {
+      const t = transcript.trim();
+      if (!t) {
+        toast.error("Didn't catch that — try again.");
+        return;
+      }
+      setInput((prev) => (prev ? `${prev.replace(/\s+$/, "")} ${t}` : t));
+      textareaRef.current?.focus();
+    },
+    onError: (msg) => toast.error(msg),
+  });
 
   return (
     <>
@@ -281,6 +301,35 @@ export function ChatPanel() {
           >
             <ClipboardPaste size={14} />
           </button>
+          {voice === "recording" ? (
+            <button
+              onClick={stopVoice}
+              aria-label="Stop recording"
+              title="Stop recording"
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-transform duration-150 active:scale-[0.97]"
+              style={{ background: "#EF4444", color: "white" }}
+            >
+              <Square size={12} className="animate-pulse" />
+            </button>
+          ) : (
+            <button
+              onClick={startVoice}
+              disabled={voice !== "idle" || loading}
+              aria-label="Dictate a message"
+              title="Dictate a message"
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-transform duration-150 active:scale-[0.97] disabled:opacity-40"
+              style={{ background: "var(--bg-tertiary)", color: "var(--text-secondary)" }}
+            >
+              {voice === "transcribing" ? (
+                <Loader2 size={14} className="animate-spin" style={{ color: "var(--accent)" }} />
+              ) : (
+                <Mic size={14} />
+              )}
+            </button>
+          )}
+          <p role="status" className="sr-only">
+            {voice === "recording" ? "recording" : voice === "transcribing" ? "transcribing" : ""}
+          </p>
           <textarea
             ref={textareaRef}
             value={input}
