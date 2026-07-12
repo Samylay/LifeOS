@@ -18,6 +18,9 @@ type RecState = "idle" | "recording" | "transcribing" | "review" | "saving" | "d
 export function TalkCard({ prompts, date }: { prompts: PromptBody[]; date: string }) {
   const [state, setState] = useState<RecState>("idle");
   const [transcript, setTranscript] = useState<string | null>(null);
+  // T46: /api/voice already stashed this take durably; the id lets save
+  // mark the pending row confirmed.
+  const [pendingId, setPendingId] = useState<string | null>(null);
   const [editedText, setEditedText] = useState("");
   const [savedNote, setSavedNote] = useState<string | null>(null);
   const [errMsg, setErrMsg] = useState<string | null>(null);
@@ -61,6 +64,7 @@ export function TalkCard({ prompts, date }: { prompts: PromptBody[]; date: strin
       const data = await res.json();
       if (!res.ok || data.error) throw new Error(data.error || `HTTP ${res.status}`);
       setTranscript(data.transcript);
+      setPendingId(typeof data.pendingId === "string" ? data.pendingId : null);
       setEditedText(data.transcript);
       setState("review");
     } catch (e) {
@@ -81,7 +85,13 @@ export function TalkCard({ prompts, date }: { prompts: PromptBody[]; date: strin
       const res = await fetch("/api/voice/save", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ transcript: text, prompt: topics, category: "talk-session", date }),
+        body: JSON.stringify({
+          transcript: text,
+          prompt: topics,
+          category: "talk-session",
+          date,
+          pendingId: pendingId ?? undefined,
+        }),
       });
       const data = await res.json();
       if (!res.ok || data.error) throw new Error(data.error || `HTTP ${res.status}`);
