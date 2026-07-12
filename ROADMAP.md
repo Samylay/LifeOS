@@ -34,6 +34,23 @@
 
 ## Log
 
+- **2026-07-12 (session, chat→homelab bridge):** The in-app Assistant is now a
+  homelab surface. `/api/chat` (claude-cli path) gained a server-side tool
+  loop (`src/lib/homelab-tools.ts`): homelab_overview, launch_queued_prompts,
+  queue_homelab_prompt, get_service_health, get_autoloop_summary,
+  list_pending_approvals, record_approval_verdict. All actions reuse the
+  existing safe pipelines (promptQueue→promptDispatch→lifeos-dispatch poller;
+  decisionQueue verdicts — record only, nightly write-back); the chat cannot
+  run shell commands or restart services. Responses stream NDJSON status
+  events so tool activity is visible in the panel; ~/services/autoloop is
+  mounted read-only for the nightly summary (own compose commit). Verified
+  E2E: "Launch the stuff i have queued in the approve page" via the real API
+  dispatched 11 queued prompts → poller launched tmux `decide-0712-110417`
+  (left running — real queued work); overview/autoloop reads returned live
+  data; a deferred verdict round-tripped to the DB and was reverted; legacy
+  create_tasks still emitted. tsc clean, 168/168 tests, redeploy, / /decide
+  /decide/adaptive 200.
+
 - **2026-07-11 (autoloop, T40):** T17/T18/T18b/T25 are NEEDS-SAMY (T18b's
   remaining work is dashboard config + a build-location decision only Samy
   can make, per the 2026-07-09/10 precedent); T27/T29 stay blocked (design
