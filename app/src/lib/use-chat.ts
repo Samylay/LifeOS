@@ -20,6 +20,7 @@ export interface ActionResult {
   tool: string;
   summary: string;
   count?: number;
+  failed?: boolean;
 }
 
 let msgId = 0;
@@ -27,6 +28,9 @@ let msgId = 0;
 export function useChat() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(false);
+  // Live tool-activity line ("Checking what's queued…") streamed by the API
+  // while homelab tools run, so the panel never sits on a silent spinner.
+  const [statusText, setStatusText] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
   const { tasks, createTask, updateTask } = useTasks();
@@ -234,12 +238,39 @@ export function useChat() {
           throw err;
         }
 
-        const data = await res.json();
+        // The claude-cli path streams NDJSON ({type:"status"} tool-activity
+        // lines, then {type:"final"}); the Ollama fallback returns plain JSON.
+        let data: { reply: string; actions?: ChatAction[]; serverResults?: ActionResult[] };
+        if (res.headers.get("content-type")?.includes("ndjson")) {
+          data = { reply: "" };
+          const reader = res.body!.getReader();
+          const decoder = new TextDecoder();
+          let buf = "";
+          let done = false;
+          while (!done) {
+            const chunk = await reader.read();
+            done = chunk.done;
+            buf += decoder.decode(chunk.value ?? new Uint8Array(), { stream: !done });
+            let nl;
+            while ((nl = buf.indexOf("\n")) >= 0) {
+              const line = buf.slice(0, nl).trim();
+              buf = buf.slice(nl + 1);
+              if (!line) continue;
+              const evt = JSON.parse(line);
+              if (evt.type === "status") setStatusText(evt.text);
+              else if (evt.type === "final") data = evt;
+              else if (evt.type === "error") throw new Error(evt.message);
+            }
+          }
+        } else {
+          data = await res.json();
+        }
 
-        // Execute actions from AI tool calls
-        let actionResults: ActionResult[] = [];
+        // Execute client-side actions from AI tool calls
+        let actionResults: ActionResult[] = data.serverResults ?? [];
         if (data.actions?.length) {
-          actionResults = await executeActions(data.actions);
+          setStatusText(null);
+          actionResults = [...actionResults, ...(await executeActions(data.actions))];
         }
 
         const assistantMsg: ChatMessage = {
@@ -276,6 +307,7 @@ export function useChat() {
         setMessages((prev) => [...prev, errorMsg]);
       } finally {
         setLoading(false);
+        setStatusText(null);
         abortRef.current = null;
       }
     },
@@ -286,5 +318,5 @@ export function useChat() {
     setMessages([]);
   }, []);
 
-  return { messages, loading, sendMessage, clearMessages };
+  return { messages, loading, statusText, sendMessage, clearMessages };
 }

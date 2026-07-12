@@ -15,7 +15,7 @@ import { useAppStore } from "@/lib/store";
 import { useChat, type ActionResult } from "@/lib/use-chat";
 
 function ActionBadge({ result }: { result: ActionResult }) {
-  const failed = result.summary.startsWith("Failed");
+  const failed = result.failed || result.summary.startsWith("Failed");
   return (
     <span
       className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium"
@@ -32,7 +32,7 @@ function ActionBadge({ result }: { result: ActionResult }) {
 
 export function ChatPanel() {
   const { chatPanelOpen, setChatPanelOpen } = useAppStore();
-  const { messages, loading, sendMessage, clearMessages } = useChat();
+  const { messages, loading, statusText, sendMessage, clearMessages } = useChat();
   const [input, setInput] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -166,8 +166,8 @@ export function ChatPanel() {
               <div className="mt-2 flex flex-col gap-1.5 w-full">
                 {[
                   "Paste my Notion page",
-                  "Add a daily reading habit",
-                  "Create a project for my brand",
+                  "Launch the stuff queued in the approve page",
+                  "How's the homelab doing?",
                 ].map((ex, i) => (
                   <button
                     key={i}
@@ -255,7 +255,7 @@ export function ChatPanel() {
                       className="animate-spin"
                       style={{ color: "var(--accent)" }}
                     />
-                    Thinking...
+                    <span aria-live="polite">{statusText ?? "Thinking..."}</span>
                   </div>
                 </div>
               )}

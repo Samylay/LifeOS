@@ -2,10 +2,22 @@ import OpenAI from "openai";
 import { NextRequest, NextResponse } from "next/server";
 import { getOllamaClient, OLLAMA_MODEL } from "@/lib/ollama";
 import { claudeCliEnabled, generateJson } from "@/lib/claude-cli";
+import {
+  HOMELAB_TOOLS,
+  HOMELAB_TOOL_NAMES,
+  HOMELAB_TOOL_STATUS,
+  executeHomelabTool,
+  type HomelabToolResult,
+} from "@/lib/homelab-tools";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 const SYSTEM_PROMPT = `You are a helpful assistant embedded inside LifeOS, a personal productivity app. The user is a triathlete, developer, and business manager. The user may paste raw text (e.g. from Notion, notes, or brain dumps) and you should extract actionable items from it. He may also speak commands via voice — voice transcripts can be short and imperative (e.g. "mark laundry done", "remind me to call the landlord Friday").
 
 You have access to tools that let you create items in the app. When the user pastes content, analyze it and use the appropriate tools to create tasks, habits, notes, reminders, or projects — and to mark tasks complete.
+
+You are ALSO a homelab surface. Through homelab tools (executed server-side, results returned to you) you can: see everything queued or pending across the decide system ("the approve page"), launch the queued prompts as a Claude Code session on the homelab, queue new ad-hoc work for a Claude session, check live service health and host vitals, read the last nightly autoloop run, and list or rule on pending NEEDS-SAMY approval cards. When asked what you can do, include these. You can NOT run shell commands, restart services, or edit files directly — acting on the homelab always goes through the queued-session pipeline, and approval verdicts only record the ruling (the nightly pass writes it back; nothing executes automatically). If a homelab request doesn't fit these tools, say which part you can't do instead of denying everything.
 
 Guidelines:
 - Extract clear, actionable tasks from unstructured text
@@ -248,33 +260,92 @@ export async function POST(req: NextRequest) {
     // Claude Code CLI path: `claude -p` has no native OpenAI-style function
     // calling, so we describe the tool catalog in the prompt and ask Claude to
     // return the same { reply, actions } envelope the frontend already consumes
-    // (use-chat.ts → executeActions maps each { tool, input }).
+    // (use-chat.ts → executeActions maps each client-side { tool, input }).
+    //
+    // Homelab tools are executed HERE (server-side) in a bounded loop: each
+    // round's results are appended to the conversation and Claude is called
+    // again, so it can answer from real data ("what's queued?") or chain a
+    // check before an action. The response is NDJSON: {type:"status"} lines
+    // stream tool activity to the panel, then one {type:"final"} payload.
     if (claudeCliEnabled()) {
-      const toolCatalog = tools
-        .filter((t): t is OpenAI.ChatCompletionFunctionTool => t.type === "function")
-        .map((t) => t.function);
-      const convo = messages
-        .map((m: { role: string; content: string }) => `${m.role.toUpperCase()}: ${m.content}`)
-        .join("\n\n");
+      const toolCatalog = [
+        ...tools
+          .filter((t): t is OpenAI.ChatCompletionFunctionTool => t.type === "function")
+          .map((t) => t.function),
+        ...HOMELAB_TOOLS,
+      ];
+      const convoParts: string[] = messages.map(
+        (m: { role: string; content: string }) => `${m.role.toUpperCase()}: ${m.content}`
+      );
 
-      const prompt = [
-        systemPrompt,
-        "",
-        "You can act in the app by emitting tool calls. Available tools (JSON schema):",
-        JSON.stringify(toolCatalog, null, 2),
-        "",
-        "Conversation so far:",
-        convo,
-        "",
-        "Respond with ONLY a JSON object of this exact shape — no markdown, no prose outside it:",
-        `{"reply": "<short natural-language summary for the user>", "actions": [{"tool": "<tool name>", "input": { ...args matching that tool's schema }}]}`,
-        "Put every action you want to take in `actions`. If no tool is needed (a question or normal chat), return an empty `actions` array and put your full answer in `reply`.",
-      ].join("\n");
+      const encoder = new TextEncoder();
+      const stream = new ReadableStream<Uint8Array>({
+        async start(controller) {
+          const emit = (obj: unknown) =>
+            controller.enqueue(encoder.encode(JSON.stringify(obj) + "\n"));
+          try {
+            const serverResults: HomelabToolResult[] = [];
+            let reply = "";
+            let clientActions: ChatAction[] = [];
+            const MAX_ROUNDS = 4;
 
-      const envelope = await generateJson<{ reply?: string; actions?: ChatAction[] }>(prompt);
-      const reply = typeof envelope.reply === "string" ? envelope.reply : "";
-      const actions = Array.isArray(envelope.actions) ? envelope.actions : [];
-      return NextResponse.json({ reply, actions });
+            for (let round = 0; round < MAX_ROUNDS; round++) {
+              const prompt = [
+                systemPrompt,
+                "",
+                "You can act by emitting tool calls. Available tools (JSON schema):",
+                JSON.stringify(toolCatalog, null, 2),
+                "",
+                `Homelab tools (${[...HOMELAB_TOOL_NAMES].join(", ")}) are executed by the server and their results are appended to the conversation as TOOL_RESULT lines — call them and WAIT for results before answering about homelab state or emitting app-item actions. App-item tools (create_tasks, create_habit, create_note, create_reminder, create_project, complete_task) are executed by the app after your FINAL response — only emit them in a response that contains no homelab tool calls, and never repeat ones you already emitted.`,
+                "",
+                "Conversation so far:",
+                convoParts.join("\n\n"),
+                "",
+                "Respond with ONLY a JSON object of this exact shape — no markdown, no prose outside it:",
+                `{"reply": "<short natural-language summary for the user>", "actions": [{"tool": "<tool name>", "input": { ...args matching that tool's schema }}]}`,
+                "Put every action you want to take in `actions`. If no tool is needed (a question or normal chat), return an empty `actions` array and put your full answer in `reply`.",
+              ].join("\n");
+
+              const envelope = await generateJson<{ reply?: string; actions?: ChatAction[] }>(prompt);
+              reply = typeof envelope.reply === "string" ? envelope.reply : "";
+              const actions = Array.isArray(envelope.actions) ? envelope.actions : [];
+              const homelabCalls = actions.filter((a) => HOMELAB_TOOL_NAMES.has(a.tool));
+              clientActions = actions.filter((a) => !HOMELAB_TOOL_NAMES.has(a.tool));
+
+              if (homelabCalls.length === 0 || round === MAX_ROUNDS - 1) break;
+
+              convoParts.push(`ASSISTANT (tool calls): ${JSON.stringify(homelabCalls)}`);
+              for (const call of homelabCalls) {
+                emit({ type: "status", text: HOMELAB_TOOL_STATUS[call.tool] ?? `Running ${call.tool}…` });
+                const result = await executeHomelabTool(call.tool, call.input ?? {});
+                serverResults.push(result);
+                convoParts.push(
+                  `TOOL_RESULT (${result.tool}${result.failed ? ", FAILED" : ""}): ${JSON.stringify(result.data)}`
+                );
+              }
+              emit({ type: "status", text: "Thinking…" });
+            }
+
+            emit({
+              type: "final",
+              reply,
+              actions: clientActions,
+              serverResults: serverResults.map(({ tool, summary, failed }) => ({ tool, summary, failed })),
+            });
+          } catch (err) {
+            emit({
+              type: "error",
+              message: err instanceof Error ? err.message : "Unknown error",
+            });
+          } finally {
+            controller.close();
+          }
+        },
+      });
+
+      return new Response(stream, {
+        headers: { "Content-Type": "application/x-ndjson; charset=utf-8" },
+      });
     }
 
     // ── Ollama fallback: native OpenAI-style tool-calling loop ────────────────

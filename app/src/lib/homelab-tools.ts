@@ -1,0 +1,316 @@
+// Server-executed homelab tools for the chat Assistant — the bridge between
+// the in-app chat and the homelab. Every action routes through the same safe
+// machinery the /decide surfaces already use (promptQueue → promptDispatch →
+// host poller; decisionQueue verdicts): the chat can queue and launch work or
+// record rulings, but never runs shell commands, restarts services, or
+// touches ROADMAPs directly.
+import fs from "node:fs";
+import { listDocs, createDoc, getDoc, updateDoc } from "@/lib/server-db";
+import { getAllContainers } from "@/lib/system-health";
+import { getHostMetrics, getStandingGoals } from "@/lib/metrics";
+import { DECISION_VERDICTS, type DecisionVerdict, type DecisionItem } from "@/lib/decisions";
+
+const PROMPT_QUEUE = "users/local/promptQueue";
+const DISPATCH = "users/local/promptDispatch";
+const DECISION_QUEUE = "users/local/decisionQueue";
+const TRIAGE_QUEUE = "users/local/triageQueue";
+// Mounted read-only at the same host path (docker-compose.yml).
+const AUTOLOOP_LOG = "/home/quorky/services/autoloop/autoloop.log";
+
+export interface HomelabToolResult {
+  tool: string;
+  summary: string; // short human line for the chat badge
+  data: unknown; // structured result fed back to the model
+  failed?: boolean;
+}
+
+// ── dispatch core (shared with /api/triage/dispatch) ─────────────────────────
+
+export function dispatchQueuedPrompts():
+  | { ok: true; dispatchId: string; itemCount: number; titles: string[] }
+  | { ok: false; error: string } {
+  const queued = listDocs(PROMPT_QUEUE, {
+    where: [["status", "==", "queued"]],
+    orderBy: ["queuedAt", "asc"],
+  }) as { id: string; title?: string; prompt?: string }[];
+
+  if (queued.length === 0) return { ok: false, error: "prompt queue is empty" };
+
+  const header =
+    `${queued.length} approved item(s) from the LifeOS /decide deck need acting on. ` +
+    "Work through them one at a time; verify each before moving on. " +
+    "If one is blocked, note why and continue with the rest. Report per-item outcomes at the end.";
+  const merged = [
+    header,
+    ...queued.map((q, i) => `## Item ${i + 1}: ${q.title || "untitled"}\n\n${q.prompt ?? ""}`),
+  ].join("\n\n");
+
+  const dispatchId = createDoc(DISPATCH, {
+    prompt: merged,
+    itemCount: queued.length,
+    titles: queued.map((q) => q.title ?? ""),
+    status: "pending",
+    createdAt: { __date: new Date().toISOString() },
+  });
+  for (const q of queued) {
+    updateDoc(PROMPT_QUEUE, q.id, { status: "dispatched", dispatchId });
+  }
+  return { ok: true, dispatchId, itemCount: queued.length, titles: queued.map((q) => q.title ?? "") };
+}
+
+// ── tool catalog (prompt-level schema, same style as the client tools) ───────
+
+export const HOMELAB_TOOLS = [
+  {
+    name: "homelab_overview",
+    description:
+      "Snapshot of everything pending across the decide system: prompts queued for a Claude session (the 'approve page' queue), pending triage cards, pending NEEDS-SAMY approvals, and standing-goal health. Use this first when the user asks what's queued or pending.",
+    parameters: { type: "object", properties: {}, required: [] },
+  },
+  {
+    name: "launch_queued_prompts",
+    description:
+      "Launch everything queued in the approve page: merges all queued prompts into one brief and hands it to the homelab, which starts a Claude Code session for them (picked up within ~10s). Use when the user says to launch/run/start the queued items.",
+    parameters: { type: "object", properties: {}, required: [] },
+  },
+  {
+    name: "queue_homelab_prompt",
+    description:
+      "Queue a NEW ad-hoc instruction for a Claude Code session on the homelab (e.g. 'have claude check why the backup is slow'). Set launch_now true to dispatch immediately (this also launches anything else already queued).",
+    parameters: {
+      type: "object",
+      properties: {
+        title: { type: "string", description: "Short title for the queued work" },
+        prompt: { type: "string", description: "Full instruction for the Claude session" },
+        launch_now: { type: "boolean", description: "Dispatch immediately instead of leaving it queued" },
+      },
+      required: ["title", "prompt"],
+    },
+  },
+  {
+    name: "get_service_health",
+    description:
+      "Live homelab service health: watched docker containers (up/down) and host vitals (cpu/mem/disk). Same data as the /status page.",
+    parameters: { type: "object", properties: {}, required: [] },
+  },
+  {
+    name: "get_autoloop_summary",
+    description:
+      "The last nightly autoloop run: per-project outcomes and the final done/failed summary line.",
+    parameters: { type: "object", properties: {}, required: [] },
+  },
+  {
+    name: "list_pending_approvals",
+    description:
+      "Pending NEEDS-SAMY approval cards with their context briefs (what's asked, why blocked, consequences, recommendation).",
+    parameters: {
+      type: "object",
+      properties: {
+        limit: { type: "number", description: "Max cards to return (default 10)" },
+      },
+      required: [],
+    },
+  },
+  {
+    name: "record_approval_verdict",
+    description:
+      "Record the user's ruling on one pending NEEDS-SAMY approval card (does NOT execute the action — the verdict is written back to the ROADMAP by the nightly pass). Identify the card by id (from list_pending_approvals) or a distinctive title fragment.",
+    parameters: {
+      type: "object",
+      properties: {
+        id: { type: "string", description: "Card id from list_pending_approvals (preferred)" },
+        title: { type: "string", description: "Distinctive fragment of the card title (fallback; must match exactly one pending card)" },
+        verdict: { type: "string", enum: [...DECISION_VERDICTS] },
+        note: { type: "string", description: "Optional nuance to carry with the verdict" },
+      },
+      required: ["verdict"],
+    },
+  },
+] as const;
+
+export const HOMELAB_TOOL_NAMES = new Set<string>(HOMELAB_TOOLS.map((t) => t.name));
+
+// Short present-progressive labels streamed to the chat while a tool runs.
+export const HOMELAB_TOOL_STATUS: Record<string, string> = {
+  homelab_overview: "Checking what's queued…",
+  launch_queued_prompts: "Launching the queued prompts…",
+  queue_homelab_prompt: "Queueing it for a Claude session…",
+  get_service_health: "Checking service health…",
+  get_autoloop_summary: "Reading the last nightly run…",
+  list_pending_approvals: "Fetching pending approvals…",
+  record_approval_verdict: "Recording your verdict…",
+};
+
+// ── executors ────────────────────────────────────────────────────────────────
+
+function lastAutoloopRun(): { lines: string[]; summary: string | null } {
+  let text: string;
+  try {
+    const stat = fs.statSync(AUTOLOOP_LOG);
+    const fd = fs.openSync(AUTOLOOP_LOG, "r");
+    const start = Math.max(0, stat.size - 16 * 1024);
+    const buf = Buffer.alloc(stat.size - start);
+    fs.readSync(fd, buf, 0, buf.length, start);
+    fs.closeSync(fd);
+    text = buf.toString("utf8");
+  } catch {
+    return { lines: [], summary: null };
+  }
+  const lines = text.split("\n").filter(Boolean);
+  // Walk back from the last SUMMARY line to the end of the previous run.
+  let end = -1;
+  for (let i = lines.length - 1; i >= 0; i--) {
+    if (lines[i].includes("SUMMARY:")) { end = i; break; }
+  }
+  if (end === -1) return { lines: lines.slice(-20), summary: null };
+  let start = 0;
+  for (let i = end - 1; i >= 0; i--) {
+    if (lines[i].includes("SUMMARY:")) { start = i + 1; break; }
+  }
+  return { lines: lines.slice(start, end + 1), summary: lines[end] };
+}
+
+export async function executeHomelabTool(
+  tool: string,
+  input: Record<string, unknown>
+): Promise<HomelabToolResult> {
+  switch (tool) {
+    case "homelab_overview": {
+      const queued = listDocs(PROMPT_QUEUE, {
+        where: [["status", "==", "queued"]],
+        orderBy: ["queuedAt", "asc"],
+      }) as { title?: string }[];
+      const triage = listDocs(TRIAGE_QUEUE, { where: [["status", "==", "proposed"]] });
+      const approvals = listDocs(DECISION_QUEUE, { where: [["status", "==", "pending"]] });
+      const goals = await getStandingGoals().catch(() => null);
+      const data = {
+        queuedPrompts: queued.map((q) => q.title || "untitled"),
+        pendingTriageCards: triage.length,
+        pendingApprovals: approvals.length,
+        standingGoals: goals
+          ? { total: goals.total, ok: goals.ok, violated: goals.violated }
+          : "unavailable",
+      };
+      return {
+        tool,
+        summary: `Queue: ${queued.length} prompt${queued.length === 1 ? "" : "s"}, ${triage.length} triage, ${approvals.length} approvals`,
+        data,
+      };
+    }
+    case "launch_queued_prompts": {
+      const r = dispatchQueuedPrompts();
+      if (!r.ok) return { tool, summary: "Nothing queued to launch", data: r, failed: true };
+      return {
+        tool,
+        summary: `Launched ${r.itemCount} queued prompt${r.itemCount === 1 ? "" : "s"}`,
+        data: {
+          ...r,
+          note: "The homelab poller picks this up within ~10s and starts a Claude Code session (Telegram ping on start).",
+        },
+      };
+    }
+    case "queue_homelab_prompt": {
+      const title = String(input.title ?? "").slice(0, 160);
+      const prompt = String(input.prompt ?? "");
+      if (!title || !prompt) {
+        return { tool, summary: "Failed: title and prompt required", data: { error: "title and prompt required" }, failed: true };
+      }
+      const id = createDoc(PROMPT_QUEUE, {
+        itemId: `chat-${Date.now()}`,
+        title,
+        prompt,
+        status: "queued",
+        queuedAt: { __date: new Date().toISOString() },
+        source: "chat",
+      });
+      if (input.launch_now) {
+        const r = dispatchQueuedPrompts();
+        return r.ok
+          ? { tool, summary: `Queued and launched "${title}"`, data: { id, ...r } }
+          : { tool, summary: `Queued "${title}" (launch failed)`, data: { id, ...r }, failed: true };
+      }
+      return { tool, summary: `Queued "${title}"`, data: { id, status: "queued" } };
+    }
+    case "get_service_health": {
+      const [docker, host] = await Promise.all([
+        getAllContainers().catch(() => null),
+        getHostMetrics().catch(() => null),
+      ]);
+      const containers = docker?.containers ?? [];
+      const down = containers.filter((c) => !c.up).map((c) => c.label ?? c.name);
+      return {
+        tool,
+        summary: down.length ? `${down.length} service(s) down: ${down.join(", ")}` : "All watched services up",
+        data: { dockerOk: docker?.ok ?? false, containers, host },
+      };
+    }
+    case "get_autoloop_summary": {
+      const run = lastAutoloopRun();
+      return {
+        tool,
+        summary: run.summary ? run.summary.replace(/^[\d\- :]+/, "") : "No autoloop summary found",
+        data: run,
+        failed: !run.summary,
+      };
+    }
+    case "list_pending_approvals": {
+      const limit = typeof input.limit === "number" && input.limit > 0 ? Math.min(input.limit, 25) : 10;
+      const items = (listDocs(DECISION_QUEUE, {
+        where: [["status", "==", "pending"]],
+        orderBy: ["createdAt", "asc"],
+      }) as unknown as DecisionItem[]).slice(0, limit);
+      return {
+        tool,
+        summary: `${items.length} pending approval${items.length === 1 ? "" : "s"}`,
+        data: items.map((i) => ({
+          id: i.id,
+          project: i.project,
+          title: i.title,
+          brief: i.brief ?? null,
+        })),
+      };
+    }
+    case "record_approval_verdict": {
+      const verdict = input.verdict as DecisionVerdict;
+      if (!DECISION_VERDICTS.includes(verdict)) {
+        return { tool, summary: "Failed: invalid verdict", data: { error: "invalid verdict" }, failed: true };
+      }
+      let id = typeof input.id === "string" ? input.id : "";
+      if (!id && typeof input.title === "string" && input.title.trim()) {
+        const pending = listDocs(DECISION_QUEUE, {
+          where: [["status", "==", "pending"]],
+        }) as unknown as DecisionItem[];
+        const needle = input.title.toLowerCase();
+        const matches = pending.filter((p) => p.title.toLowerCase().includes(needle));
+        if (matches.length !== 1) {
+          return {
+            tool,
+            summary: `Failed: "${input.title}" matches ${matches.length} pending cards`,
+            data: { error: "ambiguous or no match", candidates: matches.map((m) => m.title) },
+            failed: true,
+          };
+        }
+        id = matches[0].id;
+      }
+      if (!id) return { tool, summary: "Failed: no card identified", data: { error: "id or title required" }, failed: true };
+      const item = getDoc(DECISION_QUEUE, id);
+      if (!item) return { tool, summary: "Failed: no such card", data: { error: "no such item" }, failed: true };
+      if (item.status !== "pending") {
+        return { tool, summary: `Failed: card is ${item.status}`, data: { error: `item is ${item.status}` }, failed: true };
+      }
+      updateDoc(DECISION_QUEUE, id, {
+        status: "decided",
+        verdict,
+        note: String(input.note ?? "").slice(0, 2000),
+        decidedAt: { __date: new Date().toISOString() },
+      });
+      return {
+        tool,
+        summary: `Recorded "${verdict}" on ${String(item.title).slice(0, 60)}`,
+        data: { id, verdict, note: "ROADMAP write-back happens on the nightly pass; nothing executes automatically." },
+      };
+    }
+    default:
+      return { tool, summary: `Failed: unknown tool ${tool}`, data: { error: "unknown tool" }, failed: true };
+  }
+}
