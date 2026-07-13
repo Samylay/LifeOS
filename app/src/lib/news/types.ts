@@ -33,6 +33,25 @@ export interface Edition {
 
 export const FEEDS_COLLECTION = "news_feeds";
 export const EDITIONS_COLLECTION = "news_editions";
+export const INBOX_COLLECTION = "news_inbox";
+
+// A newsletter email delivered by the Cloudflare Email Worker to
+// /api/news/ingest-email. Treated by the next runNews() pass (summarised +
+// scored like any other source, bucket "news"), then deleted — the digest
+// keeps the summary, the raw email does not linger. See docs/news-aggregator.md.
+export interface InboxItem {
+  id: string;
+  from: string; // sender address
+  subject: string;
+  text: string; // plain-text body (HTML stripped by the worker)
+  link: string; // best-effort "read online" URL, else a mailto: fallback
+  receivedAt: string; // ISO, from the worker
+  addedAt: string; // ISO, when LifeOS stored it
+}
+
+// Inbox items older than this are discarded even if a run never folded them
+// (e.g. all editions that day were skipped) — a safety TTL, not the main path.
+export const INBOX_TTL_MS = 3 * 24 * 60 * 60 * 1000;
 
 // Seeded on first run when the feeds collection is empty. Mirrors the fixed,
 // personalized lineup the n8n workflow landed on (2026-07-13).
