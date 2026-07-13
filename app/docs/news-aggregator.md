@@ -42,7 +42,23 @@ pager delivery. Retiring them is a logged human decision (see T-number below).
 
 ---
 
-## Planned: email-newsletter ingestion (design — NEEDS-SAMY)
+## Email-newsletter ingestion (code shipped 2026-07-13 — deploy pending)
+
+The LifeOS side and the Cloudflare Email Worker are **built and verified**; only
+the Cloudflare deploy remains (see ROADMAP T50 and
+`~/infra/cf-email-worker/README.md`). What exists:
+
+- `POST /api/news/ingest-email` — HMAC-SHA256 verified (`NEWS_INGEST_SECRET`),
+  writes to the `news_inbox` collection. Fails closed: no secret → 503,
+  bad/absent signature → 401.
+- `runNews()` folds pending `news_inbox` items (bucket `news`, body-as-content
+  so they skip Jina), scores them, then **deletes each folded item**, plus a
+  3-day TTL sweep.
+- `~/infra/cf-email-worker` — the Email Worker (postal-mime parse → sign → POST).
+
+The design below is the reference the implementation follows.
+
+## Design: email-newsletter ingestion
 
 Goal: newsletters Samy subscribes to land in the digest instead of a cluttered
 inbox. Approach approved in principle 2026-07-13; needs a Cloudflare API token /
