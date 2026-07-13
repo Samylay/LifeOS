@@ -2,7 +2,7 @@
 
 import { useCallback } from "react";
 import { useCollection } from "./use-collection";
-import type { ContentIdea, ContentPost } from "./types";
+import type { ContentIdea } from "./types";
 import { SEED_IDEAS } from "./content-os";
 import { planWeeklyBatch, type BatchPlan, type ScriptDraft } from "./content-scripting";
 
@@ -103,31 +103,4 @@ export function useContentIdeas() {
   );
 
   return { ideas, loading, createIdea, updateIdea, deleteIdea, seedIdeas, scriptIdea, scriptWeeklyBatch };
-}
-
-export function useContentPosts() {
-  const { items: posts, loading, create, update, remove } =
-    useCollection<ContentPost>("contentPosts", {
-      orderByField: "date",
-      orderDir: "desc",
-    });
-
-  const createPost = useCallback(
-    async (data: Omit<ContentPost, "id" | "createdAt" | "updatedAt">) => {
-      const now = new Date();
-      return await create({ ...data, createdAt: now, updatedAt: now });
-    },
-    [create]
-  );
-
-  const updatePost = useCallback(
-    async (id: string, data: Partial<ContentPost>) => {
-      await update(id, { ...data, updatedAt: new Date() });
-    },
-    [update]
-  );
-
-  const deletePost = useCallback(async (id: string) => remove(id), [remove]);
-
-  return { posts, loading, createPost, updatePost, deletePost };
 }

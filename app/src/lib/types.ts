@@ -605,22 +605,4 @@ export interface ContentIdea {
   updatedAt: Date;
 }
 
-// One row of the Friday analytics review. Metrics are optional so a post can
-// be logged on publish day and filled in on Friday.
-export interface ContentPost {
-  id: string;
-  date: string; // YYYY-MM-DD posted
-  title: string;
-  pillar: ContentPillar;
-  hookFormula?: number;
-  retention3s?: number; // % still watching at 3s
-  completion?: number; // % completion rate
-  sendsPerReach?: number; // sends per 1000 reached
-  savesPerReach?: number; // saves per 1000 reached
-  follows?: number; // follows attributed to the post
-  note?: string; // the forced one-sentence diagnosis
-  createdAt: Date;
-  updatedAt: Date;
-}
-
 
