@@ -1,1 +1,4 @@
 node_modules/
+
+# wayfinder local-markdown tracker (private; never push to public remote)
+.scratch/
