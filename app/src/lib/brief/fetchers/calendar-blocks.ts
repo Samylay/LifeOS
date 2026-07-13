@@ -17,10 +17,23 @@ import { aggregateTrackedCentres, type Urgency } from "./tracked-centres";
 
 const URGENCY_RANK: Record<Urgency, number> = { violation: 0, "needs-samy": 1, "next-task": 2 };
 
+// NEEDS-SAMY tasks are decisions, not time-boxable work, and every open one
+// across all roadmaps otherwise lands on the calendar each morning (the clog
+// Samy hit 2026-07-13). Cap them to the top few; violations and next-task
+// blocks are unbounded (that's the actual daily plan). Decisions still surface
+// in full via the /decide deck and the morning attention push.
+const NEEDS_SAMY_CAP = 4;
+
 function rankedDynamicItems(): DynamicItem[] {
+  let needsSamySeen = 0;
   return aggregateTrackedCentres()
     .slice()
     .sort((a, b) => URGENCY_RANK[a.urgency] - URGENCY_RANK[b.urgency])
+    .filter((i) => {
+      if (i.urgency !== "needs-samy") return true;
+      needsSamySeen += 1;
+      return needsSamySeen <= NEEDS_SAMY_CAP;
+    })
     .map((i) => ({ centre: i.centre, title: `${i.centre}: ${i.title}` }));
 }
 
