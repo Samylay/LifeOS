@@ -3,17 +3,35 @@ package com.samylayaida.lifeos;
 import android.Manifest;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
 import android.webkit.CookieManager;
 import android.webkit.WebView;
+import androidx.activity.OnBackPressedCallback;
 import com.getcapacitor.BridgeActivity;
 import java.util.Map;
 
 public class MainActivity extends BridgeActivity {
 
     private static final String TAG = "CfAccess";
+
+    /** Sibling Access-protected hosts that open IN this WebView (see
+     * CfAccessWebViewClient) — mirrored from cf-access.ts
+     * (SIBLING_IN_APP_HOSTS); android-consistency.test.ts keeps the two in
+     * sync. Android BACK on one of these must return to the LifeOS UI in one
+     * press instead of walking that site's own history / exiting the app. */
+    private static final String[] SIBLING_IN_APP_HOSTS = { "grafana.samylayaida.com" };
+
+    private static boolean isSiblingInAppHost(String host) {
+        for (String sibling : SIBLING_IN_APP_HOSTS) {
+            if (sibling.equals(host)) {
+                return true;
+            }
+        }
+        return false;
+    }
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -58,6 +76,28 @@ public class MainActivity extends BridgeActivity {
             requestPermissions(new String[] { Manifest.permission.POST_NOTIFICATIONS }, 1);
         }
         NtfyService.start(this);
+
+        // Android BACK on a sibling in-app host (e.g. Grafana) returns to the
+        // LifeOS UI in one press instead of walking that site's own history
+        // or exiting the app; BACK on the LifeOS host itself keeps stock
+        // WebView/Activity behavior (disable this callback and re-dispatch).
+        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                WebView webView = MainActivity.this.bridge.getWebView();
+                String currentUrl = webView.getUrl();
+                String host = currentUrl == null ? null : Uri.parse(currentUrl).getHost();
+                if (host != null && isSiblingInAppHost(host)) {
+                    String serverUrl = MainActivity.this.bridge.getServerUrl();
+                    Log.i(TAG, "Back pressed on sibling host " + host + "; returning to LifeOS");
+                    webView.loadUrl(serverUrl);
+                    return;
+                }
+                setEnabled(false);
+                getOnBackPressedDispatcher().onBackPressed();
+                setEnabled(true);
+            }
+        });
 
         // Launched from a pager notification: navigate to the requested path.
         openRequestedPath(getIntent());

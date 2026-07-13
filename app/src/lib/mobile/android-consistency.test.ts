@@ -14,6 +14,7 @@ import {
   CF_ACCESS_ID_HEADER,
   CF_ACCESS_SECRET_HEADER,
   CF_ACCESS_LOGIN_HOST_SUFFIX,
+  SIBLING_IN_APP_HOSTS,
   inAppHosts,
 } from "./cf-access";
 
@@ -88,6 +89,22 @@ describe("MainActivity.java", () => {
 
   it("flushes the cookie store on pause so CF_Authorization survives process death", () => {
     expect(mainActivityJava).toMatch(/onPause\(\)[\s\S]*CookieManager\.getInstance\(\)\.flush\(\)/);
+  });
+
+  it("mirrors SIBLING_IN_APP_HOSTS from cf-access.ts (T48)", () => {
+    for (const host of SIBLING_IN_APP_HOSTS) {
+      expect(mainActivityJava).toContain(`"${host}"`);
+    }
+  });
+
+  it("registers a BACK callback that returns sibling in-app hosts to the LifeOS server URL", () => {
+    expect(mainActivityJava).toContain("OnBackPressedCallback");
+    expect(mainActivityJava).toContain("isSiblingInAppHost(host)");
+    expect(mainActivityJava).toMatch(/isSiblingInAppHost\(host\)\)\s*\{[\s\S]{0,200}webView\.loadUrl\(serverUrl\);/);
+  });
+
+  it("falls through to stock BACK behavior on the LifeOS host itself", () => {
+    expect(mainActivityJava).toMatch(/setEnabled\(false\)[\s\S]{0,80}getOnBackPressedDispatcher\(\)\.onBackPressed\(\)/);
   });
 });
 
