@@ -18,6 +18,7 @@ import {
   Clapperboard,
   BellRing,
   Layers,
+  Radar,
 } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { useNotifications } from "@/lib/use-notifications";
@@ -35,6 +36,7 @@ const NAV_ITEMS = [
 ];
 
 const BOTTOM_ITEMS = [
+  { href: "/leads", label: "Leads", icon: Radar },
   { href: "/pager", label: "Pager", icon: BellRing },
   { href: "/status", label: "Status", icon: Gauge },
   { href: "/settings", label: "Settings", icon: Settings },
