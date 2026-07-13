@@ -1,28 +1,34 @@
-// Quorky Digest — v1 stub, per the original spec.
-//
-// The n8n "Daily News Digest" currently goes to Telegram only; there is no web
-// edition to link. If a future digest run drops a JSON pointer at
-// DIGEST_POINTER ({"date": "YYYY-MM-DD", "url": "..."}), we render a link card
-// for today's edition; otherwise the card is omitted entirely (fetch → null).
-
-import fs from "node:fs";
+// Quorky Digest — now sourced from the in-app news aggregator (src/lib/news)
+// instead of the old n8n → DIGEST_POINTER handoff. Renders the top few
+// headlines from today's edition as a brief card, linking to /news for the
+// full list. Omitted (fetch → null) when no edition exists for today yet.
 import { card, type FetchResult } from "../registry";
+import { latestEdition } from "@/lib/news/engine";
+import { BUCKET_LABELS } from "@/lib/news/types";
 import { todayInTz } from "../tz";
 
-const DIGEST_POINTER = process.env.DIGEST_POINTER || "/data/digest-latest.json";
+const MAX_CARD_ITEMS = 6;
 
 export async function fetch(): Promise<FetchResult> {
-  let info: { date?: string; url?: string };
-  try {
-    info = JSON.parse(fs.readFileSync(DIGEST_POINTER, "utf8"));
-  } catch {
-    return null;
-  }
+  const edition = latestEdition();
+  if (!edition || edition.date !== todayInTz().dateStr || edition.items.length === 0) return null;
 
-  if (info.date !== todayInTz().dateStr || !info.url) return null;
+  const headlines = edition.items.slice(0, MAX_CARD_ITEMS).map((it) => ({
+    title: it.title,
+    link: it.link,
+    source: it.source,
+    section: BUCKET_LABELS[it.bucket],
+    score: it.score,
+    summary: it.summary,
+  }));
 
   return card({
-    id: "quorky_digest", type: "quorky_digest", priority: "state", status: "neutral",
-    title: "Quorky Digest", body: {}, link: info.url,
+    id: "quorky_digest",
+    type: "quorky_digest",
+    priority: "state",
+    status: "neutral",
+    title: "Quorky Digest",
+    body: { edition_date: edition.date, total: edition.items.length, headlines },
+    link: "/news",
   });
 }

@@ -19,6 +19,7 @@ import {
   BellRing,
   Layers,
   Radar,
+  Newspaper,
 } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { useNotifications } from "@/lib/use-notifications";
@@ -31,6 +32,7 @@ const NAV_ITEMS = [
   { href: "/projects", label: "Projects", icon: FolderKanban },
   { href: "/goals", label: "Goals", icon: Flag },
   { href: "/content", label: "Content", icon: Clapperboard },
+  { href: "/news", label: "News", icon: Newspaper },
   { href: "/workouts", label: "Training", icon: Dumbbell },
   { href: "/knowledge", label: "Knowledge", icon: Brain },
 ];

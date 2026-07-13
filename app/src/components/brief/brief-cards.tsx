@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import {
   AlertTriangle, Bookmark, Calendar, CheckSquare, ChevronDown, Dumbbell, ExternalLink,
@@ -301,12 +302,38 @@ function FtCard({ card }: { card: BriefCard }) {
   );
 }
 
+interface DigestCardBody {
+  edition_date?: string;
+  total?: number;
+  headlines?: { title: string; link: string; source: string; section: string; score: number; summary: string }[];
+}
+
 function DigestCard({ card }: { card: BriefCard }) {
+  const body = card.body as unknown as DigestCardBody;
+  const headlines = body.headlines ?? [];
+  const mark = (s: number) => (s >= 5 ? "🔥" : s >= 4 ? "⭐" : "•");
   return (
-    <a href={card.link ?? "#"} target="_blank" rel="noreferrer"
-      className="flex items-center gap-2 text-sm" style={{ color: "var(--accent)" }}>
-      Read today&apos;s digest <ExternalLink size={12} />
-    </a>
+    <div className="space-y-2">
+      {headlines.map((h, i) => (
+        <a
+          key={i}
+          href={h.link}
+          target="_blank"
+          rel="noreferrer"
+          className="block text-sm transition-transform duration-150 active:scale-[0.99]"
+          style={{ color: "var(--text-primary)" }}
+        >
+          <span aria-hidden>{mark(h.score)}</span> {h.title}
+          <span className="ml-2 text-[10px] uppercase tracking-wide" style={{ color: "var(--text-tertiary)" }}>
+            {h.source}
+          </span>
+        </a>
+      ))}
+      <Link href={card.link ?? "/news"} className="flex items-center gap-2 text-sm" style={{ color: "var(--accent)" }}>
+        {body.total && body.total > headlines.length ? `View all ${body.total} in News` : "Open News"}{" "}
+        <ExternalLink size={12} />
+      </Link>
+    </div>
   );
 }
 
