@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "bad signature" }, { status: 401 });
   }
 
-  let body: { from?: string; subject?: string; text?: string; link?: string; receivedAt?: string };
+  let body: { from?: string; subject?: string; text?: string; link?: string; links?: string[]; receivedAt?: string };
   try {
     body = JSON.parse(raw);
   } catch {
@@ -55,6 +55,7 @@ export async function POST(req: NextRequest) {
     subject,
     text,
     link: String(body.link ?? "").slice(0, 2000) || `mailto:${from}`,
+    links: Array.isArray(body.links) ? body.links.slice(0, 25).map((u) => String(u).slice(0, 2000)) : [],
     receivedAt: body.receivedAt || new Date().toISOString(),
     addedAt: new Date().toISOString(),
   });

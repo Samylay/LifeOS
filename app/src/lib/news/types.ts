@@ -45,6 +45,7 @@ export interface InboxItem {
   subject: string;
   text: string; // plain-text body (HTML stripped by the worker)
   link: string; // best-effort "read online" URL, else a mailto: fallback
+  links?: string[]; // real href links from the email (confirm/opt-in/unsubscribe)
   receivedAt: string; // ISO, from the worker
   addedAt: string; // ISO, when LifeOS stored it
 }
