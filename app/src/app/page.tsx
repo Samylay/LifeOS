@@ -95,7 +95,10 @@ export default function Today() {
   const daysSinceShip = lastShip ? daysSince(lastShip) : null;
 
   return (
-    <div className="space-y-4 lg:space-y-6 max-w-2xl">
+    // Phone is a feed, desktop is a cockpit: one scrolling column on mobile;
+    // at lg the brief takes the main column and the quick loop / goals /
+    // habits stack becomes a right rail, so the whole day is above the fold.
+    <div className="space-y-4 lg:space-y-6 max-w-2xl lg:max-w-6xl">
       {/* Header */}
       <div className="flex items-start justify-between gap-4 flex-wrap enter">
         <div>
@@ -132,6 +135,10 @@ export default function Today() {
           )}
         </div>
       </div>
+
+      <div className="flex flex-col gap-4 lg:gap-6 lg:grid lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start">
+      {/* Right rail on desktop (first in DOM to keep the mobile order) */}
+      <div className="flex flex-col gap-4 lg:col-start-2 lg:row-start-1 min-w-0">
 
       {/* Quick loop: Prime entry + ship momentum */}
       <div className="grid grid-cols-2 gap-3 enter" style={{ ["--enter-delay" as string]: "30ms" }}>
@@ -224,8 +231,11 @@ export default function Today() {
         </div>
       )}
 
-      {/* Morning brief — the live daily loop, anchor of this page */}
-      <div className="enter" style={{ ["--enter-delay" as string]: "120ms" }}>
+      </div>
+
+      {/* Morning brief — the live daily loop, anchor of this page; the main
+          column on desktop */}
+      <div className="enter lg:col-start-1 lg:row-start-1 min-w-0" style={{ ["--enter-delay" as string]: "120ms" }}>
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-xs font-bold uppercase tracking-widest flex items-center gap-2" style={{ color: "var(--text-secondary)" }}>
             <Flag size={14} style={{ color: "var(--accent)" }} /> Morning brief
@@ -254,6 +264,7 @@ export default function Today() {
           </div>
         )}
         {brief?.brief && <BriefCards brief={brief.brief} />}
+      </div>
       </div>
     </div>
   );

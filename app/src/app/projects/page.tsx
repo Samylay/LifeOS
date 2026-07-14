@@ -570,7 +570,7 @@ function ShipLogSection({ entries, projects, onLog, onUpdate }: {
   const field = { background: "var(--bg-tertiary)", color: "var(--text-primary)", border: "1px solid var(--border-primary)" } as const;
 
   return (
-    <div className="mt-10">
+    <div className="mt-10 lg:mt-0">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <Rocket size={16} style={{ color: "var(--accent)" }} />
@@ -815,7 +815,10 @@ export default function ProjectsPage() {
   });
 
   return (
-    <div className="space-y-5 max-w-2xl">
+    // Mobile is one scrolling feed; at lg the goal/project flow keeps the
+    // main column and the ship log becomes a sticky scorekeeping rail with
+    // its own scroll, so work and evidence are visible side by side.
+    <div className="space-y-5 max-w-2xl lg:max-w-6xl">
       {/* Header */}
       <div className="flex items-center justify-between gap-4 flex-wrap enter">
         <div>
@@ -852,6 +855,9 @@ export default function ProjectsPage() {
       <div className="enter" style={{ ["--enter-delay" as string]: "30ms" }}>
         <MomentumHero activeCount={activeCount} shipped30={shipped30} lastShip={lastShip} />
       </div>
+
+      <div className="flex flex-col gap-5 lg:grid lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-6 lg:items-start">
+      <div className="space-y-5 min-w-0">
 
       {/* Loose ends */}
       {looseEnds.length > 0 && (
@@ -956,7 +962,13 @@ export default function ProjectsPage() {
         </div>
       )}
 
-      <ShipLogSection entries={shipLog} projects={projects} onLog={logShip} onUpdate={updateEntry} />
+      </div>
+
+      {/* Scorekeeping rail on desktop; below the flow on mobile */}
+      <aside className="min-w-0 lg:sticky lg:top-6 lg:max-h-[calc(100vh-4.5rem)] lg:overflow-y-auto lg:pr-1">
+        <ShipLogSection entries={shipLog} projects={projects} onLog={logShip} onUpdate={updateEntry} />
+      </aside>
+      </div>
     </div>
   );
 }
