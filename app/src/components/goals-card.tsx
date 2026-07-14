@@ -29,14 +29,14 @@ export function GoalsCard() {
             This week
           </h2>
         </div>
-        <Link href="/goals" className="text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--accent)" }}>
+        <Link href="/projects" className="text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--accent)" }}>
           Goals
         </Link>
       </div>
 
       {!goal ? (
         <p className="text-sm" style={{ color: "var(--text-tertiary)" }}>
-          No active goal — <Link href="/goals" style={{ color: "var(--accent)" }}>set one</Link>.
+          No active goal — <Link href="/projects" style={{ color: "var(--accent)" }}>set one</Link>.
         </p>
       ) : (
         <>
@@ -47,7 +47,7 @@ export function GoalsCard() {
             if (commits.length === 0)
               return (
                 <p className="text-sm" style={{ color: "var(--text-tertiary)" }}>
-                  No commitments yet — <Link href="/goals" style={{ color: "var(--accent)" }}>plan the week</Link>.
+                  No commitments yet — <Link href="/projects" style={{ color: "var(--accent)" }}>plan the week</Link>.
                 </p>
               );
             return (

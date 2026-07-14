@@ -2,18 +2,20 @@
 
 import { useState, useEffect, useRef } from "react";
 import {
-  FolderKanban, Plus, Archive, MoreHorizontal, Rocket,
+  FolderKanban, Plus, Archive, MoreHorizontal, Rocket, Flag,
   ChevronDown, ChevronUp, AlertTriangle, Gauge, CalendarClock,
 } from "lucide-react";
 import { useProjects, WIP_LIMIT } from "@/lib/use-projects";
+import { useGoals } from "@/lib/use-goals";
 import { useShipLog } from "@/lib/use-ship-log";
 import { useTasks } from "@/lib/use-tasks";
 import { useToast } from "@/components/toast";
 import { Skeleton } from "@/components/skeleton";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { CountUp } from "@/components/count-up";
-import type { Project, ProjectStatus, AreaId, Task, ShipLogEntry } from "@/lib/types";
-import { AREAS } from "@/lib/types";
+import { GoalSection, GoalEditor, GOAL_STATE_RANK } from "@/components/goal-section";
+import type { Project, ProjectStatus, AreaId, Task, ShipLogEntry, Goal } from "@/lib/types";
+import { AREAS, mondayOf, goalPlanState, commitmentsForWeek, localDayOf, withShipActivity } from "@/lib/types";
 import { TaskItem, TaskCreateForm } from "@/components/task-list";
 
 // --- Status metadata ---
@@ -198,13 +200,19 @@ function LooseEnds({ items }: { items: { project: Project; reason: string }[] })
 
 // --- Create form ---
 
-function ProjectCreateForm({ onSubmit, onCancel }: { onSubmit: (data: Omit<Project, "id" | "createdAt" | "updatedAt">) => void; onCancel: () => void }) {
+function ProjectCreateForm({ goals, defaultGoalId, onSubmit, onCancel }: {
+  goals: Goal[];
+  defaultGoalId?: string;
+  onSubmit: (data: Omit<Project, "id" | "createdAt" | "updatedAt">) => void;
+  onCancel: () => void;
+}) {
   const [title, setTitle] = useState("");
   const [area, setArea] = useState<AreaId | "">("");
   const [status, setStatus] = useState<ProjectStatus>("planning");
   const [nextAction, setNextAction] = useState("");
   const [shippingEvent, setShippingEvent] = useState("");
   const [targetDate, setTargetDate] = useState("");
+  const [goalId, setGoalId] = useState(defaultGoalId ?? "");
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -216,6 +224,7 @@ function ProjectCreateForm({ onSubmit, onCancel }: { onSubmit: (data: Omit<Proje
       nextAction: nextAction.trim() || undefined,
       shippingEvent: shippingEvent.trim() || undefined,
       targetDate: targetDate ? new Date(targetDate) : undefined,
+      goalId: goalId || undefined,
       linkedTaskIds: [],
     });
   };
@@ -232,6 +241,11 @@ function ProjectCreateForm({ onSubmit, onCancel }: { onSubmit: (data: Omit<Proje
         placeholder="Shipping event — what leaves the machine, to whom? (required to be Active)"
         className="w-full text-xs outline-none rounded-lg px-3 py-2" style={field} />
       <div className="flex flex-wrap items-center gap-2">
+        <select value={goalId} onChange={(e) => setGoalId(e.target.value)}
+          className="text-xs rounded-lg px-2 py-1.5 outline-none max-w-[180px]" style={field}>
+          <option value="">No goal</option>
+          {goals.map((g) => (<option key={g.id} value={g.id}>{g.title}</option>))}
+        </select>
         <select value={area} onChange={(e) => setArea(e.target.value as AreaId | "")}
           className="text-xs rounded-lg px-2 py-1.5 outline-none" style={field}>
           <option value="">No area</option>
@@ -320,10 +334,11 @@ function ArchiveDialog({
 }
 
 function ProjectCard({
-  project, tasks, lastShip, hero, onUpdate, onDelete, onTaskUpdate, onTaskDelete, onTaskCreate,
+  project, tasks, goals, lastShip, hero, onUpdate, onDelete, onTaskUpdate, onTaskDelete, onTaskCreate,
 }: {
   project: Project;
   tasks: Task[];
+  goals: Goal[];
   lastShip: Date | null;
   hero?: boolean;
   onUpdate: (id: string, data: Partial<Project>) => void;
@@ -496,6 +511,20 @@ function ProjectCard({
 
       {expanded && (
         <div className="px-4 pb-4 border-t enter" style={{ borderColor: "var(--border-primary)" }}>
+          {/* Goal link — which direction this project serves; ships roll up there */}
+          <div className="flex items-center gap-2 mt-3">
+            <Flag size={12} style={{ color: "var(--text-tertiary)" }} />
+            <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "var(--text-tertiary)" }}>Goal</span>
+            <select
+              value={project.goalId ?? ""}
+              onChange={(e) => onUpdate(project.id, { goalId: e.target.value } as Partial<Project>)}
+              className="text-xs rounded-lg px-2 py-1 outline-none max-w-[220px]"
+              style={{ background: "var(--bg-tertiary)", color: "var(--text-primary)", border: "1px solid var(--border-primary)" }}
+            >
+              <option value="">No goal</option>
+              {goals.map((g) => (<option key={g.id} value={g.id}>{g.title}</option>))}
+            </select>
+          </div>
           <div className="flex items-center justify-between mt-3 mb-2">
             <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "var(--text-tertiary)" }}>
               Linked tasks ({totalTasks})
@@ -714,11 +743,14 @@ function GroupHeader({ color, label, count }: { color: string; label: string; co
 
 export default function ProjectsPage() {
   const { projects, loading, createProject, updateProject, deleteProject } = useProjects();
+  const { goals, createGoal } = useGoals();
   const { entries: shipLog, logShip, updateEntry } = useShipLog();
   const { tasks, updateTask, deleteTask, createTask } = useTasks();
   const { toast } = useToast();
   const [showForm, setShowForm] = useState(false);
+  const [showGoalForm, setShowGoalForm] = useState(false);
   const [showDone, setShowDone] = useState(false);
+  const [showDoneGoals, setShowDoneGoals] = useState(false);
 
   const handleProjectUpdate = async (id: string, data: Partial<Project>) => {
     try {
@@ -755,11 +787,42 @@ export default function ProjectsPage() {
     if (!prev || d > prev) lastShipByProject.set(e.projectId, d);
   }
 
-  const byStatus = (s: ProjectStatus) => projects.filter((p) => p.status === s);
-  const activeP = byStatus("active");
-  const pipelineP = [...byStatus("planning"), ...byStatus("paused")];
-  const doneP = byStatus("completed");
-  const anyLive = projects.some((p) => p.status !== "archived");
+  // --- Goal ⇄ project integration --------------------------------------
+  // Goals set the quarter's direction; projects are the vehicles that ship
+  // it. The page groups live projects under the goal they serve, and ships
+  // logged against those projects count as activity on the goal.
+
+  const projectById = new Map(projects.map((p) => [p.id, p]));
+  const shipDatesByGoal = new Map<string, string[]>();
+  for (const e of shipLog) {
+    if (!e.projectId || !e.date) continue;
+    const gid = projectById.get(e.projectId)?.goalId;
+    if (!gid) continue;
+    if (!shipDatesByGoal.has(gid)) shipDatesByGoal.set(gid, []);
+    shipDatesByGoal.get(gid)!.push(localDayOf(new Date(e.date)));
+  }
+
+  const week = mondayOf();
+  const activeGoals = goals.filter((g) => g.status === "active");
+  const doneGoals = goals.filter((g) => g.status !== "active");
+  // Goals that need a decision surface first (ships included in the readout).
+  const rankGoal = (g: Goal) =>
+    GOAL_STATE_RANK[goalPlanState(withShipActivity(g, shipDatesByGoal.get(g.id) ?? []), week)];
+  const goalsSorted = [...activeGoals].sort((a, b) => rankGoal(a) - rankGoal(b));
+
+  const goalIds = new Set(activeGoals.map((g) => g.id));
+  const statusOrder: Record<ProjectStatus, number> = { active: 0, planning: 1, paused: 2, completed: 3, archived: 4 };
+  const live = projects
+    .filter((p) => p.status === "active" || p.status === "planning" || p.status === "paused")
+    .sort((a, b) => statusOrder[a.status] - statusOrder[b.status]);
+  const projectsForGoal = (gid: string) => live.filter((p) => p.goalId === gid);
+  const unaligned = live.filter((p) => !p.goalId || !goalIds.has(p.goalId));
+  const doneP = projects.filter((p) => p.status === "completed");
+  const anyLive = live.length > 0 || activeGoals.length > 0;
+
+  // Week-at-a-glance across active goals (header readout).
+  const weekCommits = activeGoals.flatMap((g) => commitmentsForWeek(g, week));
+  const weekDone = weekCommits.filter((c) => c.done).length;
 
   // Loose ends across in-flight projects (always on, not Sun/Mon-gated)
   const looseEnds = projects
@@ -770,7 +833,7 @@ export default function ProjectsPage() {
     .filter((x): x is { project: Project; reason: string } => x !== null);
 
   const cardProps = (p: Project, hero = false) => ({
-    project: p, tasks, lastShip: lastShipByProject.get(p.id) ?? null, hero,
+    project: p, tasks, goals: activeGoals, lastShip: lastShipByProject.get(p.id) ?? null, hero,
     onUpdate: handleProjectUpdate, onDelete: deleteProject,
     onTaskUpdate: updateTask, onTaskDelete: deleteTask, onTaskCreate: createTask,
   });
@@ -783,16 +846,30 @@ export default function ProjectsPage() {
           <h1 className="text-2xl font-semibold flex items-center gap-2" style={{ color: "var(--text-primary)" }}>
             <FolderKanban size={22} style={{ color: "var(--accent)" }} /> Projects
           </h1>
-          <p className="text-xs mt-1" style={{ color: "var(--text-tertiary)" }}>
-            What&apos;s in flight, and what&apos;s leaving the machine.
+          <p className="text-xs mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5" style={{ color: "var(--text-tertiary)" }}>
+            <span>Goals set the direction · projects ship it · the ship log keeps score.</span>
+            {weekCommits.length > 0 && (
+              <span className="font-mono" style={{ color: "var(--text-secondary)" }}>
+                {weekDone}/{weekCommits.length} committed this week
+              </span>
+            )}
           </p>
         </div>
-        {!showForm && (
-          <button onClick={() => setShowForm(true)}
-            className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium bg-sage-400 text-white hover:bg-sage-500 transition-colors active:scale-[0.97]">
-            <Plus size={15} /> New project
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {!showGoalForm && (
+            <button onClick={() => setShowGoalForm(true)}
+              className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-[background,transform] duration-150 active:scale-[0.97]"
+              style={{ color: "var(--accent)", background: "var(--accent-bg)" }}>
+              <Flag size={15} /> New goal
+            </button>
+          )}
+          {!showForm && (
+            <button onClick={() => setShowForm(true)}
+              className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium bg-sage-400 text-white hover:bg-sage-500 transition-colors active:scale-[0.97]">
+              <Plus size={15} /> New project
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Momentum */}
@@ -807,8 +884,12 @@ export default function ProjectsPage() {
         </div>
       )}
 
+      {showGoalForm && (
+        <GoalEditor onCancel={() => setShowGoalForm(false)}
+          onSave={(data) => { createGoal(data); setShowGoalForm(false); toast("Goal created"); }} />
+      )}
       {showForm && (
-        <ProjectCreateForm onSubmit={handleProjectCreate} onCancel={() => setShowForm(false)} />
+        <ProjectCreateForm goals={activeGoals} onSubmit={handleProjectCreate} onCancel={() => setShowForm(false)} />
       )}
 
       {/* Loading skeletons */}
@@ -819,33 +900,44 @@ export default function ProjectsPage() {
       )}
 
       {/* Empty */}
-      {!loading && !anyLive && !showForm && (
+      {!loading && !anyLive && !showForm && !showGoalForm && (
         <div className="flex flex-col items-center justify-center py-16 rounded-xl text-center enter"
           style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-primary)" }}>
           <FolderKanban size={44} style={{ color: "var(--text-tertiary)" }} className="mb-4" />
-          <p className="text-lg font-medium" style={{ color: "var(--text-primary)" }}>No projects yet</p>
-          <p className="text-sm mt-1" style={{ color: "var(--text-secondary)" }}>
-            Create one, name its shipping event, then get it out the door.
+          <p className="text-lg font-medium" style={{ color: "var(--text-primary)" }}>Nothing in flight</p>
+          <p className="text-sm mt-1 max-w-sm" style={{ color: "var(--text-secondary)" }}>
+            Set a goal for the quarter, hang a project on it, name the shipping event, then get it out the door.
           </p>
         </div>
       )}
 
-      {/* Active — the hero set */}
-      {activeP.length > 0 && (
-        <div className="enter" style={{ ["--enter-delay" as string]: "90ms" }}>
-          <GroupHeader color="#7C9E8A" label="Active" count={activeP.length} />
-          <div className="space-y-3">
-            {activeP.map((p) => <ProjectCard key={p.id} {...cardProps(p, true)} />)}
-          </div>
-        </div>
-      )}
+      {/* Goals — each with the projects that serve it nested beneath */}
+      {goalsSorted.map((g, i) => {
+        const gp = projectsForGoal(g.id);
+        return (
+          <GoalSection
+            key={g.id}
+            goal={g}
+            shipDates={shipDatesByGoal.get(g.id) ?? []}
+            delay={90 + Math.min(i * 40, 200)}
+            projectCount={gp.length}
+          >
+            {gp.map((p) => <ProjectCard key={p.id} {...cardProps(p, p.status === "active")} />)}
+          </GoalSection>
+        );
+      })}
 
-      {/* Pipeline — planning + paused */}
-      {pipelineP.length > 0 && (
+      {/* Unaligned — live projects serving no goal. Not a crime, but a question. */}
+      {unaligned.length > 0 && (
         <div className="enter" style={{ ["--enter-delay" as string]: "120ms" }}>
-          <GroupHeader color="#64748B" label="Pipeline" count={pipelineP.length} />
+          <GroupHeader color="#64748B" label={activeGoals.length > 0 ? "No goal" : "Projects"} count={unaligned.length} />
+          {activeGoals.length > 0 && (
+            <p className="text-[11px] mb-2 -mt-1" style={{ color: "var(--text-tertiary)" }}>
+              These serve no goal — link them (expand a card) or ask why they&apos;re in flight.
+            </p>
+          )}
           <div className="space-y-2">
-            {pipelineP.map((p) => <ProjectCard key={p.id} {...cardProps(p)} />)}
+            {unaligned.map((p) => <ProjectCard key={p.id} {...cardProps(p, p.status === "active")} />)}
           </div>
         </div>
       )}
@@ -863,6 +955,26 @@ export default function ProjectsPage() {
           {showDone && (
             <div className="space-y-2 enter">
               {doneP.map((p) => <ProjectCard key={p.id} {...cardProps(p)} />)}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Done/dropped goals — collapsed archive with reactivate inside */}
+      {doneGoals.length > 0 && (
+        <div>
+          <button onClick={() => setShowDoneGoals((s) => !s)}
+            className="flex items-center gap-2 mb-2 transition-transform duration-150 active:scale-[0.98]">
+            <span className="h-2 w-2 rounded-full" style={{ background: "var(--text-tertiary)" }} />
+            <span className="text-xs font-bold uppercase tracking-widest" style={{ color: "var(--text-secondary)" }}>Past goals</span>
+            <span className="text-xs font-mono" style={{ color: "var(--text-tertiary)" }}>{doneGoals.length}</span>
+            {showDoneGoals ? <ChevronUp size={14} style={{ color: "var(--text-tertiary)" }} /> : <ChevronDown size={14} style={{ color: "var(--text-tertiary)" }} />}
+          </button>
+          {showDoneGoals && (
+            <div className="space-y-2 enter">
+              {doneGoals.map((g) => (
+                <GoalSection key={g.id} goal={g} shipDates={shipDatesByGoal.get(g.id) ?? []} delay={0} projectCount={0} nest={false} />
+              ))}
             </div>
           )}
         </div>

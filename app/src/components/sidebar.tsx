@@ -6,7 +6,6 @@ import { useEffect } from "react";
 import {
   LayoutDashboard,
   FolderKanban,
-  Flag,
   Settings,
   ChevronsLeft,
   ChevronsRight,
@@ -31,7 +30,6 @@ const NAV_ITEMS = [
   { href: "/", label: "Today", icon: LayoutDashboard },
   { href: "/decide", label: "Decide", icon: Layers },
   { href: "/projects", label: "Projects", icon: FolderKanban },
-  { href: "/goals", label: "Goals", icon: Flag },
   { href: "/content", label: "Content", icon: Clapperboard },
   { href: "/voice", label: "Voice", icon: Mic },
   { href: "/news", label: "News", icon: Newspaper },

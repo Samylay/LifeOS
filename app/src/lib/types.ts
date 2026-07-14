@@ -58,6 +58,10 @@ export interface Project {
   // One-line reason recorded when a project is archived from active/planning.
   // Kills are allowed and healthy, but they're a logged decision, not drift.
   killReason?: string;
+  // Quarterly goal this project serves. Projects and goals share one surface:
+  // a project without a goal is "unaligned" and gets nudged, and ships logged
+  // against the project count as activity on the goal.
+  goalId?: string;
   linkedTaskIds: string[];
   createdAt: Date;
   // Last time any field was edited (status, next action, tasks, etc.). Distinct
@@ -559,6 +563,25 @@ export function goalPlanState(goal: Goal, weekOf: string, now: Date = new Date()
   if (days !== null && days <= STALE_AFTER_DAYS) return "in-motion";
   if (days !== null && days > STALE_AFTER_DAYS) return "stale";
   return "planned";
+}
+
+/** Local YYYY-MM-DD for a date (session keys are local-day strings). */
+export function localDayOf(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+/**
+ * A goal with ship-log activity folded into its sessions. Ships logged against
+ * a project that serves this goal ARE work on the goal, so every session-based
+ * readout (plan state, staleness, sparkline, "last worked") sees them without
+ * double bookkeeping. Pure — never persisted back.
+ */
+export function withShipActivity(goal: Goal, shipDates: string[]): Goal {
+  if (shipDates.length === 0) return goal;
+  return {
+    ...goal,
+    sessions: [...goal.sessions, ...shipDates.map((date) => ({ date, note: "ship" }))],
+  };
 }
 
 // --- Daily Prime (morning priming ritual) ---
