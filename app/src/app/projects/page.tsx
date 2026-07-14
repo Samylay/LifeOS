@@ -253,6 +253,72 @@ function ProjectCreateForm({ onSubmit, onCancel }: { onSubmit: (data: Omit<Proje
 
 // --- Project Card ---
 
+// Kill-reason capture for in-flight projects — a real dialog (not window.prompt).
+// The reason is optional but nudged: a kill is a logged decision, not silent drift.
+function ArchiveDialog({
+  open, title, onConfirm, onCancel,
+}: {
+  open: boolean;
+  title: string;
+  onConfirm: (reason: string | undefined) => void;
+  onCancel: () => void;
+}) {
+  const [reason, setReason] = useState("");
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const t = setTimeout(() => inputRef.current?.focus(), 0);
+    const onEsc = (e: KeyboardEvent) => { if (e.key === "Escape") onCancel(); };
+    document.addEventListener("keydown", onEsc);
+    return () => { clearTimeout(t); document.removeEventListener("keydown", onEsc); };
+  }, [open, onCancel]);
+
+  if (!open) return null;
+  const submit = () => { onConfirm(reason.trim() || undefined); setReason(""); };
+  const cancel = () => { setReason(""); onCancel(); };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: "rgba(0,0,0,0.5)" }} onClick={cancel}>
+      <div className="rounded-xl p-6 max-w-sm w-full mx-4 pop-in origin-center"
+        style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-primary)", boxShadow: "var(--shadow-lg)" }}
+        onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center gap-3 mb-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full" style={{ background: "#F59E0B15" }}>
+            <Archive size={18} style={{ color: "#F59E0B" }} />
+          </div>
+          <h3 className="text-base font-semibold" style={{ color: "var(--text-primary)" }}>Archive project</h3>
+        </div>
+        <p className="text-sm mb-3" style={{ color: "var(--text-secondary)" }}>
+          Killing <span className="font-medium" style={{ color: "var(--text-primary)" }}>&ldquo;{title}&rdquo;</span> is fine — but log why, so it&rsquo;s a decision, not drift.
+        </p>
+        <textarea
+          ref={inputRef}
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) submit(); }}
+          rows={2}
+          placeholder="One-line reason (optional)"
+          className="w-full rounded-lg px-3 py-2 text-sm resize-none mb-5 outline-none focus:ring-1"
+          style={{ background: "var(--bg-tertiary)", color: "var(--text-primary)", border: "1px solid var(--border-primary)" }}
+        />
+        <div className="flex justify-end gap-2">
+          <button onClick={cancel}
+            className="rounded-lg px-4 py-2 text-sm font-medium transition-transform duration-150 active:scale-[0.97]"
+            style={{ background: "var(--bg-tertiary)", color: "var(--text-secondary)" }}>
+            Cancel
+          </button>
+          <button onClick={submit}
+            className="rounded-lg px-4 py-2 text-sm font-medium text-white transition-transform duration-150 active:scale-[0.97]"
+            style={{ background: "#F59E0B" }}>
+            Archive
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ProjectCard({
   project, tasks, lastShip, hero, onUpdate, onDelete, onTaskUpdate, onTaskDelete, onTaskCreate,
 }: {
@@ -270,6 +336,7 @@ function ProjectCard({
   const [showMenu, setShowMenu] = useState(false);
   const [showTaskForm, setShowTaskForm] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [showArchive, setShowArchive] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -405,15 +472,11 @@ function ProjectCard({
                   onClick={() => {
                     setShowMenu(false);
                     // Kills are fine, but they're a decision: in-flight projects
-                    // don't get archived without a logged reason.
+                    // don't get archived without a logged reason (captured in a
+                    // real dialog); anything else archives straight away.
                     const inFlight = project.status === "active" || project.status === "planning";
-                    let killReason: string | undefined;
-                    if (inFlight) {
-                      const reason = window.prompt("One-line reason for killing this project:");
-                      if (reason === null) return;
-                      killReason = reason.trim() || undefined;
-                    }
-                    onUpdate(project.id, { status: "archived" as ProjectStatus, ...(killReason ? { killReason } : {}) });
+                    if (inFlight) setShowArchive(true);
+                    else onUpdate(project.id, { status: "archived" as ProjectStatus });
                   }}
                   className="w-full text-left text-xs px-3 py-1.5 flex items-center gap-2 hover:bg-[var(--bg-tertiary)] transition-colors"
                   style={{ color: "var(--text-secondary)" }}>
@@ -468,6 +531,15 @@ function ProjectCard({
         message={`Delete "${project.title}" and all its data? This cannot be undone.`}
         onConfirm={() => { onDelete(project.id); setConfirmDelete(false); }}
         onCancel={() => setConfirmDelete(false)}
+      />
+      <ArchiveDialog
+        open={showArchive}
+        title={project.title}
+        onConfirm={(reason) => {
+          onUpdate(project.id, { status: "archived" as ProjectStatus, ...(reason ? { killReason: reason } : {}) });
+          setShowArchive(false);
+        }}
+        onCancel={() => setShowArchive(false)}
       />
     </div>
   );
