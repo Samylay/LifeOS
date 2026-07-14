@@ -29,6 +29,7 @@ import {
   goalPlanState,
   lastSessionDaysAgo,
   type Goal,
+  type GoalSession,
   type GoalPlanState,
 } from "@/lib/types";
 
@@ -146,6 +147,38 @@ function GoalEditor({
 
 // --- Goal card ---
 
+// 4-week activity strip from logged sessions — one bar per day, lit on days
+// with a session (brighter for multiple). A quiet momentum readout, static by
+// design (a readout, not a control).
+function SessionSparkline({ sessions }: { sessions: GoalSession[] }) {
+  const DAYS = 28;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const counts = new Map<string, number>();
+  for (const s of sessions) counts.set(s.date, (counts.get(s.date) ?? 0) + 1);
+  const cols = Array.from({ length: DAYS }, (_, i) => {
+    const d = new Date(today);
+    d.setDate(d.getDate() - (DAYS - 1 - i));
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    return counts.get(key) ?? 0;
+  });
+  return (
+    <div className="flex items-end gap-[3px] h-5" aria-label={`Session activity, last ${DAYS} days`}>
+      {cols.map((c, i) => (
+        <span
+          key={i}
+          className="flex-1 rounded-[2px]"
+          style={{
+            height: c > 0 ? "100%" : "24%",
+            background: c > 0 ? "var(--accent)" : "var(--bg-tertiary)",
+            opacity: c > 0 ? Math.min(1, 0.45 + c * 0.28) : 1,
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
 function GoalCard({ goal, delay }: { goal: Goal; delay: number }) {
   const { updateGoal, deleteGoal, addCommitment, toggleCommitment, removeCommitment, toggleMilestone, logSession, draftPlan } = useGoals();
   const { toast } = useToast();
@@ -240,6 +273,7 @@ function GoalCard({ goal, delay }: { goal: Goal; delay: number }) {
           {sessions} session{sessions === 1 ? "" : "s"} this week
           {lastAgo !== null && ` · last worked ${lastAgo === 0 ? "today" : `${lastAgo}d ago`}`}
         </p>
+        {goal.sessions.length > 0 && <SessionSparkline sessions={goal.sessions} />}
       </div>
 
       {/* Face CTA: close the vague→decided gap without expanding */}
