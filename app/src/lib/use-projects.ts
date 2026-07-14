@@ -18,7 +18,7 @@ export const WIP_LIMIT = 3;
 export function useProjects() {
   const { items: projects, loading, create, update, remove } = useCollection<Project>(
     "projects",
-    { orderByField: "createdAt", orderDir: "desc", fallbackDates: ["createdAt"] }
+    { orderByField: "createdAt", orderDir: "desc", fallbackDates: ["createdAt", "updatedAt"] }
   );
 
   const activeCount = useCallback(
@@ -28,7 +28,7 @@ export function useProjects() {
   );
 
   const createProject = useCallback(
-    async (data: Omit<Project, "id" | "createdAt">) => {
+    async (data: Omit<Project, "id" | "createdAt" | "updatedAt">) => {
       if (data.status === "active") {
         if (!data.shippingEvent?.trim()) {
           throw new Error("An active project needs a shipping event — name what leaving the machine looks like, or start it in Planning.");
@@ -37,7 +37,8 @@ export function useProjects() {
           throw new Error(`WIP limit: ${WIP_LIMIT} active projects. Ship or kill one first.`);
         }
       }
-      return await create({ ...data, createdAt: new Date() });
+      const now = new Date();
+      return await create({ ...data, createdAt: now, updatedAt: now });
     },
     [create, activeCount]
   );
@@ -57,7 +58,7 @@ export function useProjects() {
           }
         }
       }
-      await update(id, data);
+      await update(id, { ...data, updatedAt: new Date() });
     },
     [update, projects, activeCount]
   );

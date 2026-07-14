@@ -60,6 +60,11 @@ export interface Project {
   killReason?: string;
   linkedTaskIds: string[];
   createdAt: Date;
+  // Last time any field was edited (status, next action, tasks, etc.). Distinct
+  // from ship-log recency: a project can be actively worked without shipping.
+  // Stamped on every write in use-projects.ts; backfilled from createdAt for
+  // legacy docs via fallbackDates.
+  updatedAt: Date;
 }
 
 // One row per thing that left the machine. The predicted-vs-actual pair is

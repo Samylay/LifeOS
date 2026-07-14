@@ -149,7 +149,7 @@ function LooseEnds({ items }: { items: { project: Project; reason: string }[] })
 
 // --- Create form ---
 
-function ProjectCreateForm({ onSubmit, onCancel }: { onSubmit: (data: Omit<Project, "id" | "createdAt">) => void; onCancel: () => void }) {
+function ProjectCreateForm({ onSubmit, onCancel }: { onSubmit: (data: Omit<Project, "id" | "createdAt" | "updatedAt">) => void; onCancel: () => void }) {
   const [title, setTitle] = useState("");
   const [area, setArea] = useState<AreaId | "">("");
   const [status, setStatus] = useState<ProjectStatus>("planning");
@@ -307,9 +307,14 @@ function ProjectCard({
           )}
 
           <div className="flex items-center gap-3 mt-2">
-            {sinceShip !== null && (
+            {sinceShip !== null ? (
               <span className="text-[11px]" style={{ color: sinceShip > 14 ? "#F59E0B" : "var(--text-tertiary)" }}>
                 Last ship {sinceShip}d ago
+              </span>
+            ) : project.updatedAt && (
+              // No ship yet — fall back to last-touched so the card still shows recency.
+              <span className="text-[11px]" style={{ color: "var(--text-tertiary)" }}>
+                Updated {daysSince(new Date(project.updatedAt))}d ago
               </span>
             )}
             {project.targetDate && (
@@ -602,7 +607,7 @@ export default function ProjectsPage() {
     }
   };
 
-  const handleProjectCreate = async (data: Omit<Project, "id" | "createdAt">) => {
+  const handleProjectCreate = async (data: Omit<Project, "id" | "createdAt" | "updatedAt">) => {
     try {
       await createProject(data);
       setShowForm(false);
