@@ -339,7 +339,8 @@ export function CardStack<T extends { id: string }>({
         {voice === "recording" ? "recording…" : voice === "transcribing" ? "thinking…" : ""}
       </p>
       <p className="text-center text-xs" style={{ color: "var(--text-tertiary)" }}>
-        {items.length} to decide · swipe or use the buttons — voice for anything nuanced
+        {items.length} to decide · swipe or use the buttons
+        {interpret ? " — voice for anything nuanced" : ""}
       </p>
     </div>
   );

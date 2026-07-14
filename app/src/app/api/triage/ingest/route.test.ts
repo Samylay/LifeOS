@@ -56,7 +56,7 @@ describe("POST /api/triage/ingest — folder hint", () => {
       req({ url: "https://example.com/long", folder: "x".repeat(200) }),
     );
     const { id } = await res.json();
-    const doc = getDoc(COLLECTION, id) as { folder: string };
+    const doc = getDoc(COLLECTION, id) as unknown as { folder: string };
     expect(doc.folder).toHaveLength(80);
   });
 });

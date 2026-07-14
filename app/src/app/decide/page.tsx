@@ -1,20 +1,26 @@
 "use client";
 
-// /decide — the decision deck. Two stacks of swipeable cards sharing one
+// /decide — the decision deck. Three stacks of swipeable cards sharing one
 // gesture component: "Saved" (bookmark/save triage with category-specific
-// assessments) and "Approvals" (NEEDS-SAMY asks aggregated from every
-// ROADMAP.md). Swipe right = approve, left = discard/reject; buttons for the
-// finer verdicts; voice for anything nuanced.
+// assessments), "Approvals" (NEEDS-SAMY asks aggregated from every
+// ROADMAP.md), and "Shelf" (the one-off Firefox bookmark backfill — every
+// card is a proposed drop, so right = rescue). Swipe right = approve/keep,
+// left = discard/reject; buttons for the finer verdicts; voice for anything
+// nuanced.
+//
+// Shelf is temporary by design: when the backfill deck empties it stays empty,
+// and the tab hides itself.
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { Archive, Check, Clock, Lightbulb, ListTodo, MessageCircleQuestion, Layers, Sparkles, X } from "lucide-react";
+import { Archive, Check, Clock, Lightbulb, ListTodo, MessageCircleQuestion, Layers, Sparkles, Trash2, X } from "lucide-react";
 import { CardStack, type DeckAction } from "@/components/decide/card-stack";
 import { TriageCard, type TriageQueueItem } from "@/components/decide/triage-card";
 import { DecisionCard } from "@/components/decide/decision-card";
+import { BookmarkCard, type BackfillDeckItem } from "@/components/decide/bookmark-card";
 import { BulkApprovalBar } from "@/components/decide/bulk-approval-bar";
 import type { DecisionItem } from "@/lib/decisions";
 
-type Deck = "saved" | "approvals";
+type Deck = "saved" | "approvals" | "shelf";
 
 const TRIAGE_ACTIONS: DeckAction[] = [
   { id: "discard", label: "Discard", icon: X, direction: "left", tone: "danger" },
@@ -22,6 +28,14 @@ const TRIAGE_ACTIONS: DeckAction[] = [
   { id: "idea-bank", label: "Idea", icon: Lightbulb, direction: "none", tone: "neutral" },
   { id: "backlog", label: "Backlog", icon: ListTodo, direction: "none", tone: "neutral" },
   { id: "approve", label: "Approve", icon: Check, direction: "right", tone: "success" },
+];
+
+// Inverted on purpose: the cull already proposed "drop" on every card here,
+// so the deck's job is to catch the ones it got wrong. Right/keep is the
+// rescue, and it's the success-toned action because it's the one that matters.
+const BACKFILL_ACTIONS: DeckAction[] = [
+  { id: "drop", label: "Drop", icon: Trash2, direction: "left", tone: "danger" },
+  { id: "keep", label: "Keep", icon: Check, direction: "right", tone: "success" },
 ];
 
 const DECISION_ACTIONS: DeckAction[] = [
@@ -46,15 +60,18 @@ export default function DecidePage() {
   const [deck, setDeck] = useState<Deck>("saved");
   const [triage, setTriage] = useState<TriageQueueItem[]>([]);
   const [decisions, setDecisions] = useState<DecisionItem[]>([]);
+  const [shelf, setShelf] = useState<BackfillDeckItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(async () => {
-    const [t, d] = await Promise.all([
+    const [t, d, s] = await Promise.all([
       fetch("/api/triage/queue").then((r) => r.json()).catch(() => ({ items: [] })),
       fetch("/api/decide/queue").then((r) => r.json()).catch(() => ({ items: [] })),
+      fetch("/api/triage/backfill").then((r) => r.json()).catch(() => ({ items: [] })),
     ]);
     setTriage(t.items ?? []);
     setDecisions(d.items ?? []);
+    setShelf(s.items ?? []);
     setLoading(false);
   }, []);
   useEffect(() => { refresh(); }, [refresh]);
@@ -62,6 +79,12 @@ export default function DecidePage() {
   const tabs: { id: Deck; label: string; count: number }[] = [
     { id: "saved", label: "Saved", count: triage.length },
     { id: "approvals", label: "Approvals", count: decisions.length },
+    // The backfill is one-off: once drained, the tab stops existing rather
+    // than sitting there empty forever — but it stays while he's standing on
+    // it, so finishing the last card doesn't yank the tab out from under him.
+    ...(shelf.length > 0 || deck === "shelf"
+      ? [{ id: "shelf" as Deck, label: "Shelf", count: shelf.length }]
+      : []),
   ];
 
   return (
@@ -112,6 +135,20 @@ export default function DecidePage() {
             return d.reply || d.result;
           }}
           emptyLabel="Saved queue is clear — new captures get studied nightly at 00:30."
+        />
+      ) : deck === "shelf" ? (
+        <CardStack
+          items={shelf}
+          renderCard={(item) => <BookmarkCard item={item} />}
+          actions={BACKFILL_ACTIONS}
+          swipeLeftId="drop"
+          swipeRightId="keep"
+          perform={async (item, actionId) =>
+            (await post("/api/triage/backfill/verdict", { id: item.id, action: actionId })).result}
+          onResolved={(item) => setShelf((xs) => xs.filter((x) => x.id !== item.id))}
+          undo={async (item) => { await post("/api/triage/backfill/restore", { id: item.id }); }}
+          onRestore={(item) => setShelf((xs) => [item, ...xs.filter((x) => x.id !== item.id)])}
+          emptyLabel="Shelf reviewed — the old bookmark backlog is cleared."
         />
       ) : (
         <div className="space-y-4">
