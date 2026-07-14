@@ -491,6 +491,57 @@ export function sessionsThisWeekForGoal(goal: Goal, weekOf: string): number {
   return goal.sessions.filter((s) => s.date >= weekOf).length;
 }
 
+// A goal moves through three planning checkpoints — a crisp outcome, a set of
+// milestones, and a concrete commitment for this week. `plan-state` collapses
+// those (plus recent activity) into one label so a vague wish never looks like
+// a decided plan on the card face.
+export type GoalPlanState = "unplanned" | "planned" | "in-motion" | "stale";
+
+export interface GoalReadiness {
+  hasOutcome: boolean;
+  hasMilestones: boolean;
+  hasWeek: boolean;
+  weekCommits: GoalCommitment[];
+  /** How many of the three planning checkpoints are met (0-3). */
+  score: number;
+}
+
+/** Which of the outcome / milestones / this-week checkpoints a goal has met. */
+export function goalReadiness(goal: Goal, weekOf: string): GoalReadiness {
+  const hasOutcome = !!goal.outcome?.trim();
+  const hasMilestones = goal.milestones.length > 0;
+  const weekCommits = commitmentsForWeek(goal, weekOf);
+  const hasWeek = weekCommits.length > 0;
+  return {
+    hasOutcome,
+    hasMilestones,
+    hasWeek,
+    weekCommits,
+    score: [hasOutcome, hasMilestones, hasWeek].filter(Boolean).length,
+  };
+}
+
+/** Whole days since the most recent logged session, or null if never logged. */
+export function lastSessionDaysAgo(goal: Goal, now: Date = new Date()): number | null {
+  if (goal.sessions.length === 0) return null;
+  const latest = goal.sessions.map((s) => s.date).sort().at(-1)!;
+  const then = new Date(`${latest}T00:00:00`).getTime();
+  return Math.max(0, Math.floor((now.getTime() - then) / 86_400_000));
+}
+
+const STALE_AFTER_DAYS = 10;
+
+/** Collapse readiness + recent activity into a single plan-state label. */
+export function goalPlanState(goal: Goal, weekOf: string, now: Date = new Date()): GoalPlanState {
+  const { score, hasWeek } = goalReadiness(goal, weekOf);
+  if (score < 2) return "unplanned";
+  const days = lastSessionDaysAgo(goal, now);
+  if (hasWeek) return "in-motion";
+  if (days !== null && days <= STALE_AFTER_DAYS) return "in-motion";
+  if (days !== null && days > STALE_AFTER_DAYS) return "stale";
+  return "planned";
+}
+
 // --- Daily Prime (morning priming ritual) ---
 //
 // Two stacked steps run each morning: read-aloud affirmations, and one spoken
