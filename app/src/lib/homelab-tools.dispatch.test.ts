@@ -15,6 +15,7 @@ const { dispatchQueuedPrompts } = await import("./homelab-tools");
 
 const QUEUE = "users/local/promptQueue";
 const DISPATCH = "users/local/promptDispatch";
+const TRIAGE = "users/local/triageQueue";
 
 function seed(n: number, promptLen = 100) {
   for (let i = 0; i < n; i++) {
@@ -65,5 +66,27 @@ describe("dispatchQueuedPrompts batching", () => {
     expect(r.ok).toBe(true);
     if (!r.ok) return;
     expect(r.batchCount).toBe(3);
+  });
+
+  it("retires the source triage item (filed → done) when its prompt is dispatched", () => {
+    const itemId = createDoc(TRIAGE, { status: "filed", url: "https://x.com/i/status/1", filedAs: "approve" });
+    createDoc(QUEUE, {
+      itemId, title: "treated card", prompt: "act on this",
+      status: "queued", queuedAt: { __date: new Date().toISOString() },
+    });
+    const r = dispatchQueuedPrompts();
+    expect(r.ok).toBe(true);
+    expect(getDoc(TRIAGE, itemId)).toMatchObject({ status: "done" });
+  });
+
+  it("never clobbers a non-filed item (a late discard stays discarded)", () => {
+    const itemId = createDoc(TRIAGE, { status: "discarded", url: "https://x.com/i/status/2" });
+    createDoc(QUEUE, {
+      itemId, title: "discarded card", prompt: "act on this",
+      status: "queued", queuedAt: { __date: new Date().toISOString() },
+    });
+    const r = dispatchQueuedPrompts();
+    expect(r.ok).toBe(true);
+    expect(getDoc(TRIAGE, itemId)).toMatchObject({ status: "discarded" });
   });
 });

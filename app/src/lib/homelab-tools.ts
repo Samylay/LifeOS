@@ -33,7 +33,7 @@ export interface HomelabToolResult {
 const MAX_DISPATCH_CHARS = 24_000; // per merged brief (a lone giant item still gets its own)
 const MAX_DISPATCH_ITEMS = 8; // even small items cap per session so briefs stay actionable
 
-interface QueuedPrompt { id: string; title?: string; prompt?: string }
+interface QueuedPrompt { id: string; title?: string; prompt?: string; itemId?: string }
 
 // Greedily pack queued prompts into batches that each stay under the char and
 // item budgets. A single prompt over the char budget gets its own batch rather
@@ -92,6 +92,18 @@ export function dispatchQueuedPrompts():
     });
     for (const q of batch) {
       updateDoc(PROMPT_QUEUE, q.id, { status: "dispatched", dispatchId });
+      // Handing a card to Claude means it has been acted on — retire the source
+      // triage item so it leaves the Approved view (which lists only `filed`).
+      // Guard on `filed` so a re-dispatch or a manual discard is never clobbered.
+      if (q.itemId) {
+        const item = getDoc(TRIAGE_QUEUE, q.itemId);
+        if (item && item.status === "filed") {
+          updateDoc(TRIAGE_QUEUE, q.itemId, {
+            status: "done",
+            treatedAt: { __date: new Date().toISOString() },
+          });
+        }
+      }
     }
     dispatchIds.push(dispatchId);
   });

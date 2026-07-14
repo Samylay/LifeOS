@@ -3,7 +3,10 @@
 // (api/triage/ingest) and the nightly study step both build on these.
 
 export type TriageSource = "x" | "instagram" | "other";
-export type TriageStatus = "queued" | "proposed" | "filed" | "discarded";
+// "done" = an approved (filed) item that has been handed to Claude to act on
+// (dispatched from the Approved view); it drops off that page, which lists only
+// `filed`. Set programmatically in dispatchQueuedPrompts — never a swipe verdict.
+export type TriageStatus = "queued" | "proposed" | "filed" | "discarded" | "done";
 
 export type TriageCategory = "business-idea" | "ai-tip" | "ai-project" | "swe" | "other";
 
