@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import {
   FolderKanban, Plus, Archive, MoreHorizontal, Rocket, Flag,
-  ChevronDown, ChevronUp, AlertTriangle, Gauge, CalendarClock,
+  ChevronDown, ChevronUp, AlertTriangle,
 } from "lucide-react";
 import { useProjects, WIP_LIMIT } from "@/lib/use-projects";
 import { useGoals } from "@/lib/use-goals";
@@ -50,11 +50,13 @@ function looseEnd(p: Project, projectTasks: Task[]): string | null {
   return null;
 }
 
-// --- Momentum bar ---
-// The page's anchor: WIP against the limit, and whether things are actually
-// leaving the machine. Shipping beats grooming, so this sits above the list.
+// --- Momentum hero ---
+// The page's anchor, from the "LifeOS Mobile" design (claude.ai/design,
+// 2026-07-14): one dark sage card instead of three tiles — shipped/30d as the
+// hero number, days-since-ship with the coaching line, WIP pips. A readout,
+// not a control; deliberately the only dark element on the page.
 
-function MomentumBar({
+function MomentumHero({
   activeCount, shipped30, lastShip,
 }: {
   activeCount: number;
@@ -65,108 +67,54 @@ function MomentumBar({
   const sinceShip = lastShip ? daysSince(lastShip) : null;
   const cold = sinceShip === null || sinceShip > 7;
 
-  return (
-    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-      {/* WIP gauge */}
-      <StatTile
-        delay={0}
-        icon={<Gauge size={18} style={{ color: atLimit ? "#F59E0B" : "var(--accent)" }} />}
-        accent={atLimit ? "#F59E0B" : "var(--accent)"}
-        alert={atLimit}
-        stat={
-          <>
-            <CountUp value={activeCount} />
-            <span className="text-base font-normal align-baseline" style={{ color: "var(--text-tertiary)" }}>/{WIP_LIMIT}</span>
-          </>
-        }
-        label="active"
-      >
-        <div className="flex items-center gap-1 mt-2" aria-hidden>
-          {Array.from({ length: WIP_LIMIT }).map((_, i) => (
-            <span
-              key={i}
-              className="h-1.5 flex-1 rounded-full"
-              style={{
-                background: i < activeCount ? (atLimit ? "#F59E0B" : "var(--accent)") : "var(--bg-tertiary)",
-                transform: "scaleY(1)",
-                transformOrigin: "left",
-                transition: "background-color var(--dur-base) var(--ease-out-custom)",
-              }}
-            />
-          ))}
-        </div>
-      </StatTile>
+  const sinceLabel =
+    sinceShip === null ? "Nothing shipped yet" :
+    sinceShip === 0 ? "Shipped today" :
+    `${sinceShip} day${sinceShip === 1 ? "" : "s"} since last ship`;
+  const coach =
+    sinceShip === 0 ? "That's the job. Again tomorrow." :
+    cold ? "Nothing out the door this week — building is not shipping." :
+    "Building is not shipping. Keep the streak.";
 
-      {/* Shipped / 30d */}
-      <StatTile
-        delay={40}
-        icon={<Rocket size={18} style={{ color: shipped30 === 0 ? "#EF4444" : "var(--accent)" }} />}
-        accent={shipped30 === 0 ? "#EF4444" : "var(--accent)"}
-        alert={shipped30 === 0}
-        stat={<CountUp value={shipped30} />}
-        label="shipped / 30d"
-        sub="things that left the machine"
-      />
-
-      {/* Days since last ship */}
-      <StatTile
-        delay={80}
-        icon={<CalendarClock size={18} style={{ color: cold ? "#EF4444" : "var(--accent)" }} />}
-        accent={cold ? "#EF4444" : "var(--accent)"}
-        alert={cold}
-        stat={sinceShip === null ? "—" : <CountUp value={sinceShip} suffix="d" />}
-        label="since last ship"
-        sub={sinceShip === null ? "nothing logged yet" : "keep the streak warm"}
-      />
-    </div>
-  );
-}
-
-// Shared stat tile for the momentum bar. Number is the hero; a left accent
-// rail carries the health color (calm accent / red-amber alert). Staggered
-// .enter on mount, hover-lift for a touch of life. Non-interactive by design
-// (these are readouts, not links) so no press feedback.
-function StatTile({
-  icon, accent, alert, stat, label, sub, delay, children,
-}: {
-  icon: React.ReactNode;
-  accent: string;
-  alert: boolean;
-  stat: React.ReactNode;
-  label: string;
-  sub?: string;
-  delay: number;
-  children?: React.ReactNode;
-}) {
   return (
     <div
-      className="enter hover-lift relative min-w-0 overflow-hidden rounded-xl p-4 pl-5"
-      style={{
-        background: "var(--bg-secondary)",
-        border: "1px solid var(--border-primary)",
-        ["--enter-delay" as string]: `${delay}ms`,
-      }}
+      className="enter hover-lift relative overflow-hidden rounded-2xl p-5"
+      style={{ background: "linear-gradient(145deg,#33403C,#212924)", color: "#fff" }}
     >
-      {/* Health rail */}
-      <span
+      <div
         aria-hidden
-        className="absolute inset-y-0 left-0 w-1"
-        style={{ background: accent, opacity: alert ? 0.9 : 0.5 }}
+        className="absolute -top-16 -right-12 h-52 w-52 rounded-full"
+        style={{ background: "radial-gradient(circle, rgba(124,158,138,0.4), rgba(124,158,138,0) 70%)" }}
       />
-      <div className="flex items-start gap-3">
-        <div
-          className="flex h-9 w-9 items-center justify-center rounded-lg shrink-0"
-          style={{ background: alert ? `${accent === "var(--accent)" ? "var(--accent-bg)" : accent + "18"}` : "var(--accent-bg)" }}
-        >
-          {icon}
-        </div>
-        <div className="min-w-0">
-          <p className="text-2xl font-semibold leading-none tracking-tight tabular-nums" style={{ color: "var(--text-primary)" }}>
-            {stat}
+      <div className="relative flex items-center gap-5 flex-wrap">
+        <div className="shrink-0">
+          <p className="text-4xl font-bold leading-none tabular-nums">
+            <CountUp value={shipped30} />
           </p>
-          <p className="text-xs mt-1.5 font-medium" style={{ color: "var(--text-secondary)" }}>{label}</p>
-          {sub && <p className="text-xs mt-0.5" style={{ color: "var(--text-tertiary)" }}>{sub}</p>}
-          {children}
+          <p className="text-xs mt-1.5" style={{ color: "#9EBAAA" }}>shipped / 30d</p>
+        </div>
+        <div aria-hidden className="w-px self-stretch" style={{ background: "rgba(255,255,255,0.15)" }} />
+        <div className="flex-1 min-w-[180px]">
+          <p className="text-sm font-semibold">{sinceLabel}</p>
+          <p className="text-xs mt-0.5" style={{ color: cold ? "#F2B8AC" : "rgba(255,255,255,0.65)" }}>
+            {coach}
+          </p>
+          <div className="flex items-center gap-1.5 mt-3">
+            {Array.from({ length: WIP_LIMIT }).map((_, i) => (
+              <span
+                key={i}
+                aria-hidden
+                className="h-1.5 w-6 rounded-full"
+                style={{
+                  background: i < activeCount ? (atLimit ? "#F5C87B" : "#7C9E8A") : "rgba(255,255,255,0.14)",
+                  transition: "background-color var(--dur-base) var(--ease-out-custom)",
+                }}
+              />
+            ))}
+            <span className="text-[11px] ml-1 font-mono" style={{ color: atLimit ? "#F5C87B" : "rgba(255,255,255,0.55)" }}>
+              {activeCount}/{WIP_LIMIT} active{atLimit ? " · at limit" : ""}
+            </span>
+          </div>
         </div>
       </div>
     </div>
@@ -439,13 +387,15 @@ function ProjectCard({
 
           <div className="flex items-center gap-3 mt-2">
             {sinceShip !== null ? (
-              <span className="text-[11px]" style={{ color: sinceShip > 14 ? "#F59E0B" : "var(--text-tertiary)" }}>
-                Last ship {sinceShip}d ago
+              // Staleness thresholds from the mobile design: amber past a week,
+              // red past two — the card itself says when a project has gone cold.
+              <span className="text-[11px] font-mono" style={{ color: sinceShip > 14 ? "#EF4444" : sinceShip > 7 ? "#F59E0B" : "var(--text-tertiary)" }}>
+                {sinceShip === 0 ? "shipped today" : `${sinceShip}d since ship`}
               </span>
             ) : project.updatedAt && (
               // No ship yet — fall back to last-touched so the card still shows recency.
-              <span className="text-[11px]" style={{ color: "var(--text-tertiary)" }}>
-                Updated {daysSince(new Date(project.updatedAt))}d ago
+              <span className="text-[11px] font-mono" style={{ color: "var(--text-tertiary)" }}>
+                updated {daysSince(new Date(project.updatedAt))}d ago
               </span>
             )}
             {project.targetDate && (
@@ -590,6 +540,7 @@ function ShipLogSection({ entries, projects, onLog, onUpdate }: {
   const [predicted, setPredicted] = useState("");
   const [projectId, setProjectId] = useState("");
   const [actualDrafts, setActualDrafts] = useState<Record<string, string>>({});
+  const [openId, setOpenId] = useState<string | null>(null);
   const [now] = useState(() => Date.now());
 
   const shipped30 = entries.filter((e) => now - new Date(e.date).getTime() <= 30 * DAY_MS).length;
@@ -673,52 +624,77 @@ function ShipLogSection({ entries, projects, onLog, onUpdate }: {
         </form>
       )}
 
-      <div className="space-y-2">
-        {entries.map((entry) => {
+      {/* Compact rows (from the mobile design): dot + what + relative time.
+          The predicted-vs-actual belief loop lives in the expansion — amber
+          dot marks entries still awaiting reality's answer. */}
+      <div className="rounded-xl overflow-hidden" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-primary)" }}>
+        {entries.map((entry, i) => {
           const awaiting = !entry.actualReaction;
+          const open = openId === entry.id;
+          const days = daysSince(new Date(entry.date));
           return (
-            <div key={entry.id} className="rounded-xl p-4"
-              style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-primary)" }}>
-              <div className="flex items-start justify-between gap-2 mb-1">
-                <p className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>{entry.what}</p>
-                <span className="text-xs font-mono flex-shrink-0" style={{ color: "var(--text-tertiary)" }}>
-                  {new Date(entry.date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                </span>
-              </div>
-              <p className="text-xs mb-2" style={{ color: "var(--text-secondary)" }}>
-                → {entry.toWhom}
-                {projectTitle(entry.projectId) && (
-                  <span className="ml-2 px-1.5 py-0.5 rounded" style={{ background: "var(--bg-tertiary)", color: "var(--text-tertiary)" }}>
-                    {projectTitle(entry.projectId)}
-                  </span>
+            <div key={entry.id} style={i > 0 ? { borderTop: "1px solid var(--border-primary)" } : undefined}>
+              <button
+                onClick={() => setOpenId(open ? null : entry.id)}
+                aria-expanded={open}
+                className="w-full flex items-center gap-3 px-4 py-3 text-left transition-transform duration-150 active:scale-[0.99]"
+              >
+                <span
+                  className="h-2 w-2 rounded-full shrink-0"
+                  style={{ background: awaiting ? "#F59E0B" : "var(--accent)" }}
+                  title={awaiting ? "Awaiting actual reaction" : undefined}
+                />
+                <span className="flex-1 min-w-0 text-sm truncate" style={{ color: "var(--text-primary)" }}>{entry.what}</span>
+                {awaiting && (
+                  <span className="text-[10px] shrink-0 hidden sm:inline" style={{ color: "#F59E0B" }}>awaiting reality</span>
                 )}
-              </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                <div className="rounded-lg px-3 py-2" style={{ background: "var(--bg-tertiary)" }}>
-                  <span style={{ color: "var(--text-tertiary)" }}>Predicted: </span>
-                  <span style={{ color: "var(--text-secondary)" }}>{entry.predictedReaction}</span>
-                </div>
-                <div className="rounded-lg px-3 py-2"
-                  style={{ background: awaiting ? "#F59E0B10" : "var(--bg-tertiary)", border: awaiting ? "1px solid #F59E0B40" : "none" }}>
-                  {awaiting ? (
-                    <div className="flex items-center gap-2">
-                      <input type="text" value={actualDrafts[entry.id] || ""}
-                        onChange={(e) => setActualDrafts((d) => ({ ...d, [entry.id]: e.target.value }))}
-                        onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); saveActual(entry.id); } }}
-                        placeholder="Actual reaction — what really happened?"
-                        className="flex-1 bg-transparent outline-none" style={{ color: "var(--text-primary)" }} />
-                      <button onClick={() => saveActual(entry.id)} className="flex-shrink-0 active:scale-[0.95] transition-transform duration-150" style={{ color: "#F59E0B" }}>
-                        Save
-                      </button>
+                <span className="text-xs font-mono shrink-0" style={{ color: "var(--text-tertiary)" }}>
+                  {days === 0 ? "today" : `${days}d`}
+                </span>
+                <ChevronDown
+                  size={13}
+                  className="shrink-0 transition-transform duration-200"
+                  style={{ color: "var(--text-tertiary)", transform: open ? "rotate(180deg)" : "rotate(0deg)" }}
+                />
+              </button>
+              {open && (
+                <div className="px-4 pb-3 enter">
+                  <p className="text-xs mb-2" style={{ color: "var(--text-secondary)" }}>
+                    → {entry.toWhom}
+                    {projectTitle(entry.projectId) && (
+                      <span className="ml-2 px-1.5 py-0.5 rounded" style={{ background: "var(--bg-tertiary)", color: "var(--text-tertiary)" }}>
+                        {projectTitle(entry.projectId)}
+                      </span>
+                    )}
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                    <div className="rounded-lg px-3 py-2" style={{ background: "var(--bg-tertiary)" }}>
+                      <span style={{ color: "var(--text-tertiary)" }}>Predicted: </span>
+                      <span style={{ color: "var(--text-secondary)" }}>{entry.predictedReaction}</span>
                     </div>
-                  ) : (
-                    <>
-                      <span style={{ color: "var(--text-tertiary)" }}>Actual: </span>
-                      <span style={{ color: "var(--text-secondary)" }}>{entry.actualReaction}</span>
-                    </>
-                  )}
+                    <div className="rounded-lg px-3 py-2"
+                      style={{ background: awaiting ? "#F59E0B10" : "var(--bg-tertiary)", border: awaiting ? "1px solid #F59E0B40" : "none" }}>
+                      {awaiting ? (
+                        <div className="flex items-center gap-2">
+                          <input type="text" value={actualDrafts[entry.id] || ""}
+                            onChange={(e) => setActualDrafts((d) => ({ ...d, [entry.id]: e.target.value }))}
+                            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); saveActual(entry.id); } }}
+                            placeholder="Actual reaction — what really happened?"
+                            className="flex-1 bg-transparent outline-none" style={{ color: "var(--text-primary)" }} />
+                          <button onClick={() => saveActual(entry.id)} className="flex-shrink-0 active:scale-[0.95] transition-transform duration-150" style={{ color: "#F59E0B" }}>
+                            Save
+                          </button>
+                        </div>
+                      ) : (
+                        <>
+                          <span style={{ color: "var(--text-tertiary)" }}>Actual: </span>
+                          <span style={{ color: "var(--text-secondary)" }}>{entry.actualReaction}</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           );
         })}
@@ -874,7 +850,7 @@ export default function ProjectsPage() {
 
       {/* Momentum */}
       <div className="enter" style={{ ["--enter-delay" as string]: "30ms" }}>
-        <MomentumBar activeCount={activeCount} shipped30={shipped30} lastShip={lastShip} />
+        <MomentumHero activeCount={activeCount} shipped30={shipped30} lastShip={lastShip} />
       </div>
 
       {/* Loose ends */}
