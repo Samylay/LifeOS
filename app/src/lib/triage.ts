@@ -42,6 +42,11 @@ export interface TriageItem {
   status: TriageStatus;
   proposal?: TriageProposal;
   createdAt: Date;
+  // Firefox-bookmark grabber only: the containing bookmark folder ("AI",
+  // "learning", "content"). A destination hint for the study step — NOT a
+  // source: a bookmarked tweet still infers source "x" so the syndication
+  // fetcher keeps handling it.
+  folder?: string;
 }
 
 const X_HOSTS = new Set(["x.com", "twitter.com", "mobile.twitter.com", "mobile.x.com", "nitter.net"]);

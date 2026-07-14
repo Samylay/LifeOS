@@ -13,7 +13,7 @@ const COLLECTION = "users/local/triageQueue";
 const VALID_SOURCES: TriageSource[] = ["x", "instagram", "other"];
 
 export async function POST(req: NextRequest) {
-  let body: { url?: string; source?: string; savedAt?: string };
+  let body: { url?: string; source?: string; savedAt?: string; folder?: string };
   try {
     body = await req.json();
   } catch {
@@ -40,6 +40,8 @@ export async function POST(req: NextRequest) {
     ? new Date(body.savedAt)
     : new Date();
 
+  const folder = typeof body.folder === "string" ? body.folder.trim().slice(0, 80) : "";
+
   const id = createDoc(COLLECTION, {
     url,
     rawUrl: body.url,
@@ -47,6 +49,7 @@ export async function POST(req: NextRequest) {
     savedAt: { __date: savedAt.toISOString() },
     status: "queued",
     createdAt: { __date: new Date().toISOString() },
+    ...(folder ? { folder } : {}),
   });
 
   return NextResponse.json({ ok: true, duplicate: false, id, source });
