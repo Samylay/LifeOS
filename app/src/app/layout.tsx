@@ -31,6 +31,14 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <head>
         <link rel="apple-touch-icon" href="/icon-192.png" />
+        {/* Apply the persisted theme class before first paint. globals.css
+            resolves "system" via prefers-color-scheme when no class is set. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              'try{var t=localStorage.getItem("lifeos-theme");if(t==="light"||t==="dark")document.documentElement.classList.add(t)}catch(e){}',
+          }}
+        />
       </head>
       <body className="antialiased">
         <Providers>{children}</Providers>
