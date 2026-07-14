@@ -777,6 +777,7 @@ credentials an unattended agent may not invent:
   YouTube Data API quota) that don't exist today. Until then the SOP stays: post natively
   from the phone drafts folders. Decide if/when platform apps are worth registering.
 - [ ] **T39b — NEEDS-SAMY: analytics auto-pull for the /content Post Tracker** (M) — same — **SAMY 2026-07-13 (park):** manual Friday review stands; parked alongside T25/T39.
+  - SAMY 2026-07-14: deferred — rule jointly with T25, low value vs effort
   credential blocker as T25; the Friday 20-min manual review stands. Decide together with T25.
 - [x] **T39c — NEEDS-SAMY: schedule the weekly batch draft (Monday 06:30 auto-run)** (S) — — **SAMY 2026-07-13:** keep it a manual button (verified: planWeeklyBatch has no scheduler — already the desired state). No auto-run.
   - SAMY 2026-07-14: deferred — wait until a few weeks of manual batches banked
