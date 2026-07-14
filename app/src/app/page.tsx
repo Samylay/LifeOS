@@ -19,6 +19,7 @@ import { useHabits } from "@/lib/use-habits";
 import { useReminders } from "@/lib/use-reminders";
 import { useNotifications } from "@/lib/use-notifications";
 import { useShipLog } from "@/lib/use-ship-log";
+import { CountUp } from "@/components/count-up";
 import { GoalsCard } from "@/components/goals-card";
 import { BriefCards } from "@/components/brief/brief-cards";
 import { Skeleton } from "@/components/skeleton";
@@ -156,10 +157,11 @@ export default function Today() {
             <Rocket size={18} style={{ color: shipped30d === 0 ? "#EF4444" : "var(--accent)" }} />
           </div>
           <div className="min-w-0">
-            <p className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
-              {shipped30d} shipped <span className="font-normal" style={{ color: "var(--text-tertiary)" }}>/ 30d</span>
+            <p className="text-primary" style={{ color: "var(--text-primary)" }}>
+              <CountUp value={shipped30d} className="text-xl font-semibold leading-none tracking-tight" />
+              <span className="text-sm font-normal ml-1" style={{ color: "var(--text-tertiary)" }}>shipped / 30d</span>
             </p>
-            <p className="text-xs" style={{ color: "var(--text-tertiary)" }}>
+            <p className="text-xs mt-1" style={{ color: "var(--text-tertiary)" }}>
               {daysSinceShip === null ? "Nothing logged yet" : `${daysSinceShip}d since last ship`}
             </p>
           </div>

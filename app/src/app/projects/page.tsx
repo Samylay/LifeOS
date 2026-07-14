@@ -11,6 +11,7 @@ import { useTasks } from "@/lib/use-tasks";
 import { useToast } from "@/components/toast";
 import { Skeleton } from "@/components/skeleton";
 import { ConfirmDialog } from "@/components/confirm-dialog";
+import { CountUp } from "@/components/count-up";
 import type { Project, ProjectStatus, AreaId, Task, ShipLogEntry } from "@/lib/types";
 import { AREAS } from "@/lib/types";
 import { TaskItem, TaskCreateForm } from "@/components/task-list";
@@ -62,60 +63,108 @@ function MomentumBar({
   const sinceShip = lastShip ? daysSince(lastShip) : null;
   const cold = sinceShip === null || sinceShip > 7;
 
-  const tile = "flex-1 min-w-0 rounded-xl p-4 flex items-center gap-3";
-  const tileStyle = { background: "var(--bg-secondary)", border: "1px solid var(--border-primary)" } as const;
-
   return (
     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
       {/* WIP gauge */}
-      <div className={tile} style={tileStyle}>
-        <div className="flex h-9 w-9 items-center justify-center rounded-lg shrink-0"
-          style={{ background: atLimit ? "#F59E0B18" : "var(--accent-bg)" }}>
-          <Gauge size={18} style={{ color: atLimit ? "#F59E0B" : "var(--accent)" }} />
+      <StatTile
+        delay={0}
+        icon={<Gauge size={18} style={{ color: atLimit ? "#F59E0B" : "var(--accent)" }} />}
+        accent={atLimit ? "#F59E0B" : "var(--accent)"}
+        alert={atLimit}
+        stat={
+          <>
+            <CountUp value={activeCount} />
+            <span className="text-base font-normal align-baseline" style={{ color: "var(--text-tertiary)" }}>/{WIP_LIMIT}</span>
+          </>
+        }
+        label="active"
+      >
+        <div className="flex items-center gap-1 mt-2" aria-hidden>
+          {Array.from({ length: WIP_LIMIT }).map((_, i) => (
+            <span
+              key={i}
+              className="h-1.5 flex-1 rounded-full"
+              style={{
+                background: i < activeCount ? (atLimit ? "#F59E0B" : "var(--accent)") : "var(--bg-tertiary)",
+                transform: "scaleY(1)",
+                transformOrigin: "left",
+                transition: "background-color var(--dur-base) var(--ease-out-custom)",
+              }}
+            />
+          ))}
         </div>
-        <div className="min-w-0">
-          <p className="text-sm font-semibold tabular-nums" style={{ color: "var(--text-primary)" }}>
-            {activeCount}<span className="font-normal" style={{ color: "var(--text-tertiary)" }}>/{WIP_LIMIT} active</span>
-          </p>
-          <div className="flex items-center gap-1 mt-1" aria-hidden>
-            {Array.from({ length: WIP_LIMIT }).map((_, i) => (
-              <span key={i} className="h-1.5 flex-1 rounded-full transition-transform origin-left"
-                style={{
-                  background: i < activeCount ? (atLimit ? "#F59E0B" : "var(--accent)") : "var(--bg-tertiary)",
-                }} />
-            ))}
-          </div>
-        </div>
-      </div>
+      </StatTile>
 
       {/* Shipped / 30d */}
-      <div className={tile} style={tileStyle}>
-        <div className="flex h-9 w-9 items-center justify-center rounded-lg shrink-0"
-          style={{ background: shipped30 === 0 ? "#EF444414" : "var(--accent-bg)" }}>
-          <Rocket size={18} style={{ color: shipped30 === 0 ? "#EF4444" : "var(--accent)" }} />
-        </div>
-        <div className="min-w-0">
-          <p className="text-sm font-semibold tabular-nums" style={{ color: "var(--text-primary)" }}>
-            {shipped30} <span className="font-normal" style={{ color: "var(--text-tertiary)" }}>shipped / 30d</span>
-          </p>
-          <p className="text-xs mt-0.5" style={{ color: "var(--text-tertiary)" }}>things that left the machine</p>
-        </div>
-      </div>
+      <StatTile
+        delay={40}
+        icon={<Rocket size={18} style={{ color: shipped30 === 0 ? "#EF4444" : "var(--accent)" }} />}
+        accent={shipped30 === 0 ? "#EF4444" : "var(--accent)"}
+        alert={shipped30 === 0}
+        stat={<CountUp value={shipped30} />}
+        label="shipped / 30d"
+        sub="things that left the machine"
+      />
 
       {/* Days since last ship */}
-      <div className={tile} style={tileStyle}>
-        <div className="flex h-9 w-9 items-center justify-center rounded-lg shrink-0"
-          style={{ background: cold ? "#EF444414" : "var(--accent-bg)" }}>
-          <CalendarClock size={18} style={{ color: cold ? "#EF4444" : "var(--accent)" }} />
+      <StatTile
+        delay={80}
+        icon={<CalendarClock size={18} style={{ color: cold ? "#EF4444" : "var(--accent)" }} />}
+        accent={cold ? "#EF4444" : "var(--accent)"}
+        alert={cold}
+        stat={sinceShip === null ? "—" : <CountUp value={sinceShip} suffix="d" />}
+        label="since last ship"
+        sub={sinceShip === null ? "nothing logged yet" : "keep the streak warm"}
+      />
+    </div>
+  );
+}
+
+// Shared stat tile for the momentum bar. Number is the hero; a left accent
+// rail carries the health color (calm accent / red-amber alert). Staggered
+// .enter on mount, hover-lift for a touch of life. Non-interactive by design
+// (these are readouts, not links) so no press feedback.
+function StatTile({
+  icon, accent, alert, stat, label, sub, delay, children,
+}: {
+  icon: React.ReactNode;
+  accent: string;
+  alert: boolean;
+  stat: React.ReactNode;
+  label: string;
+  sub?: string;
+  delay: number;
+  children?: React.ReactNode;
+}) {
+  return (
+    <div
+      className="enter hover-lift relative min-w-0 overflow-hidden rounded-xl p-4 pl-5"
+      style={{
+        background: "var(--bg-secondary)",
+        border: "1px solid var(--border-primary)",
+        ["--enter-delay" as string]: `${delay}ms`,
+      }}
+    >
+      {/* Health rail */}
+      <span
+        aria-hidden
+        className="absolute inset-y-0 left-0 w-1"
+        style={{ background: accent, opacity: alert ? 0.9 : 0.5 }}
+      />
+      <div className="flex items-start gap-3">
+        <div
+          className="flex h-9 w-9 items-center justify-center rounded-lg shrink-0"
+          style={{ background: alert ? `${accent === "var(--accent)" ? "var(--accent-bg)" : accent + "18"}` : "var(--accent-bg)" }}
+        >
+          {icon}
         </div>
         <div className="min-w-0">
-          <p className="text-sm font-semibold tabular-nums" style={{ color: "var(--text-primary)" }}>
-            {sinceShip === null ? "—" : `${sinceShip}d`}
-            <span className="font-normal" style={{ color: "var(--text-tertiary)" }}> since last ship</span>
+          <p className="text-2xl font-semibold leading-none tracking-tight tabular-nums" style={{ color: "var(--text-primary)" }}>
+            {stat}
           </p>
-          <p className="text-xs mt-0.5" style={{ color: "var(--text-tertiary)" }}>
-            {sinceShip === null ? "nothing logged yet" : "keep the streak warm"}
-          </p>
+          <p className="text-xs mt-1.5 font-medium" style={{ color: "var(--text-secondary)" }}>{label}</p>
+          {sub && <p className="text-xs mt-0.5" style={{ color: "var(--text-tertiary)" }}>{sub}</p>}
+          {children}
         </div>
       </div>
     </div>
