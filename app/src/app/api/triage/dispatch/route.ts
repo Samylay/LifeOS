@@ -14,5 +14,11 @@ export const dynamic = "force-dynamic";
 export async function POST() {
   const r = dispatchQueuedPrompts();
   if (!r.ok) return NextResponse.json({ error: r.error }, { status: 409 });
-  return NextResponse.json({ ok: true, dispatchId: r.dispatchId, itemCount: r.itemCount });
+  return NextResponse.json({
+    ok: true,
+    dispatchId: r.dispatchId,
+    dispatchIds: r.dispatchIds,
+    batchCount: r.batchCount,
+    itemCount: r.itemCount,
+  });
 }

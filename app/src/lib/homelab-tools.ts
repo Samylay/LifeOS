@@ -26,36 +26,84 @@ export interface HomelabToolResult {
 
 // ── dispatch core (shared with /api/triage/dispatch) ─────────────────────────
 
+// One merged brief must not grow so large that a single Claude session chokes
+// on it, so a big queue is split into several dispatch docs — the host poller
+// launches one session per pending doc, so this fans the load out. Batches are
+// packed greedily under both a per-brief character budget and an item cap.
+const MAX_DISPATCH_CHARS = 24_000; // per merged brief (a lone giant item still gets its own)
+const MAX_DISPATCH_ITEMS = 8; // even small items cap per session so briefs stay actionable
+
+interface QueuedPrompt { id: string; title?: string; prompt?: string }
+
+// Greedily pack queued prompts into batches that each stay under the char and
+// item budgets. A single prompt over the char budget gets its own batch rather
+// than being dropped.
+function batchPrompts(queued: QueuedPrompt[]): QueuedPrompt[][] {
+  const batches: QueuedPrompt[][] = [];
+  let current: QueuedPrompt[] = [];
+  let chars = 0;
+  for (const q of queued) {
+    const size = (q.prompt ?? "").length + (q.title ?? "").length + 32; // + item heading
+    const wouldOverflow = current.length > 0 && (chars + size > MAX_DISPATCH_CHARS || current.length >= MAX_DISPATCH_ITEMS);
+    if (wouldOverflow) {
+      batches.push(current);
+      current = [];
+      chars = 0;
+    }
+    current.push(q);
+    chars += size;
+  }
+  if (current.length > 0) batches.push(current);
+  return batches;
+}
+
 export function dispatchQueuedPrompts():
-  | { ok: true; dispatchId: string; itemCount: number; titles: string[] }
+  | { ok: true; dispatchId: string; dispatchIds: string[]; batchCount: number; itemCount: number; titles: string[] }
   | { ok: false; error: string } {
   const queued = listDocs(PROMPT_QUEUE, {
     where: [["status", "==", "queued"]],
     orderBy: ["queuedAt", "asc"],
-  }) as { id: string; title?: string; prompt?: string }[];
+  }) as QueuedPrompt[];
 
   if (queued.length === 0) return { ok: false, error: "prompt queue is empty" };
 
-  const header =
-    `${queued.length} approved item(s) from the LifeOS /decide deck need acting on. ` +
-    "Work through them one at a time; verify each before moving on. " +
-    "If one is blocked, note why and continue with the rest. Report per-item outcomes at the end.";
-  const merged = [
-    header,
-    ...queued.map((q, i) => `## Item ${i + 1}: ${q.title || "untitled"}\n\n${q.prompt ?? ""}`),
-  ].join("\n\n");
+  const batches = batchPrompts(queued);
+  const total = queued.length;
+  const dispatchIds: string[] = [];
 
-  const dispatchId = createDoc(DISPATCH, {
-    prompt: merged,
-    itemCount: queued.length,
-    titles: queued.map((q) => q.title ?? ""),
-    status: "pending",
-    createdAt: { __date: new Date().toISOString() },
+  batches.forEach((batch, b) => {
+    const partOf = batches.length > 1 ? ` — part ${b + 1} of ${batches.length}` : "";
+    const header =
+      `${batch.length} approved item(s) from the LifeOS /decide deck need acting on${partOf}. ` +
+      "Work through them one at a time; verify each before moving on. " +
+      "If one is blocked, note why and continue with the rest. Report per-item outcomes at the end.";
+    const merged = [
+      header,
+      ...batch.map((q, i) => `## Item ${i + 1}: ${q.title || "untitled"}\n\n${q.prompt ?? ""}`),
+    ].join("\n\n");
+
+    const dispatchId = createDoc(DISPATCH, {
+      prompt: merged,
+      itemCount: batch.length,
+      titles: batch.map((q) => q.title ?? ""),
+      batch: batches.length > 1 ? { index: b + 1, of: batches.length } : null,
+      status: "pending",
+      createdAt: { __date: new Date().toISOString() },
+    });
+    for (const q of batch) {
+      updateDoc(PROMPT_QUEUE, q.id, { status: "dispatched", dispatchId });
+    }
+    dispatchIds.push(dispatchId);
   });
-  for (const q of queued) {
-    updateDoc(PROMPT_QUEUE, q.id, { status: "dispatched", dispatchId });
-  }
-  return { ok: true, dispatchId, itemCount: queued.length, titles: queued.map((q) => q.title ?? "") };
+
+  return {
+    ok: true,
+    dispatchId: dispatchIds[0], // back-compat: first batch
+    dispatchIds,
+    batchCount: batches.length,
+    itemCount: total,
+    titles: queued.map((q) => q.title ?? ""),
+  };
 }
 
 // ── tool catalog (prompt-level schema, same style as the client tools) ───────

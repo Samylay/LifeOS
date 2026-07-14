@@ -11,7 +11,7 @@
 // (mis-approvals) or queued as a prompt; queued prompts merge into one brief
 // dispatched to a remote-controlled Claude Code session on the homelab.
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ArrowLeft, Download, Send, Sparkles, Terminal, X } from "lucide-react";
+import { ArrowLeft, Download, ListPlus, Loader2, Send, Sparkles, Terminal, X } from "lucide-react";
 import Link from "next/link";
 import { useToast } from "@/components/toast";
 import type { TriageQueueItem } from "@/components/decide/triage-card";
@@ -72,6 +72,7 @@ export default function AdaptivePrototypePage() {
   const [fromRect, setFromRect] = useState<DOMRect | null>(null);
   const [queued, setQueued] = useState<Map<string, string>>(new Map()); // itemId → queue doc id
   const [dispatching, setDispatching] = useState(false);
+  const [queueingAll, setQueueingAll] = useState(false);
   const cardRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const { toast } = useToast();
 
@@ -139,6 +140,49 @@ export default function AdaptivePrototypePage() {
     }
   }, [queued, toast]);
 
+  // Push every un-queued approved card into the prompt queue at once, in small
+  // concurrent batches so a big deck doesn't fire one giant burst of requests.
+  const queueAll = useCallback(async () => {
+    const pending = rows.filter((r) => !queued.has(r.item.id));
+    if (pending.length === 0 || queueingAll) return;
+    setQueueingAll(true);
+    setQueued((m) => {
+      const n = new Map(m);
+      for (const r of pending) n.set(r.item.id, "pending"); // optimistic
+      return n;
+    });
+    const BATCH = 5;
+    try {
+      for (let i = 0; i < pending.length; i += BATCH) {
+        await Promise.all(pending.slice(i, i + BATCH).map(async (row) => {
+          const spec = row.spec ?? fallbackSpec(row.item);
+          const res = await fetch("/api/triage/prompt-queue", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              itemId: row.item.id,
+              title: spec.headline ?? row.item.proposal?.title ?? row.item.url,
+              prompt: buildPrompt(row.item, spec),
+            }),
+          });
+          const data = await res.json();
+          if (!res.ok || data.error) throw new Error(data.error || `HTTP ${res.status}`);
+          setQueued((m) => new Map(m).set(row.item.id, data.id));
+        }));
+      }
+      toast(`${pending.length} card${pending.length > 1 ? "s" : ""} queued — hit Send to launch`, "success");
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "queue all failed", "error");
+      // Reconcile optimistic state against the server's truth.
+      fetch("/api/triage/prompt-queue")
+        .then((r) => r.json())
+        .then((q) => setQueued(new Map((q.items ?? []).map((d: { itemId: string; id: string }) => [d.itemId, d.id]))))
+        .catch(() => {});
+    } finally {
+      setQueueingAll(false);
+    }
+  }, [rows, queued, queueingAll, toast]);
+
   const dispatch = useCallback(async () => {
     setDispatching(true);
     try {
@@ -146,7 +190,8 @@ export default function AdaptivePrototypePage() {
       const data = await res.json();
       if (!res.ok || data.error) throw new Error(data.error || `HTTP ${res.status}`);
       setQueued(new Map());
-      toast(`${data.itemCount} prompt(s) sent — Claude session starting on the homelab`, "success");
+      const sessions = data.batchCount > 1 ? ` across ${data.batchCount} sessions` : "";
+      toast(`${data.itemCount} prompt(s) sent${sessions} — Claude starting on the homelab`, "success");
     } catch (e) {
       toast(e instanceof Error ? e.message : "dispatch failed", "error");
     } finally {
@@ -178,6 +223,23 @@ export default function AdaptivePrototypePage() {
         Each card you approved opens into a workspace shaped by its own suggestion —
         tap one to try it. Queue cards to bundle them into one Claude session.
       </p>
+
+      {!loading && rows.length > 1 && rows.some((r) => !queued.has(r.item.id)) && (
+        <div className="mb-3 flex items-center gap-3 rounded-xl p-3"
+          style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-primary)" }}>
+          <ListPlus size={16} style={{ color: "var(--text-tertiary)", flexShrink: 0 }} />
+          <span className="text-sm" style={{ color: "var(--text-secondary)" }}>
+            Queue every approved card in one tap
+          </span>
+          <button onClick={queueAll} disabled={queueingAll}
+            aria-label={`Queue all ${rows.filter((r) => !queued.has(r.item.id)).length} approved cards for Claude`}
+            className="ml-auto flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-sm font-semibold transition-transform duration-150 active:scale-[0.97] disabled:opacity-50 max-lg:[min-height:44px]"
+            style={{ background: "var(--accent-bg)", color: "var(--accent)", border: "1px solid var(--accent)" }}>
+            {queueingAll ? <Loader2 size={14} className="animate-spin" /> : <ListPlus size={14} />}
+            {queueingAll ? "Queuing…" : `Queue all (${rows.filter((r) => !queued.has(r.item.id)).length})`}
+          </button>
+        </div>
+      )}
 
       {queued.size > 0 && (
         <div className="mb-4 flex items-center gap-3 rounded-xl p-3"
