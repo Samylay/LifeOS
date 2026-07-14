@@ -461,6 +461,10 @@ export interface Goal {
   outcome?: string; // definition of done
   status: GoalStatus;
   milestones: string[]; // AI/user quarter-level steps, for reference
+  // Texts from `milestones` that are marked done. Kept as a parallel list (not
+  // a struct) so legacy `string[]` goals stay readable; defaults to [] via
+  // GOAL_DEFAULTS. Pruned to still-present milestones when a plan is redrafted.
+  doneMilestones: string[];
   commitments: GoalCommitment[];
   sessions: GoalSession[];
   createdAt: Date;
@@ -518,6 +522,16 @@ export function goalReadiness(goal: Goal, weekOf: string): GoalReadiness {
     hasWeek,
     weekCommits,
     score: [hasOutcome, hasMilestones, hasWeek].filter(Boolean).length,
+  };
+}
+
+/** Completed vs total milestones. A milestone counts done when its text is in
+ * `doneMilestones` (defensive against the field being absent on legacy goals). */
+export function milestoneProgress(goal: Goal): { done: number; total: number } {
+  const done = goal.doneMilestones ?? [];
+  return {
+    done: goal.milestones.filter((m) => done.includes(m)).length,
+    total: goal.milestones.length,
   };
 }
 

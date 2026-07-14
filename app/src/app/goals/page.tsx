@@ -25,6 +25,7 @@ import {
   commitmentsForWeek,
   sessionsThisWeekForGoal,
   goalReadiness,
+  milestoneProgress,
   goalPlanState,
   lastSessionDaysAgo,
   type Goal,
@@ -146,7 +147,7 @@ function GoalEditor({
 // --- Goal card ---
 
 function GoalCard({ goal, delay }: { goal: Goal; delay: number }) {
-  const { updateGoal, deleteGoal, addCommitment, toggleCommitment, removeCommitment, logSession, draftPlan } = useGoals();
+  const { updateGoal, deleteGoal, addCommitment, toggleCommitment, removeCommitment, toggleMilestone, logSession, draftPlan } = useGoals();
   const { toast } = useToast();
   const [expanded, setExpanded] = useState(false);
   const [newCommit, setNewCommit] = useState("");
@@ -299,27 +300,48 @@ function GoalCard({ goal, delay }: { goal: Goal; delay: number }) {
             </div>
           </div>
 
-          {/* Milestones — each promotable into this week's commitments */}
-          {goal.milestones.length > 0 && (
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: "var(--text-tertiary)" }}>Milestones</p>
-              <ol className="space-y-1 text-sm">
-                {goal.milestones.map((m, i) => (
-                  <li key={i} className="flex items-start gap-2 group">
-                    <span className="font-mono text-xs mt-0.5 shrink-0" style={{ color: "var(--text-tertiary)" }}>{i + 1}.</span>
-                    <span className="flex-1" style={{ color: "var(--text-secondary)" }}>{m}</span>
-                    <button
-                      onClick={() => { addCommitment(goal.id, m); toast("Added to this week"); }}
-                      title="Make this week's commitment"
-                      className="shrink-0 flex items-center gap-0.5 text-[10px] font-medium opacity-0 group-hover:opacity-100 transition-transform duration-150 active:scale-[0.9]"
-                      style={{ color: "var(--accent)" }}>
-                      <ArrowUpRight size={12} /> This week
-                    </button>
-                  </li>
-                ))}
-              </ol>
-            </div>
-          )}
+          {/* Milestones — checkable quarter steps, each promotable into this week */}
+          {goal.milestones.length > 0 && (() => {
+            const mp = milestoneProgress(goal);
+            const done = goal.doneMilestones ?? [];
+            return (
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-widest mb-1.5 flex items-center gap-2" style={{ color: "var(--text-tertiary)" }}>
+                  Milestones
+                  <span className="font-mono" style={{ color: mp.done === mp.total ? "var(--accent)" : "var(--text-tertiary)" }}>{mp.done}/{mp.total}</span>
+                </p>
+                <ul className="space-y-1 text-sm">
+                  {goal.milestones.map((m, i) => {
+                    const isDone = done.includes(m);
+                    return (
+                      <li key={i} className="flex items-start gap-2 group">
+                        <button
+                          onClick={() => toggleMilestone(goal.id, m)}
+                          aria-label={isDone ? "Mark milestone not done" : "Mark milestone done"}
+                          className="shrink-0 mt-0.5 h-4 w-4 rounded-[5px] border flex items-center justify-center transition-transform duration-150 active:scale-[0.85]"
+                          style={{
+                            borderColor: isDone ? "var(--accent)" : "var(--border)",
+                            background: isDone ? "var(--accent)" : "transparent",
+                          }}>
+                          {isDone && <Check size={11} className="text-white" />}
+                        </button>
+                        <span className="flex-1" style={{ color: "var(--text-secondary)", textDecoration: isDone ? "line-through" : "none", opacity: isDone ? 0.55 : 1 }}>{m}</span>
+                        {!isDone && (
+                          <button
+                            onClick={() => { addCommitment(goal.id, m); toast("Added to this week"); }}
+                            title="Make this week's commitment"
+                            className="shrink-0 flex items-center gap-0.5 text-[10px] font-medium opacity-0 group-hover:opacity-100 transition-transform duration-150 active:scale-[0.9]"
+                            style={{ color: "var(--accent)" }}>
+                            <ArrowUpRight size={12} /> This week
+                          </button>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            );
+          })()}
 
           {/* Actions */}
           <div className="flex items-center gap-2 flex-wrap">

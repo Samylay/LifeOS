@@ -16,6 +16,7 @@ const cid = () => `c-${Date.now().toString(36)}-${++localId}`;
 
 const GOAL_DEFAULTS: Partial<Goal> = {
   milestones: [],
+  doneMilestones: [],
   commitments: [],
   sessions: [],
 };
@@ -36,6 +37,7 @@ export function useGoals() {
         outcome: data.outcome,
         status: data.status || "active",
         milestones: data.milestones || [],
+        doneMilestones: data.doneMilestones || [],
         commitments: data.commitments || [],
         sessions: data.sessions || [],
         createdAt: now,
@@ -91,6 +93,21 @@ export function useGoals() {
     [goals, updateGoal]
   );
 
+  // --- Milestones (quarter layer) ---
+
+  const toggleMilestone = useCallback(
+    async (id: string, text: string) => {
+      const goal = goals.find((g) => g.id === id);
+      if (!goal) return;
+      const done = goal.doneMilestones ?? [];
+      const next = done.includes(text)
+        ? done.filter((m) => m !== text)
+        : [...done, text];
+      await updateGoal(id, { doneMilestones: next });
+    },
+    [goals, updateGoal]
+  );
+
   // --- Sessions (day-to-day layer) ---
 
   const logSession = useCallback(
@@ -131,9 +148,14 @@ export function useGoals() {
         weekOf,
         done: false,
       }));
+      const nextMilestones: string[] = draft.milestones || [];
+      // Redrafting replaces the milestone list; keep only the done marks whose
+      // text survived so completion doesn't silently point at gone milestones.
+      const prunedDone = (goal.doneMilestones ?? []).filter((m) => nextMilestones.includes(m));
       await updateGoal(id, {
         outcome: goal.outcome || draft.outcome,
-        milestones: draft.milestones || [],
+        milestones: nextMilestones,
+        doneMilestones: prunedDone,
         commitments: [...goal.commitments, ...newCommitments],
       });
       return { outcome: draft.outcome, milestones: draft.milestones, added: newCommitments.length };
@@ -153,6 +175,7 @@ export function useGoals() {
     addCommitment,
     toggleCommitment,
     removeCommitment,
+    toggleMilestone,
     logSession,
     draftPlan,
   };
