@@ -7,6 +7,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { listDocs, updateDoc, createDoc } from "@/lib/server-db";
 import { appendBacklogItem, type BacklogCentre } from "@/lib/backlog";
+import { mergeFrontmatterTags } from "@/lib/frontmatter";
 import { parseTriageReply, normalizeCentre, type TriageAction } from "./triage-reply";
 
 const COLLECTION = "users/local/triageQueue";
@@ -17,17 +18,38 @@ const KB_GID = process.env.KB_GID ? Number(process.env.KB_GID) : 1000;
 
 interface QProposal {
   summary?: string; why_relevant?: string; destination?: string; rationale?: string;
+  tags?: string[];
 }
 
+/**
+ * Append one item to today's triage note, merging its tags into the note's
+ * frontmatter.
+ *
+ * We tag here rather than letting Hermes do it (it is scoped off this folder as
+ * of 2026-07-14) for two reasons. Hermes was re-summarising what study.py had
+ * already written; and because it skips any note containing a `## Hermes`
+ * block, only the FIRST item filed on a given day ever got tagged — items 2..n
+ * were silently untagged forever. study.py has already read the content and
+ * already paid for the Opus call, so tags are nearly free at file time, and
+ * every item's tags land on the note instead of just the first one's.
+ *
+ * Read-modify-write rather than append, since frontmatter lives at the top.
+ * Written atomically: a crash mid-write must not truncate a vault note.
+ */
 function fileToVault(url: string, source: string, p: QProposal): void {
   const date = new Date().toISOString().slice(0, 10);
   const full = path.join(KB_PATH, `${TRIAGE_DIR}/${date}.md`);
   const dir = path.dirname(full);
-  const isNew = !fs.existsSync(full);
   fs.mkdirSync(dir, { recursive: true });
-  const header = isNew ? `# Triage — ${date}\n` : "";
+
+  const prev = fs.existsSync(full) ? fs.readFileSync(full, "utf-8") : "";
+  const header = prev ? "" : `# Triage — ${date}\n`;
   const entry = `${header}\n## ${source}: ${url}\n${p.summary ?? ""}\n${p.why_relevant ? `\n**Why:** ${p.why_relevant}\n` : ""}`;
-  fs.appendFileSync(full, entry, "utf-8");
+  const next = mergeFrontmatterTags(prev + entry, p.tags);
+
+  const tmp = `${full}.tmp`;
+  fs.writeFileSync(tmp, next, "utf-8");
+  fs.renameSync(tmp, full);
   try {
     fs.chownSync(dir, KB_UID, KB_GID);
     fs.chownSync(full, KB_UID, KB_GID);

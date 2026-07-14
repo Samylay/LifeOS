@@ -31,6 +31,12 @@ export interface TriageProposal {
   title?: string;
   category?: TriageCategory;
   assessment?: TriageAssessment;
+  // Obsidian topic tags, merged into the vault note's frontmatter at file time
+  // (2026-07-14). study.py emits them: it has already read the content and paid
+  // for the Opus call, so tags are nearly free there — and unlike Hermes, which
+  // is scoped off this folder and only ever tagged the first item of a day,
+  // every filed item's tags reach the note.
+  tags?: string[];
 }
 
 export interface TriageItem {
