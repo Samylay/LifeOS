@@ -11,6 +11,7 @@ import { Archive, Check, Clock, Lightbulb, ListTodo, MessageCircleQuestion, Laye
 import { CardStack, type DeckAction } from "@/components/decide/card-stack";
 import { TriageCard, type TriageQueueItem } from "@/components/decide/triage-card";
 import { DecisionCard } from "@/components/decide/decision-card";
+import { BulkApprovalBar } from "@/components/decide/bulk-approval-bar";
 import type { DecisionItem } from "@/lib/decisions";
 
 type Deck = "saved" | "approvals";
@@ -113,7 +114,15 @@ export default function DecidePage() {
           emptyLabel="Saved queue is clear — new captures get studied nightly at 00:30."
         />
       ) : (
-        <CardStack
+        <div className="space-y-4">
+          {decisions.length > 1 && (
+            <BulkApprovalBar
+              items={decisions}
+              onApplied={(ids) => setDecisions((xs) => xs.filter((x) => !ids.includes(x.id)))}
+              onRefresh={refresh}
+            />
+          )}
+          <CardStack
           items={decisions}
           renderCard={(item) => <DecisionCard item={item} />}
           actions={DECISION_ACTIONS}
@@ -129,7 +138,8 @@ export default function DecidePage() {
             return d.reply || d.result;
           }}
           emptyLabel="Nothing needs your call — NEEDS-SAMY asks land here on the nightly scan."
-        />
+          />
+        </div>
       )}
     </div>
   );
