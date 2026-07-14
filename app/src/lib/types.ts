@@ -71,15 +71,16 @@ export interface Project {
   updatedAt: Date;
 }
 
-// One row per thing that left the machine. The predicted-vs-actual pair is
-// the point: it makes prediction error visible.
+// One row per thing that left the machine.
 export interface ShipLogEntry {
   id: string;
   date: Date;
   projectId?: string;
   what: string;
   toWhom: string;
-  predictedReaction: string;
+  // Legacy predicted-vs-actual pair — cut from the UI 2026-07-14 (Samy: noisy,
+  // unused). Kept optional so old docs and log-ship.sh payloads stay valid.
+  predictedReaction?: string;
   actualReaction?: string;
   createdAt: Date;
 }

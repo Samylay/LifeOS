@@ -525,21 +525,17 @@ function ProjectCard({
 }
 
 // --- Ship Log ---
-// One row per thing that left the machine. Predicted vs. actual reaction is
-// the belief-updating column — entries stay "awaiting reality" until filled.
+// One row per thing that left the machine.
 
-function ShipLogSection({ entries, projects, onLog, onUpdate }: {
+function ShipLogSection({ entries, projects, onLog }: {
   entries: ShipLogEntry[];
   projects: Project[];
   onLog: (data: Omit<ShipLogEntry, "id" | "createdAt">) => Promise<unknown>;
-  onUpdate: (id: string, data: Partial<ShipLogEntry>) => Promise<void>;
 }) {
   const [showForm, setShowForm] = useState(false);
   const [what, setWhat] = useState("");
   const [toWhom, setToWhom] = useState("");
-  const [predicted, setPredicted] = useState("");
   const [projectId, setProjectId] = useState("");
-  const [actualDrafts, setActualDrafts] = useState<Record<string, string>>({});
   const [openId, setOpenId] = useState<string | null>(null);
   const [now] = useState(() => Date.now());
 
@@ -553,18 +549,10 @@ function ShipLogSection({ entries, projects, onLog, onUpdate }: {
       date: new Date(),
       what: what.trim(),
       toWhom: toWhom.trim(),
-      predictedReaction: predicted.trim() || "(none recorded)",
       projectId: projectId || undefined,
     });
-    setWhat(""); setToWhom(""); setPredicted(""); setProjectId("");
+    setWhat(""); setToWhom(""); setProjectId("");
     setShowForm(false);
-  };
-
-  const saveActual = async (id: string) => {
-    const text = actualDrafts[id]?.trim();
-    if (!text) return;
-    await onUpdate(id, { actualReaction: text });
-    setActualDrafts((d) => ({ ...d, [id]: "" }));
   };
 
   const field = { background: "var(--bg-tertiary)", color: "var(--text-primary)", border: "1px solid var(--border-primary)" } as const;
@@ -604,9 +592,6 @@ function ShipLogSection({ entries, projects, onLog, onUpdate }: {
           <input type="text" value={toWhom} onChange={(e) => setToWhom(e.target.value)}
             placeholder="To whom? (a person, a public post, a deploy someone was told about)"
             className="w-full text-xs outline-none rounded-lg px-3 py-2" style={field} />
-          <input type="text" value={predicted} onChange={(e) => setPredicted(e.target.value)}
-            placeholder="Predicted reaction — write it down before reality answers"
-            className="w-full text-xs outline-none rounded-lg px-3 py-2" style={field} />
           <div className="flex items-center gap-2">
             <select value={projectId} onChange={(e) => setProjectId(e.target.value)}
               className="text-xs rounded-lg px-2 py-1.5 outline-none" style={field}>
@@ -624,12 +609,10 @@ function ShipLogSection({ entries, projects, onLog, onUpdate }: {
         </form>
       )}
 
-      {/* Compact rows (from the mobile design): dot + what + relative time.
-          The predicted-vs-actual belief loop lives in the expansion — amber
-          dot marks entries still awaiting reality's answer. */}
+      {/* Compact rows: dot + what + relative time; expand for the audience
+          and project. */}
       <div className="rounded-xl overflow-hidden" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-primary)" }}>
         {entries.map((entry, i) => {
-          const awaiting = !entry.actualReaction;
           const open = openId === entry.id;
           const days = daysSince(new Date(entry.date));
           return (
@@ -639,15 +622,8 @@ function ShipLogSection({ entries, projects, onLog, onUpdate }: {
                 aria-expanded={open}
                 className="w-full flex items-center gap-3 px-4 py-3 text-left transition-transform duration-150 active:scale-[0.99]"
               >
-                <span
-                  className="h-2 w-2 rounded-full shrink-0"
-                  style={{ background: awaiting ? "#F59E0B" : "var(--accent)" }}
-                  title={awaiting ? "Awaiting actual reaction" : undefined}
-                />
+                <span className="h-2 w-2 rounded-full shrink-0" style={{ background: "var(--accent)" }} />
                 <span className="flex-1 min-w-0 text-sm truncate" style={{ color: "var(--text-primary)" }}>{entry.what}</span>
-                {awaiting && (
-                  <span className="text-[10px] shrink-0 hidden sm:inline" style={{ color: "#F59E0B" }}>awaiting reality</span>
-                )}
                 <span className="text-xs font-mono shrink-0" style={{ color: "var(--text-tertiary)" }}>
                   {days === 0 ? "today" : `${days}d`}
                 </span>
@@ -659,7 +635,7 @@ function ShipLogSection({ entries, projects, onLog, onUpdate }: {
               </button>
               {open && (
                 <div className="px-4 pb-3 enter">
-                  <p className="text-xs mb-2" style={{ color: "var(--text-secondary)" }}>
+                  <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
                     → {entry.toWhom}
                     {projectTitle(entry.projectId) && (
                       <span className="ml-2 px-1.5 py-0.5 rounded" style={{ background: "var(--bg-tertiary)", color: "var(--text-tertiary)" }}>
@@ -667,32 +643,6 @@ function ShipLogSection({ entries, projects, onLog, onUpdate }: {
                       </span>
                     )}
                   </p>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                    <div className="rounded-lg px-3 py-2" style={{ background: "var(--bg-tertiary)" }}>
-                      <span style={{ color: "var(--text-tertiary)" }}>Predicted: </span>
-                      <span style={{ color: "var(--text-secondary)" }}>{entry.predictedReaction}</span>
-                    </div>
-                    <div className="rounded-lg px-3 py-2"
-                      style={{ background: awaiting ? "#F59E0B10" : "var(--bg-tertiary)", border: awaiting ? "1px solid #F59E0B40" : "none" }}>
-                      {awaiting ? (
-                        <div className="flex items-center gap-2">
-                          <input type="text" value={actualDrafts[entry.id] || ""}
-                            onChange={(e) => setActualDrafts((d) => ({ ...d, [entry.id]: e.target.value }))}
-                            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); saveActual(entry.id); } }}
-                            placeholder="Actual reaction — what really happened?"
-                            className="flex-1 bg-transparent outline-none" style={{ color: "var(--text-primary)" }} />
-                          <button onClick={() => saveActual(entry.id)} className="flex-shrink-0 active:scale-[0.95] transition-transform duration-150" style={{ color: "#F59E0B" }}>
-                            Save
-                          </button>
-                        </div>
-                      ) : (
-                        <>
-                          <span style={{ color: "var(--text-tertiary)" }}>Actual: </span>
-                          <span style={{ color: "var(--text-secondary)" }}>{entry.actualReaction}</span>
-                        </>
-                      )}
-                    </div>
-                  </div>
                 </div>
               )}
             </div>
@@ -720,7 +670,7 @@ function GroupHeader({ color, label, count }: { color: string; label: string; co
 export default function ProjectsPage() {
   const { projects, loading, createProject, updateProject, deleteProject } = useProjects();
   const { goals, createGoal } = useGoals();
-  const { entries: shipLog, logShip, updateEntry } = useShipLog();
+  const { entries: shipLog, logShip } = useShipLog();
   const { tasks, updateTask, deleteTask, createTask } = useTasks();
   const { toast } = useToast();
   const [showForm, setShowForm] = useState(false);
@@ -966,7 +916,7 @@ export default function ProjectsPage() {
 
       {/* Scorekeeping rail on desktop; below the flow on mobile */}
       <aside className="min-w-0 lg:sticky lg:top-6 lg:max-h-[calc(100vh-4.5rem)] lg:overflow-y-auto lg:pr-1">
-        <ShipLogSection entries={shipLog} projects={projects} onLog={logShip} onUpdate={updateEntry} />
+        <ShipLogSection entries={shipLog} projects={projects} onLog={logShip} />
       </aside>
       </div>
     </div>
