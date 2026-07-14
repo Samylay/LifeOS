@@ -50,6 +50,10 @@ interface CardStackProps<T extends { id: string }> {
   /** Voice: interpret + apply a transcript server-side; resolves to the reply. */
   interpret?: (item: T, transcript: string) => Promise<string>;
   emptyLabel: string;
+  /** Height reserved for the stack. Cards are absolutely positioned, so a card
+   *  taller than this paints over the action row — decks with taller cards
+   *  (Pain) raise it and cap their card to match. */
+  minHeight?: number;
 }
 
 const TONE: Record<DeckAction["tone"], { bg: string; fg: string }> = {
@@ -75,7 +79,7 @@ interface Gesture {
 
 export function CardStack<T extends { id: string }>({
   items, renderCard, actions, swipeLeftId, swipeRightId,
-  perform, onResolved, undo, onRestore, interpret, emptyLabel,
+  perform, onResolved, undo, onRestore, interpret, emptyLabel, minHeight = 420,
 }: CardStackProps<T>) {
   const [drag, setDrag] = useState<{ dx: number; dy: number } | null>(null);
   const [exiting, setExiting] = useState<{ item: T; dir: "left" | "right" | "none" } | null>(null);
@@ -251,7 +255,7 @@ export function CardStack<T extends { id: string }>({
 
   return (
     <div className="space-y-4">
-      <div className="relative" style={{ minHeight: 420 }}>
+      <div className="relative" style={{ minHeight }}>
         {/* Under-cards first so the top card paints above them. */}
         {items.slice(0, 3).map((item, i) => (
           <div
