@@ -773,6 +773,7 @@ respects the 12-unscripted-ideas floor). Deliberately NOT built — each needs S
 credentials an unattended agent may not invent:
 
 - [ ] **T39 — NEEDS-SAMY: auto-publishing to TikTok/Instagram/YouTube** (L) — needs real — **SAMY 2026-07-13 (park):** posting natively; no platform-app registration now.
+  - SAMY 2026-07-14: deferred — no volume signal yet, revisit if posting cadence increases
   platform API credentials + app registrations (Meta app review, TikTok developer account,
   YouTube Data API quota) that don't exist today. Until then the SOP stays: post natively
   from the phone drafts folders. Decide if/when platform apps are worth registering.
