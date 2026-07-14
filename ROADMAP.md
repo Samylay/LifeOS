@@ -778,6 +778,7 @@ credentials an unattended agent may not invent:
 - [ ] **T39b — NEEDS-SAMY: analytics auto-pull for the /content Post Tracker** (M) — same — **SAMY 2026-07-13 (park):** manual Friday review stands; parked alongside T25/T39.
   credential blocker as T25; the Friday 20-min manual review stands. Decide together with T25.
 - [x] **T39c — NEEDS-SAMY: schedule the weekly batch draft (Monday 06:30 auto-run)** (S) — — **SAMY 2026-07-13:** keep it a manual button (verified: planWeeklyBatch has no scheduler — already the desired state). No auto-run.
+  - SAMY 2026-07-14: deferred — wait until a few weeks of manual batches banked
   the batch generator is a manual button in v1, deliberately: it drafts words Samy will
   publish under his own voice, so a human trigger keeps him in the loop while trust builds.
   Mirroring the brief scheduler (`src/lib/brief/scheduler.ts` instrumentation pattern) is a
