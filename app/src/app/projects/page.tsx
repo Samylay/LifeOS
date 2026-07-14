@@ -15,7 +15,7 @@ import { ConfirmDialog } from "@/components/confirm-dialog";
 import { CountUp } from "@/components/count-up";
 import { GoalSection, GoalEditor, GOAL_STATE_RANK } from "@/components/goal-section";
 import type { Project, ProjectStatus, AreaId, Task, ShipLogEntry, Goal } from "@/lib/types";
-import { AREAS, mondayOf, goalPlanState, commitmentsForWeek, localDayOf, withShipActivity } from "@/lib/types";
+import { AREAS, mondayOf, goalPlanState, commitmentsForWeek, localDayOf, withShipActivity, parseTags } from "@/lib/types";
 import { TaskItem, TaskCreateForm } from "@/components/task-list";
 
 // --- Status metadata ---
@@ -535,23 +535,34 @@ function ShipLogSection({ entries, projects, onLog }: {
   const [showForm, setShowForm] = useState(false);
   const [what, setWhat] = useState("");
   const [toWhom, setToWhom] = useState("");
+  const [tagsInput, setTagsInput] = useState("");
   const [projectId, setProjectId] = useState("");
   const [openId, setOpenId] = useState<string | null>(null);
+  const [tagFilter, setTagFilter] = useState<string | null>(null);
   const [now] = useState(() => Date.now());
 
   const shipped30 = entries.filter((e) => now - new Date(e.date).getTime() <= 30 * DAY_MS).length;
   const projectTitle = (id?: string) => projects.find((p) => p.id === id)?.title;
 
+  // Tag universe across all entries, most-used first — the filter row.
+  const tagCounts = new Map<string, number>();
+  for (const e of entries) for (const t of e.tags ?? []) tagCounts.set(t, (tagCounts.get(t) ?? 0) + 1);
+  const allTags = [...tagCounts.entries()].sort((a, b) => b[1] - a[1]).map(([t]) => t);
+  const visible = tagFilter ? entries.filter((e) => e.tags?.includes(tagFilter)) : entries;
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!what.trim() || !toWhom.trim()) return;
+    const tags = parseTags(tagsInput);
     await onLog({
       date: new Date(),
       what: what.trim(),
       toWhom: toWhom.trim(),
+      tags: tags.length > 0 ? tags : undefined,
       projectId: projectId || undefined,
     });
-    setWhat(""); setToWhom(""); setProjectId("");
+    setWhat(""); setToWhom(""); setTagsInput("");
+    setProjectId("");
     setShowForm(false);
   };
 
@@ -592,6 +603,9 @@ function ShipLogSection({ entries, projects, onLog }: {
           <input type="text" value={toWhom} onChange={(e) => setToWhom(e.target.value)}
             placeholder="To whom? (a person, a public post, a deploy someone was told about)"
             className="w-full text-xs outline-none rounded-lg px-3 py-2" style={field} />
+          <input type="text" value={tagsInput} onChange={(e) => setTagsInput(e.target.value)}
+            placeholder="Tags, comma-separated (lifeos, content, infra…)"
+            className="w-full text-xs outline-none rounded-lg px-3 py-2" style={field} />
           <div className="flex items-center gap-2">
             <select value={projectId} onChange={(e) => setProjectId(e.target.value)}
               className="text-xs rounded-lg px-2 py-1.5 outline-none" style={field}>
@@ -609,10 +623,34 @@ function ShipLogSection({ entries, projects, onLog }: {
         </form>
       )}
 
-      {/* Compact rows: dot + what + relative time; expand for the audience
-          and project. */}
+      {/* Tag filter — only appears once entries carry tags */}
+      {allTags.length > 0 && (
+        <div className="flex items-center gap-1.5 flex-wrap mb-3">
+          <button onClick={() => setTagFilter(null)}
+            className="text-[11px] font-medium rounded-full px-2.5 py-1 transition-[background,color,transform] duration-150 active:scale-[0.95]"
+            style={{
+              background: tagFilter === null ? "var(--accent)" : "var(--bg-tertiary)",
+              color: tagFilter === null ? "#fff" : "var(--text-secondary)",
+            }}>
+            All
+          </button>
+          {allTags.map((t) => (
+            <button key={t} onClick={() => setTagFilter(tagFilter === t ? null : t)}
+              className="text-[11px] font-medium rounded-full px-2.5 py-1 transition-[background,color,transform] duration-150 active:scale-[0.95]"
+              style={{
+                background: tagFilter === t ? "var(--accent)" : "var(--bg-tertiary)",
+                color: tagFilter === t ? "#fff" : "var(--text-secondary)",
+              }}>
+              {t} <span className="font-mono opacity-70">{tagCounts.get(t)}</span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Compact rows: dot + what + relative time; expand for the audience,
+          tags, and project. */}
       <div className="rounded-xl overflow-hidden" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-primary)" }}>
-        {entries.map((entry, i) => {
+        {visible.map((entry, i) => {
           const open = openId === entry.id;
           const days = daysSince(new Date(entry.date));
           return (
@@ -643,6 +681,17 @@ function ShipLogSection({ entries, projects, onLog }: {
                       </span>
                     )}
                   </p>
+                  {(entry.tags?.length ?? 0) > 0 && (
+                    <div className="flex items-center gap-1 flex-wrap mt-1.5">
+                      {entry.tags!.map((t) => (
+                        <button key={t} onClick={() => setTagFilter(t)}
+                          className="text-[10px] font-medium rounded-full px-2 py-0.5 transition-transform duration-150 active:scale-[0.95]"
+                          style={{ background: "var(--accent-bg)", color: "var(--accent)" }}>
+                          {t}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
             </div>

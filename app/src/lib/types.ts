@@ -78,11 +78,24 @@ export interface ShipLogEntry {
   projectId?: string;
   what: string;
   toWhom: string;
+  // Normalized kebab-case labels ("lifeos", "content", "infra") — filterable
+  // here, and the routing key for a future vault/Hermes sync of ships.
+  tags?: string[];
   // Legacy predicted-vs-actual pair — cut from the UI 2026-07-14 (Samy: noisy,
   // unused). Kept optional so old docs and log-ship.sh payloads stay valid.
   predictedReaction?: string;
   actualReaction?: string;
   createdAt: Date;
+}
+
+/** Normalize a user-typed tag: lowercase kebab, no leading '#'. */
+export function normalizeTag(raw: string): string {
+  return raw.trim().replace(/^#/, "").toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9._-]/g, "");
+}
+
+/** Parse a comma-separated tag string into normalized, deduped tags. */
+export function parseTags(input: string): string[] {
+  return [...new Set(input.split(",").map(normalizeTag).filter(Boolean))];
 }
 
 export interface Habit {
