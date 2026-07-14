@@ -2,3 +2,6 @@ node_modules/
 
 # wayfinder local-markdown tracker (private; never push to public remote)
 .scratch/
+
+# Local Claude Code session state (permissions, worktrees) — never commit
+.claude/
