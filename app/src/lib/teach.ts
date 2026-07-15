@@ -12,12 +12,14 @@ import fs from "node:fs";
 import path from "node:path";
 import { createDoc, getDoc, listDocs, updateDoc } from "./server-db";
 import { generateJson } from "./claude-cli";
-import type { TriageItem } from "./triage";
 
 const TOPICS = "users/local/teachTopics";
 const SESSIONS = "users/local/teachSessions";
 const TURNS = "users/local/teachTurns";
-const TRIAGE_QUEUE = "users/local/triageQueue";
+// The controlled topic-tag list a topic's own `tags` draw from. `neverPropose`
+// is the ONLY eligibility mechanism for T58's tag-cluster proposals — once
+// tombstoned, a tag never proposes "learn this" again.
+const TOPIC_TAGS = "users/local/topicTags";
 
 // Same vault-write conventions as voice-inbox.ts (container runs as root,
 // vault owned by the host user).
@@ -35,9 +37,10 @@ const STALE_MS = 3 * 60 * 60 * 1000;
 
 export interface TeachTopic {
   id: string;
-  topic: string;
-  mission: string; // WHY he wants this — grounds every lesson (MISSION.md analogue)
-  origin: string; // "samy" | "chat" | `triage:<itemId>`
+  topic: string; // a sentence
+  mission: string; // WHY he wants this — REQUIRED, grounds every lesson (MISSION.md analogue)
+  tags: string[]; // controlled topic-tags this topic owns (drives T56 attachment by overlap)
+  origin: "authored" | "proposed"; // authored = Samy typed it; proposed = accepted from a T58 tag-cluster proposal
   status: "queued" | "scheduled" | "active" | "done";
   scheduledFor?: string; // YYYY-MM-DD
   // Learning records — ADR-style capture of what he now knows / where he
@@ -45,6 +48,15 @@ export interface TeachTopic {
   learningRecords: string[];
   createdAt?: unknown;
   updatedAt?: unknown;
+}
+
+/** Controlled topic-tag ledger entry — `neverPropose` tombstones a tag so
+ * T58's cluster proposals stop asking about it (map 11's ONLY eligibility
+ * mechanism; no `learnable` model judgement). */
+export interface TopicTag {
+  id: string;
+  tag: string;
+  neverPropose: boolean;
 }
 
 export interface TeachSession {
@@ -72,53 +84,62 @@ export interface TeachTurn {
 
 // --- Learning queue -------------------------------------------------------
 
-export function addTopic(topic: string, mission: string, origin = "samy"): string {
+/** Tolerant read: docs written before this schema (no `tags`/`origin`, or a
+ * pre-container `origin` string) still load — absent fields default rather
+ * than crash. Never migrates the doc on disk (that's Samy's call, T64c). */
+function normalizeTopic(id: string, raw: Record<string, unknown>): TeachTopic {
+  return {
+    id,
+    topic: String(raw.topic ?? ""),
+    mission: String(raw.mission ?? ""),
+    tags: Array.isArray(raw.tags) ? (raw.tags as string[]) : [],
+    origin: raw.origin === "proposed" ? "proposed" : "authored",
+    status: (raw.status as TeachTopic["status"]) ?? "queued",
+    scheduledFor: raw.scheduledFor as string | undefined,
+    learningRecords: Array.isArray(raw.learningRecords) ? (raw.learningRecords as string[]) : [],
+    createdAt: raw.createdAt,
+    updatedAt: raw.updatedAt,
+  };
+}
+
+export function getTopic(topicId: string): TeachTopic | null {
+  const raw = getDoc(TOPICS, topicId) as Record<string, unknown> | null;
+  return raw ? normalizeTopic(topicId, raw) : null;
+}
+
+/** mission is REQUIRED (map 06 — a topic cannot exist without a why). */
+export function addTopic(
+  topic: string,
+  mission: string,
+  tags: string[] = [],
+  origin: "authored" | "proposed" = "authored"
+): string {
+  const m = mission.trim();
+  if (!m) throw new Error("mission is required");
   return createDoc(TOPICS, {
     topic,
-    mission,
+    mission: m,
+    tags,
     origin,
     status: "queued",
     learningRecords: [],
   });
 }
 
-/** Approved triage items in teachable categories that aren't queued yet —
- * the ingestion-pipeline feed of the curated list. */
-export function teachSuggestions(): Array<{ triageId: string; topic: string; why: string }> {
-  const adopted = new Set(
-    (listDocs(TOPICS) as unknown as TeachTopic[])
-      .map((t) => t.origin)
-      .filter((o) => o.startsWith("triage:"))
-      .map((o) => o.slice("triage:".length))
-  );
-  const items = listDocs(TRIAGE_QUEUE, {
-    where: [["status", "==", "filed"]],
-  }) as unknown as TriageItem[];
-  return items
-    .filter(
-      (i) =>
-        i.proposal?.category &&
-        ["ai-tip", "ai-project", "swe"].includes(i.proposal.category) &&
-        !adopted.has(i.id)
-    )
-    .slice(0, 20)
-    .map((i) => ({
-      triageId: i.id,
-      topic: i.proposal?.title || i.url,
-      why: i.proposal?.summary || "saved to triage",
-    }));
+/** Tombstones a topic-tag permanently — T58's ONLY eligibility mechanism.
+ * Idempotent: re-tombstoning an already-tombstoned tag is a no-op write. */
+export function neverProposeTag(tag: string): void {
+  const existing = listDocs(TOPIC_TAGS, { where: [["tag", "==", tag]] }) as unknown as TopicTag[];
+  if (existing.length) {
+    updateDoc(TOPIC_TAGS, existing[0].id, { neverPropose: true });
+  } else {
+    createDoc(TOPIC_TAGS, { tag, neverPropose: true });
+  }
 }
 
-export function adoptSuggestion(triageId: string): string | null {
-  const item = getDoc(TRIAGE_QUEUE, triageId) as unknown as TriageItem | null;
-  if (!item) return null;
-  return createDoc(TOPICS, {
-    topic: item.proposal?.title || item.url,
-    mission: item.proposal?.summary || "from the ingestion pipeline",
-    origin: `triage:${triageId}`,
-    status: "queued",
-    learningRecords: [],
-  });
+export function isTagTombstoned(tag: string): boolean {
+  const existing = listDocs(TOPIC_TAGS, { where: [["tag", "==", tag]] }) as unknown as TopicTag[];
+  return existing.some((t) => t.neverPropose);
 }
 
 export function scheduleTopic(topicId: string, date: string): void {
@@ -128,15 +149,15 @@ export function scheduleTopic(topicId: string, date: string): void {
 /** Topics scheduled for today or earlier — consumed by the morning
  * attention push so a scheduled session reaches Samy as a card. */
 export function dueTopics(today: string): TeachTopic[] {
-  return (listDocs(TOPICS, { where: [["status", "==", "scheduled"]] }) as unknown as TeachTopic[]).filter(
-    (t) => (t.scheduledFor || "") <= today
-  );
+  return (listDocs(TOPICS, { where: [["status", "==", "scheduled"]] }) as unknown as Array<{ id: string } & Record<string, unknown>>)
+    .map((raw) => normalizeTopic(raw.id, raw))
+    .filter((t) => (t.scheduledFor || "") <= today);
 }
 
 // --- Sessions ---------------------------------------------------------------
 
 export function startSession(topicId: string): { sessionId: string; opening: Promise<string> } {
-  const topic = getDoc(TOPICS, topicId) as unknown as TeachTopic | null;
+  const topic = getTopic(topicId);
   if (!topic) throw new Error("unknown topic");
   const sessionId = createDoc(SESSIONS, {
     topicId,
@@ -185,7 +206,7 @@ export async function learnerTurn(
   const idx = turns.length;
   createDoc(TURNS, { sessionId, idx, role: "learner", text: transcript, audioPath });
   updateDoc(SESSIONS, sessionId, { lastActivityAt: new Date() });
-  const topic = getDoc(TOPICS, session.topicId) as unknown as TeachTopic | null;
+  const topic = getTopic(session.topicId);
   const reply = await tutorReply(sessionId, topic, turns, transcript);
   return reply;
 }
@@ -293,7 +314,7 @@ ${transcriptMd || "_no learner turns_"}
 
   updateDoc(SESSIONS, sessionId, { status: "routed", vaultPath: rel });
   if (record) {
-    const topic = getDoc(TOPICS, session.topicId) as unknown as TeachTopic | null;
+    const topic = getTopic(session.topicId);
     if (topic) {
       updateDoc(TOPICS, session.topicId, {
         status: "queued", // back in the queue; "done" is Samy's call

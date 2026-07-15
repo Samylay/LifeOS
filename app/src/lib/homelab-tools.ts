@@ -189,14 +189,14 @@ export const HOMELAB_TOOLS = [
   {
     name: "add_learning_topic",
     description:
-      "Add a topic to the user's teaching queue (the 'Teach me' section on /knowledge) when he says he wants to learn/study/go deep on something. Capture WHY he wants it as the mission — ask if he didn't say.",
+      "Add a topic to the user's teaching queue (the 'Teach me' section on /knowledge) when he says he wants to learn/study/go deep on something. A topic cannot exist without a mission — ALWAYS ask why before calling this if he hasn't said.",
     parameters: {
       type: "object",
       properties: {
         topic: { type: "string", description: "What he wants to learn" },
-        mission: { type: "string", description: "Why — grounds every future lesson" },
+        mission: { type: "string", description: "Why — grounds every future lesson (required)" },
       },
-      required: ["topic"],
+      required: ["topic", "mission"],
     },
   },
 ] as const;
@@ -387,8 +387,10 @@ export async function executeHomelabTool(
     case "add_learning_topic": {
       const topic = String(input.topic ?? "").trim();
       if (!topic) return { tool, summary: "Failed: no topic", data: { error: "topic required" }, failed: true };
+      const mission = String(input.mission ?? "").trim();
+      if (!mission) return { tool, summary: "Failed: no mission", data: { error: "mission required" }, failed: true };
       const { addTopic } = await import("./teach");
-      const id = addTopic(topic, String(input.mission ?? "").trim(), "chat");
+      const id = addTopic(topic, mission);
       return {
         tool,
         summary: `Queued "${topic.slice(0, 60)}" for teaching`,

@@ -1,13 +1,11 @@
 "use client";
 
 // "Teach me" — the curated learning queue + session launcher on /knowledge.
-// Topics arrive two ways: Samy adds them (here or via the chat Assistant's
-// add_learning_topic tool) or they're adopted from approved triage items
-// (ai-tip / ai-project / swe). Starting a topic opens the voice session at
-// /knowledge/teach/<sessionId>.
+// Topics arrive via Samy (here or the chat Assistant's add_learning_topic
+// tool). Starting a topic opens the voice session at /knowledge/teach/<sessionId>.
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { CalendarClock, GraduationCap, Loader2, Play, Plus, Sparkles } from "lucide-react";
+import { CalendarClock, GraduationCap, Loader2, Play, Plus } from "lucide-react";
 import { useToast } from "@/components/toast";
 
 interface Topic {
@@ -17,11 +15,6 @@ interface Topic {
   status: string;
   scheduledFor?: string;
   learningRecords?: string[];
-}
-interface Suggestion {
-  triageId: string;
-  topic: string;
-  why: string;
 }
 interface SessionRow {
   id: string;
@@ -33,7 +26,6 @@ export function TeachSection() {
   const router = useRouter();
   const { toast } = useToast();
   const [topics, setTopics] = useState<Topic[]>([]);
-  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [sessions, setSessions] = useState<SessionRow[]>([]);
   const [adding, setAdding] = useState(false);
   const [newTopic, setNewTopic] = useState("");
@@ -45,7 +37,6 @@ export function TeachSection() {
     if (!res.ok) return;
     const data = await res.json();
     setTopics(data.topics);
-    setSuggestions(data.suggestions);
     setSessions(data.sessions);
   }, []);
 
@@ -65,7 +56,7 @@ export function TeachSection() {
   };
 
   const add = async () => {
-    if (!newTopic.trim()) return;
+    if (!newTopic.trim() || !newMission.trim()) return;
     try {
       await post({ action: "addTopic", topic: newTopic, mission: newMission });
       setNewTopic("");
@@ -75,19 +66,6 @@ export function TeachSection() {
       load();
     } catch (e) {
       toast(e instanceof Error ? e.message : "couldn't add topic", "error");
-    }
-  };
-
-  const adopt = async (s: Suggestion) => {
-    setBusyId(s.triageId);
-    try {
-      await post({ action: "adoptSuggestion", triageId: s.triageId });
-      toast("Adopted from your saved content", "success");
-      load();
-    } catch (e) {
-      toast(e instanceof Error ? e.message : "couldn't adopt", "error");
-    } finally {
-      setBusyId(null);
     }
   };
 
@@ -223,38 +201,10 @@ export function TeachSection() {
           ))}
         {topics.length === 0 && !adding && (
           <li className="py-1 text-xs" style={{ color: "var(--text-tertiary)" }}>
-            Nothing queued — add a topic, or adopt one of your saved finds below.
+            Nothing queued — add a topic to get started.
           </li>
         )}
       </ul>
-
-      {suggestions.length > 0 && (
-        <div className="mt-4">
-          <h3
-            className="mb-2 flex items-center gap-1.5 text-xs font-medium"
-            style={{ color: "var(--text-secondary)" }}
-          >
-            <Sparkles size={13} /> From your saved content
-          </h3>
-          <ul className="space-y-1.5">
-            {suggestions.slice(0, 5).map((s) => (
-              <li key={s.triageId} className="flex items-center gap-2">
-                <p className="min-w-0 flex-1 truncate text-xs" style={{ color: "var(--text-secondary)" }}>
-                  {s.topic}
-                </p>
-                <button
-                  onClick={() => adopt(s)}
-                  disabled={busyId === s.triageId}
-                  className="shrink-0 rounded-md px-2 py-1 text-xs transition-transform duration-100 active:scale-[0.97]"
-                  style={{ background: "var(--bg-tertiary)", color: "var(--text-primary)" }}
-                >
-                  {busyId === s.triageId ? "…" : "Queue"}
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
     </section>
   );
 }
