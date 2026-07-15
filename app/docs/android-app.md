@@ -69,20 +69,25 @@ jar. Everything else falls through to stock Capacitor behavior. All
 decisions log under the `CfAccess` tag (never the token values), so
 `adb logcat -s CfAccess` shows exactly what the auth path did.
 
-### Server-side state (the actual blocker found 2026-07-09)
+### Server-side state — RESOLVED 2026-07-15
 
-The token pair in `~/.config/homelab/secrets.env` on quorky is currently
-**rejected by Access** — verified from quorky with curl: a request to
-`https://lab.samylayaida.com` carrying both headers still gets a 302 to the
-login page, and the `meta` JWT in that redirect says
-`"service_token_status": false, "auth_status": "NONE"`. So the token exists
-but is not accepted for this application. NEEDS-SAMY (dashboard-only — no
-Cloudflare API credentials exist on the homelab): in Cloudflare Zero Trust →
-Access → Applications → the `lab.samylayaida.com` app, add a policy with
-**action "Service Auth"** (a plain Allow policy does not accept service
-tokens) whose include rule is that Service Token. No APK rebuild is needed
-afterwards — the token is already baked in; the same APK starts passing once
-the policy accepts it. Re-verify from quorky with:
+**The Service Auth policy exists and the token is accepted.** Re-verified from
+quorky on 2026-07-15 with the curl below: **200** with both headers, **302**
+without them, and **302** with a deliberately bogus token pair — so the 200 is
+real authentication, not an open application.
+
+Historical (2026-07-09 → some point before 2026-07-15): the token pair was
+*rejected* — the same request 302'd to the login page and the `meta` JWT said
+`"service_token_status": false, "auth_status": "NONE"`. The fix was the
+dashboard-only step (no Cloudflare API credentials exist on the homelab):
+Cloudflare Zero Trust → Access → Applications → the `lab.samylayaida.com` app,
+a policy with **action "Service Auth"** (a plain Allow policy does not accept
+service tokens) whose include rule is that Service Token. No APK rebuild was
+needed — the token was already baked in, and the same APK started passing once
+the policy accepted it. Kept here because it is the first thing to re-check if
+the app ever starts bouncing to a login page again.
+
+Re-verify from quorky with:
 
 ```sh
 source ~/.config/homelab/secrets.env
@@ -224,14 +229,11 @@ from Settings entirely and the WebView can never be granted `getUserMedia`.
 Capacitor's stock `BridgeWebChromeClient` handles the runtime prompt on first
 mic tap; nothing custom needed.
 
-**Known server-side gap (2026-07-12):** the Service Token in
-`~/.config/homelab/secrets.env` is currently rejected by Access (curl with the
-headers still 302s to the login page, same as without them) — either expired
-or the Service Auth policy was never added to the Access app. Until fixed in
-the Cloudflare Zero Trust dashboard, every fresh install falls back to the
-in-app OTP login (by design). First
-launch should go straight to LifeOS with no OTP prompt; if the OTP page
-appears, the token isn't in the Access policy or wasn't baked in.
+**~~Known server-side gap (2026-07-12)~~ — closed 2026-07-15.** The Service
+Token is now accepted by Access (see "Server-side state" above for the
+verification). A fresh install carrying the token should go straight to LifeOS
+with no OTP prompt; if the OTP page appears, the token isn't in the Access
+policy or wasn't baked into that APK.
 
 ~~Untested assumption to verify on first real run~~ — **resolved 2026-07-09**
 (the first real run failed exactly here). What was actually found: the risk
@@ -240,9 +242,10 @@ was not the cookie mechanics but (a) the token being rejected server-side
 and (b) Capacitor punting the resulting Access-login redirect to the
 external browser (see "CfAccessWebViewClient"). Both client-side failure
 modes are fixed by `CfAccessWebViewClient`; the cookie-on-authenticated-load
-behavior itself still gets its first true exercise once the Service Auth
-policy exists — the retry-with-headers path in the client covers the case
-where Access needs more than one header-carrying request. Debugging aids:
+behavior got its first true exercise once the Service Auth policy landed
+(on-device use since 2026-07-12 — T48 was raised from it) — the
+retry-with-headers path in the client covers the case where Access needs more
+than one header-carrying request. Debugging aids:
 `adb logcat -s CfAccess Capacitor` for the auth decisions, and Chrome DevTools
 remote inspection (`chrome://inspect`, debug builds are debuggable) for the
 WebView's real network/cookie state.
