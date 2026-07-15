@@ -227,12 +227,32 @@ const titleKey = (t: string) =>
     .replace(/[^a-z0-9]+/g, " ")
     .trim();
 
+// MIN_SCORE alone silently deletes a whole source on a quiet day — every TLDR
+// Design story scores 1-2 against the reader profile, so the newsletter never
+// appeared at all. Samy's rule: at least one thing from each source. So the
+// threshold decides how MUCH a source gets, never WHETHER it appears; any
+// source that produced candidates keeps its single best one, even below it.
+// Sources with nothing in the 24h window still can't appear — there is
+// nothing to show.
+function applyRelevanceFloor(items: NewsItem[]): NewsItem[] {
+  const kept = items.filter((it) => it.score >= MIN_SCORE);
+  const represented = new Set(kept.map((it) => it.source));
+  const rescued = new Map<string, NewsItem>();
+  for (const it of items) {
+    if (represented.has(it.source)) continue;
+    const prev = rescued.get(it.source);
+    if (!prev || it.score > prev.score) rescued.set(it.source, it);
+  }
+  return [...kept, ...rescued.values()];
+}
+
 // Trim the newsletters section by round-robin across sources, not by a global
-// score sort: a plain top-N deletes the lowest-scoring newsletter outright
-// (TLDR Design vanished entirely in testing), and a slightly longer page beats
-// losing a newsletter. Every source lands its best story before any source
-// lands a second, so the ceiling costs stories, never a seat — and it yields
-// completely if there are ever more newsletters than slots.
+// score sort: a plain top-N deletes the lowest-scoring newsletter outright,
+// and a slightly longer page beats losing a newsletter. Every source lands its
+// best story before any source lands a second, so the ceiling costs stories,
+// never a seat — and it yields completely if there are ever more newsletters
+// than slots. Composes with applyRelevanceFloor: a floor-rescued source is
+// placed in round 1, so the cap can never undo its seat.
 function capNewsletters(items: NewsItem[]): NewsItem[] {
   const bySource = new Map<string, NewsItem[]>();
   for (const it of items) {
@@ -373,7 +393,8 @@ export async function runNews(opts: { force?: boolean } = {}): Promise<Edition> 
     } catch {
       // Leave the fallback score; a broken article never sinks the run.
     }
-    if (score < MIN_SCORE) continue;
+    // Not filtered here — applyRelevanceFloor owns the MIN_SCORE cut, so it
+    // can see every source's candidates before deciding what to drop.
     items.push({
       title: a.title,
       link: a.link,
@@ -392,16 +413,18 @@ export async function runNews(opts: { force?: boolean } = {}): Promise<Edition> 
   const emails = loadInbox();
   for (const email of emails) {
     try {
-      items.push(...(await splitNewsletter(email)).filter((it) => it.score >= MIN_SCORE));
+      items.push(...(await splitNewsletter(email)));
     } catch {
       items.push(wholeEmailItem(email));
     }
   }
 
-  const deduped = dedupeItems(items);
+  // Dedupe first so the floor can't hand a source a seat with a story that a
+  // higher-scoring source is already showing.
+  const floored = applyRelevanceFloor(dedupeItems(items));
   // The feeds are left alone, so a heavy newsletter day can't bury them.
-  const newsletters = capNewsletters(deduped.filter((it) => it.bucket === "news"));
-  const final = [...deduped.filter((it) => it.bucket !== "news"), ...newsletters].sort((x, y) => y.score - x.score);
+  const newsletters = capNewsletters(floored.filter((it) => it.bucket === "news"));
+  const final = [...floored.filter((it) => it.bucket !== "news"), ...newsletters].sort((x, y) => y.score - x.score);
 
   const edition: Edition = { date: dateStr, generatedAt: new Date().toISOString(), items: final };
   setDoc(EDITIONS_COLLECTION, dateStr, edition as unknown as Record<string, unknown>);
