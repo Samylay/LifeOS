@@ -1,8 +1,13 @@
 "use client";
 
-// Leads — persistent website-build demand found by scout/demand_scout.py.
-// The counterpart to /pager: these don't get pruned, they carry a status the
-// user drives (new → contacted → won / passed).
+// Leads — persistent demand, from two places: website-build briefs found by
+// scout/demand_scout.py (source "codeur") and pain points kept in the /decide
+// Pain deck (source "hn-pain"). The counterpart to /pager: these don't get
+// pruned, they carry a status the user drives (new → contacted → won / passed).
+//
+// The source filter is not cosmetic. Leads sort by postedAt, and an HN comment
+// is always older than this morning's freelance brief — so kept pain points
+// land at the bottom of the list and are effectively invisible without it.
 import { useState } from "react";
 import { Radar, ExternalLink, Check, Trophy, X, Trash2 } from "lucide-react";
 import { useLeads, LEAD_STATUSES, type Lead, type LeadStatus } from "@/lib/use-leads";
@@ -19,6 +24,13 @@ const STATUS_COLORS: Record<LeadStatus, string> = {
   contacted: "#F59E0B",
   won: "#10B981",
   passed: "var(--text-tertiary)",
+};
+
+// Known sources get a readable name; anything new falls back to its raw key
+// rather than disappearing.
+const SOURCE_LABELS: Record<string, string> = {
+  codeur: "Codeur",
+  "hn-pain": "Pain (HN)",
 };
 
 function budgetColor(floor: number): string {
@@ -42,10 +54,14 @@ const pressable = "transition-transform duration-150 active:scale-[0.97]";
 export default function LeadsPage() {
   const { leads, loading, setStatus, remove } = useLeads();
   const [filter, setFilter] = useState<LeadStatus | "all">("all");
+  const [source, setSource] = useState<string>("all");
 
+  const sources = Array.from(new Set(leads.map((l) => l.source))).sort();
+  // Source narrows first, so the status counts describe what you're looking at.
+  const scoped = source === "all" ? leads : leads.filter((l) => l.source === source);
   const count = (s: LeadStatus | "all") =>
-    s === "all" ? leads.length : leads.filter((l) => l.status === s).length;
-  const visible = filter === "all" ? leads : leads.filter((l) => l.status === filter);
+    s === "all" ? scoped.length : scoped.filter((l) => l.status === s).length;
+  const visible = filter === "all" ? scoped : scoped.filter((l) => l.status === filter);
 
   return (
     <div className="max-w-2xl mx-auto">
@@ -63,6 +79,31 @@ export default function LeadsPage() {
           </span>
         )}
       </div>
+
+      {/* Source filter — only worth showing once there's more than one. */}
+      {sources.length > 1 && (
+        <div className="flex flex-wrap gap-2 mb-3">
+          {(["all", ...sources] as const).map((s) => {
+            const active = source === s;
+            const n = s === "all" ? leads.length : leads.filter((l) => l.source === s).length;
+            return (
+              <button
+                key={s}
+                onClick={() => setSource(s)}
+                className={`text-xs rounded-full px-3 py-1.5 font-medium ${pressable}`}
+                style={{
+                  background: active ? "var(--bg-tertiary)" : "transparent",
+                  color: active ? "var(--text-primary)" : "var(--text-tertiary)",
+                  border: "1px solid " + (active ? "var(--text-tertiary)" : "var(--border-primary)"),
+                }}
+              >
+                {s === "all" ? "All sources" : (SOURCE_LABELS[s] ?? s)}
+                <span className="ml-1.5 font-semibold">{n}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {/* Status filter */}
       <div className="flex flex-wrap gap-2 mb-6">

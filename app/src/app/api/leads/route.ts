@@ -1,39 +1,21 @@
 // Leads ingest — the persistent home for website-build demand found by
-// scout/demand_scout.py (Codeur.com RSS today; more sources later). Unlike the
-// ephemeral /pager, leads live in `users/local/leads` and carry a status the
-// user drives from /leads. Ingest is idempotent: a lead is keyed by
-// (source, extId), so re-posting an overlapping window never duplicates.
+// scout/demand_scout.py (Codeur.com RSS today; more sources later) and for
+// pain points kept in the /decide Pain deck. Unlike the ephemeral /pager,
+// leads live in `users/local/leads` and carry a status the user drives from
+// /leads. Ingest is idempotent: a lead is keyed by (source, extId), so
+// re-posting an overlapping window never duplicates.
+//
+// The row shape + dedup live in lib/leads-ingest.ts, shared with the Pain
+// deck's keep verdict.
 //
 //   POST { leads: [{ source, extId, title, url, budget, budgetFloor,
 //                     categories, brief, postedAt }] }
 //        -> { inserted, skipped }
 import { NextRequest, NextResponse } from "next/server";
-import { createDoc, listDocs } from "@/lib/server-db";
+import { enqueueLead, type LeadInput } from "@/lib/leads-ingest";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-const COLLECTION = "users/local/leads";
-
-type IncomingLead = {
-  source?: unknown;
-  extId?: unknown;
-  title?: unknown;
-  url?: unknown;
-  budget?: unknown;
-  budgetFloor?: unknown;
-  categories?: unknown;
-  brief?: unknown;
-  postedAt?: unknown;
-};
-
-const str = (v: unknown, fallback = "") => (typeof v === "string" ? v : fallback);
-const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : 0);
-
-function dateMarker(v: unknown): { __date: string } {
-  const iso = typeof v === "string" && !Number.isNaN(Date.parse(v)) ? v : new Date().toISOString();
-  return { __date: new Date(iso).toISOString() };
-}
 
 export async function POST(req: NextRequest) {
   let body: { leads?: unknown };
@@ -42,48 +24,21 @@ export async function POST(req: NextRequest) {
   } catch {
     return NextResponse.json({ error: "invalid JSON" }, { status: 400 });
   }
-  const incoming = Array.isArray(body.leads) ? (body.leads as IncomingLead[]) : null;
+  const incoming = Array.isArray(body.leads) ? (body.leads as LeadInput[]) : null;
   if (!incoming) {
     return NextResponse.json({ error: "leads[] required" }, { status: 400 });
   }
 
-  // Existing keys for idempotent ingest.
-  const existing = new Set(
-    listDocs(COLLECTION).map((d) => `${d.source}:${d.extId}`)
-  );
-
   let inserted = 0;
   let skipped = 0;
-  const now = new Date().toISOString();
 
+  // Sequential on purpose: each enqueue reads the collection back, so a
+  // duplicate *within* one batch is caught by the previous iteration's write —
+  // same guarantee the old in-memory key set gave.
   for (const raw of incoming) {
-    const source = str(raw.source, "unknown");
-    const extId = str(raw.extId);
-    if (!extId) {
-      skipped++;
-      continue;
-    }
-    const key = `${source}:${extId}`;
-    if (existing.has(key)) {
-      skipped++;
-      continue;
-    }
-    existing.add(key);
-    createDoc(COLLECTION, {
-      source,
-      extId,
-      title: str(raw.title, "(untitled)"),
-      url: str(raw.url),
-      budget: str(raw.budget, "non précisé"),
-      budgetFloor: num(raw.budgetFloor),
-      categories: str(raw.categories),
-      brief: str(raw.brief),
-      postedAt: dateMarker(raw.postedAt),
-      status: "new",
-      createdAt: { __date: now },
-      updatedAt: { __date: now },
-    });
-    inserted++;
+    const { id, duplicate } = enqueueLead(raw);
+    if (!id || duplicate) skipped++;
+    else inserted++;
   }
 
   return NextResponse.json({ inserted, skipped });
