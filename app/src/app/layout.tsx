@@ -19,6 +19,10 @@ export const viewport: Viewport = {
   initialScale: 1,
   // Pinch zoom stays enabled (WCAG 1.4.4); iOS input auto-zoom is prevented
   // by the 16px mobile form-control rule in globals.css instead.
+  // Let the soft keyboard shrink the layout viewport so `dvh`/`vh` account for
+  // it (Android Chrome). iOS Safari ignores this — the chat panel measures
+  // `visualViewport` via useVisualViewport() to stay correct there too.
+  interactiveWidget: "resizes-content",
   themeColor: "#7C9E8A",
 };
 

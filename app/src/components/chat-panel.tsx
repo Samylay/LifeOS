@@ -17,6 +17,7 @@ import { toast } from "sonner";
 import { useAppStore } from "@/lib/store";
 import { useChat, type ActionResult } from "@/lib/use-chat";
 import { useVoiceRecorder } from "@/lib/use-voice-recorder";
+import { useVisualViewport } from "@/lib/use-visual-viewport";
 
 function ActionBadge({ result }: { result: ActionResult }) {
   const failed = result.failed || result.summary.startsWith("Failed");
@@ -37,6 +38,9 @@ function ActionBadge({ result }: { result: ActionResult }) {
 export function ChatPanel() {
   const { chatPanelOpen, setChatPanelOpen } = useAppStore();
   const { messages, loading, statusText, sendMessage, clearMessages } = useChat();
+  // The soft keyboard shrinks the visual viewport only, so a 100vh panel would
+  // hide its composer underneath the keyboard. Track the visible area instead.
+  const viewport = useVisualViewport();
   const [input, setInput] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -115,9 +119,13 @@ export function ChatPanel() {
 
       {/* Panel */}
       <aside
-        className="fixed top-0 right-0 h-screen flex flex-col transition-transform"
+        className="fixed right-0 flex flex-col transition-transform"
         style={{
           width: "min(400px, 100vw)",
+          // Follow the visible area so the composer stays above the keyboard.
+          // `100dvh` is the pre-measurement fallback (also correct on desktop).
+          top: viewport.ready ? viewport.offsetTop : 0,
+          height: viewport.ready ? viewport.height : "100dvh",
           zIndex: 46,
           background: "var(--bg-secondary)",
           borderLeft: "1px solid var(--border-primary)",
