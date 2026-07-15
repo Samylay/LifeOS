@@ -11,7 +11,8 @@ const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "lifeos-dispatch-test-"));
 process.env.LIFEOS_DB_PATH = path.join(tmpDir, "test.db");
 
 const { createDoc, listDocs, getDoc } = await import("./server-db");
-const { dispatchQueuedPrompts } = await import("./homelab-tools");
+const { dispatchQueuedPrompts, HOMELAB_TOOLS, HOMELAB_TOOL_NAMES, HOMELAB_TOOL_STATUS, executeHomelabTool } =
+  await import("./homelab-tools");
 
 const QUEUE = "users/local/promptQueue";
 const DISPATCH = "users/local/promptDispatch";
@@ -88,5 +89,48 @@ describe("dispatchQueuedPrompts batching", () => {
     const r = dispatchQueuedPrompts();
     expect(r.ok).toBe(true);
     expect(getDoc(TRIAGE, itemId)).toMatchObject({ status: "discarded" });
+  });
+});
+
+// T47 (Samy 2026-07-14, option b): chat may QUEUE but never LAUNCH. One chat
+// message is reachable from the phone, so a launch tool here means
+// "phone message → effective root" (T29's threat model) via the sanctioned
+// path. These assert the gap stays closed — the catalog is what the model can
+// call, so a tool re-appearing there is the whole vulnerability.
+describe("chat cannot launch a Claude session (T47)", () => {
+  it("exposes no launch tool in the catalog the model sees", () => {
+    const names = HOMELAB_TOOLS.map((t) => t.name);
+    expect(names).not.toContain("launch_queued_prompts");
+    expect(names.filter((n) => /launch|dispatch|start_/i.test(n))).toEqual([]);
+    expect(HOMELAB_TOOL_NAMES.has("launch_queued_prompts")).toBe(false);
+    expect(Object.keys(HOMELAB_TOOL_STATUS)).not.toContain("launch_queued_prompts");
+  });
+
+  it("offers no launch_now parameter on queue_homelab_prompt", () => {
+    const q = HOMELAB_TOOLS.find((t) => t.name === "queue_homelab_prompt");
+    expect(q).toBeDefined();
+    expect(Object.keys(q!.parameters.properties)).toEqual(["title", "prompt"]);
+  });
+
+  it("queues without dispatching even when asked to launch_now", async () => {
+    const before = listDocs(DISPATCH, {}).length;
+    const r = await executeHomelabTool("queue_homelab_prompt", {
+      title: "t47 probe",
+      prompt: "launch this immediately",
+      launch_now: true, // ignored by design: no such branch
+    });
+    expect(r.failed).toBeFalsy();
+    // The prompt is queued...
+    const queued = listDocs(QUEUE, { where: [["status", "==", "queued"]] });
+    expect(queued.some((d) => (d as { title?: string }).title === "t47 probe")).toBe(true);
+    // ...but nothing was handed to the host poller.
+    expect(listDocs(DISPATCH, {}).length).toBe(before);
+  });
+
+  it("refuses an unknown launch tool name outright", async () => {
+    const before = listDocs(DISPATCH, {}).length;
+    const r = await executeHomelabTool("launch_queued_prompts", {});
+    expect(r.failed).toBe(true);
+    expect(listDocs(DISPATCH, {}).length).toBe(before);
   });
 });

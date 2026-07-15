@@ -127,22 +127,23 @@ export const HOMELAB_TOOLS = [
       "Snapshot of everything pending across the decide system: prompts queued for a Claude session (the 'approve page' queue), pending triage cards, pending NEEDS-SAMY approvals, and standing-goal health. Use this first when the user asks what's queued or pending.",
     parameters: { type: "object", properties: {}, required: [] },
   },
-  {
-    name: "launch_queued_prompts",
-    description:
-      "Launch everything queued in the approve page: merges all queued prompts into one brief and hands it to the homelab, which starts a Claude Code session for them (picked up within ~10s). Use when the user says to launch/run/start the queued items.",
-    parameters: { type: "object", properties: {}, required: [] },
-  },
+  // NOTE (T47, Samy 2026-07-14 option b): chat may QUEUE but never LAUNCH.
+  // `launch_queued_prompts` and `queue_homelab_prompt`'s `launch_now` used to
+  // let a single chat message — reachable from the phone — start an autonomous
+  // Claude Code session with arbitrary instructions within ~10s. That is T29's
+  // recorded threat model ("phone message → effective root") arriving via the
+  // sanctioned path. Launching is now a /decide-UI action only. Do not re-add a
+  // launch tool here: dispatchQueuedPrompts stays exported for that route, and
+  // the queue is the gate. Adding one back reopens the phone-to-root gap.
   {
     name: "queue_homelab_prompt",
     description:
-      "Queue a NEW ad-hoc instruction for a Claude Code session on the homelab (e.g. 'have claude check why the backup is slow'). Set launch_now true to dispatch immediately (this also launches anything else already queued).",
+      "Queue a NEW ad-hoc instruction for a Claude Code session on the homelab (e.g. 'have claude check why the backup is slow'). It is only QUEUED — say that plainly. It does not run until Samy launches it from the /decide approve page; chat cannot launch it.",
     parameters: {
       type: "object",
       properties: {
         title: { type: "string", description: "Short title for the queued work" },
         prompt: { type: "string", description: "Full instruction for the Claude session" },
-        launch_now: { type: "boolean", description: "Dispatch immediately instead of leaving it queued" },
       },
       required: ["title", "prompt"],
     },
@@ -206,7 +207,6 @@ export const HOMELAB_TOOL_NAMES = new Set<string>(HOMELAB_TOOLS.map((t) => t.nam
 // Short present-progressive labels streamed to the chat while a tool runs.
 export const HOMELAB_TOOL_STATUS: Record<string, string> = {
   homelab_overview: "Checking what's queued…",
-  launch_queued_prompts: "Launching the queued prompts…",
   queue_homelab_prompt: "Queueing it for a Claude session…",
   get_service_health: "Checking service health…",
   get_autoloop_summary: "Reading the last nightly run…",
@@ -271,18 +271,6 @@ export async function executeHomelabTool(
         data,
       };
     }
-    case "launch_queued_prompts": {
-      const r = dispatchQueuedPrompts();
-      if (!r.ok) return { tool, summary: "Nothing queued to launch", data: r, failed: true };
-      return {
-        tool,
-        summary: `Launched ${r.itemCount} queued prompt${r.itemCount === 1 ? "" : "s"}`,
-        data: {
-          ...r,
-          note: "The homelab poller picks this up within ~10s and starts a Claude Code session (Telegram ping on start).",
-        },
-      };
-    }
     case "queue_homelab_prompt": {
       const title = String(input.title ?? "").slice(0, 160);
       const prompt = String(input.prompt ?? "");
@@ -297,13 +285,12 @@ export async function executeHomelabTool(
         queuedAt: { __date: new Date().toISOString() },
         source: "chat",
       });
-      if (input.launch_now) {
-        const r = dispatchQueuedPrompts();
-        return r.ok
-          ? { tool, summary: `Queued and launched "${title}"`, data: { id, ...r } }
-          : { tool, summary: `Queued "${title}" (launch failed)`, data: { id, ...r }, failed: true };
-      }
-      return { tool, summary: `Queued "${title}"`, data: { id, status: "queued" } };
+      // No launch_now branch by design (T47) — see the catalog note above.
+      return {
+        tool,
+        summary: `Queued "${title}"`,
+        data: { id, status: "queued", note: "Queued only. Launch it from the /decide approve page — chat cannot start a session." },
+      };
     }
     case "get_service_health": {
       const [docker, host] = await Promise.all([
