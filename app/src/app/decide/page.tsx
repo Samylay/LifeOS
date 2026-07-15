@@ -110,7 +110,10 @@ export default function DecidePage() {
 
   return (
     <div className="max-w-lg mx-auto">
-      <div className="flex items-center gap-3 mb-5">
+      {/* flex-wrap: at 390px the title + deck switcher exceed the row's
+          min-content width, so the switcher wraps to its own line instead of
+          overflowing the viewport horizontally. */}
+      <div className="flex flex-wrap items-center gap-3 mb-5">
         <Layers size={24} style={{ color: "var(--accent)" }} />
         <h1 className="text-2xl font-semibold" style={{ color: "var(--text-primary)" }}>Decide</h1>
         {/* PROTOTYPE link — adaptive workspaces for approved cards */}
