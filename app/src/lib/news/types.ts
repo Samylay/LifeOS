@@ -24,6 +24,12 @@ export interface NewsItem {
   tldr: string; // one sentence, <=TLDR_MAX chars — the card's resting state
   summary: string; // 2-3 sentences — revealed when the card is expanded
   score: number; // 1-5 relevance to the configured reader profile
+  // Set only when a newsletter failed to split and fell back to a single
+  // whole-issue card — i.e. the pre-2026-07-15 bug, silently back. The
+  // fallback is deliberate (better than losing the mail) and looks normal on
+  // the page, so it must be machine-visible: the `news-split-healthy`
+  // standing goal fails the edition on any item carrying this.
+  degraded?: boolean;
 }
 
 // Cap for NewsItem.tldr. The prompt asks for one sentence under this; the

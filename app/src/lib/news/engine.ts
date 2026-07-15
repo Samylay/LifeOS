@@ -317,7 +317,9 @@ async function splitNewsletter(email: InboxItem): Promise<NewsItem[]> {
 }
 
 // If the split fails, keep the issue as a single item rather than dropping the
-// email — degraded, but the newsletter still reaches the page.
+// email — degraded, but the newsletter still reaches the page. Flagged so the
+// regression is detectable: this card is indistinguishable from healthy output
+// at a glance, which is exactly how the original bug survived.
 function wholeEmailItem(email: InboxItem): NewsItem {
   const title = email.subject || `Newsletter from ${email.from}`;
   const text = (email.text || title).replace(/\s+/g, " ").trim();
@@ -330,6 +332,7 @@ function wholeEmailItem(email: InboxItem): NewsItem {
     tldr: clampTldr(title),
     summary: text.slice(0, 400),
     score: MIN_SCORE,
+    degraded: true,
   };
 }
 
@@ -414,7 +417,8 @@ export async function runNews(opts: { force?: boolean } = {}): Promise<Edition> 
   for (const email of emails) {
     try {
       items.push(...(await splitNewsletter(email)));
-    } catch {
+    } catch (e) {
+      console.log(`[news] split failed for ${email.from}, degrading to whole-issue card: ${e instanceof Error ? e.message : e}`);
       items.push(wholeEmailItem(email));
     }
   }
