@@ -1,13 +1,83 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { RefreshCw, Plus, Trash2, ExternalLink } from "lucide-react";
-import { BUCKET_LABELS, type Bucket, type Edition, type Feed } from "@/lib/news/types";
+import { RefreshCw, Plus, Trash2, ExternalLink, ChevronDown } from "lucide-react";
+import { BUCKET_LABELS, type Bucket, type Edition, type Feed, type NewsItem } from "@/lib/news/types";
 
 const BUCKET_ORDER: Bucket[] = ["tech", "sec", "video", "news"];
 
 function scoreMark(score: number): string {
   return score >= 5 ? "🔥" : score >= 4 ? "⭐" : "•";
+}
+
+// Editions written before the tldr/summary split have no tldr — fall back to
+// the long summary rather than rendering an empty card.
+function NewsCard({ item }: { item: NewsItem }) {
+  const [open, setOpen] = useState(false);
+  const line = item.tldr || item.summary;
+  // Nothing more to reveal when the summary adds nothing over the one-liner.
+  const expandable = Boolean(item.summary) && item.summary !== line;
+
+  return (
+    <article
+      className="rounded-xl border p-4"
+      style={{ borderColor: "var(--border-primary)", background: "var(--bg-secondary)" }}
+    >
+      <a
+        href={item.link}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="mb-1 flex items-start gap-2 transition-transform duration-150 hover:-translate-y-0.5 active:scale-[0.99]"
+      >
+        <span aria-hidden>{scoreMark(item.score)}</span>
+        <span className="flex-1 font-medium leading-snug">{item.title}</span>
+        <ExternalLink size={14} className="mt-1 shrink-0" style={{ color: "var(--text-tertiary)" }} />
+      </a>
+
+      <p className="text-sm leading-relaxed" style={{ color: "var(--text-secondary)" }}>
+        {line}
+      </p>
+
+      {expandable && (
+        <div
+          className="grid"
+          style={{
+            gridTemplateRows: open ? "1fr" : "0fr",
+            transition: "grid-template-rows var(--duration-normal) var(--ease-out-custom)",
+          }}
+        >
+          <div className="overflow-hidden">
+            <p className="pt-2 text-sm leading-relaxed" style={{ color: "var(--text-tertiary)" }}>
+              {item.summary}
+            </p>
+          </div>
+        </div>
+      )}
+
+      <div className="mt-2 flex items-center justify-between gap-2">
+        <span className="text-xs" style={{ color: "var(--text-tertiary)" }}>
+          {item.source}
+        </span>
+        {expandable && (
+          <button
+            onClick={() => setOpen((o) => !o)}
+            aria-expanded={open}
+            className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs transition-transform duration-150 active:scale-[0.95]"
+            style={{ color: "var(--text-tertiary)" }}
+          >
+            {open ? "Less" : "More"}
+            <ChevronDown
+              size={13}
+              style={{
+                transform: open ? "rotate(180deg)" : "none",
+                transition: "transform var(--duration-normal) var(--ease-out-custom)",
+              }}
+            />
+          </button>
+        )}
+      </div>
+    </article>
+  );
 }
 
 export default function NewsPage() {
@@ -215,26 +285,7 @@ export default function NewsPage() {
               </h2>
               <div className="space-y-3">
                 {items.map((it) => (
-                  <a
-                    key={it.link}
-                    href={it.link}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="block rounded-xl border p-4 transition-transform duration-150 hover:-translate-y-0.5 active:scale-[0.99]"
-                    style={{ borderColor: "var(--border-primary)", background: "var(--bg-secondary)" }}
-                  >
-                    <div className="mb-1 flex items-start gap-2">
-                      <span aria-hidden>{scoreMark(it.score)}</span>
-                      <span className="flex-1 font-medium leading-snug">{it.title}</span>
-                      <ExternalLink size={14} className="mt-1 shrink-0" style={{ color: "var(--text-tertiary)" }} />
-                    </div>
-                    <p className="mb-2 text-sm leading-relaxed" style={{ color: "var(--text-secondary)" }}>
-                      {it.summary}
-                    </p>
-                    <span className="text-xs" style={{ color: "var(--text-tertiary)" }}>
-                      {it.source}
-                    </span>
-                  </a>
+                  <NewsCard key={`${it.source}:${it.link}:${it.title}`} item={it} />
                 ))}
               </div>
             </section>

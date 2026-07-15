@@ -18,12 +18,17 @@ export interface Feed {
 export interface NewsItem {
   title: string;
   link: string;
-  source: string; // feed name
+  source: string; // feed name, or the newsletter's display name ("TLDR AI")
   bucket: Bucket;
   french: boolean;
-  summary: string;
+  tldr: string; // one sentence, <=TLDR_MAX chars — the card's resting state
+  summary: string; // 2-3 sentences — revealed when the card is expanded
   score: number; // 1-5 relevance to the configured reader profile
 }
+
+// Cap for NewsItem.tldr. The prompt asks for one sentence under this; the
+// engine also truncates, since the model treats it as a target, not a limit.
+export const TLDR_MAX = 140;
 
 export interface Edition {
   date: string; // YYYY-MM-DD (BRIEF_TZ)
