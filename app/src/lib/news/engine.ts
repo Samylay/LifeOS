@@ -32,9 +32,9 @@ const MIN_SCORE = 3;
 // Per newsletter, after the model has ranked its own stories. A TLDR issue
 // carries ~10; the tail is ads and filler, and MIN_SCORE thins the rest.
 const MAX_NEWSLETTER_STORIES = 6;
-// Ceiling on the newsletters section across every email in a run — TLDR alone
-// sends ~4 editions a day, which is enough to crowd out the feeds. Applied
-// after dedupe so a collapsed duplicate doesn't leave the section short.
+// Soft ceiling on the newsletters section across every email in a run — TLDR
+// alone sends ~4 editions a day, which is enough to crowd out the feeds.
+// Soft because a newsletter never loses its seat to it; see capNewsletters.
 const MAX_NEWSLETTER_ITEMS = 10;
 const RSS_TIMEOUT = 20_000;
 const JINA_TIMEOUT = 25_000;
@@ -227,6 +227,38 @@ const titleKey = (t: string) =>
     .replace(/[^a-z0-9]+/g, " ")
     .trim();
 
+// Trim the newsletters section by round-robin across sources, not by a global
+// score sort: a plain top-N deletes the lowest-scoring newsletter outright
+// (TLDR Design vanished entirely in testing), and a slightly longer page beats
+// losing a newsletter. Every source lands its best story before any source
+// lands a second, so the ceiling costs stories, never a seat — and it yields
+// completely if there are ever more newsletters than slots.
+function capNewsletters(items: NewsItem[]): NewsItem[] {
+  const bySource = new Map<string, NewsItem[]>();
+  for (const it of items) {
+    const arr = bySource.get(it.source) ?? [];
+    arr.push(it);
+    bySource.set(it.source, arr);
+  }
+  for (const arr of bySource.values()) arr.sort((x, y) => y.score - x.score);
+
+  const out: NewsItem[] = [];
+  for (let round = 1; ; round++) {
+    let any = false;
+    for (const arr of bySource.values()) {
+      // Round 1 always completes, so every newsletter keeps a story even when
+      // sources outnumber the ceiling. After that the ceiling can bite
+      // mid-round, since no source is left empty by it.
+      if (round > 1 && out.length >= MAX_NEWSLETTER_ITEMS) return out;
+      const next = arr.shift();
+      if (!next) continue;
+      out.push(next);
+      any = true;
+    }
+    if (!any) return out;
+  }
+}
+
 function dedupeItems(items: NewsItem[]): NewsItem[] {
   const best = new Map<string, NewsItem>();
   for (const it of items) {
@@ -367,12 +399,8 @@ export async function runNews(opts: { force?: boolean } = {}): Promise<Edition> 
   }
 
   const deduped = dedupeItems(items);
-  // Trim the newsletters section to its ceiling, keeping the best-scoring;
-  // the feeds are left alone, so a heavy TLDR day can't bury them.
-  const newsletters = deduped
-    .filter((it) => it.bucket === "news")
-    .sort((x, y) => y.score - x.score)
-    .slice(0, MAX_NEWSLETTER_ITEMS);
+  // The feeds are left alone, so a heavy newsletter day can't bury them.
+  const newsletters = capNewsletters(deduped.filter((it) => it.bucket === "news"));
   const final = [...deduped.filter((it) => it.bucket !== "news"), ...newsletters].sort((x, y) => y.score - x.score);
 
   const edition: Edition = { date: dateStr, generatedAt: new Date().toISOString(), items: final };
