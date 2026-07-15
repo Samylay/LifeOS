@@ -28,7 +28,7 @@
 > 2. **The system only knows what Samy told it.** Never infer intent from silence, repetition, skipping, or age.
 > 3. **Only Samy retires a topic.** No decay, no auto-archive, no "he clearly lost interest".
 
-- [ ] **T53 — Learning model: topics + tags (schema + store)** (M) — foundation for the whole LifeOS half (T56–T64); no UI. Per map tickets 01/02/12. `TeachTopic` becomes a **container**: `topic` is a sentence, `mission` REQUIRED (non-empty), `tags: string[]` (the controlled topic-tags it owns), `origin: "authored" | "proposed"`, plus existing `status`/`scheduledFor`/`learningRecords`. **Delete `adoptSuggestion()` and `teachSuggestions()` outright** (map 01/05 — inverse of the decided model; `teachSuggestions`' hardcoded `["ai-tip","ai-project","swe"]` filter has NOTHING replacing it) and the single-string `origin` shape they implied. Add the controlled tag list as its own collection (`users/local/topicTags`: `{tag, neverPropose: boolean}`) — `neverPropose` is ticket 11's tombstone, nothing works without it. `TriageItem` gains `topicTags: string[]` (controlled) + `vaultTags: string[]` (free-form); `category` **SURVIVES UNCHANGED** as its own axis (map 02 — it drives /decide assessments + triage destinations, which are not learning concerns; do NOT collapse it into tags). Existing docs lack the new fields — read them tolerantly (absent = empty), **do not migrate the live DB** (that's Samy's, see T64c). Verify: `npx tsc --noEmit`, `npx vitest run` green incl. new unit tests (a topic without a mission is rejected; tolerant read of a legacy doc; tombstone round-trip), `docker compose build`.
+- [x] **T53 — Learning model: topics + tags (schema + store)** (2026-07-15: `TeachTopic` gained `tags`/`origin:"authored"|"proposed"`, mission enforced non-empty in `addTopic`; `adoptSuggestion`/`teachSuggestions` deleted store+API+UI; added `users/local/topicTags` w/ `neverProposeTag`/`isTagTombstoned`; `TriageItem` gained `topicTags`/`vaultTags`.) (M) — foundation for the whole LifeOS half (T56–T64); no UI. Per map tickets 01/02/12. `TeachTopic` becomes a **container**: `topic` is a sentence, `mission` REQUIRED (non-empty), `tags: string[]` (the controlled topic-tags it owns), `origin: "authored" | "proposed"`, plus existing `status`/`scheduledFor`/`learningRecords`. **Delete `adoptSuggestion()` and `teachSuggestions()` outright** (map 01/05 — inverse of the decided model; `teachSuggestions`' hardcoded `["ai-tip","ai-project","swe"]` filter has NOTHING replacing it) and the single-string `origin` shape they implied. Add the controlled tag list as its own collection (`users/local/topicTags`: `{tag, neverPropose: boolean}`) — `neverPropose` is ticket 11's tombstone, nothing works without it. `TriageItem` gains `topicTags: string[]` (controlled) + `vaultTags: string[]` (free-form); `category` **SURVIVES UNCHANGED** as its own axis (map 02 — it drives /decide assessments + triage destinations, which are not learning concerns; do NOT collapse it into tags). Existing docs lack the new fields — read them tolerantly (absent = empty), **do not migrate the live DB** (that's Samy's, see T64c). Verify: `npx tsc --noEmit`, `npx vitest run` green incl. new unit tests (a topic without a mission is rejected; tolerant read of a legacy doc; tombstone round-trip), `docker compose build`.
 > **⚠️ The supply half of this pipeline lives in a DIFFERENT repo.** `study.py` is host-side in `~/services/triage`, which has its **own** ROADMAP and its **own** nightly executor (cwd = that directory; commits go to `~/services`). Tagging is queued there as **triage T05 / T06 / T07** — do not edit `~/services/triage` from a LifeOS task, and do not wait on it either: T53, T56, T57, T59, T61, T62 are all buildable against tags that do not exist yet (untagged items simply attach to nothing). **T58 is the only LifeOS task that genuinely needs triage T05 landed first.**
 
 - [ ] **T56 — Attachment: items ↔ topics by tag overlap** (S) — GATED on T53. Per map 12/05/09. An item attaches to a topic iff their tags overlap. **No fit check** — permissive by design (the session's synthesis filters at generation time, T59). **ATTACHMENT MUST IGNORE `status`: a `discarded` item still attaches.** This is counter-intuitive and you will want to "fix" it — do not. *The rubric decides filing; his topics decide learning* (map 05: learning is orthogonal to destination; map 09: 37 of 67 library items are discarded by a nine-centres/rubric usefulness lens, and letting that prune learning supply is exactly the banned ROI judgement). One item may attach to many topics — no single topic-id FK. Prefer a query over a stored edge (a topic's tag set can change; retro-attachment should then be free). Verify: unit tests — overlap attaches, no-overlap doesn't, a `discarded` item with overlapping tags **attaches**, one item attaches to two topics, changing a topic's tags changes its material with no writes to items.
@@ -68,6 +68,51 @@
 - [x] ~~**T13 — per-activity detail (map + streams)**~~ *(2026-07-07: DROPPED per Samy — no leaflet, no stream sync)*
 
 ## Log
+
+- **2026-07-15 (autoloop, T53):** First unchecked non-NEEDS-SAMY task. Built
+  the schema+store foundation only (no UI, per the task's own scope). In
+  `app/src/lib/teach.ts`: `TeachTopic` gained `tags: string[]` and narrowed
+  `origin` to `"authored" | "proposed"`; `addTopic()` now takes
+  `(topic, mission, tags?, origin?)` and throws if `mission` is empty/blank;
+  added a tolerant `normalizeTopic()`/`getTopic()` pair so legacy docs (missing
+  `tags`/`origin`, or old free-form `origin` strings like `"chat"`/`triage:<id>`)
+  default instead of crash — used by `getTopic`, `dueTopics`, session start/turn/end.
+  Added `users/local/topicTags` with `neverProposeTag()`/`isTagTombstoned()` —
+  the tombstone ledger T58's cluster-proposal cap will read. Deleted
+  `adoptSuggestion()`/`teachSuggestions()` outright (the ingestion-pipeline
+  feed map 01/05 replaces with T58's tag-cluster proposals) — updated the only
+  call sites: `app/src/app/api/teach/route.ts` (dropped the `adoptSuggestion`
+  POST case and the `suggestions` GET field; `addTopic` POST now 400s if
+  mission is blank) and `app/src/components/teach/teach-section.tsx` (removed
+  the "From your saved content" suggestions panel and its `adopt()` handler —
+  nothing replaces it yet, by design). `app/src/lib/homelab-tools.ts`'s
+  `add_learning_topic` chat tool now requires `mission` in both its JSON
+  schema and its executor (previously passed origin `"chat"`, no longer a
+  valid value; the chat-tool mission gap this creates is T63's job — draft
+  topics without a mission — deliberately not built here). `TriageItem`
+  (`app/src/lib/triage.ts`) gained optional `topicTags`/`vaultTags` per the
+  task spec; `category` untouched. New `app/src/lib/teach.test.ts`: mission
+  rejected empty/blank, tags/origin default and persist, tolerant read of a
+  hand-written legacy doc (no `tags`/`origin`/`mission`), unknown id returns
+  null, tombstone round-trip incl. idempotent re-tombstone. Verified: `npx tsc
+  --noEmit` clean, `npx vitest run` 233/233 (was 227 — +6 new, 0 broken),
+  `docker compose build` clean, `docker compose up -d` then `/`, `/knowledge`,
+  `/api/teach` all 200, container logs clean on boot.
+  **Pitch:** the learning-topics store finally has real container semantics —
+  a topic can't exist without a "why", its controlled tags are typed, and a
+  permanent tag-tombstone ledger exists — so T56-T64 (attachment, proposals,
+  sessions, scheduling, SRS) can build straight on it without another schema
+  migration.
+  **Quiz:** (1) Why does `normalizeTopic` coerce an unrecognized `origin`
+  value to `"authored"` rather than throwing? (2) Why does `neverProposeTag`
+  look up the existing doc by `tag` before deciding whether to `createDoc` or
+  `updateDoc`, instead of just always writing a fresh doc? (3) Why was
+  `adoptSuggestion`'s `triage:<itemId>` origin format deleted rather than kept
+  as a third allowed `origin` value?
+  **Remaining (Samy/future tasks):** T58 still needs to build the actual
+  tag-cluster proposal UI/logic on top of `neverProposeTag`/`isTagTombstoned`;
+  T63 still needs to give chat-queued topics a mission-less "draft" path
+  instead of failing outright when Samy doesn't state a why over chat.
 
 - **2026-07-13 (autoloop, T48):** First unchecked non-NEEDS-SAMY task (placed
   first in the queue per Samy's 2026-07-13 note). Added a static
