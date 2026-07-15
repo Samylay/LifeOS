@@ -32,6 +32,10 @@ const MIN_SCORE = 3;
 // Per newsletter, after the model has ranked its own stories. A TLDR issue
 // carries ~10; the tail is ads and filler, and MIN_SCORE thins the rest.
 const MAX_NEWSLETTER_STORIES = 6;
+// Ceiling on the newsletters section across every email in a run — TLDR alone
+// sends ~4 editions a day, which is enough to crowd out the feeds. Applied
+// after dedupe so a collapsed duplicate doesn't leave the section short.
+const MAX_NEWSLETTER_ITEMS = 10;
 const RSS_TIMEOUT = 20_000;
 const JINA_TIMEOUT = 25_000;
 const CUTOFF_MS = 24 * 60 * 60 * 1000;
@@ -362,9 +366,16 @@ export async function runNews(opts: { force?: boolean } = {}): Promise<Edition> 
     }
   }
 
-  const deduped = dedupeItems(items).sort((x, y) => y.score - x.score);
+  const deduped = dedupeItems(items);
+  // Trim the newsletters section to its ceiling, keeping the best-scoring;
+  // the feeds are left alone, so a heavy TLDR day can't bury them.
+  const newsletters = deduped
+    .filter((it) => it.bucket === "news")
+    .sort((x, y) => y.score - x.score)
+    .slice(0, MAX_NEWSLETTER_ITEMS);
+  const final = [...deduped.filter((it) => it.bucket !== "news"), ...newsletters].sort((x, y) => y.score - x.score);
 
-  const edition: Edition = { date: dateStr, generatedAt: new Date().toISOString(), items: deduped };
+  const edition: Edition = { date: dateStr, generatedAt: new Date().toISOString(), items: final };
   setDoc(EDITIONS_COLLECTION, dateStr, edition as unknown as Record<string, unknown>);
 
   // Emails are dropped only once their stories are safely in a stored edition —
