@@ -9,8 +9,11 @@ import path from "path";
 const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "lifeos-teach-test-"));
 process.env.LIFEOS_DB_PATH = path.join(tmpDir, "test.db");
 
-const { addTopic, getTopic, neverProposeTag, isTagTombstoned } = await import("./teach");
-const { createDoc } = await import("./server-db");
+const { addTopic, getTopic, neverProposeTag, isTagTombstoned, attachedItems } = await import(
+  "./teach"
+);
+const { createDoc, updateDoc } = await import("./server-db");
+const { TRIAGE_COLLECTION } = await import("./triage-ingest");
 
 afterAll(() => {
   fs.rmSync(tmpDir, { recursive: true, force: true });
@@ -53,6 +56,52 @@ describe("getTopic — tolerant read of legacy docs", () => {
 
   it("returns null for an unknown id", () => {
     expect(getTopic("does-not-exist")).toBeNull();
+  });
+});
+
+describe("attachedItems — T56 attach-by-tag-overlap", () => {
+  function item(topicTags: string[], status = "filed") {
+    return createDoc(TRIAGE_COLLECTION, {
+      url: `https://example.com/${Math.random()}`,
+      rawUrl: `https://example.com/${Math.random()}`,
+      source: "other",
+      savedAt: new Date(),
+      createdAt: new Date(),
+      status,
+      topicTags,
+    });
+  }
+
+  it("attaches an item whose tags overlap the topic's, skips one that doesn't", () => {
+    const topicId = addTopic("learn rust", "ship faster", ["rust", "systems"]);
+    const overlapping = item(["rust", "web"]);
+    const disjoint = item(["cooking"]);
+    const ids = attachedItems(topicId).map((i) => i.id);
+    expect(ids).toContain(overlapping);
+    expect(ids).not.toContain(disjoint);
+  });
+
+  it("attaches a discarded item with overlapping tags — status is ignored", () => {
+    const topicId = addTopic("learn zig", "curiosity", ["zig"]);
+    const discarded = item(["zig"], "discarded");
+    expect(attachedItems(topicId).map((i) => i.id)).toContain(discarded);
+  });
+
+  it("one item attaches to two topics", () => {
+    const topicA = addTopic("learn go", "mission a", ["go"]);
+    const topicB = addTopic("learn concurrency", "mission b", ["go", "concurrency"]);
+    const shared = item(["go"]);
+    expect(attachedItems(topicA).map((i) => i.id)).toContain(shared);
+    expect(attachedItems(topicB).map((i) => i.id)).toContain(shared);
+  });
+
+  it("changing a topic's tags changes its material with no writes to items", () => {
+    const topicId = addTopic("learn elixir", "curiosity", ["elixir"]);
+    const target = item(["phoenix"]);
+    expect(attachedItems(topicId).map((i) => i.id)).not.toContain(target);
+
+    updateDoc("users/local/teachTopics", topicId, { tags: ["phoenix"] });
+    expect(attachedItems(topicId).map((i) => i.id)).toContain(target);
   });
 });
 

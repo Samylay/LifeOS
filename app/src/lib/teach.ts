@@ -12,6 +12,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { createDoc, getDoc, listDocs, updateDoc } from "./server-db";
 import { generateJson } from "./claude-cli";
+import { TRIAGE_COLLECTION } from "./triage-ingest";
+import type { TriageItem } from "./triage";
 
 const TOPICS = "users/local/teachTopics";
 const SESSIONS = "users/local/teachSessions";
@@ -152,6 +154,24 @@ export function dueTopics(today: string): TeachTopic[] {
   return (listDocs(TOPICS, { where: [["status", "==", "scheduled"]] }) as unknown as Array<{ id: string } & Record<string, unknown>>)
     .map((raw) => normalizeTopic(raw.id, raw))
     .filter((t) => (t.scheduledFor || "") <= today);
+}
+
+// --- Attachment (T56) -------------------------------------------------------
+
+/** An item attaches to a topic iff their tags overlap — permissive by design
+ * (T59's session synthesis does the fit-filtering, not attachment). Ignores
+ * `status`: a discarded item still attaches (map 05 — the rubric decides
+ * filing; his topics decide learning; map 09 — letting a rubric discard prune
+ * learning supply is exactly the banned ROI judgement). One item may attach
+ * to many topics — no stored edge, so a topic's tags changing retro-attaches
+ * with no writes to items. */
+export function attachedItems(topicId: string): TriageItem[] {
+  const topic = getTopic(topicId);
+  if (!topic || topic.tags.length === 0) return [];
+  const tagSet = new Set(topic.tags);
+  return (listDocs(TRIAGE_COLLECTION) as unknown as TriageItem[]).filter((item) =>
+    (item.topicTags || []).some((t) => tagSet.has(t))
+  );
 }
 
 // --- Sessions ---------------------------------------------------------------
