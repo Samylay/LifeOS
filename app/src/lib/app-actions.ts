@@ -7,6 +7,7 @@
 // `{ __date }` markers the client's serializeDates produces, so documents
 // created here are indistinguishable from client-created ones.
 import { createDoc, listDocs, updateDoc } from "./server-db";
+import { appendToInbox } from "./voice-inbox";
 import type { ChatAction } from "@/app/api/chat/route";
 
 export interface AppActionResult {
@@ -129,6 +130,29 @@ export async function executeAppActions(actions: ChatAction[]): Promise<AppActio
               failed: true,
             });
           }
+          break;
+        }
+        case "capture_braindump": {
+          // Raw thinking belongs in the vault inbox, not the notes table:
+          // `01-Inbox/voice/<date>.md` is what Hermes' classify.py sweeps and
+          // enriches. This is the route /voice already takes (see
+          // /api/voice/save) — exposing it as a chat tool means a dump typed
+          // or spoken into the assistant lands in the same place as one
+          // captured through the VoicePal surface, instead of dead-ending as
+          // a `notes` row nothing ever reads again.
+          const b = action.input as { content: string; category?: string };
+          const content = String(b.content || "").trim();
+          if (!content) {
+            results.push({
+              tool: "capture_braindump",
+              summary: "Failed: capture_braindump (empty content)",
+              failed: true,
+            });
+            break;
+          }
+          const date = new Date().toISOString().slice(0, 10);
+          const note = appendToInbox(date, "(assistant capture)", b.category || "braindump", content);
+          results.push({ tool: "capture_braindump", summary: `Captured to vault: ${note}` });
           break;
         }
         default:

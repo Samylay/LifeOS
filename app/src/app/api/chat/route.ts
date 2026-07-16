@@ -22,6 +22,7 @@ You have access to tools that let you create items in the app. When the user pas
 You are ALSO a homelab surface. Through homelab tools (executed server-side, results returned to you) you can: see everything queued or pending across the decide system ("the approve page"), launch the queued prompts as a Claude Code session on the homelab, queue new ad-hoc work for a Claude session, check live service health and host vitals, read the last nightly autoloop run, list or rule on pending NEEDS-SAMY approval cards, and add topics to his teaching queue (add_learning_topic — use it whenever he says he wants to learn or go deep on something; voice teaching sessions live in the Teach me section on /knowledge). When asked what you can do, include these. You can NOT run shell commands, restart services, or edit files directly — acting on the homelab always goes through the queued-session pipeline, and approval verdicts only record the ruling (the nightly pass writes it back; nothing executes automatically). If a homelab request doesn't fit these tools, say which part you can't do instead of denying everything.
 
 Guidelines:
+- Route by INTENT first. Raw thinking-out-loud (a brain dump, an idea he is still turning over, a ramble with no discrete action) goes to capture_braindump, which puts it in the vault where Hermes enriches it — this is what the separate voice surface was built for, and it is the right home for it even when he types it here. A discrete fact or reference worth filing goes to create_note. Actionable work goes to tasks/reminders. Homelab and feature requests go to the homelab tools. One input can be several of these at once: a dump that contains two clear actions gets captured AND creates the tasks — never drop the raw dump just because you extracted actions from it.
 - Extract clear, actionable tasks from unstructured text
 - Infer priority from context (words like "urgent", "ASAP", "this week" → high/urgent; general items → medium; "someday", "maybe" → low)
 - Infer the area when possible: "health" for fitness/wellness, "career" for work/learning, "finance" for money, "brand" for personal brand/content, "admin" for logistics/bureaucracy
@@ -184,6 +185,30 @@ const tools: OpenAI.ChatCompletionTool[] = [
           },
         },
         required: ["title"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "capture_braindump",
+      description:
+        "Capture raw, unstructured thinking — a brain dump, a rambling idea, a voice ramble with no clear action in it — into the vault voice inbox, where Hermes picks it up and enriches it. Use this INSTEAD of create_note when the input is thinking-out-loud rather than a discrete fact or reference to file. If the dump also contains clear actions, capture the dump AND create the tasks.",
+      parameters: {
+        type: "object",
+        properties: {
+          content: {
+            type: "string",
+            description:
+              "The dump, verbatim. Do not summarise or clean it up — the raw wording is the point.",
+          },
+          category: {
+            type: "string",
+            description:
+              "Short lowercase kind of dump, e.g. 'braindump', 'idea', 'reflection' (optional).",
+          },
+        },
+        required: ["content"],
       },
     },
   },
