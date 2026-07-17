@@ -32,7 +32,7 @@
 > **⚠️ The supply half of this pipeline lives in a DIFFERENT repo.** `study.py` is host-side in `~/services/triage`, which has its **own** ROADMAP and its **own** nightly executor (cwd = that directory; commits go to `~/services`). Tagging is queued there as **triage T05 / T06 / T07** — do not edit `~/services/triage` from a LifeOS task, and do not wait on it either: T53, T56, T57, T59, T61, T62 are all buildable against tags that do not exist yet (untagged items simply attach to nothing). **T58 is the only LifeOS task that genuinely needs triage T05 landed first.**
 
 - [x] **T56 — Attachment: items ↔ topics by tag overlap** (2026-07-16: added `attachedItems(topicId)` in `app/src/lib/teach.ts` — a query over the triage queue, not a stored edge; status is ignored.) (S) — GATED on T53. Per map 12/05/09. An item attaches to a topic iff their tags overlap. **No fit check** — permissive by design (the session's synthesis filters at generation time, T59). **ATTACHMENT MUST IGNORE `status`: a `discarded` item still attaches.** This is counter-intuitive and you will want to "fix" it — do not. *The rubric decides filing; his topics decide learning* (map 05: learning is orthogonal to destination; map 09: 37 of 67 library items are discarded by a nine-centres/rubric usefulness lens, and letting that prune learning supply is exactly the banned ROI judgement). One item may attach to many topics — no single topic-id FK. Prefer a query over a stored edge (a topic's tag set can change; retro-attachment should then be free). Verify: unit tests — overlap attaches, no-overlap doesn't, a `discarded` item with overlapping tags **attaches**, one item attaches to two topics, changing a topic's tags changes its material with no writes to items.
-- [ ] **T57 — /knowledge: surface topics, not items** (M) — GATED on T53+T56. Per map 03. The "Teach me" section is built on the now-deleted `adoptSuggestion()`/`teachSuggestions()` — **rebuild it to show topics** (authored + accepted), each with its sentence, mission, and last-taught date. Add authoring: a topic needs a sentence + a **mission** (required — map 06). No item lists anywhere: items are material Samy never sees (map 04). House motion doctrine per CLAUDE.md. Verify: tsc, tests, rebuild, redeploy, `/knowledge` 200, authoring a topic without a mission is refused in the UI, a topic with attached items shows **no item count or list**.
+- [x] **T57 — /knowledge: surface topics, not items** (M) — GATED on T53+T56. Per map 03. The "Teach me" section is built on the now-deleted `adoptSuggestion()`/`teachSuggestions()` — **rebuild it to show topics** (authored + accepted), each with its sentence, mission, and last-taught date. Add authoring: a topic needs a sentence + a **mission** (required — map 06). No item lists anywhere: items are material Samy never sees (map 04). House motion doctrine per CLAUDE.md. Verify: tsc, tests, rebuild, redeploy, `/knowledge` 200, authoring a topic without a mission is refused in the UI, a topic with attached items shows **no item count or list**. (2026-07-17: added `lastTaughtDate()` to `teach.ts`, wired into each topic card alongside sentence + mission; add-topic form now disables submit + shows an inline hint when mission is empty instead of silently no-opping; attachedItems stays unused in the UI, no counts/lists rendered.)
 - [ ] **T58 — Proposals: tag + topic cards on /decide** (M) — GATED on T56 **and on triage T05** (the cross-repo one: `~/services/triage/ROADMAP.md` — nothing proposes until study.py emits tags and writes tag-proposals). Per map 11 (+02). **Trigger: count alone — N items share a tag AND no topic owns that tag → propose. NEVER consult age, recency, or density** (rule 1 above; a 2023 cluster and a this-week cluster are equal). **One deck, two card types**, reusing `CardStack` like the triage/NEEDS-SAMY/Shelf tabs: tag cards are tiny ("add tag `x`?"); topic cards ask for the **why** on accept (map 06 — a topic cannot exist without a mission). **"Never" tombstones the tag permanently** (`neverPropose`) — this is what stops `[humor]`×12 proposing "learn humor", and it is the ONLY eligibility mechanism (map 11: the first proposal *is* the eligibility question — do not add a `learnable` field or a model judgement). **Day one bursts (~8-10 clusters, once triage T06's backfill runs) — that is Samy setting up his curriculum from four years of saves, NOT noise. Do not cap the first run.** Steady-state cap ≤3 proposals/week (copy the weekly compost review's cap). Verify: tests — cluster at N proposes; an old cluster proposes identically to a fresh one; "never" tombstones and re-running proposes it 0 times; accept-without-why is refused; first run uncapped, subsequent weeks ≤3. Redeploy, `/decide` 200, both card types render.
   - SAMY 2026-07-16: approved
 - [ ] **T59 — Session teaches the topic, bounded by time** (M) — GATED on T56. Per map 04. The session **answers the topic's sentence**, synthesizing from attached material; Samy never sees an item list. **His available time is the only bound** — the tutor selects material that fits ("I have 20 minutes" ≠ "I have an hour"). **Nothing is consumed**: material is used, not spent, and the same items serve later, deeper sessions (`learningRecords` carry where he got to). **Do NOT build**: a load-time filter (the sentence filters at generation — map 04 dissolved this), a batch mode (every session is a synthesis), an item cap ("top N" needs a ranking of his material = rule 1), or any prerequisite/DAG ordering (map 04: **sequencing is not real** — asked for one concrete pair, Samy said "none really"). Verify: tests — same topic + different time budgets ⇒ different material selected, no item mutated by a session, a topic with 40 attached items still produces a bounded session.
@@ -91,6 +91,31 @@
   `[rust, wasm]`, does any previously-saved item need to be re-processed for
   it to show up as material?" (No — `attachedItems` reads live tags on every
   call; nothing is stored per-edge.)
+
+- **2026-07-17 (autoloop, T57):** First unchecked non-NEEDS-SAMY task; T53+T56
+  (its gates) were already done. "Teach me" already rendered topics (not
+  items) from an earlier pass, so scope narrowed to two gaps against the
+  spec: (1) no last-taught date was shown — added `lastTaughtDate()` to
+  `app/src/lib/teach.ts`, parsing the `YYYY-MM-DD:` prefix `endSession`
+  already writes into `learningRecords` (last dated entry wins; no new field,
+  no migration), mirrored client-side in `teach-section.tsx` since the GET
+  route returns raw docs; each card now shows sentence, mission, and
+  "last taught <date>" / "never taught"; (2) authoring without a mission
+  silently no-op'd — the add button is now `disabled` until both fields are
+  non-empty and an inline hint ("A mission is required...") appears, so the
+  refusal is visible, not just absent. `attachedItems` remains unused in any
+  UI — no item count or list anywhere. `npx tsc --noEmit` clean; `npx vitest
+  run` 250/250 green (was 241; +3 for `lastTaughtDate`); `docker compose
+  build` + `up -d` clean, `curl /` and `curl /knowledge` both 200, container
+  logs clean on boot — pitch: "a topic card now tells you when you last sat
+  with it, the same way a book on your nightstand tells you where the
+  bookmark is — and if you try to queue a topic with no reason attached, the
+  form says so instead of just... not saving it." quiz: "if a topic has three
+  learning records but the middle one predates the current date-prefix format
+  and lacks a `YYYY-MM-DD:` prefix, which date does the card show?" (The last
+  record's date if it has one — `lastTaughtDate` scans from the end and
+  returns the first dated entry it finds, so a malformed middle entry is
+  simply skipped, not treated as "never taught".)
 
 - **2026-07-15 (autoloop, T53):** First unchecked non-NEEDS-SAMY task. Built
   the schema+store foundation only (no UI, per the task's own scope). In
