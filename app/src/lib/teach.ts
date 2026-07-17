@@ -148,6 +148,18 @@ export function scheduleTopic(topicId: string, date: string): void {
   updateDoc(TOPICS, topicId, { status: "scheduled", scheduledFor: date });
 }
 
+/** Date of the most recent learning record, parsed from its `YYYY-MM-DD: `
+ * prefix (the format `endSession` writes) — the "last-taught date" shown on
+ * `/knowledge` (map 03). Never taught yet ⇒ null, not a fabricated date. */
+export function lastTaughtDate(topic: Pick<TeachTopic, "learningRecords">): string | null {
+  const records = topic.learningRecords || [];
+  for (let i = records.length - 1; i >= 0; i--) {
+    const m = /^(\d{4}-\d{2}-\d{2}):/.exec(records[i]);
+    if (m) return m[1];
+  }
+  return null;
+}
+
 /** Topics scheduled for today or earlier — consumed by the morning
  * attention push so a scheduled session reaches Samy as a card. */
 export function dueTopics(today: string): TeachTopic[] {

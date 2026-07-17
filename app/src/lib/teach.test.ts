@@ -9,9 +9,8 @@ import path from "path";
 const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "lifeos-teach-test-"));
 process.env.LIFEOS_DB_PATH = path.join(tmpDir, "test.db");
 
-const { addTopic, getTopic, neverProposeTag, isTagTombstoned, attachedItems } = await import(
-  "./teach"
-);
+const { addTopic, getTopic, neverProposeTag, isTagTombstoned, attachedItems, lastTaughtDate } =
+  await import("./teach");
 const { createDoc, updateDoc } = await import("./server-db");
 const { TRIAGE_COLLECTION } = await import("./triage-ingest");
 
@@ -102,6 +101,24 @@ describe("attachedItems — T56 attach-by-tag-overlap", () => {
 
     updateDoc("users/local/teachTopics", topicId, { tags: ["phoenix"] });
     expect(attachedItems(topicId).map((i) => i.id)).toContain(target);
+  });
+});
+
+describe("lastTaughtDate — T57's last-taught date, parsed from learningRecords", () => {
+  it("returns null for a topic never taught", () => {
+    expect(lastTaughtDate({ learningRecords: [] })).toBeNull();
+  });
+
+  it("extracts the date from the most recent dated record", () => {
+    expect(
+      lastTaughtDate({
+        learningRecords: ["2026-07-01: got the boundary rules", "2026-07-15: caching still shaky"],
+      })
+    ).toBe("2026-07-15");
+  });
+
+  it("skips a malformed record without a date prefix", () => {
+    expect(lastTaughtDate({ learningRecords: ["no date here"] })).toBeNull();
   });
 });
 

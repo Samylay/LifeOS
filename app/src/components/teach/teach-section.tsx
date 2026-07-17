@@ -16,6 +16,18 @@ interface Topic {
   scheduledFor?: string;
   learningRecords?: string[];
 }
+
+/** Mirrors `lastTaughtDate` in `src/lib/teach.ts` — the API returns raw docs,
+ * not the normalized `TeachTopic`, so this reads the same `YYYY-MM-DD: `
+ * prefix client-side rather than adding a round trip. */
+function lastTaughtDate(records: string[] | undefined): string | null {
+  const list = records || [];
+  for (let i = list.length - 1; i >= 0; i--) {
+    const m = /^(\d{4}-\d{2}-\d{2}):/.exec(list[i]);
+    if (m) return m[1];
+  }
+  return null;
+}
 interface SessionRow {
   id: string;
   topic: string;
@@ -56,7 +68,11 @@ export function TeachSection() {
   };
 
   const add = async () => {
-    if (!newTopic.trim() || !newMission.trim()) return;
+    if (!newTopic.trim()) return;
+    if (!newMission.trim()) {
+      toast("A topic needs a mission — why do you want this?", "error");
+      return;
+    }
     try {
       await post({ action: "addTopic", topic: newTopic, mission: newMission });
       setNewTopic("");
@@ -150,9 +166,15 @@ export function TeachSection() {
               border: "1px solid var(--border-primary)",
             }}
           />
+          {newTopic.trim() && !newMission.trim() && (
+            <p className="text-xs" style={{ color: "var(--accent-danger, #d97757)" }}>
+              A mission is required — say why this matters before adding it.
+            </p>
+          )}
           <button
             onClick={add}
-            className="rounded-lg px-3 py-1.5 text-xs font-medium transition-transform duration-100 active:scale-[0.97]"
+            disabled={!newTopic.trim() || !newMission.trim()}
+            className="rounded-lg px-3 py-1.5 text-xs font-medium transition-transform duration-100 active:scale-[0.97] disabled:opacity-50"
             style={{ background: "var(--accent-primary)", color: "white" }}
           >
             Add to queue
@@ -174,10 +196,14 @@ export function TeachSection() {
                   {t.topic}
                 </p>
                 <p className="truncate text-xs" style={{ color: "var(--text-tertiary)" }}>
+                  {t.mission || "no mission yet"}
+                </p>
+                <p className="truncate text-[11px]" style={{ color: "var(--text-tertiary)" }}>
                   {t.status === "scheduled" && t.scheduledFor ? `session ${t.scheduledFor} · ` : ""}
-                  {(t.learningRecords?.length ?? 0) > 0
-                    ? `${t.learningRecords!.length} learning record${t.learningRecords!.length > 1 ? "s" : ""}`
-                    : t.mission || "no mission yet"}
+                  {(() => {
+                    const d = lastTaughtDate(t.learningRecords);
+                    return d ? `last taught ${d}` : "never taught";
+                  })()}
                 </p>
               </div>
               <button
