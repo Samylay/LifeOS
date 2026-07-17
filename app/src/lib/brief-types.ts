@@ -68,7 +68,8 @@ export interface TriageBody {
 export interface ShipsBody {
   projects: { title: string; days: number; never_shipped: boolean; shipping_event: string | null }[];
   shipped_30d: number;
-  tripwire: boolean; // zero ships in 30 days with active projects
+  shipped_outward_30d: number; // of shipped_30d, how many left the machine
+  tripwire: boolean; // zero OUTWARD ships in 30 days with active projects
 }
 
 export interface FuiteBody {

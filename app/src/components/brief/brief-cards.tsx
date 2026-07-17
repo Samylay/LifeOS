@@ -535,7 +535,10 @@ function ShipsCard({ card }: { card: BriefCard }) {
         </div>
       )}
       <p className="text-xs pt-1" style={{ color: "var(--text-tertiary)" }}>
-        {b.shipped_30d} shipped in the last 30 days
+        {b.shipped_outward_30d} left the machine in 30 days
+        {b.shipped_30d > b.shipped_outward_30d && (
+          <span> · {b.shipped_30d} shipped incl. internal</span>
+        )}
       </p>
     </div>
   );

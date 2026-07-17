@@ -41,9 +41,21 @@ itself. Backfills are allowed but must say so in `predictedReaction`.
 ## Exit-velocity brief card (`brief/fetchers/ships.ts`)
 
 Per active project: days since anything shipped, stalest first. Footer:
-ships in the last 30 days. **Tripwire:** 0 ships in 30 days with active
-projects turns the card red — that is the signature failure mode (building
-the tracker instead of shipping) and the card says so.
+outward ships in the last 30 days (with the total, incl. internal, alongside).
+**Tripwire:** 0 **outward** ships in 30 days with active projects turns the
+card red — that is the signature failure mode (building the tracker instead of
+shipping) and the card says so.
+
+**Outward vs internal (2026-07-17).** An outward ship reached a real person or
+the public; an internal one is homelab/self work (a deploy Samy uses, a cron
+fix). Only outward ships arm the tripwire — in the 30 days to 2026-07-16, 70 of
+73 logged ships were internal, so a total-based tripwire read green (68 shipped)
+while Content OS sat at zero outward ships, i.e. it could never fire. Each ship
+carries an optional `outward` boolean; when it's absent the card infers from the
+audience (`toWhom` naming Samy/self/homelab → internal, an `internal` tag →
+internal, blank → internal). `log-ship.sh --outward|--internal` sets it
+explicitly — do that when you know, the heuristic is only for unmarked rows.
+The classifier lives in `brief/fetchers/ships.ts` (`isOutward`, unit-tested).
 
 ## Rules for agents working on this system
 
