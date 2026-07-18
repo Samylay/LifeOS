@@ -22,11 +22,13 @@ import { TriageCard, type TriageQueueItem } from "@/components/decide/triage-car
 import { DecisionCard } from "@/components/decide/decision-card";
 import { BookmarkCard, type BackfillDeckItem } from "@/components/decide/bookmark-card";
 import { PainCard, PAIN_STACK_HEIGHT } from "@/components/decide/pain-card";
+import { ProposalCard } from "@/components/decide/proposal-card";
 import { BulkApprovalBar } from "@/components/decide/bulk-approval-bar";
 import type { PainItem } from "@/lib/pain-deck";
 import type { DecisionItem } from "@/lib/decisions";
+import type { Proposal } from "@/lib/proposals";
 
-type Deck = "saved" | "approvals" | "shelf" | "pain";
+type Deck = "saved" | "approvals" | "shelf" | "pain" | "proposals";
 
 const TRIAGE_ACTIONS: DeckAction[] = [
   { id: "discard", label: "Discard", icon: X, direction: "left", tone: "danger" },
@@ -50,6 +52,14 @@ const BACKFILL_ACTIONS: DeckAction[] = [
 const PAIN_ACTIONS: DeckAction[] = [
   { id: "drop", label: "Drop", icon: Trash2, direction: "left", tone: "danger" },
   { id: "keep", label: "Keep", icon: Check, direction: "right", tone: "success" },
+];
+
+// "Never" tombstones the tag permanently (map 11's only eligibility
+// mechanism) — this is what stops `[humor]`×12 from re-proposing "learn
+// humor" every night.
+const PROPOSAL_ACTIONS: DeckAction[] = [
+  { id: "never", label: "Never", icon: X, direction: "left", tone: "danger" },
+  { id: "accept", label: "Accept", icon: Check, direction: "right", tone: "success" },
 ];
 
 const DECISION_ACTIONS: DeckAction[] = [
@@ -76,19 +86,23 @@ export default function DecidePage() {
   const [decisions, setDecisions] = useState<DecisionItem[]>([]);
   const [shelf, setShelf] = useState<BackfillDeckItem[]>([]);
   const [pain, setPain] = useState<PainItem[]>([]);
+  const [proposals, setProposals] = useState<Proposal[]>([]);
+  const [missionDrafts, setMissionDrafts] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(async () => {
-    const [t, d, s, p] = await Promise.all([
+    const [t, d, s, p, pr] = await Promise.all([
       fetch("/api/triage/queue").then((r) => r.json()).catch(() => ({ items: [] })),
       fetch("/api/decide/queue").then((r) => r.json()).catch(() => ({ items: [] })),
       fetch("/api/triage/backfill").then((r) => r.json()).catch(() => ({ items: [] })),
       fetch("/api/pain").then((r) => r.json()).catch(() => ({ items: [] })),
+      fetch("/api/proposals").then((r) => r.json()).catch(() => ({ items: [] })),
     ]);
     setTriage(t.items ?? []);
     setDecisions(d.items ?? []);
     setShelf(s.items ?? []);
     setPain(p.items ?? []);
+    setProposals(pr.items ?? []);
     setLoading(false);
   }, []);
   useEffect(() => { refresh(); }, [refresh]);
@@ -105,6 +119,9 @@ export default function DecidePage() {
     // Same one-off contract as Shelf.
     ...(pain.length > 0 || deck === "pain"
       ? [{ id: "pain" as Deck, label: "Pain", count: pain.length }]
+      : []),
+    ...(proposals.length > 0 || deck === "proposals"
+      ? [{ id: "proposals" as Deck, label: "Proposals", count: proposals.length }]
       : []),
   ];
 
@@ -188,6 +205,28 @@ export default function DecidePage() {
           onRestore={(item) => setPain((xs) => [item, ...xs.filter((x) => x.id !== item.id)])}
           emptyLabel="Read through — keeps are at /api/pain?status=kept. Go talk to one of them."
           minHeight={PAIN_STACK_HEIGHT}
+        />
+      ) : deck === "proposals" ? (
+        <CardStack
+          items={proposals}
+          renderCard={(item) => (
+            <ProposalCard
+              item={item}
+              mission={missionDrafts[item.id] || ""}
+              onMissionChange={(v) => setMissionDrafts((m) => ({ ...m, [item.id]: v }))}
+            />
+          )}
+          actions={PROPOSAL_ACTIONS}
+          swipeLeftId="never"
+          swipeRightId="accept"
+          perform={async (item, actionId) =>
+            (await post("/api/proposals/verdict", {
+              id: item.id,
+              action: actionId,
+              mission: item.kind === "topic" ? missionDrafts[item.id] : undefined,
+            })).result}
+          onResolved={(item) => setProposals((xs) => xs.filter((x) => x.id !== item.id))}
+          emptyLabel="No tag or topic proposals right now — they surface as your saves cluster."
         />
       ) : (
         <div className="space-y-4">
