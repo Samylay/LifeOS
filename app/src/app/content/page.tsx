@@ -103,7 +103,7 @@ function HookBadge({ n }: { n?: number }) {
 // --- Idea Bank ----------------------------------------------------------------
 
 type IdeaDraft = Omit<ContentIdea, "id" | "createdAt" | "updatedAt">;
-const EMPTY_IDEA: IdeaDraft = { title: "", pillar: "workflow-win", status: "idea" };
+const EMPTY_IDEA: IdeaDraft = { title: "", pillar: "under-the-hood", status: "idea" }; // Concept — the channel's core
 
 function IdeaEditor({
   initial,
@@ -163,8 +163,8 @@ function IdeaEditor({
             ))}
           </select>
         </label>
-        {d.pillar === "build-log" && (
-          <label className="flex items-center gap-2 text-xs" style={{ color: "var(--text-tertiary)" }}>
+        {/* Episode = position in the learning path (continuity), any pillar. */}
+        <label className="flex items-center gap-2 text-xs" style={{ color: "var(--text-tertiary)" }}>
             <span className="font-semibold uppercase tracking-wider">Episode</span>
             <input
               type="number"
@@ -175,7 +175,6 @@ function IdeaEditor({
               style={inputStyle}
             />
           </label>
-        )}
       </div>
       <textarea
         value={d.notes || ""}
