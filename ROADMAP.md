@@ -33,8 +33,9 @@
 
 - [x] **T56 — Attachment: items ↔ topics by tag overlap** (2026-07-16: added `attachedItems(topicId)` in `app/src/lib/teach.ts` — a query over the triage queue, not a stored edge; status is ignored.) (S) — GATED on T53. Per map 12/05/09. An item attaches to a topic iff their tags overlap. **No fit check** — permissive by design (the session's synthesis filters at generation time, T59). **ATTACHMENT MUST IGNORE `status`: a `discarded` item still attaches.** This is counter-intuitive and you will want to "fix" it — do not. *The rubric decides filing; his topics decide learning* (map 05: learning is orthogonal to destination; map 09: 37 of 67 library items are discarded by a nine-centres/rubric usefulness lens, and letting that prune learning supply is exactly the banned ROI judgement). One item may attach to many topics — no single topic-id FK. Prefer a query over a stored edge (a topic's tag set can change; retro-attachment should then be free). Verify: unit tests — overlap attaches, no-overlap doesn't, a `discarded` item with overlapping tags **attaches**, one item attaches to two topics, changing a topic's tags changes its material with no writes to items.
 - [x] **T57 — /knowledge: surface topics, not items** (M) — GATED on T53+T56. Per map 03. The "Teach me" section is built on the now-deleted `adoptSuggestion()`/`teachSuggestions()` — **rebuild it to show topics** (authored + accepted), each with its sentence, mission, and last-taught date. Add authoring: a topic needs a sentence + a **mission** (required — map 06). No item lists anywhere: items are material Samy never sees (map 04). House motion doctrine per CLAUDE.md. Verify: tsc, tests, rebuild, redeploy, `/knowledge` 200, authoring a topic without a mission is refused in the UI, a topic with attached items shows **no item count or list**. (2026-07-17: added `lastTaughtDate()` to `teach.ts`, wired into each topic card alongside sentence + mission; add-topic form now disables submit + shows an inline hint when mission is empty instead of silently no-opping; attachedItems stays unused in the UI, no counts/lists rendered.)
-- [ ] **T58 — Proposals: tag + topic cards on /decide** (M) — GATED on T56 **and on triage T05** (the cross-repo one: `~/services/triage/ROADMAP.md` — nothing proposes until study.py emits tags and writes tag-proposals). Per map 11 (+02). **Trigger: count alone — N items share a tag AND no topic owns that tag → propose. NEVER consult age, recency, or density** (rule 1 above; a 2023 cluster and a this-week cluster are equal). **One deck, two card types**, reusing `CardStack` like the triage/NEEDS-SAMY/Shelf tabs: tag cards are tiny ("add tag `x`?"); topic cards ask for the **why** on accept (map 06 — a topic cannot exist without a mission). **"Never" tombstones the tag permanently** (`neverPropose`) — this is what stops `[humor]`×12 proposing "learn humor", and it is the ONLY eligibility mechanism (map 11: the first proposal *is* the eligibility question — do not add a `learnable` field or a model judgement). **Day one bursts (~8-10 clusters, once triage T06's backfill runs) — that is Samy setting up his curriculum from four years of saves, NOT noise. Do not cap the first run.** Steady-state cap ≤3 proposals/week (copy the weekly compost review's cap). Verify: tests — cluster at N proposes; an old cluster proposes identically to a fresh one; "never" tombstones and re-running proposes it 0 times; accept-without-why is refused; first run uncapped, subsequent weeks ≤3. Redeploy, `/decide` 200, both card types render.
+- [x] **T58 — Proposals: tag + topic cards on /decide** (M) — GATED on T56 **and on triage T05** (the cross-repo one: `~/services/triage/ROADMAP.md` — nothing proposes until study.py emits tags and writes tag-proposals). Per map 11 (+02). **Trigger: count alone — N items share a tag AND no topic owns that tag → propose. NEVER consult age, recency, or density** (rule 1 above; a 2023 cluster and a this-week cluster are equal). **One deck, two card types**, reusing `CardStack` like the triage/NEEDS-SAMY/Shelf tabs: tag cards are tiny ("add tag `x`?"); topic cards ask for the **why** on accept (map 06 — a topic cannot exist without a mission). **"Never" tombstones the tag permanently** (`neverPropose`) — this is what stops `[humor]`×12 proposing "learn humor", and it is the ONLY eligibility mechanism (map 11: the first proposal *is* the eligibility question — do not add a `learnable` field or a model judgement). **Day one bursts (~8-10 clusters, once triage T06's backfill runs) — that is Samy setting up his curriculum from four years of saves, NOT noise. Do not cap the first run.** Steady-state cap ≤3 proposals/week (copy the weekly compost review's cap). Verify: tests — cluster at N proposes; an old cluster proposes identically to a fresh one; "never" tombstones and re-running proposes it 0 times; accept-without-why is refused; first run uncapped, subsequent weeks ≤3. Redeploy, `/decide` 200, both card types render.
   - SAMY 2026-07-16: approved
+  (2026-07-18: done in autoloop — see Log.)
 - [ ] **T59 — Session teaches the topic, bounded by time** (M) — GATED on T56. Per map 04. The session **answers the topic's sentence**, synthesizing from attached material; Samy never sees an item list. **His available time is the only bound** — the tutor selects material that fits ("I have 20 minutes" ≠ "I have an hour"). **Nothing is consumed**: material is used, not spent, and the same items serve later, deeper sessions (`learningRecords` carry where he got to). **Do NOT build**: a load-time filter (the sentence filters at generation — map 04 dissolved this), a batch mode (every session is a synthesis), an item cap ("top N" needs a ranking of his material = rule 1), or any prerequisite/DAG ordering (map 04: **sequencing is not real** — asked for one concrete pair, Samy said "none really"). Verify: tests — same topic + different time budgets ⇒ different material selected, no item mutated by a session, a topic with 40 attached items still produces a bounded session.
 - [ ] **T60 — Scheduling a topic writes a Todoist task** (M) — GATED on T57. Per map 03. **Scheduling is the commitment act**: `scheduleTopic(topicId, date)` also writes ONE Todoist task (`"Learn: <sentence>"`, due that date); Samy's own Todoist→calendar sync does the rest. Todoist holds **only what he committed to** — never mirror the queue, never create a daily recurring task. **LifeOS currently only READS Todoist** (`brief/fetchers/todoist-centres.ts:6`, `work.ts:11-12`) — a write is a POST to the same `api/v1/tasks` with the token already in the secrets store: **not a new dependency**. Fail soft: a Todoist outage must not lose the schedule (the topic is still `scheduled` locally; log + retry). **Ships LIVE — no feature flag** (Samy, 2026-07-15: the app POSTing to Todoist *when he schedules a topic* is the feature doing its job at his own action, not an agent touching his data; a flag would only have gated the thing he asked for). **But the executor must NOT make a live POST to verify** — that IS user data + live service state, which the contract forbids, and the guard stays intact. Verify against tests, not his account: tsc, `npx vitest run` green incl. the task body/date shape, a write failure leaving local state consistent (the topic stays `scheduled` locally; log + retry), and the POST asserted against a stubbed endpoint; rebuild, redeploy, `/knowledge` 200. **The first real write happens by itself the first time Samy schedules a topic — no chore, nothing to flip.** Note the task id in the Log only if he reports one.
 - [ ] **T61 — Progress: narrative only** (S) — GATED on T57. Per map 08. Progress is **the `learningRecords` prose the engine already writes** ("got the boundary rules; caching still shaky"). **Never render a number**: no percentage, no bar, no streak, no coverage — 01 made coverage non-terminal (unbounded denominator) and 04 removed per-item consumption entirely, so anything countable here is a lie that climbs while he feels no smarter. Terminal state = **he marks it done**. Shows on `/knowledge` **+ one line on Today**. ⚠️ *Today is his shipping surface — if that line ever reads as a guilt surface, cut it back to /knowledge; do NOT make it louder.* **A learning session is NOT a ship — it must never touch `shipLog`** (map 08: no external "to whom"; it is input, not output, and logging it would corrupt the 30-day exit-velocity tripwire). Verify: tsc, tests, redeploy, `/knowledge` + `/` 200, `grep` proves no shipLog write from any teach path, no numeric progress in the rendered DOM.
@@ -70,6 +71,59 @@
 - [x] ~~**T13 — per-activity detail (map + streams)**~~ *(2026-07-07: DROPPED per Samy — no leaflet, no stream sync)*
 
 ## Log
+
+- **2026-07-18 (autoloop, T58):** First unchecked non-NEEDS-SAMY task; both
+  gates (T56, and triage T05 — confirmed DONE in `~/services/triage/ROADMAP.md`)
+  were met. Read `.scratch/learning-pipeline/tickets/11-*.md` (the resolved
+  grilling ticket behind this task) to pin what the ROADMAP prose left
+  implicit: tag-cluster proposals are computed by counting `topicTags` across
+  triage items (not a second read of study.py's raw output), CLUSTER_MIN=3
+  (the ticket's own smallest accepted example — "3 solarpunk saves... have
+  identical standing to 6 Rust saves"), and study.py's `topicTagProposals`
+  ("add tag `x`?") and topic-cluster proposals ("N items cluster, make a
+  topic?") really are ONE queue, differing only in card weight, both
+  tombstoned through the same `neverProposeTag`/`isTagTombstoned` mechanism.
+  New `app/src/lib/proposals.ts`: `previewProposals()` is the live,
+  recency-blind trigger (tag proposals = pending `topicTagProposals` not yet
+  in the controlled `topicTags` list; topic proposals = tags with ≥3 items,
+  no owning topic, not tombstoned); `getProposals()` wraps it with the
+  day-one-uncapped / ≤3-new-per-rolling-week rule from a new
+  `users/local/proposalSurfaced` tracking collection — a candidate already
+  shown stays visible past the cap, the cap only bounds how many *new*
+  interruptions land per week. `acceptTagProposal`/`rejectTagProposal`
+  (rejecting also tombstones — the compost cap's writeup names one mechanism,
+  not two) and `acceptTopicProposal`/`rejectTopicProposal` (accept calls
+  `teach.ts`'s `addTopic`, which throws on a blank mission — the refusal is
+  free, not reimplemented). New routes `GET /api/proposals`,
+  `POST /api/proposals/verdict` (id format `tag:<tag>` / `topic:<tag>`,
+  actions `accept`/`never`). UI: `components/decide/proposal-card.tsx` renders
+  both shapes (tag cards tiny, topic cards carry a mission textarea whose
+  draft is lifted into `decide/page.tsx` state so Accept can ship it), wired
+  as a fifth one-off-style tab (`Proposals`, hides when empty like Shelf/Pain).
+  Tests split across two files because the cap test needs a truly-empty
+  `proposalSurfaced` table: `proposals.test.ts` (cluster-at-N, old cluster ==
+  fresh cluster, never-tombstones-and-0-on-rerun, accept-without-mission
+  throws, accept creates a topic and stops the re-propose) uses the new
+  `previewProposals()` export (uncapped, so it isn't cross-contaminated by
+  other tests' cap bookkeeping); `proposals-cap.test.ts` (day-one uncapped,
+  then ≤3 new/week) uses `getProposals()` in total isolation. `npx tsc
+  --noEmit` clean; `npx vitest run` 258/258 (was 250, +8 new, 0 broken);
+  `docker compose build` + `up -d` clean, `/`, `/decide`, `/api/proposals` all
+  200, container logs clean on boot; `/api/proposals` on the live DB returned
+  6 real pending tag-cluster proposals from study.py's actual
+  `topicTagProposals` (marketing-automation, agent-skills, ai-agents,
+  multi-agent-systems, agent-orchestration, design-systems) — the first-ever
+  call, so uncapped, matches the day-one-burst rule firing on real data. No
+  live topic-cluster currently exists (no controlled tag has ≥3 items yet),
+  so topic-card rendering is verified at the component/test level (renderCard
+  branches on `item.kind`, both branches covered by `proposals.test.ts`'s
+  candidate shapes) rather than by screenshot — no browser-automation tool
+  was available in this session, and fabricating a live cluster to force one
+  would mean writing synthetic rows into the production triage/teach tables,
+  which the NEVER list forbids. Left for Samy: once real topic-cluster cards
+  appear (organically, as `topicTags` accumulate 3+ items on the live DB),
+  worth a quick on-device look to confirm the mission textarea reads well on
+  a phone-width card.
 
 - **2026-07-16 (autoloop, T56):** First unchecked non-NEEDS-SAMY task; T53 (its
   gate) was already done. Added `attachedItems(topicId): TriageItem[]` to
