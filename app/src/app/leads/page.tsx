@@ -11,6 +11,8 @@
 import { useState } from "react";
 import { Radar, ExternalLink, Check, Trophy, X, Trash2 } from "lucide-react";
 import { useLeads, LEAD_STATUSES, type Lead, type LeadStatus } from "@/lib/use-leads";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 
 const STATUS_LABELS: Record<LeadStatus, string> = {
   new: "New",
@@ -20,10 +22,10 @@ const STATUS_LABELS: Record<LeadStatus, string> = {
 };
 
 const STATUS_COLORS: Record<LeadStatus, string> = {
-  new: "var(--accent)",
+  new: "var(--primary)",
   contacted: "#F59E0B",
   won: "#10B981",
-  passed: "var(--text-tertiary)",
+  passed: "var(--muted-foreground)",
 };
 
 // Known sources get a readable name; anything new falls back to its raw key
@@ -35,9 +37,9 @@ const SOURCE_LABELS: Record<string, string> = {
 
 function budgetColor(floor: number): string {
   if (floor >= 10000) return "#10B981";
-  if (floor >= 1000) return "var(--accent)";
+  if (floor >= 1000) return "var(--primary)";
   if (floor >= 500) return "#F59E0B";
-  return "var(--text-tertiary)";
+  return "var(--muted-foreground)";
 }
 
 function timeAgo(d: Date): string {
@@ -66,17 +68,14 @@ export default function LeadsPage() {
   return (
     <div className="max-w-2xl mx-auto">
       <div className="flex items-center gap-3 mb-6">
-        <Radar size={24} style={{ color: "var(--accent)" }} />
-        <h1 className="text-2xl font-semibold" style={{ color: "var(--text-primary)" }}>
+        <Radar size={24} className="text-primary" />
+        <h1 className="text-2xl font-semibold text-foreground">
           Leads
         </h1>
         {count("new") > 0 && (
-          <span
-            className="text-xs font-semibold rounded-full px-2 py-0.5"
-            style={{ background: "var(--accent)", color: "white" }}
-          >
+          <Badge className="text-xs font-semibold">
             {count("new")} new
-          </span>
+          </Badge>
         )}
       </div>
 
@@ -90,12 +89,9 @@ export default function LeadsPage() {
               <button
                 key={s}
                 onClick={() => setSource(s)}
-                className={`text-xs rounded-full px-3 py-1.5 font-medium ${pressable}`}
-                style={{
-                  background: active ? "var(--bg-tertiary)" : "transparent",
-                  color: active ? "var(--text-primary)" : "var(--text-tertiary)",
-                  border: "1px solid " + (active ? "var(--text-tertiary)" : "var(--border-primary)"),
-                }}
+                className={`text-xs rounded-full px-3 py-1.5 font-medium border ${pressable} ${
+                  active ? "bg-muted text-foreground border-muted-foreground" : "bg-transparent text-muted-foreground/70 border-border"
+                }`}
               >
                 {s === "all" ? "All sources" : (SOURCE_LABELS[s] ?? s)}
                 <span className="ml-1.5 font-semibold">{n}</span>
@@ -113,12 +109,9 @@ export default function LeadsPage() {
             <button
               key={s}
               onClick={() => setFilter(s)}
-              className={`text-xs rounded-lg px-3 py-2 font-medium ${pressable}`}
-              style={{
-                background: active ? "var(--accent)" : "var(--bg-secondary)",
-                color: active ? "white" : "var(--text-secondary)",
-                border: "1px solid " + (active ? "var(--accent)" : "var(--border-primary)"),
-              }}
+              className={`text-xs rounded-lg px-3 py-2 font-medium border ${pressable} ${
+                active ? "bg-primary text-primary-foreground border-primary" : "bg-card text-muted-foreground border-border"
+              }`}
             >
               {s === "all" ? "All" : STATUS_LABELS[s]}
               <span className="ml-1.5 font-semibold">{count(s)}</span>
@@ -128,9 +121,9 @@ export default function LeadsPage() {
       </div>
 
       {loading ? (
-        <p style={{ color: "var(--text-tertiary)" }}>Loading…</p>
+        <p className="text-muted-foreground/70">Loading…</p>
       ) : visible.length === 0 ? (
-        <p style={{ color: "var(--text-tertiary)" }}>
+        <p className="text-muted-foreground/70">
           {filter === "all"
             ? "No leads yet. demand-scout drops new website requests here every morning."
             : `No ${STATUS_LABELS[filter as LeadStatus].toLowerCase()} leads.`}
@@ -157,49 +150,43 @@ function LeadCard({
 }) {
   const dimmed = lead.status === "passed";
   return (
-    <div
-      className="rounded-xl p-4"
-      style={{
-        background: "var(--bg-secondary)",
-        border: "1px solid var(--border-primary)",
-        opacity: dimmed ? 0.55 : 1,
-        transition: "opacity var(--dur-base) var(--ease-out-custom)",
-      }}
+    <Card
+      className="p-4 gap-0 transition-opacity"
+      style={{ opacity: dimmed ? 0.55 : 1, transitionDuration: "var(--dur-base)", transitionTimingFunction: "var(--ease-out-custom)" }}
     >
       <div className="flex items-center gap-2 mb-1.5 flex-wrap">
         <span
-          className="text-xs font-semibold rounded-md px-2 py-0.5"
-          style={{ background: budgetColor(lead.budgetFloor), color: "white" }}
+          className="text-xs font-semibold rounded-md px-2 py-0.5 text-white"
+          style={{ background: budgetColor(lead.budgetFloor) }}
         >
           {lead.budget}
         </span>
         <span
-          className="text-xs font-medium rounded-md px-2 py-0.5"
+          className="text-xs font-medium rounded-md px-2 py-0.5 border"
           style={{
             color: STATUS_COLORS[lead.status],
-            border: `1px solid ${STATUS_COLORS[lead.status]}`,
+            borderColor: STATUS_COLORS[lead.status],
           }}
         >
           {STATUS_LABELS[lead.status]}
         </span>
-        <span className="text-xs" style={{ color: "var(--text-tertiary)" }}>
+        <span className="text-xs text-muted-foreground/70">
           {lead.source} · {timeAgo(lead.postedAt)}
         </span>
       </div>
 
-      <p className="text-sm font-semibold mb-1" style={{ color: "var(--text-primary)" }}>
+      <p className="text-sm font-semibold mb-1 text-foreground">
         {lead.title}
       </p>
       {lead.categories && (
-        <p className="text-xs mb-1.5" style={{ color: "var(--text-tertiary)" }}>
+        <p className="text-xs mb-1.5 text-muted-foreground/70">
           {lead.categories}
         </p>
       )}
       {lead.brief && (
         <p
-          className="text-sm mb-3 break-words"
+          className="text-sm mb-3 break-words text-muted-foreground"
           style={{
-            color: "var(--text-secondary)",
             display: "-webkit-box",
             WebkitLineClamp: 3,
             WebkitBoxOrient: "vertical",
@@ -215,8 +202,7 @@ function LeadCard({
           href={lead.url}
           target="_blank"
           rel="noopener noreferrer"
-          className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium ${pressable}`}
-          style={{ background: "var(--accent)", color: "white" }}
+          className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium bg-primary text-primary-foreground ${pressable}`}
         >
           <ExternalLink size={14} /> Ouvrir
         </a>
@@ -237,20 +223,19 @@ function LeadCard({
         <StatusButton
           active={lead.status === "passed"}
           onClick={() => onStatus(lead.id, lead.status === "passed" ? "new" : "passed")}
-          color="var(--text-tertiary)"
+          color="var(--muted-foreground)"
           icon={<X size={14} />}
           label="Pass"
         />
         <button
           onClick={() => onRemove(lead.id)}
-          className={`ml-auto p-1.5 rounded-lg ${pressable}`}
-          style={{ color: "var(--text-tertiary)" }}
+          className={`ml-auto p-1.5 rounded-lg text-muted-foreground/70 ${pressable}`}
           title="Delete"
         >
           <Trash2 size={14} />
         </button>
       </div>
-    </div>
+    </Card>
   );
 }
 
@@ -270,11 +255,11 @@ function StatusButton({
   return (
     <button
       onClick={onClick}
-      className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium ${pressable}`}
+      className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium border ${pressable}`}
       style={{
         background: active ? color : "transparent",
-        color: active ? "white" : "var(--text-secondary)",
-        border: `1px solid ${active ? color : "var(--border-primary)"}`,
+        color: active ? "white" : "var(--muted-foreground)",
+        borderColor: active ? color : "var(--border)",
       }}
     >
       {icon} {label}

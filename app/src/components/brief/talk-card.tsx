@@ -3,6 +3,8 @@
 import { useRef, useState } from "react";
 import { CheckCircle2, Loader2, Mic, Square } from "lucide-react";
 import type { PromptBody } from "@/lib/brief-types";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 
 type RecState = "idle" | "recording" | "transcribing" | "review" | "saving" | "done" | "error";
 
@@ -113,14 +115,13 @@ export function TalkCard({ prompts, date }: { prompts: PromptBody[]; date: strin
     <div className="space-y-3">
       <ul className="space-y-1.5">
         {prompts.map((p) => (
-          <li key={p.category} className="flex gap-2 text-sm leading-relaxed"
-            style={{ color: "var(--text-primary)" }}>
-            <span aria-hidden style={{ color: "var(--accent)" }}>•</span>
+          <li key={p.category} className="flex gap-2 text-sm leading-relaxed text-foreground">
+            <span aria-hidden className="text-primary">•</span>
             <span className="italic">{p.prompt_text}</span>
           </li>
         ))}
       </ul>
-      <p className="text-xs" style={{ color: "var(--text-tertiary)" }}>
+      <p className="text-xs text-muted-foreground/70">
         One take covers everything — it gets split and routed per topic. A Telegram
         voice note to the bot works too.
       </p>
@@ -128,23 +129,24 @@ export function TalkCard({ prompts, date }: { prompts: PromptBody[]; date: strin
       {state !== "review" && (
         <div className="flex items-center gap-3">
           {state === "recording" ? (
-            <button onClick={stop}
-              className="flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium"
-              style={{ background: "#EF4444", color: "white" }}>
+            <Button onClick={stop} variant="destructive" size="sm" className="gap-2 text-sm font-medium">
               <Square size={14} /> Stop
-            </button>
+            </Button>
           ) : (
-            <button onClick={start} disabled={state === "transcribing" || state === "saving"}
-              className="flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium"
-              style={{ background: "var(--accent-bg)", color: "var(--accent)" }}>
+            <Button
+              onClick={start}
+              disabled={state === "transcribing" || state === "saving"}
+              size="sm"
+              className="gap-2 text-sm font-medium bg-accent text-accent-foreground hover:bg-accent/80"
+            >
               {state === "transcribing"
                 ? <><Loader2 size={14} className="animate-spin" /> Transcribing…</>
                 : <><Mic size={14} /> {state === "done" ? "Record another" : "Record"}</>}
-            </button>
+            </Button>
           )}
           {state === "recording" && (
-            <span className="flex items-center gap-1.5 text-xs" style={{ color: "#EF4444" }}>
-              <span className="h-2 w-2 rounded-full animate-pulse" style={{ background: "#EF4444" }} />
+            <span className="flex items-center gap-1.5 text-xs text-destructive">
+              <span className="h-2 w-2 rounded-full animate-pulse bg-destructive" />
               recording…
             </span>
           )}
@@ -153,45 +155,40 @@ export function TalkCard({ prompts, date }: { prompts: PromptBody[]; date: strin
 
       {state === "review" && (
         <div className="space-y-2">
-          <textarea
+          <Textarea
             value={editedText}
             onChange={(e) => setEditedText(e.target.value)}
             rows={6}
-            className="w-full rounded-lg p-3 text-sm"
-            style={{ background: "var(--bg-tertiary)", color: "var(--text-primary)", border: "1px solid var(--border-primary)" }}
+            className="w-full text-sm"
             autoFocus
           />
           <div className="flex items-center gap-2">
-            <button onClick={save}
-              className="rounded-lg px-4 py-2 text-sm font-medium"
-              style={{ background: "var(--accent-bg)", color: "var(--accent)" }}>
+            <Button onClick={save} size="sm" className="text-sm font-medium bg-accent text-accent-foreground hover:bg-accent/80">
               Save
-            </button>
-            <button onClick={discard}
-              className="rounded-lg px-4 py-2 text-sm font-medium"
-              style={{ background: "var(--bg-tertiary)", color: "var(--text-secondary)" }}>
+            </Button>
+            <Button onClick={discard} variant="secondary" size="sm" className="text-sm font-medium">
               Discard &amp; re-record
-            </button>
+            </Button>
           </div>
         </div>
       )}
 
       {state === "saving" && (
-        <span className="flex items-center gap-1.5 text-xs" style={{ color: "var(--text-secondary)" }}>
+        <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
           <Loader2 size={13} className="animate-spin" /> saving…
         </span>
       )}
 
       {state === "done" && transcript && (
-        <div className="rounded-lg p-3 text-sm space-y-1.5" style={{ background: "var(--bg-tertiary)" }}>
-          <div className="flex items-center gap-1.5 text-xs" style={{ color: "#22C55E" }}>
+        <div className="rounded-lg p-3 text-sm space-y-1.5 bg-muted">
+          <div className="flex items-center gap-1.5 text-xs text-emerald-500">
             <CheckCircle2 size={13} /> saved to {savedNote}
           </div>
-          <p style={{ color: "var(--text-secondary)" }}>{editedText}</p>
+          <p className="text-muted-foreground">{editedText}</p>
         </div>
       )}
       {state === "error" && errMsg && (
-        <p className="text-xs" style={{ color: "#EF4444" }}>{errMsg}</p>
+        <p className="text-xs text-destructive">{errMsg}</p>
       )}
     </div>
   );

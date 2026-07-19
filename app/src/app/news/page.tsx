@@ -3,6 +3,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { RefreshCw, Plus, Trash2, ExternalLink, ChevronDown } from "lucide-react";
 import { BUCKET_LABELS, type Bucket, type Edition, type Feed, type NewsItem } from "@/lib/news/types";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const BUCKET_ORDER: Bucket[] = ["tech", "sec", "video", "news"];
 
@@ -19,10 +24,7 @@ function NewsCard({ item }: { item: NewsItem }) {
   const expandable = Boolean(item.summary) && item.summary !== line;
 
   return (
-    <article
-      className="rounded-xl border p-4"
-      style={{ borderColor: "var(--border-primary)", background: "var(--bg-secondary)" }}
-    >
+    <Card className="p-4 gap-0">
       <a
         href={item.link}
         target="_blank"
@@ -31,10 +33,10 @@ function NewsCard({ item }: { item: NewsItem }) {
       >
         <span aria-hidden>{scoreMark(item.score)}</span>
         <span className="flex-1 font-medium leading-snug">{item.title}</span>
-        <ExternalLink size={14} className="mt-1 shrink-0" style={{ color: "var(--text-tertiary)" }} />
+        <ExternalLink size={14} className="mt-1 shrink-0 text-muted-foreground/70" />
       </a>
 
-      <p className="text-sm leading-relaxed" style={{ color: "var(--text-secondary)" }}>
+      <p className="text-sm leading-relaxed text-muted-foreground">
         {line}
       </p>
 
@@ -47,7 +49,7 @@ function NewsCard({ item }: { item: NewsItem }) {
           }}
         >
           <div className="overflow-hidden">
-            <p className="pt-2 text-sm leading-relaxed" style={{ color: "var(--text-tertiary)" }}>
+            <p className="pt-2 text-sm leading-relaxed text-muted-foreground/70">
               {item.summary}
             </p>
           </div>
@@ -55,15 +57,14 @@ function NewsCard({ item }: { item: NewsItem }) {
       )}
 
       <div className="mt-2 flex items-center justify-between gap-2">
-        <span className="text-xs" style={{ color: "var(--text-tertiary)" }}>
+        <span className="text-xs text-muted-foreground/70">
           {item.source}
         </span>
         {expandable && (
           <button
             onClick={() => setOpen((o) => !o)}
             aria-expanded={open}
-            className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs transition-transform duration-150 active:scale-[0.95]"
-            style={{ color: "var(--text-tertiary)" }}
+            className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs transition-transform duration-150 active:scale-[0.95] text-muted-foreground/70"
           >
             {open ? "Less" : "More"}
             <ChevronDown
@@ -76,7 +77,7 @@ function NewsCard({ item }: { item: NewsItem }) {
           </button>
         )}
       </div>
-    </article>
+    </Card>
   );
 }
 
@@ -149,46 +150,41 @@ export default function NewsPage() {
     await loadFeeds();
   };
 
-  const btn =
-    "inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium transition-transform duration-150 active:scale-[0.97]";
-
   return (
-    <div className="mx-auto max-w-3xl px-4 py-6" style={{ color: "var(--text-primary)" }}>
+    <div className="mx-auto max-w-3xl px-4 py-6 text-foreground">
       <header className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold">News</h1>
-          <p className="text-sm" style={{ color: "var(--text-tertiary)" }}>
+          <p className="text-sm text-muted-foreground/70">
             {edition
               ? `${edition.items.length} article${edition.items.length === 1 ? "" : "s"} · ${edition.date}`
               : "Digest personnalisé — cybersécurité & dev"}
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <button
+          <Button
             onClick={() => setShowFeeds((s) => !s)}
-            className={btn}
-            style={{ background: "var(--bg-secondary)", color: "var(--text-secondary)" }}
+            variant="secondary"
+            size="sm"
+            className="gap-2 text-sm font-medium"
           >
             Feeds ({feeds.length})
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={refresh}
             disabled={refreshing}
-            className={btn}
-            style={{ background: "var(--accent)", color: "white", opacity: refreshing ? 0.6 : 1 }}
+            size="sm"
+            className="gap-2 text-sm font-medium"
           >
             <RefreshCw size={15} className={refreshing ? "animate-spin" : ""} />
             {refreshing ? "Génération…" : "Refresh"}
-          </button>
+          </Button>
         </div>
       </header>
 
       {showFeeds && (
-        <section
-          className="mb-6 rounded-xl border p-4"
-          style={{ borderColor: "var(--border-primary)", background: "var(--bg-secondary)" }}
-        >
-          <h2 className="mb-3 text-sm font-semibold" style={{ color: "var(--text-secondary)" }}>
+        <Card className="mb-6 p-4 gap-0">
+          <h2 className="mb-3 text-sm font-semibold text-muted-foreground">
             Manage feeds
           </h2>
           <ul className="mb-4 space-y-1.5">
@@ -196,24 +192,20 @@ export default function NewsPage() {
               <li key={f.id} className="flex items-center gap-2 text-sm">
                 <button
                   onClick={() => toggleFeed(f)}
-                  className="rounded px-2 py-0.5 text-xs font-medium transition-transform duration-150 active:scale-[0.95]"
-                  style={{
-                    background: f.active ? "var(--accent-bg)" : "transparent",
-                    color: f.active ? "var(--accent)" : "var(--text-tertiary)",
-                    border: "1px solid var(--border-primary)",
-                  }}
+                  className={`rounded px-2 py-0.5 text-xs font-medium transition-transform duration-150 active:scale-[0.95] border ${
+                    f.active ? "bg-accent text-primary border-transparent" : "bg-transparent text-muted-foreground/70 border-border"
+                  }`}
                   title={f.active ? "Active — click to pause" : "Paused — click to activate"}
                 >
                   {f.active ? "on" : "off"}
                 </button>
                 <span className="flex-1 truncate">{f.name}</span>
-                <span className="text-xs" style={{ color: "var(--text-tertiary)" }}>
+                <span className="text-xs text-muted-foreground/70">
                   {BUCKET_LABELS[f.bucket]}
                 </span>
                 <button
                   onClick={() => deleteFeed(f)}
-                  className="rounded p-1 transition-transform duration-150 active:scale-[0.9]"
-                  style={{ color: "var(--text-tertiary)" }}
+                  className="rounded p-1 transition-transform duration-150 active:scale-[0.9] text-muted-foreground/70"
                   aria-label={`Remove ${f.name}`}
                 >
                   <Trash2 size={15} />
@@ -222,33 +214,33 @@ export default function NewsPage() {
             ))}
           </ul>
           <div className="flex flex-wrap items-center gap-2">
-            <input
+            <Input
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
               placeholder="Name"
-              className="rounded-lg border px-2 py-1 text-sm"
-              style={{ borderColor: "var(--border-primary)", background: "var(--bg-primary)", minWidth: 120 }}
+              className="h-auto py-1 text-sm"
+              style={{ minWidth: 120 }}
             />
-            <input
+            <Input
               value={form.url}
               onChange={(e) => setForm({ ...form, url: e.target.value })}
               placeholder="https://…/feed"
-              className="flex-1 rounded-lg border px-2 py-1 text-sm"
-              style={{ borderColor: "var(--border-primary)", background: "var(--bg-primary)", minWidth: 180 }}
+              className="flex-1 h-auto py-1 text-sm"
+              style={{ minWidth: 180 }}
             />
-            <select
-              value={form.bucket}
-              onChange={(e) => setForm({ ...form, bucket: e.target.value as Bucket })}
-              className="rounded-lg border px-2 py-1 text-sm"
-              style={{ borderColor: "var(--border-primary)", background: "var(--bg-primary)" }}
-            >
-              {BUCKET_ORDER.map((b) => (
-                <option key={b} value={b}>
-                  {BUCKET_LABELS[b]}
-                </option>
-              ))}
-            </select>
-            <label className="flex items-center gap-1 text-xs" style={{ color: "var(--text-tertiary)" }}>
+            <Select value={form.bucket} onValueChange={(v) => setForm({ ...form, bucket: v as Bucket })}>
+              <SelectTrigger size="sm" className="text-sm h-auto py-1">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {BUCKET_ORDER.map((b) => (
+                  <SelectItem key={b} value={b}>
+                    {BUCKET_LABELS[b]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <label className="flex items-center gap-1 text-xs text-muted-foreground/70">
               <input
                 type="checkbox"
                 checked={form.french}
@@ -256,22 +248,22 @@ export default function NewsPage() {
               />
               FR
             </label>
-            <button
+            <Button
               onClick={addFeed}
               disabled={!form.name || !form.url}
-              className={btn}
-              style={{ background: "var(--accent)", color: "white", opacity: !form.name || !form.url ? 0.5 : 1 }}
+              size="sm"
+              className="gap-2 text-sm font-medium"
             >
               <Plus size={15} /> Add
-            </button>
+            </Button>
           </div>
-        </section>
+        </Card>
       )}
 
       {loading ? (
-        <p style={{ color: "var(--text-tertiary)" }}>Loading…</p>
+        <p className="text-muted-foreground/70">Loading…</p>
       ) : !edition || edition.items.length === 0 ? (
-        <p style={{ color: "var(--text-tertiary)" }}>
+        <p className="text-muted-foreground/70">
           Rien de pertinent pour l’instant. Hit Refresh to generate today’s edition.
         </p>
       ) : (
@@ -280,8 +272,8 @@ export default function NewsPage() {
           if (items.length === 0) return null;
           return (
             <section key={bucket} className="mb-6">
-              <h2 className="mb-3 text-sm font-semibold" style={{ color: "var(--text-secondary)" }}>
-                {BUCKET_LABELS[bucket]} <span style={{ color: "var(--text-tertiary)" }}>({items.length})</span>
+              <h2 className="mb-3 text-sm font-semibold text-muted-foreground">
+                {BUCKET_LABELS[bucket]} <Badge variant="secondary" className="ml-1 align-middle">{items.length}</Badge>
               </h2>
               <div className="space-y-3">
                 {items.map((it) => (

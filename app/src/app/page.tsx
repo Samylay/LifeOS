@@ -23,6 +23,8 @@ import { CountUp } from "@/components/count-up";
 import { GoalsCard } from "@/components/goals-card";
 import { BriefCards } from "@/components/brief/brief-cards";
 import { Skeleton } from "@/components/skeleton";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import type { Brief } from "@/lib/brief-types";
 
 interface BriefResponse {
@@ -102,32 +104,28 @@ export default function Today() {
       {/* Header */}
       <div className="flex items-start justify-between gap-4 flex-wrap enter">
         <div>
-          <h1 className="text-xl lg:text-2xl font-semibold flex items-center gap-2" style={{ color: "var(--text-primary)" }}>
-            {now.getHours() < 18 ? <Sun size={20} style={{ color: "var(--accent)" }} /> : <Moon size={20} style={{ color: "var(--accent)" }} />}
+          <h1 className="text-xl lg:text-2xl font-semibold flex items-center gap-2 text-foreground">
+            {now.getHours() < 18 ? <Sun size={20} className="text-primary" /> : <Moon size={20} className="text-primary" />}
             {greeting()}, Samy
           </h1>
-          <p className="text-sm mt-0.5" style={{ color: "var(--text-tertiary)" }}>
+          <p className="text-sm mt-0.5 text-muted-foreground/70">
             {now.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2 text-xs">
           <Link
             href="/pager"
-            className="flex items-center gap-1.5 rounded-full px-3 py-1.5 font-medium transition-transform duration-150 active:scale-[0.97]"
-            style={{
-              background: pagerUnread > 0 ? "var(--accent-bg)" : "var(--bg-tertiary)",
-              color: pagerUnread > 0 ? "var(--accent)" : "var(--text-secondary)",
-            }}
+            className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 font-medium transition-transform duration-150 active:scale-[0.97] ${
+              pagerUnread > 0 ? "bg-accent text-accent-foreground" : "bg-muted text-muted-foreground"
+            }`}
           >
             <BellRing size={12} /> {pagerUnread > 0 ? `${pagerUnread} unread` : "Pager"}
           </Link>
           {nextReminder && (
             <span
-              className="flex items-center gap-1.5 rounded-full px-3 py-1.5 font-medium"
-              style={{
-                background: overdueReminders.length > 0 ? "#EF444412" : "var(--bg-tertiary)",
-                color: overdueReminders.length > 0 ? "#EF4444" : "var(--text-secondary)",
-              }}
+              className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 font-medium ${
+                overdueReminders.length > 0 ? "bg-destructive/10 text-destructive" : "bg-muted text-muted-foreground"
+              }`}
             >
               {overdueReminders.length > 0 ? <AlertTriangle size={12} /> : <Bell size={12} />}
               {nextReminder.title}
@@ -142,36 +140,32 @@ export default function Today() {
 
       {/* Quick loop: Prime entry + ship momentum */}
       <div className="grid grid-cols-2 gap-3 enter" style={{ ["--enter-delay" as string]: "30ms" }}>
-        <Link
-          href="/prime"
-          className="flex items-center gap-3 rounded-xl p-4 hover-lift"
-          style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-primary)" }}
-        >
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg shrink-0" style={{ background: "var(--accent-bg)" }}>
-            <Sunrise size={18} style={{ color: "var(--accent)" }} />
-          </div>
-          <div className="min-w-0">
-            <p className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>Daily Prime</p>
-            <p className="text-xs" style={{ color: "var(--text-tertiary)" }}>Start the ritual →</p>
-          </div>
+        <Link href="/prime" className="block">
+          <Card className="flex-row items-center gap-3 p-4 hover-lift">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg shrink-0 bg-accent">
+              <Sunrise size={18} className="text-accent-foreground" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-foreground">Daily Prime</p>
+              <p className="text-xs text-muted-foreground/70">Start the ritual →</p>
+            </div>
+          </Card>
         </Link>
-        <Link
-          href="/projects"
-          className="flex items-center gap-3 rounded-xl p-4 hover-lift"
-          style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-primary)" }}
-        >
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg shrink-0" style={{ background: "var(--accent-bg)" }}>
-            <Rocket size={18} style={{ color: shipped30d === 0 ? "#EF4444" : "var(--accent)" }} />
-          </div>
-          <div className="min-w-0">
-            <p className="text-primary" style={{ color: "var(--text-primary)" }}>
-              <CountUp value={shipped30d} className="text-xl font-semibold leading-none tracking-tight" />
-              <span className="text-sm font-normal ml-1" style={{ color: "var(--text-tertiary)" }}>shipped / 30d</span>
-            </p>
-            <p className="text-xs mt-1" style={{ color: "var(--text-tertiary)" }}>
-              {daysSinceShip === null ? "Nothing logged yet" : `${daysSinceShip}d since last ship`}
-            </p>
-          </div>
+        <Link href="/projects" className="block">
+          <Card className="flex-row items-center gap-3 p-4 hover-lift">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg shrink-0 bg-accent">
+              <Rocket size={18} className={shipped30d === 0 ? "text-destructive" : "text-accent-foreground"} />
+            </div>
+            <div className="min-w-0">
+              <p className="text-foreground">
+                <CountUp value={shipped30d} className="text-xl font-semibold leading-none tracking-tight" />
+                <span className="text-sm font-normal ml-1 text-muted-foreground/70">shipped / 30d</span>
+              </p>
+              <p className="text-xs mt-1 text-muted-foreground/70">
+                {daysSinceShip === null ? "Nothing logged yet" : `${daysSinceShip}d since last ship`}
+              </p>
+            </div>
+          </Card>
         </Link>
       </div>
 
@@ -182,15 +176,12 @@ export default function Today() {
 
       {/* Habits */}
       {todayHabits.length > 0 && (
-        <div
-          className="rounded-xl p-4 lg:p-5 enter"
-          style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-primary)", ["--enter-delay" as string]: "90ms" }}
-        >
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-xs font-bold uppercase tracking-widest" style={{ color: "var(--text-secondary)" }}>
+        <Card className="p-4 lg:p-5 gap-3 enter" style={{ ["--enter-delay" as string]: "90ms" }}>
+          <div className="flex items-center justify-between">
+            <h2 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
               Habits
             </h2>
-            <span className="text-xs font-mono" style={{ color: "var(--accent)" }}>
+            <span className="text-xs font-mono text-primary">
               {habitsDone}/{todayHabits.length}
             </span>
           </div>
@@ -201,26 +192,22 @@ export default function Today() {
                 <button
                   key={habit.id}
                   onClick={() => handleToggle(habit.id, done)}
-                  className="flex items-center gap-3 w-full rounded-lg px-3 py-2.5 text-left transition-transform duration-150 active:scale-[0.97]"
-                  style={{ background: "var(--bg-tertiary)" }}
+                  className="flex items-center gap-3 w-full rounded-lg px-3 py-2.5 text-left transition-transform duration-150 active:scale-[0.97] bg-muted"
                 >
                   <div
-                    className="shrink-0 h-5 w-5 rounded flex items-center justify-center"
-                    style={{
-                      border: done ? "none" : "1.5px solid var(--text-tertiary)",
-                      background: done ? "var(--accent)" : "transparent",
-                    }}
+                    className={`shrink-0 h-5 w-5 rounded flex items-center justify-center ${
+                      done ? "bg-primary border-none" : "border-[1.5px] border-muted-foreground/70 bg-transparent"
+                    }`}
                   >
-                    {done && <Check size={12} className="text-white" />}
+                    {done && <Check size={12} className="text-primary-foreground" />}
                   </div>
                   <span
-                    className="text-sm flex-1 truncate"
-                    style={{ color: "var(--text-primary)", textDecoration: done ? "line-through" : "none", opacity: done ? 0.6 : 1 }}
+                    className={`text-sm flex-1 truncate ${done ? "text-foreground line-through opacity-60" : "text-foreground"}`}
                   >
                     {habit.name}
                   </span>
                   {habit.streak > 0 && (
-                    <span className="flex items-center gap-1 text-xs font-mono shrink-0" style={{ color: "var(--accent)" }}>
+                    <span className="flex items-center gap-1 text-xs font-mono shrink-0 text-primary">
                       <Flame size={10} />{habit.streak}
                     </span>
                   )}
@@ -228,7 +215,7 @@ export default function Today() {
               );
             })}
           </div>
-        </div>
+        </Card>
       )}
 
       </div>
@@ -237,24 +224,24 @@ export default function Today() {
           column on desktop */}
       <div className="enter lg:col-start-1 lg:row-start-1 min-w-0" style={{ ["--enter-delay" as string]: "120ms" }}>
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-xs font-bold uppercase tracking-widest flex items-center gap-2" style={{ color: "var(--text-secondary)" }}>
-            <Flag size={14} style={{ color: "var(--accent)" }} /> Morning brief
+          <h2 className="text-xs font-bold uppercase tracking-widest flex items-center gap-2 text-muted-foreground">
+            <Flag size={14} className="text-primary" /> Morning brief
           </h2>
-          <button
+          <Button
             onClick={loadBrief}
             aria-label="Refresh brief"
             title="Refresh brief"
-            className="p-2 rounded-lg transition-transform duration-150 active:scale-[0.92]"
-            style={{ color: "var(--text-tertiary)", background: "var(--bg-tertiary)" }}
+            variant="ghost"
+            size="icon-sm"
+            className="text-muted-foreground/70 bg-muted active:scale-[0.92]"
           >
             <RefreshCw size={14} />
-          </button>
+          </Button>
         </div>
         {briefErr && !brief && (
-          <div className="rounded-xl p-4 text-sm"
-            style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-primary)", color: "var(--text-secondary)" }}>
+          <Card className="p-4 text-sm text-muted-foreground">
             Couldn&apos;t load the brief.
-          </div>
+          </Card>
         )}
         {!brief && !briefErr && (
           <div className="space-y-1">

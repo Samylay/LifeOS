@@ -11,12 +11,15 @@ import type {
   ShipsBody, TriageBody, WorkBody, WorkoutBody,
 } from "@/lib/brief-types";
 import { TalkCard } from "./talk-card";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 const STATUS_COLOR: Record<string, string> = {
   green: "#22C55E",
   amber: "#F59E0B",
   red: "#EF4444",
-  neutral: "var(--text-tertiary)",
+  neutral: "var(--muted-foreground)",
 };
 
 const TYPE_ICON: Record<string, React.ReactNode> = {
@@ -35,12 +38,12 @@ const TYPE_ICON: Record<string, React.ReactNode> = {
 const TRIAGE_DEST_COLOR: Record<string, string> = {
   "idea-bank": "#8B5CF6",
   vault: "#6366F1",
-  discard: "var(--text-tertiary)",
+  discard: "var(--muted-foreground)",
 };
 function destColor(dest: string): string {
   if (dest.startsWith("backlog")) return "#14B8A6";
   if (dest.startsWith("roadmap")) return "#F59E0B";
-  return TRIAGE_DEST_COLOR[dest] ?? "var(--accent)";
+  return TRIAGE_DEST_COLOR[dest] ?? "var(--primary)";
 }
 
 /** Single-line summary shown when a state card is collapsed. */
@@ -72,10 +75,7 @@ function CardShell({ card, children }: { card: BriefCard; children: React.ReactN
   const collapsible = isState;
 
   return (
-    <div
-      className="rounded-xl transition-[background,border-color]"
-      style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-primary)" }}
-    >
+    <Card className="gap-0 py-0 rounded-xl transition-[background,border-color]">
       <button
         onClick={() => collapsible && setCollapsed((c) => !c)}
         disabled={!collapsible}
@@ -89,12 +89,12 @@ function CardShell({ card, children }: { card: BriefCard; children: React.ReactN
             boxShadow: card.status === "green" ? "0 0 6px -1px #22C55E" : "none",
           }}
         />
-        <span style={{ color: "var(--text-secondary)" }}>{TYPE_ICON[card.type] ?? <Link2 size={15} />}</span>
-        <span className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
+        <span className="text-muted-foreground">{TYPE_ICON[card.type] ?? <Link2 size={15} />}</span>
+        <span className="text-sm font-semibold text-foreground">
           {card.title}
         </span>
         {collapsed && (
-          <span className="text-xs truncate" style={{ color: "var(--text-tertiary)" }}>
+          <span className="text-xs truncate text-muted-foreground/70">
             {oneLiner(card)}
           </span>
         )}
@@ -105,7 +105,7 @@ function CardShell({ card, children }: { card: BriefCard; children: React.ReactN
               target={card.link.startsWith("/") ? undefined : "_blank"}
               rel="noreferrer"
               onClick={(e) => e.stopPropagation()}
-              style={{ color: "var(--text-tertiary)" }}
+              className="text-muted-foreground/70"
             >
               <ExternalLink size={13} />
             </a>
@@ -113,22 +113,21 @@ function CardShell({ card, children }: { card: BriefCard; children: React.ReactN
           {collapsible && (
             <ChevronDown
               size={14}
-              className="transition-transform"
-              style={{ color: "var(--text-tertiary)", transform: collapsed ? "none" : "rotate(180deg)" }}
+              className="transition-transform text-muted-foreground/70"
+              style={{ transform: collapsed ? "none" : "rotate(180deg)" }}
             />
           )}
         </span>
       </button>
       {!collapsed && <div className="px-4 pb-4">{children}</div>}
-    </div>
+    </Card>
   );
 }
 
 function ErrorBody({ error }: { error: string }) {
   return (
-    <div className="flex items-start gap-2 text-xs rounded-lg p-3"
-      style={{ background: "var(--bg-tertiary)", color: "var(--text-tertiary)" }}>
-      <AlertTriangle size={14} className="shrink-0 mt-0.5" style={{ color: "#F59E0B" }} />
+    <div className="flex items-start gap-2 text-xs rounded-lg p-3 bg-muted text-muted-foreground/70">
+      <AlertTriangle size={14} className="shrink-0 mt-0.5 text-amber-500" />
       <span>Source unavailable — {error}</span>
     </div>
   );
@@ -148,27 +147,23 @@ function WorkoutCard({ card, date }: { card: BriefCard; date: string }) {
   };
 
   if (body.rest) {
-    return <p className="text-sm" style={{ color: "var(--text-secondary)" }}>Rest day — recover well.</p>;
+    return <p className="text-sm text-muted-foreground">Rest day — recover well.</p>;
   }
   return (
     <div className="space-y-1">
       {body.day_label && (
-        <p className="text-xs mb-2" style={{ color: "var(--text-tertiary)" }}>{body.day_label}</p>
+        <p className="text-xs mb-2 text-muted-foreground/70">{body.day_label}</p>
       )}
       {(body.exercises ?? []).map((ex) => (
         <button key={ex.name} onClick={() => toggle(ex.name)}
-          className="w-full flex items-center gap-2.5 rounded-lg px-3 py-2 text-left"
-          style={{ background: "var(--bg-tertiary)" }}>
+          className="w-full flex items-center gap-2.5 rounded-lg px-3 py-2 text-left bg-muted">
           {done[ex.name]
-            ? <CheckSquare size={15} style={{ color: "#22C55E" }} />
-            : <Square size={15} style={{ color: "var(--text-tertiary)" }} />}
-          <span className="text-sm" style={{
-            color: done[ex.name] ? "var(--text-tertiary)" : "var(--text-primary)",
-            textDecoration: done[ex.name] ? "line-through" : "none",
-          }}>
+            ? <CheckSquare size={15} className="text-emerald-500" />
+            : <Square size={15} className="text-muted-foreground/70" />}
+          <span className={`text-sm ${done[ex.name] ? "text-muted-foreground/70 line-through" : "text-foreground"}`}>
             {ex.name}
           </span>
-          <span className="ml-auto text-xs font-mono" style={{ color: "var(--text-tertiary)" }}>
+          <span className="ml-auto text-xs font-mono text-muted-foreground/70">
             {ex.sets}×{ex.reps}
           </span>
         </button>
@@ -193,14 +188,14 @@ function WorkCard({ card }: { card: BriefCard }) {
   const events = body.events ?? [];
   const done = body.completed_yesterday;
   const doneLine = done && done.count > 0 && (
-    <p className="text-xs" style={{ color: "var(--text-tertiary)" }}>
+    <p className="text-xs text-muted-foreground/70">
       ✓ {done.count} done yesterday: {done.items.join(", ")}{done.count > done.items.length ? ", …" : ""}
     </p>
   );
   if (tasks.length === 0 && events.length === 0) {
     return (
       <div className="space-y-2">
-        <p className="text-sm" style={{ color: "var(--text-secondary)" }}>Nothing due today. Pick a project.</p>
+        <p className="text-sm text-muted-foreground">Nothing due today. Pick a project.</p>
         {doneLine}
       </div>
     );
@@ -211,9 +206,9 @@ function WorkCard({ card }: { card: BriefCard }) {
       {events.length > 0 && (
         <div className="space-y-1">
           {events.map((ev, i) => (
-            <div key={i} className="flex items-center gap-2 text-sm" style={{ color: "var(--text-secondary)" }}>
-              <Calendar size={13} style={{ color: "var(--accent)" }} />
-              <span className="font-mono text-xs" style={{ color: "var(--text-tertiary)" }}>{fmtTime(ev.start)}</span>
+            <div key={i} className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Calendar size={13} className="text-primary" />
+              <span className="font-mono text-xs text-muted-foreground/70">{fmtTime(ev.start)}</span>
               <span>{ev.title}</span>
             </div>
           ))}
@@ -221,13 +216,12 @@ function WorkCard({ card }: { card: BriefCard }) {
       )}
       <div className="space-y-1">
         {tasks.map((t, i) => (
-          <div key={i} className="flex items-center gap-2.5 rounded-lg px-3 py-2"
-            style={{ background: "var(--bg-tertiary)" }}>
+          <div key={i} className="flex items-center gap-2.5 rounded-lg px-3 py-2 bg-muted">
             <span className="shrink-0 h-2 w-2 rounded-full"
-              style={{ background: TODOIST_PRIORITY_COLOR[t.priority ?? 1] ?? "var(--text-tertiary)" }} />
-            <span className="text-sm" style={{ color: "var(--text-primary)" }}>{t.content}</span>
+              style={{ background: TODOIST_PRIORITY_COLOR[t.priority ?? 1] ?? "var(--muted-foreground)" }} />
+            <span className="text-sm text-foreground">{t.content}</span>
             {t.url && (
-              <a href={t.url} target="_blank" rel="noreferrer" className="ml-auto" style={{ color: "var(--text-tertiary)" }}>
+              <a href={t.url} target="_blank" rel="noreferrer" className="ml-auto text-muted-foreground/70">
                 <ExternalLink size={12} />
               </a>
             )}
@@ -242,7 +236,7 @@ function HomelabCard({ card }: { card: BriefCard }) {
   const body = card.body as unknown as HomelabBody;
   return (
     <div className="space-y-2">
-      <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs" style={{ color: "var(--text-secondary)" }}>
+      <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
         <span>{body.containers_up}/{body.containers_total} containers</span>
         {body.disk_pct != null && <span>disk {body.disk_pct}%</span>}
         <span>tailscale {body.tailscale_ok ? "✓" : "✗"}</span>
@@ -252,8 +246,7 @@ function HomelabCard({ card }: { card: BriefCard }) {
         )}
       </div>
       {(body.issues ?? []).map((issue, i) => (
-        <div key={i} className="flex items-start gap-2 text-sm rounded-lg px-3 py-2"
-          style={{ background: "var(--bg-tertiary)", color: "var(--text-primary)" }}>
+        <div key={i} className="flex items-start gap-2 text-sm rounded-lg px-3 py-2 bg-muted text-foreground">
           <AlertTriangle size={14} className="shrink-0 mt-0.5" style={{ color: STATUS_COLOR[card.status] }} />
           {issue}
         </div>
@@ -268,16 +261,15 @@ function FuiteCard({ card }: { card: BriefCard }) {
   const body = card.body as unknown as FuiteBody;
   const entries = body.entries ?? [];
   if (entries.length === 0) {
-    return <p className="text-sm" style={{ color: "var(--text-secondary)" }}>No new leaks reported.</p>;
+    return <p className="text-sm text-muted-foreground">No new leaks reported.</p>;
   }
   return (
     <div className="space-y-1">
       {entries.map((e, i) => (
-        <div key={i} className="flex items-center gap-2 text-sm rounded-lg px-3 py-2"
-          style={{ background: "var(--bg-tertiary)" }}>
+        <div key={i} className="flex items-center gap-2 text-sm rounded-lg px-3 py-2 bg-muted">
           <span>{FUITE_DOT[e.status] ?? "⚪"}</span>
-          <span className="font-medium" style={{ color: "var(--text-primary)" }}>{e.org}</span>
-          <span className="text-xs truncate ml-auto" style={{ color: "var(--text-tertiary)" }}>
+          <span className="font-medium text-foreground">{e.org}</span>
+          <span className="text-xs truncate ml-auto text-muted-foreground/70">
             {(e.data_types ?? []).join(", ")}
           </span>
         </div>
@@ -291,9 +283,9 @@ function FtCard({ card }: { card: BriefCard }) {
   return (
     <div className="space-y-1.5">
       {(body.headlines ?? []).map((h, i) => (
-        <div key={i} className="text-sm" style={{ color: "var(--text-primary)" }}>
+        <div key={i} className="text-sm text-foreground">
           {h.text}
-          <span className="ml-2 text-[10px] uppercase tracking-wide" style={{ color: "var(--text-tertiary)" }}>
+          <span className="ml-2 text-[10px] uppercase tracking-wide text-muted-foreground/70">
             {(h.topics ?? []).join(" · ")}
           </span>
         </div>
@@ -320,16 +312,15 @@ function DigestCard({ card }: { card: BriefCard }) {
           href={h.link}
           target="_blank"
           rel="noreferrer"
-          className="block text-sm transition-transform duration-150 active:scale-[0.99]"
-          style={{ color: "var(--text-primary)" }}
+          className="block text-sm text-foreground transition-transform duration-150 active:scale-[0.99]"
         >
           <span aria-hidden>{mark(h.score)}</span> {h.title}
-          <span className="ml-2 text-[10px] uppercase tracking-wide" style={{ color: "var(--text-tertiary)" }}>
+          <span className="ml-2 text-[10px] uppercase tracking-wide text-muted-foreground/70">
             {h.source}
           </span>
         </a>
       ))}
-      <Link href={card.link ?? "/news"} className="flex items-center gap-2 text-sm" style={{ color: "var(--accent)" }}>
+      <Link href={card.link ?? "/news"} className="flex items-center gap-2 text-sm text-primary">
         {body.total && body.total > headlines.length ? `View all ${body.total} in News` : "Open News"}{" "}
         <ExternalLink size={12} />
       </Link>
@@ -374,7 +365,7 @@ function PlanningCard({ card }: { card: BriefCard }) {
   };
 
   if (b.error_hint) {
-    return <p className="text-xs" style={{ color: "#F59E0B" }}>{b.error_hint}</p>;
+    return <p className="text-xs text-amber-500">{b.error_hint}</p>;
   }
 
   return (
@@ -382,50 +373,48 @@ function PlanningCard({ card }: { card: BriefCard }) {
       <div className="space-y-1">
         {(b.blocks ?? []).map((blk) => (
           <div key={blk.eventId} className="flex items-baseline gap-3 text-sm">
-            <span className="font-mono text-xs shrink-0" style={{ color: "var(--text-tertiary)" }}>
+            <span className="font-mono text-xs shrink-0 text-muted-foreground/70">
               {fmtTime(blk.startIso)}–{fmtTime(blk.endIso)}
             </span>
-            <span style={{ color: "var(--text-primary)" }}>{blk.title}</span>
+            <span className="text-foreground">{blk.title}</span>
           </div>
         ))}
         {(b.blocks ?? []).length === 0 && (
-          <p className="text-xs" style={{ color: "var(--text-tertiary)" }}>No tentative blocks today.</p>
+          <p className="text-xs text-muted-foreground/70">No tentative blocks today.</p>
         )}
       </div>
 
       {(b.placements ?? []).length > 0 && (
         <div>
-          <p className="text-xs font-medium mb-1" style={{ color: "var(--text-secondary)" }}>
+          <p className="text-xs font-medium mb-1 text-muted-foreground">
             Where should these go? (unscheduled Todoist tasks)
           </p>
           <ul className="space-y-0.5">
             {(b.placements ?? []).map((p) => (
-              <li key={p.id} className="text-xs" style={{ color: "var(--text-secondary)" }}>• {p.content}</li>
+              <li key={p.id} className="text-xs text-muted-foreground">• {p.content}</li>
             ))}
           </ul>
         </div>
       )}
       {b.placements_error && (
-        <p className="text-xs" style={{ color: "var(--text-tertiary)" }}>Todoist unavailable — placements skipped.</p>
+        <p className="text-xs text-muted-foreground/70">Todoist unavailable — placements skipped.</p>
       )}
 
-      {b.invite && <p className="text-xs" style={{ color: "var(--text-tertiary)" }}>{b.invite}</p>}
+      {b.invite && <p className="text-xs text-muted-foreground/70">{b.invite}</p>}
 
       <div className="flex items-center gap-2">
-        <input
+        <Input
           type="text" value={reply}
           onChange={(e) => setReply(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter") sendReply(); }}
           placeholder='e.g. "push the workout to 6pm"'
-          className="flex-1 text-xs rounded-lg px-3 py-2 outline-none"
-          style={{ background: "var(--bg-tertiary)", color: "var(--text-primary)", border: "1px solid var(--border-primary)" }}
+          className="flex-1 h-auto text-xs rounded-lg px-3 py-2"
         />
-        <button onClick={sendReply} disabled={sending}
-          className="text-xs px-3 py-2 rounded-lg bg-sage-400 text-white font-medium disabled:opacity-50">
+        <Button onClick={sendReply} disabled={sending} size="sm" className="text-xs">
           {sending ? "…" : "Send"}
-        </button>
+        </Button>
       </div>
-      {feedback && <p className="text-xs" style={{ color: "var(--accent)" }}>{feedback}</p>}
+      {feedback && <p className="text-xs text-primary">{feedback}</p>}
     </div>
   );
 }
@@ -459,14 +448,14 @@ function TriageCard({ card }: { card: BriefCard }) {
 
   const row = (it: TriageBody["keep"][number]) => (
     <div key={it.id} className="flex items-baseline gap-2 text-sm">
-      <span className="font-mono text-xs shrink-0" style={{ color: "var(--text-tertiary)", minWidth: 16 }}>{it.n}</span>
+      <span className="font-mono text-xs shrink-0 text-muted-foreground/70" style={{ minWidth: 16 }}>{it.n}</span>
       <div className="min-w-0">
-        <span style={{ color: "var(--text-primary)" }}>{it.summary || it.url}</span>
+        <span className="text-foreground">{it.summary || it.url}</span>
         <span className="ml-2 text-xs px-1.5 py-0.5 rounded-full whitespace-nowrap"
           style={{ background: `${destColor(it.destination)}20`, color: destColor(it.destination) }}>
           {it.destination}
         </span>
-        <a href={it.url} target="_blank" rel="noreferrer" className="ml-1.5 inline-block align-middle" style={{ color: "var(--text-tertiary)" }}>
+        <a href={it.url} target="_blank" rel="noreferrer" className="ml-1.5 inline-block align-middle text-muted-foreground/70">
           <ExternalLink size={11} />
         </a>
       </div>
@@ -477,29 +466,27 @@ function TriageCard({ card }: { card: BriefCard }) {
     <div className="space-y-3">
       <div className="space-y-1.5">{b.keep.map(row)}</div>
       {b.keep.length === 0 && (
-        <p className="text-xs" style={{ color: "var(--text-tertiary)" }}>Nothing worth filing — {b.drop.length} to discard.</p>
+        <p className="text-xs text-muted-foreground/70">Nothing worth filing — {b.drop.length} to discard.</p>
       )}
       {b.drop.length > 0 && (
         <details>
-          <summary className="text-xs cursor-pointer" style={{ color: "var(--text-tertiary)" }}>
+          <summary className="text-xs cursor-pointer text-muted-foreground/70">
             {b.drop.length} proposed discard{b.drop.length > 1 ? "s" : ""} (tap to review before they go)
           </summary>
           <div className="space-y-1 mt-1.5 pl-1">{b.drop.map(row)}</div>
         </details>
       )}
-      <p className="text-xs" style={{ color: "var(--text-tertiary)" }}>{b.hint}</p>
+      <p className="text-xs text-muted-foreground/70">{b.hint}</p>
       <div className="flex items-center gap-2">
-        <input type="text" value={reply} onChange={(e) => setReply(e.target.value)}
+        <Input type="text" value={reply} onChange={(e) => setReply(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter") send(); }}
           placeholder='e.g. "1 approve, 4 to idea-bank, 2 skip"'
-          className="flex-1 text-xs rounded-lg px-3 py-2 outline-none"
-          style={{ background: "var(--bg-tertiary)", color: "var(--text-primary)", border: "1px solid var(--border-primary)" }} />
-        <button onClick={send} disabled={sending}
-          className="text-xs px-3 py-2 rounded-lg bg-sage-400 text-white font-medium disabled:opacity-50 transition-transform active:scale-[0.97]">
+          className="flex-1 h-auto text-xs rounded-lg px-3 py-2" />
+        <Button onClick={send} disabled={sending} size="sm" className="text-xs">
           {sending ? "…" : "File"}
-        </button>
+        </Button>
       </div>
-      {feedback && <p className="text-xs" style={{ color: "var(--accent)" }}>{feedback}</p>}
+      {feedback && <p className="text-xs text-primary">{feedback}</p>}
     </div>
   );
 }
@@ -509,32 +496,31 @@ function ShipsCard({ card }: { card: BriefCard }) {
   return (
     <div className="space-y-2">
       {b.tripwire && (
-        <p className="text-xs rounded-lg p-3" style={{ background: "#EF444415", color: "#EF4444" }}>
+        <p className="text-xs rounded-lg p-3 bg-destructive/10 text-destructive">
           Nothing has left the machine in 30 days. Building is not shipping —
           what&apos;s the smallest thing that can ship this week?
         </p>
       )}
       {b.projects.length === 0 ? (
-        <p className="text-xs" style={{ color: "var(--text-tertiary)" }}>No active projects.</p>
+        <p className="text-xs text-muted-foreground/70">No active projects.</p>
       ) : (
         <div className="space-y-1.5">
           {b.projects.map((p) => (
             <div key={p.title} className="flex items-baseline justify-between gap-3 text-sm">
               <div className="min-w-0">
-                <span style={{ color: "var(--text-primary)" }}>{p.title}</span>
+                <span className="text-foreground">{p.title}</span>
                 {!p.shipping_event && (
-                  <span className="ml-2 text-xs" style={{ color: "#F59E0B" }}>no shipping event</span>
+                  <span className="ml-2 text-xs text-amber-500">no shipping event</span>
                 )}
               </div>
-              <span className="text-xs font-mono shrink-0"
-                style={{ color: p.days > 14 ? "#EF4444" : p.days > 7 ? "#F59E0B" : "var(--text-tertiary)" }}>
+              <span className={`text-xs font-mono shrink-0 ${p.days > 14 ? "text-destructive" : p.days > 7 ? "text-amber-500" : "text-muted-foreground/70"}`}>
                 {p.never_shipped ? `never shipped · ${p.days}d old` : `${p.days}d since ship`}
               </span>
             </div>
           ))}
         </div>
       )}
-      <p className="text-xs pt-1" style={{ color: "var(--text-tertiary)" }}>
+      <p className="text-xs pt-1 text-muted-foreground/70">
         {b.shipped_outward_30d} left the machine in 30 days
         {b.shipped_30d > b.shipped_outward_30d && (
           <span> · {b.shipped_30d} shipped incl. internal</span>
@@ -560,7 +546,7 @@ function CardBody({ card, date }: { card: BriefCard; date: string }) {
     // them into one TalkCard (errored ones fall through to ErrorBody above).
     default:
       return (
-        <pre className="text-xs overflow-x-auto" style={{ color: "var(--text-tertiary)" }}>
+        <pre className="text-xs overflow-x-auto text-muted-foreground/70">
           {JSON.stringify(card.body, null, 2)}
         </pre>
       );

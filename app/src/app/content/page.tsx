@@ -28,6 +28,14 @@ import {
   NON_NEGOTIABLES,
   KILL_SCALE_RULES,
 } from "@/lib/content-os";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 const STATUSES: { status: ContentIdeaStatus; label: string; color: string }[] = [
   { status: "idea", label: "Idea", color: "#64748B" },
@@ -42,61 +50,50 @@ const STATUS_META = Object.fromEntries(STATUSES.map((s) => [s.status, s])) as Re
   (typeof STATUSES)[number]
 >;
 
-const inputStyle = {
-  color: "var(--text-primary)",
-  background: "var(--bg-tertiary)",
-  border: "1px solid var(--border-primary)",
-};
-
-const cardStyle = {
-  background: "var(--bg-secondary)",
-  border: "1px solid var(--border-primary)",
-};
-
 function PillarBadge({ pillar }: { pillar: ContentPillar | "" }) {
   const meta = pillar ? PILLAR_META[pillar] : undefined;
   if (!meta) {
     return (
-      <span
-        className="text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full"
-        style={{ background: "var(--bg-tertiary)", color: "var(--text-tertiary)" }}
+      <Badge
+        variant="secondary"
+        className="text-[10px] font-bold uppercase tracking-widest"
         title="No pillar assigned — sort this idea into a pillar"
       >
         unsorted
-      </span>
+      </Badge>
     );
   }
   return (
-    <span
-      className="text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full"
+    <Badge
+      className="text-[10px] font-bold uppercase tracking-widest"
       style={{ background: `${meta.color}20`, color: meta.color }}
     >
       {meta.label}
-    </span>
+    </Badge>
   );
 }
 
 function HookBadge({ n }: { n?: number }) {
   if (!n) {
     return (
-      <span
-        className="text-[10px] font-medium px-2 py-0.5 rounded-full"
-        style={{ background: "var(--bg-tertiary)", color: "var(--text-tertiary)" }}
+      <Badge
+        variant="secondary"
+        className="text-[10px] font-medium"
         title="No hook formula assigned — a topic, not a post"
       >
         no hook
-      </span>
+      </Badge>
     );
   }
   const f = HOOK_FORMULAS.find((h) => h.n === n);
   return (
-    <span
-      className="text-[10px] font-medium px-2 py-0.5 rounded-full"
-      style={{ background: "var(--bg-tertiary)", color: "var(--text-secondary)" }}
+    <Badge
+      variant="secondary"
+      className="text-[10px] font-medium text-muted-foreground"
       title={f ? `${f.name}: ${f.template}` : undefined}
     >
       Hook {n}{f ? ` · ${f.name}` : ""}
-    </span>
+    </Badge>
   );
 }
 
@@ -118,18 +115,17 @@ function IdeaEditor({
   const set = (patch: Partial<IdeaDraft>) => setD((prev) => ({ ...prev, ...patch }));
 
   return (
-    <div className="rounded-xl p-4 space-y-3" style={cardStyle}>
-      <input
+    <Card className="p-4 gap-3">
+      <Input
         type="text"
         value={d.title}
         onChange={(e) => set({ title: e.target.value })}
         placeholder="Idea (a claim or tension, not a topic)…"
         autoFocus
-        className="w-full text-sm font-medium outline-none rounded-lg px-3 py-2"
-        style={inputStyle}
+        className="w-full h-auto text-sm font-medium rounded-lg px-3 py-2"
       />
       <div className="flex items-center gap-2 flex-wrap">
-        <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-tertiary)" }}>
+        <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">
           Pillar
         </span>
         {PILLARS.map((p) => (
@@ -138,8 +134,8 @@ function IdeaEditor({
             onClick={() => set({ pillar: p.pillar })}
             className="text-xs font-medium rounded-full px-3 py-1 transition-colors"
             style={{
-              color: d.pillar === p.pillar ? "#fff" : "var(--text-secondary)",
-              background: d.pillar === p.pillar ? p.color : "var(--bg-tertiary)",
+              color: d.pillar === p.pillar ? "#fff" : "var(--muted-foreground)",
+              background: d.pillar === p.pillar ? p.color : "var(--muted)",
             }}
           >
             {p.label}
@@ -147,60 +143,58 @@ function IdeaEditor({
         ))}
       </div>
       <div className="flex items-center gap-3 flex-wrap">
-        <label className="flex items-center gap-2 text-xs" style={{ color: "var(--text-tertiary)" }}>
+        <label className="flex items-center gap-2 text-xs text-muted-foreground/70">
           <span className="font-semibold uppercase tracking-wider">Hook #</span>
-          <select
-            value={d.hookFormula ?? ""}
-            onChange={(e) => set({ hookFormula: e.target.value ? Number(e.target.value) : undefined })}
-            className="text-sm outline-none rounded-lg px-2 py-1.5"
-            style={inputStyle}
+          <Select
+            value={d.hookFormula ? String(d.hookFormula) : "none"}
+            onValueChange={(v) => set({ hookFormula: v === "none" ? undefined : Number(v) })}
           >
-            <option value="">— none —</option>
-            {HOOK_FORMULAS.map((h) => (
-              <option key={h.n} value={h.n}>
-                {h.n} · {h.name}
-              </option>
-            ))}
-          </select>
+            <SelectTrigger size="sm" className="text-sm h-auto py-1.5">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">— none —</SelectItem>
+              {HOOK_FORMULAS.map((h) => (
+                <SelectItem key={h.n} value={String(h.n)}>
+                  {h.n} · {h.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </label>
         {/* Episode = position in the learning path (continuity), any pillar. */}
-        <label className="flex items-center gap-2 text-xs" style={{ color: "var(--text-tertiary)" }}>
+        <label className="flex items-center gap-2 text-xs text-muted-foreground/70">
             <span className="font-semibold uppercase tracking-wider">Episode</span>
-            <input
+            <Input
               type="number"
               min={1}
               value={d.episode ?? ""}
               onChange={(e) => set({ episode: e.target.value ? Number(e.target.value) : undefined })}
-              className="w-16 text-sm outline-none rounded-lg px-2 py-1.5"
-              style={inputStyle}
+              className="w-16 h-auto text-sm rounded-lg px-2 py-1.5"
             />
           </label>
       </div>
-      <textarea
+      <Textarea
         value={d.notes || ""}
         onChange={(e) => set({ notes: e.target.value })}
         rows={2}
         placeholder="Notes / script beats (optional)"
-        className="w-full text-sm outline-none rounded-lg px-3 py-2 resize-none"
-        style={inputStyle}
+        className="w-full text-sm rounded-lg px-3 py-2 resize-none"
       />
       <div className="flex items-center gap-2 justify-end">
-        <button
-          onClick={onCancel}
-          className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium"
-          style={{ color: "var(--text-secondary)", background: "var(--bg-tertiary)" }}
-        >
+        <Button onClick={onCancel} variant="secondary" size="sm" className="gap-1.5 text-xs font-medium">
           <X size={14} /> Cancel
-        </button>
-        <button
+        </Button>
+        <Button
           onClick={() => d.title.trim() && onSave({ ...d, title: d.title.trim(), notes: d.notes?.trim() || undefined })}
           disabled={!d.title.trim()}
-          className="flex items-center gap-1.5 rounded-lg px-4 py-1.5 text-sm font-medium bg-sage-400 text-white hover:bg-sage-500 transition-colors disabled:opacity-50"
+          size="sm"
+          className="gap-1.5 text-sm font-medium bg-sage-400 text-white hover:bg-sage-500 disabled:opacity-50"
         >
           <Check size={14} /> Save
-        </button>
+        </Button>
       </div>
-    </div>
+    </Card>
   );
 }
 
@@ -283,11 +277,9 @@ function IdeaBank() {
         <div className="flex items-center gap-1.5 flex-wrap">
           <button
             onClick={() => setPillarFilter("all")}
-            className="text-xs font-medium rounded-full px-3 py-1 transition-colors"
-            style={{
-              color: pillarFilter === "all" ? "#fff" : "var(--text-secondary)",
-              background: pillarFilter === "all" ? "var(--accent)" : "var(--bg-tertiary)",
-            }}
+            className={`text-xs font-medium rounded-full px-3 py-1 transition-colors ${
+              pillarFilter === "all" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+            }`}
           >
             All ({ideas.length})
           </button>
@@ -297,26 +289,26 @@ function IdeaBank() {
               onClick={() => setPillarFilter(p.pillar)}
               className="text-xs font-medium rounded-full px-3 py-1 transition-colors"
               style={{
-                color: pillarFilter === p.pillar ? "#fff" : "var(--text-secondary)",
-                background: pillarFilter === p.pillar ? p.color : "var(--bg-tertiary)",
+                color: pillarFilter === p.pillar ? "#fff" : "var(--muted-foreground)",
+                background: pillarFilter === p.pillar ? p.color : "var(--muted)",
               }}
             >
               {p.label} ({ideas.filter((i) => i.pillar === p.pillar).length})
             </button>
           ))}
-          <label className="flex items-center gap-1.5 text-xs ml-2" style={{ color: "var(--text-tertiary)" }}>
+          <label className="flex items-center gap-1.5 text-xs ml-2 text-muted-foreground/70">
             <input type="checkbox" checked={hidePosted} onChange={(e) => setHidePosted(e.target.checked)} />
             hide posted
           </label>
         </div>
         <div className="flex items-center gap-2">
           {ideas.length > 0 && (
-            <button
+            <Button
               onClick={runBatch}
               disabled={busy}
               title="Monday block: draft 2 Build Log + 1 Workflow Win + 1 carousel from the bank (never drains unscripted ideas below 12)"
-              className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors disabled:opacity-50"
-              style={{ color: "var(--accent)", background: "var(--accent-bg)" }}
+              size="sm"
+              className="gap-1.5 text-sm font-medium bg-accent text-accent-foreground hover:bg-accent/80 disabled:opacity-50"
             >
               {batchProgress ? (
                 <>
@@ -328,25 +320,23 @@ function IdeaBank() {
                   <Wand2 size={15} /> Draft week&rsquo;s batch
                 </>
               )}
-            </button>
+            </Button>
           )}
           {!creating && (
-            <button
+            <Button
               onClick={() => setCreating(true)}
-              className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium bg-sage-400 text-white hover:bg-sage-500 transition-colors"
+              size="sm"
+              className="gap-1.5 text-sm font-medium bg-sage-400 text-white hover:bg-sage-500"
             >
               <Plus size={15} /> New idea
-            </button>
+            </Button>
           )}
         </div>
       </div>
 
       {unscripted < 12 && ideas.length > 0 && (
-        <div
-          className="flex items-center gap-2 rounded-xl px-4 py-3 text-sm"
-          style={{ background: "#FFB45420", color: "var(--text-secondary)", border: "1px solid #FFB45440" }}
-        >
-          <AlertTriangle size={16} style={{ color: "#FFB454" }} />
+        <div className="flex items-center gap-2 rounded-xl px-4 py-3 text-sm bg-amber-500/10 text-muted-foreground border border-amber-500/25">
+          <AlertTriangle size={16} className="text-amber-500" />
           Bank rule: {unscripted} unscripted idea{unscripted === 1 ? "" : "s"} left (floor is 12). Run a 20-min
           brainstorm against the hook formulas.
         </div>
@@ -364,15 +354,15 @@ function IdeaBank() {
       )}
 
       {ideas.length === 0 && !loading && !creating && (
-        <div className="flex flex-col items-center justify-center py-16 rounded-xl text-center" style={cardStyle}>
-          <Clapperboard size={48} style={{ color: "var(--text-tertiary)" }} className="mb-4" />
-          <p className="text-lg font-medium" style={{ color: "var(--text-primary)" }}>
+        <Card className="flex-col items-center justify-center py-16 text-center">
+          <Clapperboard size={48} className="mb-4 text-muted-foreground/70" />
+          <p className="text-lg font-medium text-foreground">
             Idea bank is empty
           </p>
-          <p className="text-sm mt-1 mb-4 max-w-sm" style={{ color: "var(--text-secondary)" }}>
+          <p className="text-sm mt-1 mb-4 max-w-sm text-muted-foreground">
             Import the 60 starter ideas from the vault&rsquo;s idea bank, or add your own.
           </p>
-          <button
+          <Button
             onClick={async () => {
               setSeeding(true);
               await seedIdeas();
@@ -380,11 +370,12 @@ function IdeaBank() {
               toast("Imported 60 starter ideas");
             }}
             disabled={seeding}
-            className="flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium bg-sage-400 text-white hover:bg-sage-500 transition-colors disabled:opacity-50"
+            size="sm"
+            className="gap-1.5 text-sm font-medium bg-sage-400 text-white hover:bg-sage-500 disabled:opacity-50"
           >
             <Download size={15} /> {seeding ? "Importing…" : "Import 60 starter ideas"}
-          </button>
-        </div>
+          </Button>
+        </Card>
       )}
 
       <div className="space-y-2">
@@ -400,23 +391,23 @@ function IdeaBank() {
               onCancel={() => setEditingId(null)}
             />
           ) : (
-            <div key={idea.id} className="rounded-xl px-4 py-3" style={cardStyle}>
+            <Card key={idea.id} className="px-4 py-3 gap-0">
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
                   <div className="flex items-center gap-1.5 flex-wrap">
                     <PillarBadge pillar={idea.pillar} />
                     {idea.episode != null && (
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: "var(--bg-tertiary)", color: "var(--text-secondary)" }}>
+                      <Badge variant="secondary" className="text-[10px] font-bold">
                         Ep {idea.episode}
-                      </span>
+                      </Badge>
                     )}
                     <HookBadge n={idea.hookFormula} />
                   </div>
-                  <p className="text-sm font-medium mt-1.5" style={{ color: "var(--text-primary)" }}>
+                  <p className="text-sm font-medium mt-1.5 text-foreground">
                     {idea.title}
                   </p>
                   {idea.notes && (
-                    <p className="text-xs mt-1 whitespace-pre-wrap" style={{ color: "var(--text-tertiary)" }}>
+                    <p className="text-xs mt-1 whitespace-pre-wrap text-muted-foreground/70">
                       {idea.notes}
                     </p>
                   )}
@@ -431,8 +422,7 @@ function IdeaBank() {
                           ? "Assign a hook formula first — a topic isn't a post"
                           : "Draft script + caption with Claude"
                       }
-                      className="p-1.5 rounded-lg disabled:opacity-40"
-                      style={{ color: "var(--accent)" }}
+                      className="p-1.5 rounded-lg disabled:opacity-40 text-primary"
                     >
                       {scriptingId === idea.id ? (
                         <Loader2 size={14} className="animate-spin" />
@@ -445,16 +435,15 @@ function IdeaBank() {
                     <button
                       onClick={() => toggleScript(idea.id)}
                       title={openScriptIds.has(idea.id) ? "Hide script" : "Show script"}
-                      className="p-1.5 rounded-lg"
-                      style={{ color: openScriptIds.has(idea.id) ? "var(--accent)" : "var(--text-tertiary)" }}
+                      className={`p-1.5 rounded-lg ${openScriptIds.has(idea.id) ? "text-primary" : "text-muted-foreground/70"}`}
                     >
                       <FileText size={14} />
                     </button>
                   )}
-                  <button onClick={() => setEditingId(idea.id)} title="Edit" className="p-1.5 rounded-lg" style={{ color: "var(--text-tertiary)" }}>
+                  <button onClick={() => setEditingId(idea.id)} title="Edit" className="p-1.5 rounded-lg text-muted-foreground/70">
                     <Pencil size={14} />
                   </button>
-                  <button onClick={() => setConfirmId(idea.id)} title="Delete" className="p-1.5 rounded-lg" style={{ color: "var(--text-tertiary)" }}>
+                  <button onClick={() => setConfirmId(idea.id)} title="Delete" className="p-1.5 rounded-lg text-muted-foreground/70">
                     <Trash2 size={14} />
                   </button>
                 </div>
@@ -466,8 +455,8 @@ function IdeaBank() {
                     onClick={() => updateIdea(idea.id, { status: s.status })}
                     className="text-[11px] font-medium rounded-full px-2.5 py-0.5 transition-colors"
                     style={{
-                      color: idea.status === s.status ? "#fff" : "var(--text-tertiary)",
-                      background: idea.status === s.status ? s.color : "var(--bg-tertiary)",
+                      color: idea.status === s.status ? "#fff" : "var(--muted-foreground)",
+                      background: idea.status === s.status ? s.color : "var(--muted)",
                     }}
                   >
                     {s.label}
@@ -475,28 +464,28 @@ function IdeaBank() {
                 ))}
               </div>
               {idea.script && openScriptIds.has(idea.id) && (
-                <div className="mt-3 space-y-3 rounded-lg p-3" style={{ background: "var(--bg-tertiary)" }}>
+                <div className="mt-3 space-y-3 rounded-lg p-3 bg-muted">
                   <div>
-                    <p className="text-[10px] font-bold uppercase tracking-widest mb-1" style={{ color: "var(--text-tertiary)" }}>
+                    <p className="text-[10px] font-bold uppercase tracking-widest mb-1 text-muted-foreground/70">
                       Script — read aloud once, cut 15%
                     </p>
-                    <p className="text-sm whitespace-pre-wrap" style={{ color: "var(--text-secondary)" }}>
+                    <p className="text-sm whitespace-pre-wrap text-muted-foreground">
                       {idea.script}
                     </p>
                   </div>
                   {idea.caption && (
                     <div>
-                      <p className="text-[10px] font-bold uppercase tracking-widest mb-1" style={{ color: "var(--text-tertiary)" }}>
+                      <p className="text-[10px] font-bold uppercase tracking-widest mb-1 text-muted-foreground/70">
                         Caption
                       </p>
-                      <p className="text-sm whitespace-pre-wrap" style={{ color: "var(--text-secondary)" }}>
+                      <p className="text-sm whitespace-pre-wrap text-muted-foreground">
                         {idea.caption}
                       </p>
                     </div>
                   )}
                 </div>
               )}
-            </div>
+            </Card>
           )
         )}
       </div>
@@ -519,20 +508,17 @@ function IdeaBank() {
 
 function Playbook() {
   const section = (title: string, children: React.ReactNode) => (
-    <div className="rounded-xl p-4" style={cardStyle}>
-      <h2 className="text-sm font-semibold uppercase tracking-wider mb-3" style={{ color: "var(--text-tertiary)" }}>
+    <Card className="p-4 gap-3">
+      <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground/70">
         {title}
       </h2>
       {children}
-    </div>
+    </Card>
   );
-
-  const th = "text-left text-[11px] font-semibold uppercase tracking-wider px-2 py-1.5";
-  const td = "text-sm px-2 py-1.5 align-top";
 
   return (
     <div className="space-y-4">
-      <p className="text-xs" style={{ color: "var(--text-tertiary)" }}>
+      <p className="text-xs text-muted-foreground/70">
         Condensed from the vault playbook (<code>01-Inbox/content-os/</code>) — the vault stays the source of truth.
       </p>
 
@@ -540,8 +526,8 @@ function Playbook() {
         "Non-negotiables",
         <ul className="space-y-1.5">
           {NON_NEGOTIABLES.map((r) => (
-            <li key={r} className="text-sm flex gap-2" style={{ color: "var(--text-secondary)" }}>
-              <span style={{ color: "var(--accent)" }}>•</span> {r}
+            <li key={r} className="text-sm flex gap-2 text-muted-foreground">
+              <span className="text-primary">•</span> {r}
             </li>
           ))}
         </ul>
@@ -554,11 +540,11 @@ function Playbook() {
             <div key={p.pillar}>
               <div className="flex items-center gap-2">
                 <PillarBadge pillar={p.pillar} />
-                <span className="text-xs font-medium" style={{ color: "var(--text-tertiary)" }}>
+                <span className="text-xs font-medium text-muted-foreground/70">
                   {p.cadence}
                 </span>
               </div>
-              <p className="text-sm mt-1" style={{ color: "var(--text-secondary)" }}>
+              <p className="text-sm mt-1 text-muted-foreground">
                 {p.job}
               </p>
             </div>
@@ -568,62 +554,58 @@ function Playbook() {
 
       {section(
         "Weekly rhythm (≈8.5h)",
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr style={{ color: "var(--text-tertiary)" }}>
-                <th className={th}>Day</th>
-                <th className={th}>Block</th>
-                <th className={th}>Time</th>
-                <th className={th}>What</th>
-              </tr>
-            </thead>
-            <tbody style={{ color: "var(--text-secondary)" }}>
-              {WEEKLY_RHYTHM.map((r) => (
-                <tr key={r.day + r.block} style={{ borderTop: "1px solid var(--border-primary)" }}>
-                  <td className={`${td} font-medium whitespace-nowrap`}>{r.day}</td>
-                  <td className={`${td} whitespace-nowrap`}>{r.block}</td>
-                  <td className={`${td} whitespace-nowrap`}>{r.time}</td>
-                  <td className={td}>{r.what}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="text-[11px] uppercase tracking-wider">Day</TableHead>
+              <TableHead className="text-[11px] uppercase tracking-wider">Block</TableHead>
+              <TableHead className="text-[11px] uppercase tracking-wider">Time</TableHead>
+              <TableHead className="text-[11px] uppercase tracking-wider whitespace-normal">What</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {WEEKLY_RHYTHM.map((r) => (
+              <TableRow key={r.day + r.block}>
+                <TableCell className="font-medium text-foreground">{r.day}</TableCell>
+                <TableCell className="text-muted-foreground">{r.block}</TableCell>
+                <TableCell className="text-muted-foreground">{r.time}</TableCell>
+                <TableCell className="whitespace-normal text-muted-foreground">{r.what}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
       )}
 
       {section(
         "Posting map",
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr style={{ color: "var(--text-tertiary)" }}>
-                <th className={th}>Day</th>
-                <th className={th}>TikTok</th>
-                <th className={th}>Instagram</th>
-                <th className={th}>YT Shorts</th>
-              </tr>
-            </thead>
-            <tbody style={{ color: "var(--text-secondary)" }}>
-              {POSTING_MAP.map((r) => (
-                <tr key={r.day} style={{ borderTop: "1px solid var(--border-primary)" }}>
-                  <td className={`${td} font-medium`}>{r.day}</td>
-                  <td className={td}>{r.tiktok}</td>
-                  <td className={td}>{r.instagram}</td>
-                  <td className={td}>{r.youtube}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="text-[11px] uppercase tracking-wider">Day</TableHead>
+              <TableHead className="text-[11px] uppercase tracking-wider">TikTok</TableHead>
+              <TableHead className="text-[11px] uppercase tracking-wider">Instagram</TableHead>
+              <TableHead className="text-[11px] uppercase tracking-wider">YT Shorts</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {POSTING_MAP.map((r) => (
+              <TableRow key={r.day}>
+                <TableCell className="font-medium text-foreground">{r.day}</TableCell>
+                <TableCell className="text-muted-foreground">{r.tiktok}</TableCell>
+                <TableCell className="text-muted-foreground">{r.instagram}</TableCell>
+                <TableCell className="text-muted-foreground">{r.youtube}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
       )}
 
       {section(
         "12 hook formulas",
         <div className="space-y-1.5">
           {HOOK_FORMULAS.map((h) => (
-            <p key={h.n} className="text-sm" style={{ color: "var(--text-secondary)" }}>
-              <span className="font-semibold" style={{ color: "var(--text-primary)" }}>
+            <p key={h.n} className="text-sm text-muted-foreground">
+              <span className="font-semibold text-foreground">
                 {h.n} · {h.name}
               </span>{" "}
               — {h.template}
@@ -636,8 +618,8 @@ function Playbook() {
         "Quality bar (before export)",
         <ul className="space-y-1.5">
           {QUALITY_BAR.map((r) => (
-            <li key={r} className="text-sm flex gap-2" style={{ color: "var(--text-secondary)" }}>
-              <span style={{ color: "var(--accent)" }}>☐</span> {r}
+            <li key={r} className="text-sm flex gap-2 text-muted-foreground">
+              <span className="text-primary">☐</span> {r}
             </li>
           ))}
         </ul>
@@ -647,8 +629,8 @@ function Playbook() {
         "Kill / scale rules",
         <ul className="space-y-1.5">
           {KILL_SCALE_RULES.map((r) => (
-            <li key={r} className="text-sm flex gap-2" style={{ color: "var(--text-secondary)" }}>
-              <span style={{ color: "var(--accent)" }}>•</span> {r}
+            <li key={r} className="text-sm flex gap-2 text-muted-foreground">
+              <span className="text-primary">•</span> {r}
             </li>
           ))}
         </ul>
@@ -672,29 +654,27 @@ export default function ContentPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold flex items-center gap-2" style={{ color: "var(--text-primary)" }}>
-          <Clapperboard size={22} style={{ color: "var(--accent)" }} /> Content OS
+        <h1 className="text-2xl font-semibold flex items-center gap-2 text-foreground">
+          <Clapperboard size={22} className="text-primary" /> Content OS
         </h1>
-        <p className="text-xs mt-1" style={{ color: "var(--text-tertiary)" }}>
+        <p className="text-xs mt-1 text-muted-foreground/70">
           Build-in-public content system — idea bank and the playbook.
         </p>
       </div>
 
-      <div className="flex items-center gap-1.5">
-        {TABS.map((t) => (
-          <button
-            key={t.id}
-            onClick={() => setTab(t.id)}
-            className="text-sm font-medium rounded-lg px-3 py-1.5 transition-colors"
-            style={{
-              color: tab === t.id ? "var(--accent)" : "var(--text-secondary)",
-              background: tab === t.id ? "var(--accent-bg)" : "transparent",
-            }}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
+      <Tabs value={tab} onValueChange={(v) => setTab(v as TabId)}>
+        <TabsList className="bg-transparent p-0 gap-1.5 h-auto">
+          {TABS.map((t) => (
+            <TabsTrigger
+              key={t.id}
+              value={t.id}
+              className="text-sm font-medium rounded-lg px-3 py-1.5 data-[state=active]:bg-accent data-[state=active]:text-primary data-[state=active]:shadow-none"
+            >
+              {t.label}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+      </Tabs>
 
       {tab === "ideas" && <IdeaBank />}
       {tab === "playbook" && <Playbook />}

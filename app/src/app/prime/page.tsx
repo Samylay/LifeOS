@@ -18,6 +18,9 @@ import {
   PRIME_TIMER_FLOORS,
   type AffirmationType,
 } from "@/lib/types";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 const TYPE_LABEL: Record<AffirmationType, string> = {
   anchor: "Anchor",
@@ -29,20 +32,18 @@ function StepHeader({ n, title, hint, done }: { n: number; title: string; hint?:
   return (
     <div className="flex items-center gap-3 mb-3">
       <div
-        className="shrink-0 flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold"
-        style={{
-          background: done ? "var(--accent)" : "var(--bg-tertiary)",
-          color: done ? "#fff" : "var(--text-secondary)",
-        }}
+        className={`shrink-0 flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${
+          done ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+        }`}
       >
         {done ? <Check size={14} /> : n}
       </div>
       <div>
-        <h2 className="text-base font-semibold" style={{ color: "var(--text-primary)" }}>
+        <h2 className="text-base font-semibold text-foreground">
           {title}
         </h2>
         {hint && (
-          <p className="text-xs" style={{ color: "var(--text-tertiary)" }}>
+          <p className="text-xs text-muted-foreground/70">
             {hint}
           </p>
         )}
@@ -86,34 +87,36 @@ function SoftTimer({ floorSec }: { floorSec: number }) {
   const mmss = `${Math.floor(elapsed / 60)}:${String(Math.floor(elapsed % 60)).padStart(2, "0")}`;
 
   return (
-    <div className="rounded-lg p-4" style={{ background: "var(--bg-tertiary)" }}>
+    <div className="rounded-lg p-4 bg-muted">
       <div className="flex items-end justify-between mb-2">
-        <span className="text-3xl font-mono font-semibold" style={{ color: reached ? "var(--accent)" : "var(--text-primary)" }}>
+        <span className={`text-3xl font-mono font-semibold ${reached ? "text-primary" : "text-foreground"}`}>
           {mmss}
         </span>
-        <span className="text-xs" style={{ color: reached ? "var(--accent)" : "var(--text-tertiary)" }}>
+        <span className={`text-xs ${reached ? "text-primary" : "text-muted-foreground/70"}`}>
           {reached ? "Floor reached ✓ — keep going if you like" : `${Math.ceil(floorSec - elapsed)}s to the ${floorSec}s floor`}
         </span>
       </div>
-      <div className="h-2 rounded-full overflow-hidden mb-3" style={{ background: "var(--bg-secondary)" }}>
-        <div className="h-full w-full rounded-full origin-left transition-transform" style={{ transform: `scaleX(${pct / 100})`, background: "var(--accent)" }} />
+      <div className="h-2 rounded-full overflow-hidden mb-3 bg-card">
+        <div className="h-full w-full rounded-full origin-left transition-transform bg-primary" style={{ transform: `scaleX(${pct / 100})` }} />
       </div>
       <div className="flex items-center gap-2">
-        <button
+        <Button
           onClick={toggle}
-          className="flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium bg-sage-400 text-white hover:bg-sage-500 transition-colors"
+          size="sm"
+          className="gap-1.5 text-sm font-medium bg-sage-400 text-white hover:bg-sage-500"
         >
           {running ? <Pause size={15} /> : <Play size={15} />}
           {running ? "Pause" : elapsed > 0 ? "Resume" : "Start"}
-        </button>
+        </Button>
         {elapsed > 0 && (
-          <button
+          <Button
             onClick={reset}
-            className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium"
-            style={{ color: "var(--text-secondary)", background: "var(--bg-secondary)" }}
+            variant="secondary"
+            size="sm"
+            className="gap-1.5 text-xs font-medium"
           >
             <RotateCcw size={14} /> Reset
-          </button>
+          </Button>
         )}
       </div>
     </div>
@@ -143,20 +146,14 @@ function BankManager({ prime }: { prime: ReturnType<typeof usePrime> }) {
   const [newPrompt, setNewPrompt] = useState("");
   const [newPrinciple, setNewPrinciple] = useState("");
 
-  const inputStyle = {
-    color: "var(--text-primary)",
-    background: "var(--bg-tertiary)",
-    border: "1px solid var(--border-primary)",
-  };
-
   const cycleType = (t: AffirmationType): AffirmationType =>
     t === "anchor" ? "rotating" : t === "rotating" ? "contextual" : "anchor";
 
   return (
-    <div className="rounded-xl p-5 space-y-6" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-primary)" }}>
+    <Card className="p-5 gap-6">
       {/* Timer floor */}
       <div>
-        <p className="text-xs font-bold uppercase tracking-widest mb-2" style={{ color: "var(--text-secondary)" }}>
+        <p className="text-xs font-bold uppercase tracking-widest mb-2 text-muted-foreground">
           Soft-timer floor
         </p>
         <div className="flex items-center gap-2">
@@ -164,16 +161,14 @@ function BankManager({ prime }: { prime: ReturnType<typeof usePrime> }) {
             <button
               key={f}
               onClick={() => updateTimerFloor(f)}
-              className="text-sm font-medium rounded-lg px-3 py-1.5 transition-colors"
-              style={{
-                color: timerFloorSec === f ? "#fff" : "var(--text-secondary)",
-                background: timerFloorSec === f ? "var(--accent)" : "var(--bg-tertiary)",
-              }}
+              className={`text-sm font-medium rounded-lg px-3 py-1.5 transition-colors ${
+                timerFloorSec === f ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+              }`}
             >
               {f < 120 ? `${f}s` : `${f / 60}min`}
             </button>
           ))}
-          <span className="text-xs" style={{ color: "var(--text-tertiary)" }}>
+          <span className="text-xs text-muted-foreground/70">
             Raise it as fluency builds.
           </span>
         </div>
@@ -181,7 +176,7 @@ function BankManager({ prime }: { prime: ReturnType<typeof usePrime> }) {
 
       {/* Affirmations */}
       <div>
-        <p className="text-xs font-bold uppercase tracking-widest mb-2" style={{ color: "var(--text-secondary)" }}>
+        <p className="text-xs font-bold uppercase tracking-widest mb-2 text-muted-foreground">
           Affirmation bank
         </p>
         <div className="space-y-1.5 mb-2">
@@ -190,23 +185,22 @@ function BankManager({ prime }: { prime: ReturnType<typeof usePrime> }) {
               <button
                 onClick={() => updateAffirmation(a.id, { active: !a.active })}
                 title={a.active ? "Active — click to disable" : "Disabled — click to enable"}
-                className="shrink-0 h-4 w-4 rounded border flex items-center justify-center"
-                style={{ borderColor: "var(--border-primary)", background: a.active ? "var(--accent)" : "transparent" }}
+                className={`shrink-0 h-4 w-4 rounded border flex items-center justify-center border-border ${a.active ? "bg-primary" : "bg-transparent"}`}
               >
-                {a.active && <Check size={11} color="#fff" />}
+                {a.active && <Check size={11} className="text-primary-foreground" />}
               </button>
               <button
                 onClick={() => updateAffirmation(a.id, { type: cycleType(a.type) })}
                 title="Click to change type"
-                className="shrink-0 text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded"
-                style={{ background: "var(--bg-tertiary)", color: "var(--text-tertiary)", width: 78 }}
+                className="shrink-0 text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-muted text-muted-foreground/70"
+                style={{ width: 78 }}
               >
                 {TYPE_LABEL[a.type]}
               </button>
-              <span className="flex-1" style={{ color: a.active ? "var(--text-secondary)" : "var(--text-tertiary)" }}>
+              <span className={`flex-1 ${a.active ? "text-muted-foreground" : "text-muted-foreground/70"}`}>
                 {a.text}
               </span>
-              <button onClick={() => deleteAffirmation(a.id)} className="shrink-0 p-1" style={{ color: "var(--text-tertiary)" }}>
+              <button onClick={() => deleteAffirmation(a.id)} className="shrink-0 p-1 text-muted-foreground/70">
                 <Trash2 size={13} />
               </button>
             </div>
@@ -215,12 +209,12 @@ function BankManager({ prime }: { prime: ReturnType<typeof usePrime> }) {
         <div className="flex items-center gap-2">
           <button
             onClick={() => setNewAffType(cycleType(newAffType))}
-            className="shrink-0 text-[10px] font-bold uppercase tracking-wider px-1.5 py-1 rounded"
-            style={{ background: "var(--bg-tertiary)", color: "var(--text-tertiary)", width: 78 }}
+            className="shrink-0 text-[10px] font-bold uppercase tracking-wider px-1.5 py-1 rounded bg-muted text-muted-foreground/70"
+            style={{ width: 78 }}
           >
             {TYPE_LABEL[newAffType]}
           </button>
-          <input
+          <Input
             value={newAff}
             onChange={(e) => setNewAff(e.target.value)}
             onKeyDown={(e) => {
@@ -230,38 +224,39 @@ function BankManager({ prime }: { prime: ReturnType<typeof usePrime> }) {
               }
             }}
             placeholder="Add an affirmation…"
-            className="flex-1 text-sm outline-none rounded-lg px-3 py-1.5"
-            style={inputStyle}
+            className="flex-1 h-auto text-sm rounded-lg px-3 py-1.5"
           />
-          <button
+          <Button
             onClick={() => { if (newAff.trim()) { addAffirmation(newAff, newAffType); setNewAff(""); } }}
-            className="shrink-0 p-1.5 rounded-lg" style={{ color: "var(--accent)" }}
+            variant="ghost"
+            size="icon-sm"
+            className="shrink-0 text-primary"
           >
             <Plus size={16} />
-          </button>
+          </Button>
         </div>
       </div>
 
       {/* Prompts */}
       <div>
-        <p className="text-xs font-bold uppercase tracking-widest mb-2" style={{ color: "var(--text-secondary)" }}>
+        <p className="text-xs font-bold uppercase tracking-widest mb-2 text-muted-foreground">
           Prompt bank
         </p>
         <div className="space-y-1.5 mb-2">
           {promptBank.map((p) => (
             <div key={p.id} className="flex items-center gap-2 text-sm">
-              <span className="shrink-0 text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: "var(--bg-tertiary)", color: "var(--text-tertiary)" }}>
+              <span className="shrink-0 text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-muted text-muted-foreground/70">
                 {p.category}
               </span>
-              <span className="flex-1" style={{ color: "var(--text-secondary)" }}>{p.text}</span>
-              <button onClick={() => deletePrompt(p.id)} className="shrink-0 p-1" style={{ color: "var(--text-tertiary)" }}>
+              <span className="flex-1 text-muted-foreground">{p.text}</span>
+              <button onClick={() => deletePrompt(p.id)} className="shrink-0 p-1 text-muted-foreground/70">
                 <Trash2 size={13} />
               </button>
             </div>
           ))}
         </div>
         <div className="flex items-center gap-2">
-          <input
+          <Input
             value={newPrompt}
             onChange={(e) => setNewPrompt(e.target.value)}
             onKeyDown={(e) => {
@@ -271,35 +266,36 @@ function BankManager({ prime }: { prime: ReturnType<typeof usePrime> }) {
               }
             }}
             placeholder="Add a concrete prompt…"
-            className="flex-1 text-sm outline-none rounded-lg px-3 py-1.5"
-            style={inputStyle}
+            className="flex-1 h-auto text-sm rounded-lg px-3 py-1.5"
           />
-          <button
+          <Button
             onClick={() => { if (newPrompt.trim()) { addPrompt(newPrompt, "concrete"); setNewPrompt(""); } }}
-            className="shrink-0 p-1.5 rounded-lg" style={{ color: "var(--accent)" }}
+            variant="ghost"
+            size="icon-sm"
+            className="shrink-0 text-primary"
           >
             <Plus size={16} />
-          </button>
+          </Button>
         </div>
       </div>
 
       {/* Principles */}
       <div>
-        <p className="text-xs font-bold uppercase tracking-widest mb-2" style={{ color: "var(--text-secondary)" }}>
+        <p className="text-xs font-bold uppercase tracking-widest mb-2 text-muted-foreground">
           Principle slot
         </p>
         <div className="space-y-1.5 mb-2">
           {principleBank.map((p) => (
             <div key={p.id} className="flex items-center gap-2 text-sm">
-              <span className="flex-1" style={{ color: "var(--text-secondary)" }}>{p.text}</span>
-              <button onClick={() => deletePrinciple(p.id)} className="shrink-0 p-1" style={{ color: "var(--text-tertiary)" }}>
+              <span className="flex-1 text-muted-foreground">{p.text}</span>
+              <button onClick={() => deletePrinciple(p.id)} className="shrink-0 p-1 text-muted-foreground/70">
                 <Trash2 size={13} />
               </button>
             </div>
           ))}
         </div>
         <div className="flex items-center gap-2">
-          <input
+          <Input
             value={newPrinciple}
             onChange={(e) => setNewPrinciple(e.target.value)}
             onKeyDown={(e) => {
@@ -309,18 +305,19 @@ function BankManager({ prime }: { prime: ReturnType<typeof usePrime> }) {
               }
             }}
             placeholder="Add a standing principle…"
-            className="flex-1 text-sm outline-none rounded-lg px-3 py-1.5"
-            style={inputStyle}
+            className="flex-1 h-auto text-sm rounded-lg px-3 py-1.5"
           />
-          <button
+          <Button
             onClick={() => { if (newPrinciple.trim()) { addPrinciple(newPrinciple); setNewPrinciple(""); } }}
-            className="shrink-0 p-1.5 rounded-lg" style={{ color: "var(--accent)" }}
+            variant="ghost"
+            size="icon-sm"
+            className="shrink-0 text-primary"
           >
             <Plus size={16} />
-          </button>
+          </Button>
         </div>
       </div>
-    </div>
+    </Card>
   );
 }
 
@@ -346,46 +343,47 @@ export default function PrimePage() {
       {/* Header */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-2xl font-semibold flex items-center gap-2" style={{ color: "var(--text-primary)" }}>
-            <Sunrise size={22} style={{ color: "var(--accent)" }} /> Daily Prime
+          <h1 className="text-2xl font-semibold flex items-center gap-2 text-foreground">
+            <Sunrise size={22} className="text-primary" /> Daily Prime
           </h1>
-          <p className="text-xs mt-1" style={{ color: "var(--text-tertiary)" }}>
+          <p className="text-xs mt-1 text-muted-foreground/70">
             {done ? "Done for today — nice work." : "Morning ritual: affirm, then speak. Read everything out loud."}
           </p>
         </div>
-        <button
+        <Button
           onClick={() => setShowManager((v) => !v)}
-          className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium"
-          style={{ color: "var(--text-secondary)", background: "var(--bg-secondary)", border: "1px solid var(--border-primary)" }}
+          variant="outline"
+          size="sm"
+          className="gap-1.5 text-sm font-medium text-muted-foreground"
         >
           <Settings2 size={15} /> {showManager ? "Hide banks" : "Edit banks"}
-        </button>
+        </Button>
       </div>
 
       {showManager && <BankManager prime={prime} />}
 
       {loading && !today && (
-        <div className="rounded-xl p-8 text-center" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-primary)" }}>
-          <p className="text-sm" style={{ color: "var(--text-tertiary)" }}>Preparing today&rsquo;s prime…</p>
-        </div>
+        <Card className="p-8 text-center">
+          <p className="text-sm text-muted-foreground/70">Preparing today&rsquo;s prime…</p>
+        </Card>
       )}
 
       {today && (
         <>
           {/* Principle of the day */}
           {today.principleOfDay && (
-            <div className="rounded-xl px-5 py-4" style={{ background: "var(--accent-bg)", border: "1px solid var(--accent)" }}>
-              <p className="text-[10px] font-bold uppercase tracking-widest mb-1" style={{ color: "var(--accent)" }}>
+            <div className="rounded-xl px-5 py-4 bg-accent border border-primary">
+              <p className="text-[10px] font-bold uppercase tracking-widest mb-1 text-primary">
                 Principle of the day
               </p>
-              <p className="text-base font-medium" style={{ color: "var(--text-primary)" }}>
+              <p className="text-base font-medium text-foreground">
                 {today.principleOfDay}
               </p>
             </div>
           )}
 
           {/* Step 1 — Affirmations */}
-          <section className="rounded-xl p-5" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-primary)" }}>
+          <Card className="p-5">
             <StepHeader n={1} title="Affirmations" hint="Read each aloud, then tap to acknowledge." done={step1Done} />
             <div className="space-y-2">
               {today.affirmations.map((a) => (
@@ -393,59 +391,60 @@ export default function PrimePage() {
                   key={a.id}
                   onClick={() => !a.acknowledged && acknowledgeAffirmation(a.id)}
                   disabled={a.acknowledged}
-                  className="w-full text-left rounded-lg px-4 py-3 flex items-start gap-3 transition-colors"
-                  style={{
-                    background: a.acknowledged ? "var(--accent-bg)" : "var(--bg-tertiary)",
-                    border: `1px solid ${a.acknowledged ? "var(--accent)" : "var(--border-primary)"}`,
-                  }}
+                  className={`w-full text-left rounded-lg px-4 py-3 flex items-start gap-3 transition-colors border ${
+                    a.acknowledged ? "bg-accent border-primary" : "bg-muted border-border"
+                  }`}
                 >
                   <span
-                    className="shrink-0 mt-0.5 flex h-5 w-5 items-center justify-center rounded-full"
-                    style={{ background: a.acknowledged ? "var(--accent)" : "var(--bg-secondary)", border: "1px solid var(--border-primary)" }}
+                    className={`shrink-0 mt-0.5 flex h-5 w-5 items-center justify-center rounded-full border border-border ${
+                      a.acknowledged ? "bg-primary" : "bg-card"
+                    }`}
                   >
-                    {a.acknowledged ? <Check size={12} color="#fff" /> : <Volume2 size={11} style={{ color: "var(--text-tertiary)" }} />}
+                    {a.acknowledged ? <Check size={12} className="text-primary-foreground" /> : <Volume2 size={11} className="text-muted-foreground/70" />}
                   </span>
-                  <span className="flex-1 text-sm" style={{ color: a.acknowledged ? "var(--text-tertiary)" : "var(--text-primary)" }}>
+                  <span className={`flex-1 text-sm ${a.acknowledged ? "text-muted-foreground/70" : "text-foreground"}`}>
                     {a.text}
                   </span>
                   {a.type !== "anchor" && (
-                    <span className="shrink-0 text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: "var(--bg-secondary)", color: "var(--text-tertiary)" }}>
+                    <span className="shrink-0 text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-card text-muted-foreground/70">
                       {TYPE_LABEL[a.type]}
                     </span>
                   )}
                 </button>
               ))}
             </div>
-          </section>
+          </Card>
 
           {/* Step 2 — Spoken journaling prompt */}
-          <section className="rounded-xl p-5" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-primary)" }}>
+          <Card className="p-5">
             <StepHeader n={2} title="Spoken prompt" hint="Answer out loud, unscripted. Reach the floor." done={step2Done} />
-            <p className="text-lg font-medium mb-4" style={{ color: "var(--text-primary)" }}>
+            <p className="text-lg font-medium mb-4 text-foreground">
               {today.prompt.text}
             </p>
             <SoftTimer floorSec={timerFloorSec} />
-            <button
+            <Button
               onClick={() => { acknowledgePrompt(); toast("Spoken prompt done"); }}
               disabled={step2Done}
-              className="mt-3 flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium bg-sage-400 text-white hover:bg-sage-500 transition-colors disabled:opacity-50"
+              size="sm"
+              className="mt-3 gap-1.5 text-sm font-medium bg-sage-400 text-white hover:bg-sage-500 disabled:opacity-50"
             >
               <Check size={15} /> {step2Done ? "Answered" : "I answered it"}
-            </button>
-          </section>
+            </Button>
+          </Card>
 
           {/* Completion / reset */}
           <div className="flex items-center justify-between gap-4">
-            <p className="text-sm" style={{ color: done ? "var(--accent)" : "var(--text-tertiary)" }}>
+            <p className={`text-sm ${done ? "text-primary" : "text-muted-foreground/70"}`}>
               {done ? "✓ Prime complete for today." : "Acknowledge every affirmation and the prompt to finish."}
             </p>
-            <button
+            <Button
               onClick={() => { resetToday(); toast("Reset today's prime"); }}
-              className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium"
-              style={{ color: "var(--text-secondary)", background: "var(--bg-secondary)", border: "1px solid var(--border-primary)" }}
+              variant="outline"
+              size="sm"
+              className="gap-1.5 text-xs font-medium text-muted-foreground"
             >
               <RotateCcw size={13} /> Reset
-            </button>
+            </Button>
           </div>
         </>
       )}
