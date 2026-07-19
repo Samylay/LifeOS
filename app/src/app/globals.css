@@ -83,8 +83,9 @@
 
 /* ── shadcn/ui semantic tokens (UI overhaul 2026-07-19) ─────────────────────
    Semantic layer over the sage/warm palette. Components consume these via the
-   Tailwind mappings in the @theme inline block below. Legacy --bg-*/--text-*
-   vars further down are aliases kept until every surface is migrated. */
+   Tailwind mappings in the @theme inline block below. Legacy --bg-… and
+   --text-… vars further down are aliases kept until every surface is
+   migrated. */
 :root {
   --radius: 0.625rem;
   --background: var(--color-warm-50);
