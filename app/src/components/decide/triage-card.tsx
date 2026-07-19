@@ -4,6 +4,7 @@
 // is, the category-specific assessment (validity for business ideas,
 // exploration for AI/SWE content), and where the study step proposes filing.
 import { ExternalLink } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import type { TriageCategory } from "@/lib/triage";
 
 export interface TriageQueueItem {
@@ -27,14 +28,14 @@ const CATEGORY_META: Record<string, { label: string; color: string }> = {
   "business-idea": { label: "💰 Business idea", color: "#F59E0B" },
   "ai-tip": { label: "✨ AI tip", color: "#8B5CF6" },
   "ai-project": { label: "🛠 AI project", color: "#8B5CF6" },
-  swe: { label: "⌨️ SWE", color: "var(--accent)" },
-  other: { label: "Link", color: "var(--text-tertiary)" },
+  swe: { label: "⌨️ SWE", color: "var(--primary)" },
+  other: { label: "Link", color: "var(--muted-foreground)" },
 };
 
 const VERDICT_COLORS: Record<string, string> = {
   pursue: "#22C55E", adopt: "#22C55E",
   maybe: "#F59E0B", try: "#F59E0B",
-  skim: "var(--text-tertiary)",
+  skim: "var(--muted-foreground)",
   pass: "#EF4444", skip: "#EF4444",
 };
 
@@ -48,8 +49,8 @@ function Field({ label, value }: { label: string; value?: string }) {
   if (!value || value === "none") return null;
   return (
     <div className="text-sm leading-relaxed">
-      <span className="font-medium" style={{ color: "var(--text-tertiary)" }}>{label} </span>
-      <span style={{ color: "var(--text-primary)" }}>{value}</span>
+      <span className="font-medium text-muted-foreground">{label} </span>
+      <span className="text-foreground">{value}</span>
     </div>
   );
 }
@@ -59,33 +60,32 @@ export function TriageCard({ item }: { item: TriageQueueItem }) {
   const a = p.assessment;
   const cat = CATEGORY_META[p.category ?? "other"] ?? CATEGORY_META.other;
   const isBiz = p.category === "business-idea";
-  const verdictColor = VERDICT_COLORS[(a?.verdict ?? "").split(/\W/)[0].toLowerCase()] ?? "var(--text-secondary)";
+  const verdictColor = VERDICT_COLORS[(a?.verdict ?? "").split(/\W/)[0].toLowerCase()] ?? "var(--muted-foreground)";
 
   return (
-    <div className="p-5 space-y-3">
+    <div className="space-y-3 p-5">
       <div className="flex items-center gap-2 text-xs">
-        <span className="rounded px-1.5 py-0.5 font-medium uppercase tracking-wide"
-          style={{ background: "var(--bg-tertiary)", color: "var(--text-secondary)" }}>
+        <Badge variant="secondary" className="rounded font-medium uppercase tracking-wide">
           {item.source}
-        </span>
+        </Badge>
         <span className="font-medium" style={{ color: cat.color }}>{cat.label}</span>
-        <span className="ml-auto" style={{ color: "var(--text-tertiary)" }}>{parseDate(item.savedAt)}</span>
+        <span className="ml-auto text-muted-foreground">{parseDate(item.savedAt)}</span>
       </div>
 
-      <h2 className="text-lg font-semibold leading-snug" style={{ color: "var(--text-primary)" }}>
+      <h2 className="text-lg font-semibold leading-snug text-foreground">
         {p.title ?? p.summary ?? item.url}
       </h2>
       {p.title && p.summary && (
-        <p className="text-sm leading-relaxed" style={{ color: "var(--text-secondary)" }}>{p.summary}</p>
+        <p className="text-sm leading-relaxed text-muted-foreground">{p.summary}</p>
       )}
 
       {a && (
-        <div className="rounded-lg p-3 space-y-2" style={{ background: "var(--bg-tertiary)" }}>
+        <div className="space-y-2 rounded-lg bg-muted p-3">
           <div className="flex items-center gap-2 text-sm">
-            <span className="font-semibold uppercase text-xs tracking-wide" style={{ color: verdictColor }}>
+            <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: verdictColor }}>
               {a.verdict}
             </span>
-            <span className="text-xs" style={{ color: "var(--text-tertiary)" }}>
+            <span className="text-xs text-muted-foreground">
               {isBiz ? "validity" : "worth it?"}
             </span>
           </div>
@@ -100,15 +100,14 @@ export function TriageCard({ item }: { item: TriageQueueItem }) {
 
       <Field label="Why you:" value={p.why_relevant} />
 
-      <div className="flex items-center gap-2 text-xs pt-1" style={{ color: "var(--text-tertiary)" }}>
+      <div className="flex items-center gap-2 pt-1 text-xs text-muted-foreground">
         <span>
-          → <span className="font-medium" style={{ color: "var(--text-secondary)" }}>{p.destination}</span>
+          → <span className="font-medium text-muted-foreground">{p.destination}</span>
           {" "}({p.confidence}) — {p.rationale}
         </span>
       </div>
       <a href={item.url} target="_blank" rel="noreferrer"
-        className="inline-flex items-center gap-1 text-xs font-medium transition-transform duration-150 active:scale-[0.97]"
-        style={{ color: "var(--accent)" }}>
+        className="inline-flex items-center gap-1 text-xs font-medium text-primary transition-transform duration-150 active:scale-[0.97]">
         <ExternalLink size={12} /> open original
       </a>
     </div>

@@ -6,6 +6,7 @@
 // whether it still resolves, and one line of why. Anything more would be
 // asking him to re-read a four-year-old library he already stopped using.
 import { ExternalLink, Unlink } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { hostOf, ageLabel } from "@/lib/bookmark-backfill";
 
 export interface BackfillDeckItem {
@@ -29,49 +30,37 @@ export function BookmarkCard({ item }: { item: BackfillDeckItem }) {
   const dead = item.alive === false;
 
   return (
-    <div className="p-5 space-y-3">
+    <div className="space-y-3 p-5">
       <div className="flex items-center gap-2 text-xs">
-        <span
-          className="rounded px-1.5 py-0.5 font-medium"
-          style={{ background: "var(--bg-tertiary)", color: "var(--text-secondary)" }}
-        >
+        <Badge variant="secondary" className="rounded font-medium">
           {item.folder || "unfiled"}
-        </span>
+        </Badge>
         {dead && (
-          <span
-            className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 font-semibold uppercase tracking-wide"
-            style={{ background: "rgba(239,68,68,0.12)", color: "#EF4444" }}
-          >
+          <Badge variant="destructive" className="gap-1 rounded bg-destructive/10 font-semibold uppercase tracking-wide text-destructive">
             <Unlink size={11} />
             {item.httpStatus ? `dead · ${item.httpStatus}` : "unreachable"}
-          </span>
+          </Badge>
         )}
         {age && (
-          <span className="ml-auto" style={{ color: "var(--text-tertiary)" }}>
+          <span className="ml-auto text-muted-foreground">
             saved {age} ago
           </span>
         )}
       </div>
 
-      <h2
-        className="text-lg font-semibold leading-snug"
-        style={{ color: "var(--text-primary)" }}
-      >
+      <h2 className="text-lg font-semibold leading-snug text-foreground">
         {item.title || hostOf(item.url)}
       </h2>
-      <p className="text-xs font-mono truncate" style={{ color: "var(--text-tertiary)" }}>
+      <p className="truncate font-mono text-xs text-muted-foreground">
         {hostOf(item.url)}
       </p>
 
       {item.why && (
-        <div className="rounded-lg p-3" style={{ background: "var(--bg-tertiary)" }}>
-          <span
-            className="text-xs font-semibold uppercase tracking-wide"
-            style={{ color: "#EF4444" }}
-          >
+        <div className="rounded-lg bg-muted p-3">
+          <span className="text-xs font-semibold uppercase tracking-wide text-destructive">
             drop
           </span>
-          <p className="text-sm leading-relaxed mt-1" style={{ color: "var(--text-primary)" }}>
+          <p className="mt-1 text-sm leading-relaxed text-foreground">
             {item.why}
           </p>
         </div>
@@ -81,8 +70,7 @@ export function BookmarkCard({ item }: { item: BackfillDeckItem }) {
         href={item.url}
         target="_blank"
         rel="noreferrer"
-        className="inline-flex items-center gap-1 text-xs font-medium transition-transform duration-150 active:scale-[0.97]"
-        style={{ color: "var(--accent)" }}
+        className="inline-flex items-center gap-1 text-xs font-medium text-primary transition-transform duration-150 active:scale-[0.97]"
       >
         <ExternalLink size={12} /> open original
       </a>

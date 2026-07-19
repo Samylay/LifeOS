@@ -64,9 +64,8 @@ export function ExpandingWorkspace({ open, fromRect, onClose, children }: Props)
           transition: "opacity var(--dur-slow) var(--ease-drawer)",
         }} />
       <div ref={panelRef}
-        className="absolute inset-x-0 bottom-0 top-[max(env(safe-area-inset-top),2.5rem)] mx-auto max-w-lg overflow-y-auto rounded-t-2xl p-5 pb-[max(env(safe-area-inset-bottom),1.25rem)]"
+        className="absolute inset-x-0 bottom-0 top-[max(env(safe-area-inset-top),2.5rem)] mx-auto max-w-lg overflow-y-auto rounded-t-2xl bg-card p-5 pb-[max(env(safe-area-inset-bottom),1.25rem)]"
         style={{
-          background: "var(--bg-secondary)",
           transformOrigin: "top left",
           transform: atCard ? fromTransform() : "none",
           opacity: atCard ? 0.4 : 1,
@@ -75,8 +74,7 @@ export function ExpandingWorkspace({ open, fromRect, onClose, children }: Props)
           boxShadow: "0 -8px 40px rgba(0,0,0,0.25)",
         }}>
         <button onClick={onClose} aria-label="Close workspace"
-          className="absolute right-4 top-4 rounded-full p-1.5 transition-transform duration-150 active:scale-[0.9]"
-          style={{ background: "var(--bg-tertiary)", color: "var(--text-secondary)" }}>
+          className="absolute right-4 top-4 rounded-full bg-muted p-1.5 text-muted-foreground transition-transform duration-150 active:scale-[0.9]">
           <X size={16} />
         </button>
         <div style={{

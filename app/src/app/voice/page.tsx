@@ -60,17 +60,16 @@ export default function VoiceHome() {
     <div className="mx-auto flex h-full max-w-2xl flex-col px-4 pb-6">
       <div className="enter flex items-center justify-between py-4">
         <div>
-          <h1 className="text-lg font-semibold" style={{ color: "var(--text-primary)" }}>
+          <h1 className="text-lg font-semibold text-foreground">
             Voice
           </h1>
-          <p className="text-xs" style={{ color: "var(--text-tertiary)" }}>
+          <p className="text-xs text-muted-foreground">
             Talk it out. It asks. You answer. Then it drafts.
           </p>
         </div>
         <button
           onClick={() => setPresetsOpen(true)}
-          className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-transform duration-150 active:scale-[0.97]"
-          style={{ background: "var(--bg-tertiary)", color: "var(--text-secondary)" }}
+          className="flex items-center gap-1.5 rounded-lg bg-muted px-3 py-1.5 text-xs font-medium text-muted-foreground transition-transform duration-150 active:scale-[0.97]"
         >
           <SlidersHorizontal size={14} /> Presets
         </button>
@@ -78,43 +77,41 @@ export default function VoiceHome() {
 
       {/* Capture-first hero: the big mic */}
       <div
-        className="enter flex flex-col items-center justify-center gap-4 rounded-2xl py-12"
-        style={{ background: "var(--bg-secondary)", "--enter-delay": "40ms" } as React.CSSProperties}
+        className="enter flex flex-col items-center justify-center gap-4 rounded-2xl bg-card py-12"
+        style={{ "--enter-delay": "40ms" } as React.CSSProperties}
       >
         <button
           onClick={startCapture}
           disabled={starting}
           aria-label="Start a new capture"
-          className="flex h-24 w-24 items-center justify-center rounded-full transition-transform active:scale-[0.94]"
+          className="flex h-24 w-24 items-center justify-center rounded-full bg-primary text-primary-foreground transition-transform active:scale-[0.94]"
           style={{
-            background: "var(--accent)",
-            color: "white",
             transitionDuration: "var(--duration-fast)",
             transitionTimingFunction: "var(--ease-out-custom)",
             opacity: starting ? 0.6 : 1,
-            boxShadow: "0 12px 32px -12px var(--accent)",
+            boxShadow: "0 12px 32px -12px var(--primary)",
           }}
         >
           {starting ? <Loader2 size={34} className="animate-spin" /> : <Mic size={38} />}
         </button>
-        <p className="text-sm font-medium" style={{ color: "var(--text-secondary)" }}>
+        <p className="text-sm font-medium text-muted-foreground">
           {starting ? "Opening…" : "Tap and just talk"}
         </p>
       </div>
 
       {/* Recent captures */}
       <div className="mt-8 flex-1 overflow-y-auto">
-        <h2 className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--text-tertiary)" }}>
+        <h2 className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           Recent
         </h2>
         {loading ? (
           <div className="space-y-2">
             {[0, 1, 2].map((i) => (
-              <div key={i} className="skeleton-pulse h-14 rounded-xl" style={{ background: "var(--bg-secondary)" }} />
+              <div key={i} className="skeleton-pulse h-14 rounded-xl bg-card" />
             ))}
           </div>
         ) : captures.length === 0 ? (
-          <p className="px-1 py-8 text-center text-sm" style={{ color: "var(--text-tertiary)" }}>
+          <p className="px-1 py-8 text-center text-sm text-muted-foreground">
             Nothing captured yet — tap the mic and start a thought.
           </p>
         ) : (
@@ -125,21 +122,19 @@ export default function VoiceHome() {
                 <li key={c.id}>
                   <button
                     onClick={() => router.push(`/voice/${c.id}`)}
-                    className="hover-lift enter flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left transition-transform active:scale-[0.99]"
+                    className="hover-lift enter flex w-full items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 text-left transition-transform active:scale-[0.99]"
                     style={{
-                      background: "var(--bg-secondary)",
-                      border: "1px solid var(--border-primary)",
                       "--enter-delay": `${Math.min(i, 8) * 30}ms`,
                     } as React.CSSProperties}
                   >
-                    <span className="shrink-0" style={{ color: done ? "var(--accent)" : "var(--text-tertiary)" }}>
+                    <span className={done ? "shrink-0 text-primary" : "shrink-0 text-muted-foreground"}>
                       {done ? <CheckCircle2 size={18} /> : <FileText size={18} />}
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-medium" style={{ color: "var(--text-primary)" }}>
+                      <span className="block truncate text-sm font-medium text-foreground">
                         {c.title}
                       </span>
-                      <span className="text-xs" style={{ color: "var(--text-tertiary)" }}>
+                      <span className="text-xs text-muted-foreground">
                         {c.status === "live" ? "in progress" : c.status === "routed" ? "filed to vault" : "ended"}
                         {c.transformFormat ? ` · ${c.transformFormat}` : ""}
                       </span>

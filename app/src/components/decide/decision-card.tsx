@@ -5,14 +5,15 @@
 // recommendation) so Samy can rule without opening the repo.
 import { useState } from "react";
 import { ChevronDown } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import type { DecisionItem } from "@/lib/decisions";
 
-function Field({ label, value, color }: { label: string; value?: string; color?: string }) {
+function Field({ label, value, className }: { label: string; value?: string; className?: string }) {
   if (!value) return null;
   return (
     <div className="text-sm leading-relaxed">
-      <span className="font-medium" style={{ color: "var(--text-tertiary)" }}>{label} </span>
-      <span style={{ color: color ?? "var(--text-primary)" }}>{value}</span>
+      <span className="font-medium text-muted-foreground">{label} </span>
+      <span className={className ?? "text-foreground"}>{value}</span>
     </div>
   );
 }
@@ -21,19 +22,18 @@ export function DecisionCard({ item }: { item: DecisionItem }) {
   const [showRaw, setShowRaw] = useState(false);
   const b = item.brief;
   const rec = (b?.recommendation ?? "").toLowerCase();
-  const recColor = rec.startsWith("approve") ? "#22C55E" : rec.startsWith("reject") ? "#EF4444" : "#F59E0B";
+  const recClass = rec.startsWith("approve") ? "text-[#22C55E]" : rec.startsWith("reject") ? "text-destructive" : "text-[#F59E0B]";
 
   return (
-    <div className="p-5 space-y-3">
+    <div className="space-y-3 p-5">
       <div className="flex items-center gap-2 text-xs">
-        <span className="rounded px-1.5 py-0.5 font-medium uppercase tracking-wide"
-          style={{ background: "var(--accent-bg)", color: "var(--accent)" }}>
+        <Badge className="rounded bg-accent font-medium uppercase tracking-wide text-accent-foreground">
           {item.project}
-        </span>
-        <span style={{ color: "var(--text-tertiary)" }}>needs your call</span>
+        </Badge>
+        <span className="text-muted-foreground">needs your call</span>
       </div>
 
-      <h2 className="text-lg font-semibold leading-snug" style={{ color: "var(--text-primary)" }}>
+      <h2 className="text-lg font-semibold leading-snug text-foreground">
         {item.title}
       </h2>
 
@@ -41,38 +41,35 @@ export function DecisionCard({ item }: { item: DecisionItem }) {
         <div className="space-y-2">
           <Field label="Ask:" value={b.what} />
           <Field label="Blocked because:" value={b.why_blocked} />
-          <div className="rounded-lg p-3 space-y-2" style={{ background: "var(--bg-tertiary)" }}>
+          <div className="space-y-2 rounded-lg bg-muted p-3">
             <Field label="If you approve:" value={b.if_approve} />
             <Field label="If you ignore:" value={b.if_ignore} />
             {b.action && (
-              <div className="text-xs font-mono rounded p-2 overflow-x-auto whitespace-pre-wrap"
-                style={{ background: "var(--bg-primary)", color: "var(--text-secondary)" }}>
+              <div className="overflow-x-auto whitespace-pre-wrap rounded bg-background p-2 font-mono text-xs text-muted-foreground">
                 {b.action}
               </div>
             )}
           </div>
-          <Field label="Recommendation:" value={b.recommendation} color={recColor} />
+          <Field label="Recommendation:" value={b.recommendation} className={recClass} />
         </div>
       ) : (
-        <p className="text-sm" style={{ color: "var(--text-tertiary)" }}>
+        <p className="text-sm text-muted-foreground">
           No context brief yet — the nightly enrichment fills this in; raw entry below.
         </p>
       )}
 
       <button onClick={() => setShowRaw((v) => !v)}
-        className="flex items-center gap-1 text-xs font-medium transition-transform duration-150 active:scale-[0.97]"
-        style={{ color: "var(--text-tertiary)" }}>
+        className="flex items-center gap-1 text-xs font-medium text-muted-foreground transition-transform duration-150 active:scale-[0.97]">
         <ChevronDown size={12}
           style={{ transform: showRaw ? "rotate(180deg)" : "none", transition: "transform var(--dur-fast) var(--ease-out-custom)" }} />
         raw ROADMAP entry
       </button>
       {showRaw && (
-        <pre className="text-xs rounded-lg p-3 overflow-x-auto whitespace-pre-wrap max-h-48 overflow-y-auto"
-          style={{ background: "var(--bg-tertiary)", color: "var(--text-secondary)" }}>
+        <pre className="max-h-48 overflow-x-auto overflow-y-auto whitespace-pre-wrap rounded-lg bg-muted p-3 text-xs text-muted-foreground">
           {item.block}
         </pre>
       )}
-      <p className="text-xs" style={{ color: "var(--text-tertiary)" }}>
+      <p className="text-xs text-muted-foreground">
         Ruling is recorded now and written into {item.sourcePath.replace("/home/quorky/", "~/")} on the nightly pass — nothing executes automatically.
       </p>
     </div>

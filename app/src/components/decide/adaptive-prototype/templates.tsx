@@ -25,12 +25,12 @@ const ICONS: Record<IconName, typeof BookOpen> = {
 const VERDICT_COLORS: Record<string, string> = {
   pursue: "#22C55E", adopt: "#22C55E",
   maybe: "#F59E0B", try: "#F59E0B",
-  skim: "var(--text-tertiary)",
+  skim: "var(--muted-foreground)",
   pass: "#EF4444", skip: "#EF4444",
 };
 
 function verdictColor(v?: string) {
-  return VERDICT_COLORS[(v ?? "").split(/\W/)[0].toLowerCase()] ?? "var(--text-secondary)";
+  return VERDICT_COLORS[(v ?? "").split(/\W/)[0].toLowerCase()] ?? "var(--muted-foreground)";
 }
 
 /* ---------- persisted workspace state ---------- */
@@ -73,7 +73,7 @@ function useWorkspaceState(itemId: string) {
 
 function Eyebrow({ children }: { children: React.ReactNode }) {
   return (
-    <div className="text-xs font-medium uppercase tracking-wide" style={{ color: "var(--text-tertiary)" }}>
+    <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
       {children}
     </div>
   );
@@ -93,7 +93,7 @@ function HeaderBlock({ def, ctx }: { def: Extract<BlockDef, { block: "header" }>
   return (
     <header className="space-y-1.5">
       <Eyebrow><Icon size={11} className="mr-1 inline" />{ctx.spec.eyebrow ?? ""}</Eyebrow>
-      <h2 className="text-xl font-semibold leading-snug" style={{ color: "var(--text-primary)" }}>
+      <h2 className="text-xl font-semibold leading-snug text-foreground">
         {ctx.spec.headline}
       </h2>
     </header>
@@ -108,13 +108,12 @@ function ReadingBlock({ def, ctx }: { def: Extract<BlockDef, { block: "reading" 
       <ol className="space-y-3">
         {reading.map((r, i) => (
           <li key={i} className="flex gap-3">
-            <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs font-semibold"
-              style={{ background: "var(--accent-bg)", color: "var(--accent)" }}>
+            <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-accent text-xs font-semibold text-accent-foreground">
               {i + 1}
             </span>
             <div>
-              <span className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>{r.heading}</span>
-              <p className="text-sm leading-relaxed" style={{ color: "var(--text-secondary)" }}>{r.body}</p>
+              <span className="text-sm font-semibold text-foreground">{r.heading}</span>
+              <p className="text-sm leading-relaxed text-muted-foreground">{r.body}</p>
             </div>
           </li>
         ))}
@@ -124,12 +123,12 @@ function ReadingBlock({ def, ctx }: { def: Extract<BlockDef, { block: "reading" 
   return (
     <div className="space-y-4">
       {def.heading && (
-        <h3 className="text-sm font-semibold" style={{ color: "var(--text-secondary)" }}>{def.heading}</h3>
+        <h3 className="text-sm font-semibold text-muted-foreground">{def.heading}</h3>
       )}
       {reading.map((r, i) => (
         <section key={i}>
-          <h3 className="mb-1 text-sm font-semibold" style={{ color: "var(--text-secondary)" }}>{r.heading}</h3>
-          <p className="text-sm leading-relaxed" style={{ color: "var(--text-primary)" }}>{r.body}</p>
+          <h3 className="mb-1 text-sm font-semibold text-muted-foreground">{r.heading}</h3>
+          <p className="text-sm leading-relaxed text-foreground">{r.body}</p>
         </section>
       ))}
     </div>
@@ -143,11 +142,11 @@ function FactsBlock({ def, ctx }: { def: Extract<BlockDef, { block: "facts" }>; 
     return (
       <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${Math.min(facts.length, 3)}, 1fr)` }}>
         {facts.map((f, i) => (
-          <div key={i} className="rounded-lg p-2.5" style={{ background: "var(--bg-tertiary)" }}>
-            <div className="text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--text-tertiary)" }}>
+          <div key={i} className="rounded-lg bg-muted p-2.5">
+            <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               {f.label}
             </div>
-            <div className="mt-0.5 text-sm leading-snug" style={{ color: "var(--text-primary)" }}>{f.value}</div>
+            <div className="mt-0.5 text-sm leading-snug text-foreground">{f.value}</div>
           </div>
         ))}
       </div>
@@ -156,8 +155,7 @@ function FactsBlock({ def, ctx }: { def: Extract<BlockDef, { block: "facts" }>; 
   return (
     <div className="flex flex-wrap gap-2">
       {facts.map((f, i) => (
-        <span key={i} className="rounded-full px-2.5 py-1 text-xs"
-          style={{ background: "var(--bg-tertiary)", color: "var(--text-secondary)" }}>
+        <span key={i} className="rounded-full bg-muted px-2.5 py-1 text-xs text-muted-foreground">
           <span className="font-medium">{f.label}</span> {f.value}
         </span>
       ))}
@@ -170,11 +168,11 @@ function VerdictBlock({ ctx }: { ctx: Ctx }) {
   const body = (ctx.spec.reading ?? [])[0]?.body;
   const color = verdictColor(verdict);
   return (
-    <div className="rounded-lg border-l-4 p-3" style={{ borderColor: color, background: "var(--bg-tertiary)" }}>
+    <div className="rounded-lg border-l-4 bg-muted p-3" style={{ borderColor: color }}>
       <span className="text-xs font-semibold uppercase tracking-wide" style={{ color }}>
         {verdict || "no verdict"}
       </span>
-      {body && <p className="mt-1 text-sm leading-relaxed" style={{ color: "var(--text-primary)" }}>{body}</p>}
+      {body && <p className="mt-1 text-sm leading-relaxed text-foreground">{body}</p>}
     </div>
   );
 }
@@ -182,8 +180,8 @@ function VerdictBlock({ ctx }: { ctx: Ctx }) {
 function RiskBlock({ ctx }: { ctx: Ctx }) {
   if (!ctx.spec.risk) return null;
   return (
-    <p className="text-sm leading-relaxed" style={{ color: "var(--text-secondary)" }}>
-      <span className="font-semibold" style={{ color: "#EF4444" }}>Main risk: </span>{ctx.spec.risk}
+    <p className="text-sm leading-relaxed text-muted-foreground">
+      <span className="font-semibold text-destructive">Main risk: </span>{ctx.spec.risk}
     </p>
   );
 }
@@ -192,15 +190,15 @@ function StackBlock({ def, ctx }: { def: Extract<BlockDef, { block: "stack" }>; 
   const stack = ctx.spec.stack ?? [];
   if (stack.length === 0) return null;
   return (
-    <section className="rounded-lg p-3" style={{ background: "var(--bg-tertiary)" }}>
-      <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--text-tertiary)" }}>
+    <section className="rounded-lg bg-muted p-3">
+      <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
         {def.heading ?? "Where this lands in your stack"}
       </h3>
       <div className="space-y-1.5">
         {stack.map((s, i) => (
           <div key={i} className="text-sm leading-relaxed">
-            <span className="font-medium" style={{ color: "var(--accent)" }}>{s.project}</span>{" "}
-            <span style={{ color: "var(--text-primary)" }}>{s.how}</span>
+            <span className="font-medium text-primary">{s.project}</span>{" "}
+            <span className="text-foreground">{s.how}</span>
           </div>
         ))}
       </div>
@@ -214,20 +212,18 @@ function SelftestBlock({ ctx }: { ctx: Ctx }) {
   const revealed = state.revealed ?? false;
   return (
     <button onClick={() => save({ ...state, revealed: !revealed }, state)}
-      className="w-full rounded-lg border border-dashed p-3 text-left transition-transform duration-150 active:scale-[0.98]"
-      style={{ borderColor: "var(--text-tertiary)" }}>
-      <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--text-tertiary)" }}>
+      className="w-full rounded-lg border border-dashed border-muted-foreground p-3 text-left transition-transform duration-150 active:scale-[0.98]">
+      <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
         Self-test
       </span>
-      <p className="mt-1 text-sm leading-relaxed"
+      <p className="mt-1 text-sm leading-relaxed text-foreground"
         style={{
-          color: "var(--text-primary)",
           filter: revealed ? "none" : "blur(4px)",
           transition: "filter var(--dur-base) var(--ease-out-custom)",
         }}>
         {ctx.spec.selftest}
       </p>
-      {!revealed && <span className="text-xs" style={{ color: "var(--accent)" }}>tap to reveal</span>}
+      {!revealed && <span className="text-xs text-primary">tap to reveal</span>}
     </button>
   );
 }
@@ -246,23 +242,22 @@ function StepsBlock({ def, ctx }: { def: Extract<BlockDef, { block: "steps" }>; 
         const done = Boolean(state.steps[String(i)]);
         return (
           <button key={i} onClick={() => toggle(i)}
-            className="flex w-full items-start gap-2.5 rounded-lg p-2.5 text-left transition-transform duration-150 active:scale-[0.98]"
-            style={{ background: "var(--bg-tertiary)" }}>
+            className="flex w-full items-start gap-2.5 rounded-lg bg-muted p-2.5 text-left transition-transform duration-150 active:scale-[0.98]">
             <span className="mt-0.5 flex shrink-0 items-center justify-center rounded border transition-opacity duration-150"
               style={{
                 width: 18, height: 18,
-                borderColor: done ? "var(--accent)" : "var(--text-tertiary)",
-                background: done ? "var(--accent)" : "transparent",
+                borderColor: done ? "var(--primary)" : "var(--muted-foreground)",
+                background: done ? "var(--primary)" : "transparent",
               }}>
               {done && <Check size={12} color="white" strokeWidth={3} />}
             </span>
             <span className="text-sm leading-relaxed"
               style={{
-                color: done ? "var(--text-tertiary)" : "var(--text-primary)",
+                color: done ? "var(--muted-foreground)" : "var(--foreground)",
                 textDecoration: done ? "line-through" : "none",
               }}>
               {s.text}
-              {s.detail && <span className="block text-xs" style={{ color: "var(--text-tertiary)" }}>{s.detail}</span>}
+              {s.detail && <span className="block text-xs text-muted-foreground">{s.detail}</span>}
             </span>
           </button>
         );
@@ -272,7 +267,7 @@ function StepsBlock({ def, ctx }: { def: Extract<BlockDef, { block: "steps" }>; 
   if (!def.heading) return list;
   return (
     <section>
-      <h3 className="mb-2 text-sm font-semibold" style={{ color: "var(--text-secondary)" }}>{def.heading}</h3>
+      <h3 className="mb-2 text-sm font-semibold text-muted-foreground">{def.heading}</h3>
       {list}
     </section>
   );
@@ -282,8 +277,7 @@ function CtaBlock({ ctx }: { ctx: Ctx }) {
   const cta = ctx.spec.cta;
   if (!cta || cta.kind !== "research") return null;
   return (
-    <button className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-transform duration-150 active:scale-[0.97]"
-      style={{ background: "var(--accent-bg)", color: "var(--accent)" }}
+    <button className="inline-flex items-center gap-1.5 rounded-lg bg-accent px-3 py-2 text-sm font-medium text-accent-foreground transition-transform duration-150 active:scale-[0.97]"
       onClick={() => alert("Prototype stub — real version would queue a research agent run.")}>
       <Search size={14} /> {cta.label}
     </button>
@@ -293,8 +287,7 @@ function CtaBlock({ ctx }: { ctx: Ctx }) {
 function LinkBlock({ ctx }: { ctx: Ctx }) {
   return (
     <a href={ctx.item.url} target="_blank" rel="noreferrer"
-      className="inline-flex items-center gap-1 text-xs font-medium transition-transform duration-150 active:scale-[0.97]"
-      style={{ color: "var(--accent)" }}>
+      className="inline-flex items-center gap-1 text-xs font-medium text-primary transition-transform duration-150 active:scale-[0.97]">
       <ExternalLink size={12} /> open original
     </a>
   );

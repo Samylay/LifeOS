@@ -5,7 +5,12 @@
 // so this is where those instructions live. Builtin presets can be edited but
 // not deleted (they re-seed on the server otherwise).
 import { useEffect, useState } from "react";
-import { Plus, Trash2, X } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/toast";
 
 export interface Preset {
@@ -42,13 +47,6 @@ export function PresetsModal({
     if (open) load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
-
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
 
   const startEdit = (p: Preset | null) => {
     setEditing(p);
@@ -98,42 +96,17 @@ export function PresetsModal({
     }
   };
 
-  if (!open) return null;
-
   return (
-    <div
-      className="fixed inset-0 flex items-end justify-center sm:items-center"
-      style={{ zIndex: 50 }}
-    >
-      <button
-        type="button"
-        aria-label="Close presets"
-        onClick={onClose}
-        className="absolute inset-0"
-        style={{ background: "rgba(0,0,0,0.4)", animation: "enter-fade-up var(--dur-base) var(--ease-out-custom) both" }}
-      />
-      <div
-        role="dialog"
-        aria-modal="true"
-        className="pop-in relative m-0 flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-t-2xl sm:m-4 sm:rounded-2xl"
-        style={{ background: "var(--bg-elevated)", border: "1px solid var(--border-primary)" }}
+    <Dialog open={open} onOpenChange={(next) => { if (!next) onClose(); }}>
+      <DialogContent
+        showCloseButton
+        className="inset-x-0 bottom-0 top-auto left-0 flex max-h-[85vh] w-full max-w-full translate-x-0 translate-y-0 flex-col gap-0 overflow-hidden rounded-t-2xl rounded-b-none border-t border-border bg-card p-0 sm:inset-auto sm:top-[50%] sm:left-[50%] sm:max-w-lg sm:translate-x-[-50%] sm:translate-y-[-50%] sm:rounded-2xl sm:border"
       >
-        <div
-          className="flex items-center justify-between px-5 py-4"
-          style={{ borderBottom: "1px solid var(--border-primary)" }}
-        >
-          <h2 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
+        <DialogHeader className="border-b border-border px-5 py-4">
+          <DialogTitle className="text-sm font-semibold text-foreground">
             Transform presets
-          </h2>
-          <button
-            onClick={onClose}
-            aria-label="Close"
-            className="rounded-lg p-1.5 transition-transform duration-150 active:scale-[0.92]"
-            style={{ color: "var(--text-tertiary)" }}
-          >
-            <X size={18} />
-          </button>
-        </div>
+          </DialogTitle>
+        </DialogHeader>
 
         <div className="flex-1 overflow-y-auto px-5 py-4">
           {editing !== null || presets.length === 0 ? null : (
@@ -141,27 +114,23 @@ export function PresetsModal({
               {presets.map((p) => (
                 <li
                   key={p.id}
-                  className="flex items-start gap-3 rounded-xl px-3 py-2.5"
-                  style={{ background: "var(--bg-secondary)" }}
+                  className="flex items-start gap-3 rounded-xl bg-muted px-3 py-2.5"
                 >
                   <button
                     onClick={() => startEdit(p)}
                     className="min-w-0 flex-1 text-left transition-transform duration-150 active:scale-[0.99]"
                   >
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
+                      <span className="text-sm font-medium text-foreground">
                         {p.name}
                       </span>
                       {p.builtin && (
-                        <span
-                          className="rounded-full px-1.5 py-0.5 text-[10px] font-medium"
-                          style={{ background: "var(--bg-tertiary)", color: "var(--text-tertiary)" }}
-                        >
+                        <Badge variant="secondary" className="rounded-full text-[10px] font-medium">
                           builtin
-                        </span>
+                        </Badge>
                       )}
                     </div>
-                    <p className="mt-0.5 line-clamp-2 text-xs" style={{ color: "var(--text-tertiary)" }}>
+                    <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">
                       {p.instruction}
                     </p>
                   </button>
@@ -169,8 +138,7 @@ export function PresetsModal({
                     <button
                       onClick={() => remove(p)}
                       aria-label={`Delete ${p.name}`}
-                      className="shrink-0 rounded-lg p-1.5 transition-transform duration-150 active:scale-[0.9]"
-                      style={{ color: "var(--text-tertiary)" }}
+                      className="shrink-0 rounded-lg p-1.5 text-muted-foreground transition-transform duration-150 active:scale-[0.9]"
                     >
                       <Trash2 size={15} />
                     </button>
@@ -183,52 +151,50 @@ export function PresetsModal({
           {/* Add / edit form */}
           {editing !== null || presets.length === 0 ? (
             <div className="enter space-y-3">
-              <input
+              <Input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Preset name (e.g. LinkedIn post)"
-                className="w-full rounded-lg px-3 py-2 text-sm outline-none"
-                style={{ background: "var(--bg-secondary)", color: "var(--text-primary)", border: "1px solid var(--border-primary)" }}
+                className="text-sm"
               />
-              <textarea
+              <Textarea
                 value={instruction}
                 onChange={(e) => setInstruction(e.target.value)}
                 rows={4}
                 placeholder="How should this format read? Own the tone and audience — e.g. 'Turn this into a LinkedIn post in Samy's voice: hook, one idea, no hashtags.'"
-                className="w-full resize-none rounded-lg px-3 py-2 text-sm outline-none"
-                style={{ background: "var(--bg-secondary)", color: "var(--text-primary)", border: "1px solid var(--border-primary)" }}
+                className="resize-none text-sm"
               />
               <div className="flex items-center justify-end gap-2">
                 {presets.length > 0 && (
-                  <button
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     onClick={() => startEdit(null)}
-                    className="rounded-lg px-3 py-1.5 text-xs font-medium transition-transform duration-150 active:scale-[0.97]"
-                    style={{ color: "var(--text-secondary)" }}
+                    className="text-xs font-medium text-muted-foreground"
                   >
                     Cancel
-                  </button>
+                  </Button>
                 )}
-                <button
+                <Button
+                  size="sm"
                   onClick={save}
                   disabled={saving}
-                  className="rounded-lg px-3 py-1.5 text-xs font-medium transition-transform duration-150 active:scale-[0.97]"
-                  style={{ background: "var(--accent)", color: "white", opacity: saving ? 0.6 : 1 }}
+                  className="text-xs font-medium"
                 >
                   {saving ? "Saving…" : editing?.id ? "Save changes" : "Add preset"}
-                </button>
+                </Button>
               </div>
             </div>
           ) : (
             <button
               onClick={() => startEdit({ id: "", name: "", instruction: "" })}
-              className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium transition-transform duration-150 active:scale-[0.98]"
-              style={{ border: "1px dashed var(--border-primary)", color: "var(--text-secondary)" }}
+              className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-border px-3 py-2.5 text-sm font-medium text-muted-foreground transition-transform duration-150 active:scale-[0.98]"
             >
               <Plus size={15} /> New preset
             </button>
           )}
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

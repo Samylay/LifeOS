@@ -17,6 +17,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { Archive, Check, Clock, Lightbulb, ListTodo, MessageCircleQuestion, Layers, Sparkles, Trash2, X } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { CardStack, type DeckAction } from "@/components/decide/card-stack";
 import { TriageCard, type TriageQueueItem } from "@/components/decide/triage-card";
 import { DecisionCard } from "@/components/decide/decision-card";
@@ -126,37 +127,35 @@ export default function DecidePage() {
   ];
 
   return (
-    <div className="max-w-lg mx-auto">
+    <div className="mx-auto max-w-lg">
       {/* flex-wrap: at 390px the title + deck switcher exceed the row's
           min-content width, so the switcher wraps to its own line instead of
           overflowing the viewport horizontally. */}
-      <div className="flex flex-wrap items-center gap-3 mb-5">
-        <Layers size={24} style={{ color: "var(--accent)" }} />
-        <h1 className="text-2xl font-semibold" style={{ color: "var(--text-primary)" }}>Decide</h1>
+      <div className="mb-5 flex flex-wrap items-center gap-3">
+        <Layers size={24} className="text-primary" />
+        <h1 className="text-2xl font-semibold text-foreground">Decide</h1>
         {/* PROTOTYPE link — adaptive workspaces for approved cards */}
         <Link href="/decide/adaptive" aria-label="Adaptive UI prototype for approved cards"
-          className="rounded-lg p-1.5 transition-transform duration-150 active:scale-[0.9]"
-          style={{ background: "var(--bg-tertiary)", color: "var(--accent)" }}>
+          className="rounded-lg bg-muted p-1.5 text-primary transition-transform duration-150 active:scale-[0.9]">
           <Sparkles size={16} />
         </Link>
-        <div className="ml-auto flex rounded-lg p-0.5" style={{ background: "var(--bg-tertiary)" }}>
+        <div className="ml-auto flex rounded-lg bg-muted p-0.5">
           {tabs.map((t) => (
             <button key={t.id} onClick={() => setDeck(t.id)}
-              className="rounded-md px-3 py-1.5 text-sm font-medium transition-transform duration-150 active:scale-[0.97] max-lg:[min-height:44px]"
-              style={{
-                background: deck === t.id ? "var(--bg-secondary)" : "transparent",
-                color: deck === t.id ? "var(--text-primary)" : "var(--text-tertiary)",
-                boxShadow: deck === t.id ? "0 1px 2px rgba(0,0,0,0.15)" : "none",
-              }}>
-              {t.label}{t.count > 0 && <span className="ml-1.5 text-xs" style={{ color: "var(--accent)" }}>{t.count}</span>}
+              className={cn(
+                "rounded-md px-3 py-1.5 text-sm font-medium transition-transform duration-150 active:scale-[0.97] max-lg:[min-height:44px]",
+                deck === t.id
+                  ? "bg-card text-foreground shadow-sm"
+                  : "text-muted-foreground"
+              )}>
+              {t.label}{t.count > 0 && <span className="ml-1.5 text-xs text-primary">{t.count}</span>}
             </button>
           ))}
         </div>
       </div>
 
       {loading ? (
-        <div className="rounded-xl p-10 text-center text-sm animate-pulse"
-          style={{ background: "var(--bg-secondary)", color: "var(--text-tertiary)" }}>
+        <div className="animate-pulse rounded-xl bg-card p-10 text-center text-sm text-muted-foreground">
           loading decks…
         </div>
       ) : deck === "saved" ? (

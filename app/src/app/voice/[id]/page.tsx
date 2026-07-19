@@ -20,6 +20,7 @@ import {
   Sparkles,
   Square,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { useVoiceRecorder } from "@/lib/use-voice-recorder";
 import { useToast } from "@/components/toast";
 import { PresetsModal, type Preset } from "@/components/voice/presets-modal";
@@ -150,17 +151,16 @@ export default function VoiceCapturePage({ params }: { params: Promise<{ id: str
         <button
           onClick={() => router.push("/voice")}
           aria-label="Back to voice"
-          className="rounded-lg p-2 transition-transform duration-150 active:scale-[0.92]"
-          style={{ color: "var(--text-secondary)" }}
+          className="rounded-lg p-2 text-muted-foreground transition-transform duration-150 active:scale-[0.92]"
         >
           <ArrowLeft size={18} />
         </button>
-        <Mic size={18} style={{ color: "var(--accent)" }} />
+        <Mic size={18} className="text-primary" />
         <div className="min-w-0 flex-1">
-          <h1 className="truncate text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
+          <h1 className="truncate text-sm font-semibold text-foreground">
             {title || "…"}
           </h1>
-          <p className="text-xs" style={{ color: "var(--text-tertiary)" }}>
+          <p className="text-xs text-muted-foreground">
             Capture · {status}
           </p>
         </div>
@@ -168,8 +168,7 @@ export default function VoiceCapturePage({ params }: { params: Promise<{ id: str
           <button
             onClick={finish}
             disabled={finishing}
-            className="rounded-lg px-3 py-1.5 text-xs font-medium transition-transform duration-150 active:scale-[0.97]"
-            style={{ background: "var(--bg-tertiary)", color: "var(--text-secondary)" }}
+            className="rounded-lg bg-muted px-3 py-1.5 text-xs font-medium text-muted-foreground transition-transform duration-150 active:scale-[0.97]"
           >
             {finishing ? "Filing…" : "Finish"}
           </button>
@@ -180,30 +179,26 @@ export default function VoiceCapturePage({ params }: { params: Promise<{ id: str
         {utterances.map((u) => (
           <div
             key={u.id}
-            className="enter ml-auto max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed"
-            style={{ background: "var(--accent-bg)", color: "var(--text-primary)" }}
+            className="enter ml-auto max-w-[85%] rounded-2xl bg-accent px-4 py-3 text-sm leading-relaxed text-foreground"
           >
             {u.text}
           </div>
         ))}
 
         {busy && (
-          <div
-            className="flex w-fit items-center gap-2 rounded-2xl px-4 py-3 text-xs"
-            style={{ background: "var(--bg-secondary)", color: "var(--text-tertiary)" }}
-          >
+          <div className="flex w-fit items-center gap-2 rounded-2xl bg-card px-4 py-3 text-xs text-muted-foreground">
             <Loader2 size={13} className="animate-spin" /> listening back…
           </div>
         )}
 
         {/* Shadow Reader follow-ups — the app talking back to keep him going */}
         {!busy && followUps.length > 0 && (
-          <div className="enter max-w-[85%] space-y-1.5 rounded-2xl px-4 py-3" style={{ background: "var(--bg-secondary)" }}>
-            <p className="flex items-center gap-1.5 text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
-              <Sparkles size={12} style={{ color: "var(--accent)" }} /> Go deeper
+          <div className="enter max-w-[85%] space-y-1.5 rounded-2xl bg-card px-4 py-3">
+            <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+              <Sparkles size={12} className="text-primary" /> Go deeper
             </p>
             {followUps.map((q, i) => (
-              <p key={i} className="text-sm leading-snug" style={{ color: "var(--text-primary)" }}>
+              <p key={i} className="text-sm leading-snug text-foreground">
                 {q}
               </p>
             ))}
@@ -212,25 +207,21 @@ export default function VoiceCapturePage({ params }: { params: Promise<{ id: str
 
         {/* Draft output */}
         {draft && (
-          <div
-            className="enter rounded-2xl px-4 py-3"
-            style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-primary)" }}
-          >
+          <div className="enter rounded-2xl border border-border bg-card px-4 py-3">
             <div className="mb-2 flex items-center justify-between">
-              <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--text-tertiary)" }}>
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 {draftFormat}
               </p>
               <button
                 onClick={copyDraft}
                 aria-label="Copy draft"
-                className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs transition-transform duration-150 active:scale-[0.95]"
-                style={{ color: "var(--text-secondary)" }}
+                className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-muted-foreground transition-transform duration-150 active:scale-[0.95]"
               >
-                {copied ? <Check size={13} style={{ color: "var(--accent)" }} /> : <Copy size={13} />}
+                {copied ? <Check size={13} className="text-primary" /> : <Copy size={13} />}
                 {copied ? "Copied" : "Copy"}
               </button>
             </div>
-            <div className="whitespace-pre-wrap text-sm leading-relaxed" style={{ color: "var(--text-primary)" }}>
+            <div className="whitespace-pre-wrap text-sm leading-relaxed text-foreground">
               {draft}
             </div>
           </div>
@@ -242,7 +233,7 @@ export default function VoiceCapturePage({ params }: { params: Promise<{ id: str
       {/* Transform bar — appears once there's something to transform */}
       {hasContent && (
         <div className="enter flex flex-wrap items-center gap-2 py-3">
-          <span className="mr-1 text-xs font-medium" style={{ color: "var(--text-tertiary)" }}>
+          <span className="mr-1 text-xs font-medium text-muted-foreground">
             Transform:
           </span>
           {presets.map((p) => (
@@ -250,12 +241,11 @@ export default function VoiceCapturePage({ params }: { params: Promise<{ id: str
               key={p.id}
               onClick={() => transform(p)}
               disabled={transforming !== null}
-              className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-transform duration-150 active:scale-[0.95]"
-              style={{
-                background: draftFormat === p.name ? "var(--accent)" : "var(--bg-tertiary)",
-                color: draftFormat === p.name ? "white" : "var(--text-secondary)",
-                opacity: transforming && transforming !== p.id ? 0.5 : 1,
-              }}
+              className={cn(
+                "flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-transform duration-150 active:scale-[0.95]",
+                draftFormat === p.name ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+              )}
+              style={{ opacity: transforming && transforming !== p.id ? 0.5 : 1 }}
             >
               {transforming === p.id && <Loader2 size={12} className="animate-spin" />}
               {p.name}
@@ -264,8 +254,7 @@ export default function VoiceCapturePage({ params }: { params: Promise<{ id: str
           <button
             onClick={() => setPresetsOpen(true)}
             aria-label="Edit presets"
-            className="flex items-center gap-1 rounded-full px-2.5 py-1.5 text-xs transition-transform duration-150 active:scale-[0.95]"
-            style={{ color: "var(--text-tertiary)" }}
+            className="flex items-center gap-1 rounded-full px-2.5 py-1.5 text-xs text-muted-foreground transition-transform duration-150 active:scale-[0.95]"
           >
             <SlidersHorizontal size={12} /> Edit
           </button>
@@ -279,10 +268,11 @@ export default function VoiceCapturePage({ params }: { params: Promise<{ id: str
               onClick={voice.state === "recording" ? voice.stop : voice.start}
               disabled={busy}
               aria-label={voice.state === "recording" ? "Stop recording" : "Start talking"}
-              className="flex h-20 w-20 items-center justify-center rounded-full transition-transform active:scale-[0.94]"
+              className={cn(
+                "flex h-20 w-20 items-center justify-center rounded-full text-white transition-transform active:scale-[0.94]",
+                voice.state === "recording" ? "bg-destructive" : "bg-primary"
+              )}
               style={{
-                background: voice.state === "recording" ? "var(--danger, #dc2626)" : "var(--accent)",
-                color: "white",
                 transitionDuration: "var(--duration-fast)",
                 transitionTimingFunction: "var(--ease-out-custom)",
                 opacity: busy ? 0.5 : 1,
@@ -297,7 +287,7 @@ export default function VoiceCapturePage({ params }: { params: Promise<{ id: str
               )}
             </button>
           </div>
-          <p className="pb-1 text-center text-xs" style={{ color: "var(--text-tertiary)" }}>
+          <p className="pb-1 text-center text-xs text-muted-foreground">
             {voice.state === "recording"
               ? "tap to finish your thought"
               : hasContent
@@ -306,7 +296,7 @@ export default function VoiceCapturePage({ params }: { params: Promise<{ id: str
           </p>
         </>
       ) : (
-        <p className="py-4 text-center text-xs" style={{ color: "var(--text-tertiary)" }}>
+        <p className="py-4 text-center text-xs text-muted-foreground">
           This capture is {status === "routed" ? "filed to the vault" : "closed"}.
         </p>
       )}

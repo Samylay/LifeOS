@@ -13,6 +13,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowLeft, Download, ListPlus, Loader2, Send, Sparkles, Terminal, X } from "lucide-react";
 import Link from "next/link";
+import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/toast";
 import type { TriageQueueItem } from "@/components/decide/triage-card";
 import { AdaptiveWorkspace } from "@/components/decide/adaptive-prototype/templates";
@@ -28,8 +31,8 @@ const CATEGORY_META: Record<string, { label: string; color: string }> = {
   "business-idea": { label: "💰 Business idea", color: "#F59E0B" },
   "ai-tip": { label: "✨ AI tip", color: "#8B5CF6" },
   "ai-project": { label: "🛠 AI project", color: "#8B5CF6" },
-  swe: { label: "⌨️ SWE", color: "var(--accent)" },
-  other: { label: "Link", color: "var(--text-tertiary)" },
+  swe: { label: "⌨️ SWE", color: "var(--primary)" },
+  other: { label: "Link", color: "var(--muted-foreground)" },
 };
 
 // A post whose payload is "here's a skill" gets an install-flavored prompt
@@ -208,67 +211,56 @@ export default function AdaptivePrototypePage() {
     <div className="mx-auto max-w-lg">
       <div className="mb-1 flex items-center gap-3">
         <Link href="/decide" aria-label="Back to Decide"
-          className="rounded-lg p-1.5 transition-transform duration-150 active:scale-[0.9]"
-          style={{ background: "var(--bg-tertiary)", color: "var(--text-secondary)" }}>
+          className="rounded-lg bg-muted p-1.5 text-muted-foreground transition-transform duration-150 active:scale-[0.9]">
           <ArrowLeft size={18} />
         </Link>
-        <Sparkles size={20} style={{ color: "var(--accent)" }} />
-        <h1 className="text-2xl font-semibold" style={{ color: "var(--text-primary)" }}>Approved</h1>
-        <span className="ml-auto rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider"
-          style={{ background: "#F59E0B22", color: "#F59E0B" }}>
+        <Sparkles size={20} className="text-primary" />
+        <h1 className="text-2xl font-semibold text-foreground">Approved</h1>
+        <Badge className="ml-auto rounded-full bg-[#F59E0B]/13 text-[10px] font-bold uppercase tracking-wider text-[#F59E0B]">
           prototype
-        </span>
+        </Badge>
       </div>
-      <p className="mb-5 text-sm leading-relaxed" style={{ color: "var(--text-tertiary)" }}>
+      <p className="mb-5 text-sm leading-relaxed text-muted-foreground">
         Each card you approved opens into a workspace shaped by its own suggestion —
         tap one to try it. Queue cards to bundle them into one Claude session.
       </p>
 
       {!loading && rows.length > 1 && rows.some((r) => !queued.has(r.item.id)) && (
-        <div className="mb-3 flex items-center gap-3 rounded-xl p-3"
-          style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-primary)" }}>
-          <ListPlus size={16} style={{ color: "var(--text-tertiary)", flexShrink: 0 }} />
-          <span className="text-sm" style={{ color: "var(--text-secondary)" }}>
+        <div className="mb-3 flex items-center gap-3 rounded-xl border border-border bg-card p-3">
+          <ListPlus size={16} className="shrink-0 text-muted-foreground" />
+          <span className="text-sm text-muted-foreground">
             Queue every approved card in one tap
           </span>
-          <button onClick={queueAll} disabled={queueingAll}
+          <Button onClick={queueAll} disabled={queueingAll}
             aria-label={`Queue all ${rows.filter((r) => !queued.has(r.item.id)).length} approved cards for Claude`}
-            className="ml-auto flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-sm font-semibold transition-transform duration-150 active:scale-[0.97] disabled:opacity-50 max-lg:[min-height:44px]"
-            style={{ background: "var(--accent-bg)", color: "var(--accent)", border: "1px solid var(--accent)" }}>
+            variant="outline"
+            className="ml-auto gap-1.5 border-primary bg-accent text-primary hover:bg-accent/80 max-lg:[min-height:44px]">
             {queueingAll ? <Loader2 size={14} className="animate-spin" /> : <ListPlus size={14} />}
             {queueingAll ? "Queuing…" : `Queue all (${rows.filter((r) => !queued.has(r.item.id)).length})`}
-          </button>
+          </Button>
         </div>
       )}
 
       {queued.size > 0 && (
-        <div className="mb-4 flex items-center gap-3 rounded-xl p-3"
-          style={{ background: "var(--bg-secondary)" }}>
-          <Terminal size={16} style={{ color: "var(--accent)" }} />
-          <span className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
+        <div className="mb-4 flex items-center gap-3 rounded-xl bg-card p-3">
+          <Terminal size={16} className="text-primary" />
+          <span className="text-sm font-medium text-foreground">
             {queued.size} prompt{queued.size > 1 ? "s" : ""} queued
           </span>
-          <button onClick={dispatch} disabled={dispatching}
-            className="ml-auto flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold transition-transform duration-150 active:scale-[0.97]"
-            style={{
-              background: "var(--accent)",
-              color: "var(--bg-primary)",
-              opacity: dispatching ? 0.6 : 1,
-            }}>
+          <Button onClick={dispatch} disabled={dispatching}
+            className="ml-auto gap-1.5">
             <Send size={14} />
             {dispatching ? "sending…" : "Send to Claude"}
-          </button>
+          </Button>
         </div>
       )}
 
       {loading ? (
-        <div className="animate-pulse rounded-xl p-10 text-center text-sm"
-          style={{ background: "var(--bg-secondary)", color: "var(--text-tertiary)" }}>
+        <div className="animate-pulse rounded-xl bg-card p-10 text-center text-sm text-muted-foreground">
           loading approved cards…
         </div>
       ) : rows.length === 0 ? (
-        <div className="rounded-xl p-10 text-center text-sm"
-          style={{ background: "var(--bg-secondary)", color: "var(--text-tertiary)" }}>
+        <div className="rounded-xl bg-card p-10 text-center text-sm text-muted-foreground">
           Nothing approved yet — swipe right on some cards in Decide first.
         </div>
       ) : (
@@ -287,41 +279,37 @@ export default function AdaptivePrototypePage() {
                 role="button" tabIndex={0}
                 onClick={() => open(item.id)}
                 onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(item.id); } }}
-                className="w-full cursor-pointer rounded-xl p-4 text-left transition-transform duration-150 active:scale-[0.98]"
+                className="w-full cursor-pointer rounded-xl bg-card p-4 text-left transition-transform duration-150 active:scale-[0.98]"
                 style={{
-                  background: "var(--bg-secondary)",
                   opacity: openId === item.id ? 0.35 : 1,
                   transition: "opacity var(--dur-base) var(--ease-out-custom), transform 150ms",
                 }}>
                 <div className="mb-1 flex items-center gap-2 text-xs">
                   <span className="font-medium" style={{ color: cat.color }}>{cat.label}</span>
-                  <span className="ml-auto rounded px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide"
-                    style={{ background: "var(--bg-tertiary)", color: "var(--text-tertiary)" }}>
+                  <Badge variant="secondary" className="ml-auto rounded text-[10px] font-medium uppercase tracking-wide">
                     {tpl.label}
-                  </span>
+                  </Badge>
                 </div>
-                <div className="text-sm font-semibold leading-snug" style={{ color: "var(--text-primary)" }}>
+                <div className="text-sm font-semibold leading-snug text-foreground">
                   {resolved.headline ?? p.title ?? item.url}
                 </div>
-                <div className="mt-0.5 truncate text-xs" style={{ color: "var(--text-tertiary)" }}>
+                <div className="mt-0.5 truncate text-xs text-muted-foreground">
                   filed → {item.filedAs}{p.destination ? ` · ${p.destination}` : ""}
                 </div>
                 <div className="mt-2.5 flex items-center gap-2">
                   <button
                     aria-label="Discard this approved item"
                     onClick={(e) => { e.stopPropagation(); discard(row); }}
-                    className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium transition-transform duration-150 active:scale-[0.94]"
-                    style={{ background: "var(--bg-tertiary)", color: "#EF4444" }}>
+                    className="flex items-center gap-1 rounded-lg bg-muted px-2 py-1 text-xs font-medium text-destructive transition-transform duration-150 active:scale-[0.94]">
                     <X size={13} /> Discard
                   </button>
                   <button
                     aria-label={skill ? "Queue skill install for Claude" : "Queue prompt for Claude"}
                     onClick={(e) => { e.stopPropagation(); toggleQueue(row, resolved); }}
-                    className="ml-auto flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium transition-transform duration-150 active:scale-[0.94]"
-                    style={{
-                      background: isQueued ? "var(--accent)" : "var(--bg-tertiary)",
-                      color: isQueued ? "var(--bg-primary)" : "var(--accent)",
-                    }}>
+                    className={cn(
+                      "ml-auto flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium transition-transform duration-150 active:scale-[0.94]",
+                      isQueued ? "bg-primary text-primary-foreground" : "bg-muted text-primary"
+                    )}>
                     {skill ? <Download size={13} /> : <Terminal size={13} />}
                     {isQueued ? "Queued ✓" : skill ? "Install skill" : "Queue for Claude"}
                   </button>

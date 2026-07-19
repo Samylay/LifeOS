@@ -10,6 +10,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Check, ChevronDown, Clock, Layers, Loader2, MessageCircleQuestion, X } from "lucide-react";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 import type { LucideIcon } from "lucide-react";
 import type { DecisionItem, DecisionVerdict } from "@/lib/decisions";
 
@@ -23,10 +24,10 @@ const VERDICTS: { id: DecisionVerdict; label: string; verb: string; icon: Lucide
   { id: "discuss", label: "Discuss", verb: "flagged to discuss", icon: MessageCircleQuestion, tone: "neutral" },
 ];
 
-const TONE: Record<"danger" | "success" | "neutral", { bg: string; fg: string }> = {
-  danger: { bg: "rgba(239,68,68,0.12)", fg: "#EF4444" },
-  success: { bg: "rgba(34,197,94,0.12)", fg: "#22C55E" },
-  neutral: { bg: "var(--accent-bg)", fg: "var(--accent)" },
+const TONE: Record<"danger" | "success" | "neutral", string> = {
+  danger: "bg-destructive/10 text-destructive border-destructive",
+  success: "bg-[#22C55E]/10 text-[#22C55E] border-[#22C55E]",
+  neutral: "bg-accent text-accent-foreground border-accent-foreground",
 };
 
 function chunk<T>(xs: T[], size: number): T[][] {
@@ -131,11 +132,8 @@ export function BulkApprovalBar({ items, onApplied, onRefresh }: Props) {
   if (count === 0) return null;
 
   return (
-    <div
-      className="flex items-center gap-2 rounded-xl p-2"
-      style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-primary)" }}
-    >
-      <Layers size={16} style={{ color: "var(--text-tertiary)", flexShrink: 0 }} />
+    <div className="flex items-center gap-2 rounded-xl border border-border bg-card p-2">
+      <Layers size={16} className="shrink-0 text-muted-foreground" />
 
       {/* Verdict selector — native <select> for accessibility + compactness. */}
       <label className="relative flex items-center">
@@ -144,14 +142,13 @@ export function BulkApprovalBar({ items, onApplied, onRefresh }: Props) {
           value={verdictId}
           disabled={busy}
           onChange={(e) => { setVerdictId(e.target.value as DecisionVerdict); disarm(); }}
-          className="appearance-none rounded-lg py-2 pl-3 pr-8 text-sm font-medium disabled:opacity-40 max-lg:[min-height:44px]"
-          style={{ background: "var(--bg-tertiary)", color: "var(--text-primary)", border: "1px solid var(--border-primary)" }}
+          className="appearance-none rounded-lg border border-border bg-muted py-2 pl-3 pr-8 text-sm font-medium text-foreground disabled:opacity-40 max-lg:[min-height:44px]"
         >
           {VERDICTS.map((v) => (
             <option key={v.id} value={v.id}>{v.label} all</option>
           ))}
         </select>
-        <ChevronDown size={14} className="pointer-events-none absolute right-2.5" style={{ color: "var(--text-tertiary)" }} />
+        <ChevronDown size={14} className="pointer-events-none absolute right-2.5 text-muted-foreground" />
       </label>
 
       <button
@@ -159,8 +156,10 @@ export function BulkApprovalBar({ items, onApplied, onRefresh }: Props) {
         disabled={busy}
         onClick={run}
         aria-label={armed ? `Confirm: ${verdict.label.toLowerCase()} all ${count} cards` : `${verdict.label} all ${count} cards`}
-        className="ml-auto flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-sm font-semibold transition-transform duration-150 active:scale-[0.97] disabled:opacity-40 max-lg:[min-height:44px]"
-        style={{ background: tone.bg, color: tone.fg, border: `1px solid ${tone.fg}` }}
+        className={cn(
+          "ml-auto flex items-center gap-1.5 rounded-lg border px-3.5 py-2 text-sm font-semibold transition-transform duration-150 active:scale-[0.97] disabled:opacity-40 max-lg:[min-height:44px]",
+          tone
+        )}
       >
         {busy ? <Loader2 size={15} className="animate-spin" /> : <verdict.icon size={15} />}
         {busy ? "Applying…" : armed ? `Confirm — ${verdict.label} ${count}?` : `${verdict.label} all (${count})`}

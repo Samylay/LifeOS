@@ -22,6 +22,8 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Loader2, Mic, Square } from "lucide-react";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 import { useVoiceRecorder } from "@/lib/use-voice-recorder";
 import type { LucideIcon } from "lucide-react";
 
@@ -56,11 +58,18 @@ interface CardStackProps<T extends { id: string }> {
   minHeight?: number;
 }
 
-const TONE: Record<DeckAction["tone"], { bg: string; fg: string }> = {
-  danger: { bg: "rgba(239,68,68,0.12)", fg: "#EF4444" },
-  success: { bg: "rgba(34,197,94,0.12)", fg: "#22C55E" },
-  accent: { bg: "var(--accent-bg)", fg: "var(--accent)" },
-  neutral: { bg: "var(--bg-tertiary)", fg: "var(--text-secondary)" },
+const TONE: Record<DeckAction["tone"], string> = {
+  danger: "bg-destructive/10 text-destructive",
+  success: "bg-[#22C55E]/10 text-[#22C55E]",
+  accent: "bg-accent text-accent-foreground",
+  neutral: "bg-muted text-muted-foreground",
+};
+
+const TONE_FG: Record<DeckAction["tone"], string> = {
+  danger: "var(--destructive)",
+  success: "#22C55E",
+  accent: "var(--accent-ui-foreground)",
+  neutral: "var(--muted-foreground)",
 };
 
 const SLOP_PX = 12; // movement before the card tracks at all (Vaul: 10px touch)
@@ -246,8 +255,7 @@ export function CardStack<T extends { id: string }>({
 
   if (items.length === 0 && !exiting) {
     return (
-      <div className="rounded-xl p-10 text-center text-sm"
-        style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-primary)", color: "var(--text-tertiary)" }}>
+      <div className="rounded-xl border border-border bg-card p-10 text-center text-sm text-muted-foreground">
         {emptyLabel}
       </div>
     );
@@ -260,10 +268,8 @@ export function CardStack<T extends { id: string }>({
         {items.slice(0, 3).map((item, i) => (
           <div
             key={item.id}
-            className="absolute inset-x-0 top-0 rounded-xl select-none"
+            className="absolute inset-x-0 top-0 select-none rounded-xl border border-border bg-card"
             style={{
-              background: "var(--bg-secondary)",
-              border: "1px solid var(--border-primary)",
               zIndex: 10 - i,
               ...cardStyle(i),
             }}
@@ -273,13 +279,14 @@ export function CardStack<T extends { id: string }>({
           >
             {i === 0 && swipeTarget && Math.abs(dx) > 24 && (
               <div
-                className="absolute top-4 rounded-md px-2 py-1 text-xs font-bold uppercase tracking-wider"
+                className={cn(
+                  "absolute top-4 rounded-md border-[1.5px] px-2 py-1 text-xs font-bold uppercase tracking-wider",
+                  TONE[swipeTarget.tone]
+                )}
                 style={{
                   [dx > 0 ? "left" : "right"]: 16,
                   transform: `rotate(${dx > 0 ? -8 : 8}deg)`,
-                  background: TONE[swipeTarget.tone].bg,
-                  color: TONE[swipeTarget.tone].fg,
-                  border: `1.5px solid ${TONE[swipeTarget.tone].fg}`,
+                  borderColor: TONE_FG[swipeTarget.tone],
                   opacity: Math.min(Math.abs(dx) / 160, 1),
                   zIndex: 20,
                 }}
@@ -293,10 +300,8 @@ export function CardStack<T extends { id: string }>({
         {exiting && (
           <div
             key={`exit-${exiting.item.id}`}
-            className="absolute inset-x-0 top-0 rounded-xl"
+            className="absolute inset-x-0 top-0 rounded-xl border border-border bg-card"
             style={{
-              background: "var(--bg-secondary)",
-              border: "1px solid var(--border-primary)",
               zIndex: 30,
               ...exitStyle(exiting.dir),
             }}
@@ -306,7 +311,7 @@ export function CardStack<T extends { id: string }>({
         )}
       </div>
 
-      <div className="flex items-center justify-center gap-2 flex-wrap">
+      <div className="flex flex-wrap items-center justify-center gap-2">
         {actions.map((a) => {
           const Icon = a.icon;
           return (
@@ -314,8 +319,10 @@ export function CardStack<T extends { id: string }>({
               key={a.id}
               disabled={!top || busy}
               onClick={() => top && decide(top, a.id, a.direction)}
-              className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-transform duration-150 active:scale-[0.97] disabled:opacity-40 max-lg:[min-height:44px]"
-              style={{ background: TONE[a.tone].bg, color: TONE[a.tone].fg }}
+              className={cn(
+                "flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-transform duration-150 active:scale-[0.97] disabled:opacity-40 max-lg:[min-height:44px]",
+                TONE[a.tone]
+              )}
             >
               <Icon size={15} /> {a.label}
             </button>
@@ -323,16 +330,14 @@ export function CardStack<T extends { id: string }>({
         })}
         {interpret && (
           voice === "recording" ? (
-            <button onClick={stopVoice} aria-label="Stop recording"
-              className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-transform duration-150 active:scale-[0.97] max-lg:[min-height:44px]"
-              style={{ background: "#EF4444", color: "white" }}>
+            <Button onClick={stopVoice} aria-label="Stop recording" size="sm"
+              className="gap-1.5 bg-destructive text-white hover:bg-destructive/90 max-lg:[min-height:44px]">
               <Square size={15} />
-              <span className="h-2 w-2 rounded-full animate-pulse" style={{ background: "white" }} />
-            </button>
+              <span className="h-2 w-2 animate-pulse rounded-full bg-white" />
+            </Button>
           ) : (
             <button onClick={startVoice} disabled={!top || busy}
-              className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-transform duration-150 active:scale-[0.97] disabled:opacity-40 max-lg:[min-height:44px]"
-              style={{ background: "var(--accent-bg)", color: "var(--accent)" }}>
+              className="flex items-center gap-1.5 rounded-lg bg-accent px-3 py-2 text-sm font-medium text-accent-foreground transition-transform duration-150 active:scale-[0.97] disabled:opacity-40 max-lg:[min-height:44px]">
               {voice === "transcribing" ? <Loader2 size={15} className="animate-spin" /> : <Mic size={15} />}
               Voice
             </button>
@@ -342,7 +347,7 @@ export function CardStack<T extends { id: string }>({
       <p role="status" className="sr-only">
         {voice === "recording" ? "recording…" : voice === "transcribing" ? "thinking…" : ""}
       </p>
-      <p className="text-center text-xs" style={{ color: "var(--text-tertiary)" }}>
+      <p className="text-center text-xs text-muted-foreground">
         {items.length} to decide · swipe or use the buttons
         {interpret ? " — voice for anything nuanced" : ""}
       </p>

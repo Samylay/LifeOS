@@ -12,6 +12,7 @@
 // open-able because the follow-ups are where "that already exists, it's called
 // Y" lives.
 import { ChevronDown, ExternalLink, Quote } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { clampQuote, isoOf, type PainItem, type PainQuote } from "@/lib/pain-deck";
 import { ageLabel } from "@/lib/bookmark-backfill";
 
@@ -20,8 +21,7 @@ function Thread({ label, quotes }: { label: string; quotes: PainQuote[] }) {
   return (
     <details className="group">
       <summary
-        className="flex cursor-pointer list-none items-center gap-1.5 text-xs font-semibold uppercase tracking-wide transition-transform duration-150 active:scale-[0.97] max-lg:[min-height:44px]"
-        style={{ color: "var(--text-tertiary)" }}
+        className="flex cursor-pointer list-none items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground transition-transform duration-150 active:scale-[0.97] max-lg:[min-height:44px]"
       >
         <ChevronDown
           size={13}
@@ -34,19 +34,17 @@ function Thread({ label, quotes }: { label: string; quotes: PainQuote[] }) {
         {quotes.map((q, i) => (
           <div
             key={`${q.url}-${i}`}
-            className="border-l-2 pl-3"
-            style={{ borderColor: "var(--bg-tertiary)" }}
+            className="border-l-2 border-muted pl-3"
           >
             <a
               href={q.url}
               target="_blank"
               rel="noreferrer"
-              className="text-xs font-semibold transition-transform duration-150 active:scale-[0.97]"
-              style={{ color: "var(--accent)" }}
+              className="text-xs font-semibold text-primary transition-transform duration-150 active:scale-[0.97]"
             >
               {q.by}
             </a>
-            <p className="mt-0.5 text-xs leading-relaxed" style={{ color: "var(--text-secondary)" }}>
+            <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
               {clampQuote(q.text)}
             </p>
           </div>
@@ -76,14 +74,11 @@ export function PainCard({ item }: { item: PainItem }) {
       style={{ height: PAIN_STACK_HEIGHT }}
     >
       <div className="flex items-center gap-2 text-xs">
-        <span
-          className="rounded px-1.5 py-0.5 font-mono font-medium"
-          style={{ background: "var(--bg-tertiary)", color: "var(--text-secondary)" }}
-        >
+        <Badge variant="secondary" className="rounded font-mono font-medium">
           {item.phrase || item.source}
-        </span>
+        </Badge>
         {age && (
-          <span className="ml-auto" style={{ color: "var(--text-tertiary)" }}>
+          <span className="ml-auto text-muted-foreground">
             {age} ago
           </span>
         )}
@@ -91,20 +86,16 @@ export function PainCard({ item }: { item: PainItem }) {
 
       {/* The thread it lives in — the initial ask. */}
       <div>
-        <span
-          className="text-xs font-semibold uppercase tracking-wide"
-          style={{ color: "var(--text-tertiary)" }}
-        >
+        <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           ask
         </span>
-        <h2 className="text-sm font-semibold leading-snug" style={{ color: "var(--text-primary)" }}>
+        <h2 className="text-sm font-semibold leading-snug text-foreground">
           {item.storyUrl ? (
             <a
               href={item.storyUrl}
               target="_blank"
               rel="noreferrer"
-              className="transition-transform duration-150 active:scale-[0.97]"
-              style={{ color: "var(--text-primary)" }}
+              className="text-foreground transition-transform duration-150 active:scale-[0.97]"
             >
               {item.storyTitle || "(unknown thread)"}
             </a>
@@ -113,7 +104,7 @@ export function PainCard({ item }: { item: PainItem }) {
           )}
         </h2>
         {item.storyText && (
-          <p className="mt-1 text-xs leading-relaxed" style={{ color: "var(--text-tertiary)" }}>
+          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
             {clampQuote(item.storyText, 320)}
           </p>
         )}
@@ -122,20 +113,14 @@ export function PainCard({ item }: { item: PainItem }) {
       <Thread label="replying to" quotes={item.ancestors} />
 
       {/* The hero: their words, complete. */}
-      <div
-        className="min-h-0 flex-1 overflow-y-auto rounded-lg border-l-2 p-3"
-        style={{ background: "var(--bg-tertiary)", borderColor: "var(--accent)" }}
-      >
+      <div className="min-h-0 flex-1 overflow-y-auto rounded-lg border-l-2 border-primary bg-muted p-3">
         <div className="mb-1.5 flex items-center gap-1.5">
-          <Quote size={12} style={{ color: "var(--accent)" }} />
-          <span className="text-xs font-semibold" style={{ color: "var(--text-secondary)" }}>
+          <Quote size={12} className="text-primary" />
+          <span className="text-xs font-semibold text-muted-foreground">
             {item.author}
           </span>
         </div>
-        <p
-          className="whitespace-pre-wrap text-sm leading-relaxed"
-          style={{ color: "var(--text-primary)" }}
-        >
+        <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground">
           {item.text}
         </p>
       </div>
@@ -146,8 +131,7 @@ export function PainCard({ item }: { item: PainItem }) {
         href={item.url}
         target="_blank"
         rel="noreferrer"
-        className="inline-flex items-center gap-1 text-xs font-medium transition-transform duration-150 active:scale-[0.97]"
-        style={{ color: "var(--accent)" }}
+        className="inline-flex items-center gap-1 text-xs font-medium text-primary transition-transform duration-150 active:scale-[0.97]"
       >
         <ExternalLink size={12} /> open thread
       </a>
