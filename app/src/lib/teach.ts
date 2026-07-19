@@ -67,6 +67,11 @@ export interface TeachSession {
   topic: string;
   status: "live" | "ended" | "routed";
   abandoned?: boolean;
+  // T59: Samy's stated available time for this session — the only bound on
+  // how much attached material rides along (see selectMaterialForBudget).
+  // Undefined ⇒ open-ended, unbounded material (pre-T59 sessions, or a
+  // caller that didn't ask).
+  minutesAvailable?: number;
   startedAt?: unknown;
   lastActivityAt?: unknown;
   endedAt?: unknown;
@@ -186,21 +191,58 @@ export function attachedItems(topicId: string): TriageItem[] {
   );
 }
 
+// --- Session material, bounded by time (T59) ---------------------------------
+
+const MINUTES_PER_ITEM = 3;
+const MIN_MATERIAL_ITEMS = 3;
+
+/** Bounds how much attached material rides along into the tutor prompt, so a
+ * 20-minute session doesn't drag in a 40-item wall of text. This is a SIZE
+ * bound only, scaled by Samy's stated time — it does NOT rank or judge which
+ * items are "better" (map 04 rule 1 bans a quality-ranked top-N cap): the
+ * subset rotates by `minutesAvailable`, not by any score. Fit/relevance
+ * filtering to the mission happens at generation, inside the tutor's reply —
+ * never here. Nothing is consumed: this only reads `items`, never writes. */
+export function selectMaterialForBudget(items: TriageItem[], minutesAvailable?: number): TriageItem[] {
+  if (!minutesAvailable || items.length === 0) return items;
+  const cap = Math.max(
+    MIN_MATERIAL_ITEMS,
+    Math.min(items.length, Math.round(minutesAvailable / MINUTES_PER_ITEM))
+  );
+  if (items.length <= cap) return items;
+  const offset = minutesAvailable % items.length;
+  return items.slice(offset).concat(items.slice(0, offset)).slice(0, cap);
+}
+
+function materialBrief(items: TriageItem[]): string {
+  if (items.length === 0) return "";
+  return items
+    .map((i) => `- ${i.url}${i.topicTags?.length ? ` (tags: ${i.topicTags.join(", ")})` : ""}`)
+    .join("\n");
+}
+
 // --- Sessions ---------------------------------------------------------------
 
-export function startSession(topicId: string): { sessionId: string; opening: Promise<string> } {
+/** `minutesAvailable`: Samy's stated available time for this session — the
+ * only bound on material (map 04, T59). Undefined ⇒ open-ended session. */
+export function startSession(
+  topicId: string,
+  minutesAvailable?: number
+): { sessionId: string; opening: Promise<string> } {
   const topic = getTopic(topicId);
   if (!topic) throw new Error("unknown topic");
   const sessionId = createDoc(SESSIONS, {
     topicId,
     topic: topic.topic,
     status: "live",
+    minutesAvailable,
     lastActivityAt: new Date(),
     startedAt: new Date(),
   });
   updateDoc(TOPICS, topicId, { status: "active" });
+  const material = selectMaterialForBudget(attachedItems(topicId), minutesAvailable);
   // Opening tutor turn: greet, ground in mission, first probing question.
-  const opening = tutorReply(sessionId, topic, [], "").then((r) => r.text);
+  const opening = tutorReply(sessionId, topic, [], "", minutesAvailable, material).then((r) => r.text);
   return { sessionId, opening };
 }
 
@@ -239,7 +281,8 @@ export async function learnerTurn(
   createDoc(TURNS, { sessionId, idx, role: "learner", text: transcript, audioPath });
   updateDoc(SESSIONS, sessionId, { lastActivityAt: new Date() });
   const topic = getTopic(session.topicId);
-  const reply = await tutorReply(sessionId, topic, turns, transcript);
+  const material = selectMaterialForBudget(attachedItems(session.topicId), session.minutesAvailable);
+  const reply = await tutorReply(sessionId, topic, turns, transcript, session.minutesAvailable, material);
   return reply;
 }
 
@@ -247,7 +290,9 @@ async function tutorReply(
   sessionId: string,
   topic: TeachTopic | null,
   priorTurns: TeachTurn[],
-  latest: string
+  latest: string,
+  minutesAvailable?: number,
+  material: TriageItem[] = []
 ): Promise<{ text: string; followUps: string[] }> {
   const history = priorTurns
     .slice(-12)
@@ -266,6 +311,8 @@ Method (Matt Pocock's /teach, adapted for voice):
 TOPIC: ${topic?.topic || "unknown"}
 MISSION: ${topic?.mission || "not yet established — find out"}
 LEARNING RECORDS (what he already worked through):${records ? `\n- ${records}` : " none yet — this is the first session"}
+${minutesAvailable ? `\nTIME AVAILABLE: about ${minutesAvailable} minutes. This is the ONLY bound — select and pace what you teach to fit it (a short window means going deep on one thing, not skimming everything); do not try to cover all the material below.` : ""}
+${material.length ? `\nSAVED MATERIAL he can draw on (use only what serves the mission and fits the time; he never sees this list, so weave it in, don't recite it):\n${materialBrief(material)}` : ""}
 
 CONVERSATION SO FAR:
 ${history || "(session just started — open by connecting the topic to his mission and asking what he already knows)"}

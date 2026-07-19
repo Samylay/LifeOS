@@ -89,9 +89,18 @@ export function TeachSection() {
   };
 
   const start = async (t: Topic) => {
+    // His available time is the only bound on session material (T59) — ask
+    // before starting rather than defaulting silently.
+    const raw = window.prompt("How many minutes do you have?", "20");
+    if (raw === null) return;
+    const minutesAvailable = Number(raw);
     setBusyId(t.id);
     try {
-      const { sessionId } = await post({ action: "start", topicId: t.id });
+      const { sessionId } = await post({
+        action: "start",
+        topicId: t.id,
+        minutesAvailable: Number.isFinite(minutesAvailable) && minutesAvailable > 0 ? minutesAvailable : undefined,
+      });
       router.push(`/knowledge/teach/${sessionId}`);
     } catch (e) {
       toast(e instanceof Error ? e.message : "couldn't start the session", "error");

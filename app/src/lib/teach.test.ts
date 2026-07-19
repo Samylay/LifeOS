@@ -9,8 +9,15 @@ import path from "path";
 const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "lifeos-teach-test-"));
 process.env.LIFEOS_DB_PATH = path.join(tmpDir, "test.db");
 
-const { addTopic, getTopic, neverProposeTag, isTagTombstoned, attachedItems, lastTaughtDate } =
-  await import("./teach");
+const {
+  addTopic,
+  getTopic,
+  neverProposeTag,
+  isTagTombstoned,
+  attachedItems,
+  lastTaughtDate,
+  selectMaterialForBudget,
+} = await import("./teach");
 const { createDoc, updateDoc } = await import("./server-db");
 const { TRIAGE_COLLECTION } = await import("./triage-ingest");
 
@@ -94,6 +101,17 @@ describe("attachedItems — T56 attach-by-tag-overlap", () => {
     expect(attachedItems(topicB).map((i) => i.id)).toContain(shared);
   });
 
+  it("gathering session material (attach + budget selection) never mutates the source items", async () => {
+    const { getDoc } = await import("./server-db");
+    const topicId = addTopic("learn rust", "ship faster", ["rust"]);
+    const ids = Array.from({ length: 5 }, () => item(["rust"]));
+    const before = ids.map((id) => JSON.stringify(getDoc(TRIAGE_COLLECTION, id)));
+    selectMaterialForBudget(attachedItems(topicId), 15);
+    selectMaterialForBudget(attachedItems(topicId), 60);
+    const after = ids.map((id) => JSON.stringify(getDoc(TRIAGE_COLLECTION, id)));
+    expect(after).toEqual(before);
+  });
+
   it("changing a topic's tags changes its material with no writes to items", () => {
     const topicId = addTopic("learn elixir", "curiosity", ["elixir"]);
     const target = item(["phoenix"]);
@@ -101,6 +119,55 @@ describe("attachedItems — T56 attach-by-tag-overlap", () => {
 
     updateDoc("users/local/teachTopics", topicId, { tags: ["phoenix"] });
     expect(attachedItems(topicId).map((i) => i.id)).toContain(target);
+  });
+});
+
+describe("selectMaterialForBudget — T59 session material, bounded by time", () => {
+  function items(n: number) {
+    return Array.from({ length: n }, (_, i) => ({
+      id: `item-${i}`,
+      url: `https://example.com/${i}`,
+      rawUrl: `https://example.com/${i}`,
+      source: "other" as const,
+      savedAt: new Date(),
+      createdAt: new Date(),
+      status: "filed" as const,
+      topicTags: ["rust"],
+    }));
+  }
+
+  it("returns everything unbounded when no time budget is given", () => {
+    const pool = items(40);
+    expect(selectMaterialForBudget(pool).length).toBe(40);
+    expect(selectMaterialForBudget(pool, undefined).length).toBe(40);
+  });
+
+  it("a topic with 40 attached items still produces a bounded session", () => {
+    const pool = items(40);
+    const selected = selectMaterialForBudget(pool, 20);
+    expect(selected.length).toBeGreaterThan(0);
+    expect(selected.length).toBeLessThan(40);
+  });
+
+  it("same pool, different time budgets ⇒ different material selected", () => {
+    const pool = items(40);
+    const short = selectMaterialForBudget(pool, 15);
+    const long = selectMaterialForBudget(pool, 60);
+    expect(short.length).not.toBe(long.length);
+    expect(short.map((i) => i.id)).not.toEqual(long.map((i) => i.id));
+  });
+
+  it("never mutates the source items", () => {
+    const pool = items(40);
+    const before = JSON.stringify(pool);
+    selectMaterialForBudget(pool, 15);
+    selectMaterialForBudget(pool, 60);
+    expect(JSON.stringify(pool)).toBe(before);
+  });
+
+  it("small pools that already fit the budget aren't truncated", () => {
+    const pool = items(3);
+    expect(selectMaterialForBudget(pool, 60).length).toBe(3);
   });
 });
 

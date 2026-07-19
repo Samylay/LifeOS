@@ -33,7 +33,11 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ ok: true });
       }
       case "start": {
-        const { sessionId, opening } = startSession(String(body.topicId));
+        const minutesAvailable = Number(body.minutesAvailable);
+        const { sessionId, opening } = startSession(
+          String(body.topicId),
+          Number.isFinite(minutesAvailable) && minutesAvailable > 0 ? minutesAvailable : undefined
+        );
         return NextResponse.json({ sessionId, opening: await opening });
       }
       default:
