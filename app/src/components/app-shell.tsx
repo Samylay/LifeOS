@@ -12,7 +12,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { sidebarExpanded } = useAppStore();
 
   return (
-    <div className="min-h-screen" style={{ background: "var(--bg-primary)" }}>
+    <div className="min-h-screen bg-background">
       {/* Desktop sidebar */}
       <div className="hidden lg:block">
         <Sidebar />

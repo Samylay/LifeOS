@@ -14,6 +14,8 @@ import {
   Square,
 } from "lucide-react";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { useAppStore } from "@/lib/store";
 import { useChat, type ActionResult } from "@/lib/use-chat";
 import { useVoiceRecorder } from "@/lib/use-voice-recorder";
@@ -23,11 +25,12 @@ function ActionBadge({ result }: { result: ActionResult }) {
   const failed = result.failed || result.summary.startsWith("Failed");
   return (
     <span
-      className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium"
-      style={{
-        background: failed ? "rgba(239,68,68,0.1)" : "rgba(16,185,129,0.1)",
-        color: failed ? "var(--color-danger)" : "var(--color-success)",
-      }}
+      className={cn(
+        "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium",
+        failed
+          ? "bg-destructive/10 text-destructive"
+          : "bg-primary/10 text-primary"
+      )}
     >
       <CheckCircle2 size={10} />
       {result.summary}
@@ -111,61 +114,52 @@ export function ChatPanel() {
       {/* Backdrop */}
       {chatPanelOpen && (
         <div
-          className="fixed inset-0 lg:hidden"
-          style={{ background: "rgba(0,0,0,0.4)", zIndex: 45 }}
+          className="fixed inset-0 z-[45] bg-black/40 lg:hidden"
           onClick={() => setChatPanelOpen(false)}
         />
       )}
 
       {/* Panel */}
       <aside
-        className="fixed right-0 flex flex-col transition-transform"
+        className="fixed right-0 z-[46] flex flex-col border-l border-border bg-card transition-transform"
         style={{
           width: "min(400px, 100vw)",
           // Follow the visible area so the composer stays above the keyboard.
           // `100dvh` is the pre-measurement fallback (also correct on desktop).
           top: viewport.ready ? viewport.offsetTop : 0,
           height: viewport.ready ? viewport.height : "100dvh",
-          zIndex: 46,
-          background: "var(--bg-secondary)",
-          borderLeft: "1px solid var(--border-primary)",
-          transitionDuration: "var(--duration-slow)",
+          transitionDuration: "var(--dur-slow)",
+          transitionTimingFunction: "var(--ease-drawer)",
           transform: chatPanelOpen ? "translateX(0)" : "translateX(100%)",
         }}
       >
         {/* Header */}
-        <div
-          className="flex h-14 items-center justify-between px-4 shrink-0"
-          style={{ borderBottom: "1px solid var(--border-primary)" }}
-        >
+        <div className="flex h-14 shrink-0 items-center justify-between border-b border-border px-4">
           <div className="flex items-center gap-2">
-            <Bot size={18} style={{ color: "var(--accent)" }} />
-            <span
-              className="font-semibold text-sm"
-              style={{ color: "var(--text-primary)" }}
-            >
-              Assistant
-            </span>
+            <Bot size={18} className="text-primary" />
+            <span className="text-sm font-semibold text-foreground">Assistant</span>
           </div>
           <div className="flex items-center gap-1">
             {messages.length > 0 && (
-              <button
+              <Button
+                variant="ghost"
+                size="icon-sm"
                 onClick={clearMessages}
-                className="rounded-lg p-1.5 transition-colors"
-                style={{ color: "var(--text-tertiary)" }}
+                className="text-muted-foreground"
                 title="Clear conversation"
                 aria-label="Clear conversation"
               >
                 <Trash2 size={16} />
-              </button>
+              </Button>
             )}
-            <button
+            <Button
+              variant="ghost"
+              size="icon-sm"
               onClick={() => setChatPanelOpen(false)}
-              className="rounded-lg p-1.5 transition-colors"
-              style={{ color: "var(--text-tertiary)" }}
+              className="text-muted-foreground"
             >
               <X size={18} />
-            </button>
+            </Button>
           </div>
         </div>
 
@@ -173,25 +167,16 @@ export function ChatPanel() {
         <div className="flex-1 overflow-y-auto px-3 py-3">
           {messages.length === 0 && !loading ? (
             <div className="flex h-full flex-col items-center justify-center gap-3 px-4">
-              <div
-                className="flex h-12 w-12 items-center justify-center rounded-xl"
-                style={{ background: "var(--accent-bg)" }}
-              >
-                <Bot size={24} style={{ color: "var(--accent)" }} />
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
+                <Bot size={24} className="text-primary" />
               </div>
-              <p
-                className="text-sm font-medium text-center"
-                style={{ color: "var(--text-primary)" }}
-              >
+              <p className="text-center text-sm font-medium text-foreground">
                 Paste your notes or ask me anything
               </p>
-              <p
-                className="text-xs text-center"
-                style={{ color: "var(--text-secondary)" }}
-              >
+              <p className="text-center text-xs text-muted-foreground">
                 I&apos;ll extract tasks, habits, and more from your text.
               </p>
-              <div className="mt-2 flex flex-col gap-1.5 w-full">
+              <div className="mt-2 flex w-full flex-col gap-1.5">
                 {[
                   "Paste my Notion page",
                   "Launch the stuff queued in the approve page",
@@ -203,11 +188,7 @@ export function ChatPanel() {
                       setInput(ex);
                       textareaRef.current?.focus();
                     }}
-                    className="rounded-lg px-3 py-2 text-xs text-left transition-colors"
-                    style={{
-                      background: "var(--bg-tertiary)",
-                      color: "var(--text-secondary)",
-                    }}
+                    className="rounded-lg bg-muted px-3 py-2 text-left text-xs text-muted-foreground transition-colors duration-150 hover:bg-muted/70"
                   >
                     {ex}
                   </button>
@@ -219,37 +200,33 @@ export function ChatPanel() {
               {messages.map((msg) => (
                 <div
                   key={msg.id}
-                  className={`flex gap-2 ${msg.role === "user" ? "flex-row-reverse" : ""}`}
+                  className={cn("flex gap-2", msg.role === "user" && "flex-row-reverse")}
                 >
                   <div
-                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg"
-                    style={{
-                      background:
-                        msg.role === "user" ? "var(--accent)" : "var(--accent-bg)",
-                    }}
+                    className={cn(
+                      "flex h-7 w-7 shrink-0 items-center justify-center rounded-lg",
+                      msg.role === "user" ? "bg-primary" : "bg-primary/10"
+                    )}
                   >
                     {msg.role === "user" ? (
-                      <User size={14} style={{ color: "white" }} />
+                      <User size={14} className="text-primary-foreground" />
                     ) : (
-                      <Bot size={14} style={{ color: "var(--accent)" }} />
+                      <Bot size={14} className="text-primary" />
                     )}
                   </div>
                   <div
-                    className={`flex flex-col gap-1.5 max-w-[85%] ${
-                      msg.role === "user" ? "items-end" : ""
-                    }`}
+                    className={cn(
+                      "flex max-w-[85%] flex-col gap-1.5",
+                      msg.role === "user" && "items-end"
+                    )}
                   >
                     <div
-                      className="rounded-xl px-3 py-2 text-xs leading-relaxed"
-                      style={{
-                        background:
-                          msg.role === "user"
-                            ? "var(--accent)"
-                            : "var(--bg-tertiary)",
-                        color:
-                          msg.role === "user" ? "white" : "var(--text-primary)",
-                        whiteSpace: "pre-wrap",
-                      }}
+                      className={cn(
+                        "whitespace-pre-wrap rounded-xl px-3 py-2 text-xs leading-relaxed",
+                        msg.role === "user"
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-muted text-foreground"
+                      )}
                     >
                       {msg.content}
                     </div>
@@ -265,24 +242,11 @@ export function ChatPanel() {
               ))}
               {loading && (
                 <div className="flex gap-2">
-                  <div
-                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg"
-                    style={{ background: "var(--accent-bg)" }}
-                  >
-                    <Bot size={14} style={{ color: "var(--accent)" }} />
+                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+                    <Bot size={14} className="text-primary" />
                   </div>
-                  <div
-                    className="flex items-center gap-2 rounded-xl px-3 py-2 text-xs"
-                    style={{
-                      background: "var(--bg-tertiary)",
-                      color: "var(--text-secondary)",
-                    }}
-                  >
-                    <Loader2
-                      size={12}
-                      className="animate-spin"
-                      style={{ color: "var(--accent)" }}
-                    />
+                  <div className="flex items-center gap-2 rounded-xl bg-muted px-3 py-2 text-xs text-muted-foreground">
+                    <Loader2 size={12} className="animate-spin text-primary" />
                     <span aria-live="polite">{statusText ?? "Thinking..."}</span>
                   </div>
                 </div>
@@ -293,47 +257,43 @@ export function ChatPanel() {
         </div>
 
         {/* Input */}
-        <div
-          className="shrink-0 flex items-end gap-2 px-3 py-3"
-          style={{ borderTop: "1px solid var(--border-primary)" }}
-        >
-          <button
+        <div className="flex shrink-0 items-end gap-2 border-t border-border px-3 py-3">
+          <Button
+            variant="secondary"
+            size="icon-sm"
             onClick={handlePaste}
             aria-label="Paste from clipboard"
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors"
-            style={{
-              background: "var(--bg-tertiary)",
-              color: "var(--text-secondary)",
-            }}
             title="Paste from clipboard"
+            className="shrink-0 text-muted-foreground"
           >
             <ClipboardPaste size={14} />
-          </button>
+          </Button>
           {voice === "recording" ? (
-            <button
+            <Button
+              size="icon-sm"
               onClick={stopVoice}
               aria-label="Stop recording"
               title="Stop recording"
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-transform duration-150 active:scale-[0.97]"
-              style={{ background: "#EF4444", color: "white" }}
+              className="shrink-0 bg-destructive text-white hover:bg-destructive/90 active:scale-[0.97]"
             >
               <Square size={12} className="animate-pulse" />
-            </button>
+            </Button>
           ) : (
-            <button
+            <Button
+              variant="secondary"
+              size="icon-sm"
               onClick={startVoice}
               disabled={voice !== "idle" || loading}
               aria-label="Dictate a message"
               title="Dictate a message"
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-transform duration-150 active:scale-[0.97] disabled:opacity-40"
-              style={{ background: "var(--bg-tertiary)", color: "var(--text-secondary)" }}
+              className="shrink-0 text-muted-foreground active:scale-[0.97]"
             >
               {voice === "transcribing" ? (
-                <Loader2 size={14} className="animate-spin" style={{ color: "var(--accent)" }} />
+                <Loader2 size={14} className="animate-spin text-primary" />
               ) : (
                 <Mic size={14} />
               )}
-            </button>
+            </Button>
           )}
           <p role="status" className="sr-only">
             {voice === "recording" ? "recording" : voice === "transcribing" ? "transcribing" : ""}
@@ -345,31 +305,25 @@ export function ChatPanel() {
             onKeyDown={handleKeyDown}
             placeholder="Paste or type..."
             rows={1}
-            className="flex-1 resize-none rounded-lg px-3 py-2 text-xs outline-none"
-            style={{
-              background: "var(--bg-tertiary)",
-              color: "var(--text-primary)",
-              maxHeight: 160,
-              lineHeight: "1.5",
-            }}
+            className="flex-1 resize-none rounded-lg bg-muted px-3 py-2 text-xs leading-normal text-foreground outline-none"
+            style={{ maxHeight: 160 }}
           />
-          <button
+          <Button
+            size="icon-sm"
             onClick={handleSend}
             disabled={!input.trim() || loading}
             aria-label="Send message"
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors"
-            style={{
-              background: input.trim() && !loading ? "var(--accent)" : "var(--bg-tertiary)",
-              color: input.trim() && !loading ? "white" : "var(--text-tertiary)",
-              cursor: input.trim() && !loading ? "pointer" : "not-allowed",
-            }}
+            className={cn(
+              "shrink-0",
+              !(input.trim() && !loading) && "bg-muted text-muted-foreground hover:bg-muted"
+            )}
           >
             {loading ? (
               <Loader2 size={14} className="animate-spin" />
             ) : (
               <Send size={14} />
             )}
-          </button>
+          </Button>
         </div>
       </aside>
     </>

@@ -21,6 +21,8 @@ import {
   Newspaper,
   Mic,
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { useAppStore } from "@/lib/store";
 import { useNotifications } from "@/lib/use-notifications";
 
@@ -76,8 +78,13 @@ export function Sidebar({ mobile }: { mobile?: boolean }) {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [mobile, mobileSidebarOpen, setMobileSidebarOpen]);
 
-  const linkClass =
-    "group flex items-center gap-3 rounded-lg px-3 py-1.5 text-sm font-medium transition-[color,background,transform] duration-150 active:scale-[0.97]";
+  const linkClass = (active: boolean) =>
+    cn(
+      "group flex items-center gap-3 rounded-lg border-l-[3px] px-3 py-1.5 text-sm font-medium transition-[color,background,transform] duration-150 active:scale-[0.97]",
+      active
+        ? "border-l-primary bg-accent text-accent-foreground"
+        : "border-l-transparent text-muted-foreground hover:bg-accent/60 hover:text-accent-foreground"
+    );
 
   return (
     <>
@@ -86,20 +93,16 @@ export function Sidebar({ mobile }: { mobile?: boolean }) {
         <button
           type="button"
           aria-label="Close menu"
-          className="fixed inset-0"
-          style={{ background: "rgba(0,0,0,0.4)", zIndex: 39 }}
+          className="fixed inset-0 z-[39] bg-black/40"
           onClick={() => setMobileSidebarOpen(false)}
         />
       )}
 
       <aside
-        className="fixed left-0 top-0 flex h-screen flex-col border-r overflow-y-auto overflow-x-hidden"
+        className="fixed left-0 top-0 z-40 flex h-screen flex-col overflow-y-auto overflow-x-hidden border-r border-border bg-card"
         style={{
           width: mobile ? 280 : sidebarExpanded ? 256 : 64,
-          borderColor: "var(--border-primary)",
-          background: "var(--bg-secondary)",
           transition: "transform var(--dur-slow) var(--ease-drawer)",
-          zIndex: 40,
           transform: mobile
             ? mobileSidebarOpen
               ? "translateX(0)"
@@ -108,25 +111,25 @@ export function Sidebar({ mobile }: { mobile?: boolean }) {
         }}
       >
         {/* Logo */}
-        <div
-          className="flex h-14 items-center justify-between px-4 shrink-0"
-          style={{ borderBottom: "1px solid var(--border-primary)" }}
-        >
+        <div className="flex h-14 shrink-0 items-center justify-between border-b border-border px-4">
           <span
-            className={`font-semibold text-lg ${expanded ? "" : "text-center w-8"}`}
-            style={{ color: "var(--text-primary)" }}
+            className={cn(
+              "text-lg font-semibold text-foreground",
+              expanded ? "" : "w-8 text-center"
+            )}
           >
             {expanded ? "LifeOS" : "L"}
           </span>
           {mobile && (
-            <button
+            <Button
+              variant="ghost"
+              size="icon-sm"
               onClick={() => setMobileSidebarOpen(false)}
-              className="rounded-lg p-1.5 transition-transform duration-150 active:scale-[0.92]"
-              style={{ color: "var(--text-tertiary)" }}
+              className="text-muted-foreground active:scale-[0.92]"
               aria-label="Close menu"
             >
               <X size={20} />
-            </button>
+            </Button>
           )}
         </div>
 
@@ -141,12 +144,7 @@ export function Sidebar({ mobile }: { mobile?: boolean }) {
                   key={item.href}
                   href={item.href}
                   onClick={handleNavClick}
-                  className={linkClass}
-                  style={{
-                    color: active ? "var(--accent)" : "var(--text-secondary)",
-                    background: active ? "var(--accent-bg)" : "transparent",
-                    borderLeft: active ? "3px solid var(--accent)" : "3px solid transparent",
-                  }}
+                  className={linkClass(active)}
                   title={!expanded ? item.label : undefined}
                 >
                   <Icon size={18} className="shrink-0" />
@@ -162,17 +160,16 @@ export function Sidebar({ mobile }: { mobile?: boolean }) {
               toggleChatPanel();
               if (mobile) setMobileSidebarOpen(false);
             }}
-            className={`${linkClass} w-full text-left mt-2`}
-            style={{ color: "var(--text-secondary)", borderLeft: "3px solid transparent" }}
+            className={cn(linkClass(false), "mt-2 w-full text-left")}
             title={!expanded ? "Assistant" : undefined}
           >
-            <Sparkles size={18} className="shrink-0 text-sage-500" />
+            <Sparkles size={18} className="shrink-0 text-primary" />
             {expanded && <span>Assistant</span>}
           </button>
 
           <div className="flex-1" />
 
-          <div className="pt-4 border-t border-primary mt-auto">
+          <div className="mt-auto border-t border-border pt-4">
             {BOTTOM_ITEMS.map((item) => {
               const Icon = item.icon;
               const active = isActive(item.href);
@@ -181,21 +178,13 @@ export function Sidebar({ mobile }: { mobile?: boolean }) {
                   key={item.href}
                   href={item.href}
                   onClick={handleNavClick}
-                  className={`${linkClass} mb-1`}
-                  style={{
-                    color: active ? "var(--accent)" : "var(--text-secondary)",
-                    background: active ? "var(--accent-bg)" : "transparent",
-                    borderLeft: active ? "3px solid var(--accent)" : "3px solid transparent",
-                  }}
+                  className={cn(linkClass(active), "mb-1")}
                   title={!expanded ? item.label : undefined}
                 >
                   <Icon size={18} className="shrink-0" />
                   {expanded && <span className="flex-1">{item.label}</span>}
                   {item.href === "/pager" && pagerUnread > 0 && expanded && (
-                    <span
-                      className="text-xs font-semibold rounded-full px-2 py-0.5"
-                      style={{ background: "var(--accent)", color: "white" }}
-                    >
+                    <span className="rounded-full bg-primary px-2 py-0.5 text-xs font-semibold text-primary-foreground">
                       {pagerUnread}
                     </span>
                   )}
@@ -207,8 +196,7 @@ export function Sidebar({ mobile }: { mobile?: boolean }) {
             {!mobile && (
               <button
                 onClick={toggleSidebar}
-                className={`${linkClass} w-full text-left`}
-                style={{ color: "var(--text-tertiary)" }}
+                className={cn(linkClass(false), "w-full text-left")}
                 aria-label={sidebarExpanded ? "Collapse sidebar" : "Expand sidebar"}
               >
                 {sidebarExpanded ? <ChevronsLeft size={18} /> : <ChevronsRight size={18} />}

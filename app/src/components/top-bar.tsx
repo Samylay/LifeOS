@@ -1,6 +1,7 @@
 "use client";
 
 import { Menu, Sparkles } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { useAppStore } from "@/lib/store";
 
 export function TopBar() {
@@ -8,12 +9,7 @@ export function TopBar() {
 
   return (
     <header
-      className="sticky top-0 flex h-14 items-center gap-2 lg:gap-4 px-3 lg:px-6"
-      style={{
-        zIndex: "var(--z-header)",
-        background: "var(--bg-secondary)",
-        borderBottom: "1px solid var(--border-primary)",
-      }}
+      className="sticky top-0 z-(--z-header) flex h-14 items-center gap-2 border-b border-border bg-card px-3 lg:gap-4 lg:px-6"
     >
       <style>{`
         @media (min-width: 1024px) {
@@ -21,33 +17,33 @@ export function TopBar() {
         }
       `}</style>
       {/* Mobile menu button */}
-      <button
+      <Button
+        variant="ghost"
+        size="icon-sm"
         onClick={() => setMobileSidebarOpen(true)}
-        className="lg:hidden rounded-lg p-2 transition-transform duration-150 active:scale-[0.92]"
-        style={{ color: "var(--text-secondary)" }}
+        className="lg:hidden text-muted-foreground active:scale-[0.92]"
         aria-label="Open menu"
       >
         <Menu size={20} />
-      </button>
+      </Button>
 
-      <span className="lg:hidden font-semibold" style={{ color: "var(--text-primary)" }}>
-        LifeOS
-      </span>
+      <span className="lg:hidden font-semibold text-foreground">LifeOS</span>
 
       <div className="flex-1" />
 
       {/* Right side */}
       <div className="flex items-center gap-2">
         {/* Chat panel toggle */}
-        <button
+        <Button
+          variant="ghost"
+          size="icon-sm"
           onClick={toggleChatPanel}
-          className="rounded-lg p-2 transition-transform duration-150 active:scale-[0.92]"
-          style={{ color: "var(--text-secondary)" }}
+          className="text-muted-foreground active:scale-[0.92]"
           title="Open Assistant"
           aria-label="Open assistant"
         >
           <Sparkles size={20} />
-        </button>
+        </Button>
       </div>
     </header>
   );

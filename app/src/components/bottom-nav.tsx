@@ -10,6 +10,7 @@ import {
   Layers,
   Menu,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { useAppStore } from "@/lib/store";
 import { useNotifications } from "@/lib/use-notifications";
 
@@ -35,16 +36,7 @@ export function BottomNav() {
   };
 
   return (
-    <nav
-      className="fixed bottom-0 left-0 right-0 flex items-center justify-around lg:hidden"
-      style={{
-        height: 64,
-        paddingBottom: "env(safe-area-inset-bottom, 0px)",
-        background: "var(--bg-secondary)",
-        borderTop: "1px solid var(--border-primary)",
-        zIndex: 40,
-      }}
-    >
+    <nav className="fixed bottom-0 left-0 right-0 z-40 flex h-16 items-center justify-around border-t border-border bg-card pb-[env(safe-area-inset-bottom,0px)] lg:hidden">
       {TABS.map((tab) => {
         const Icon = tab.icon;
         const active = isActive(tab.href);
@@ -53,40 +45,31 @@ export function BottomNav() {
           <Link
             key={tab.href}
             href={tab.href}
-            className="relative flex flex-col items-center justify-center gap-0.5 py-1 px-2 rounded-lg transition-transform duration-150 active:scale-[0.90]"
-            style={{
-              color: active ? "var(--accent)" : "var(--text-tertiary)",
-              minWidth: 52,
-            }}
+            className={cn(
+              "relative flex min-w-13 flex-col items-center justify-center gap-0.5 rounded-lg px-2 py-1 transition-transform duration-150 active:scale-[0.90]",
+              active ? "text-accent-ui-foreground" : "text-muted-foreground"
+            )}
           >
             <div className="relative">
               <Icon size={22} strokeWidth={active ? 2.5 : 2} />
               {showBadge && (
-                <span
-                  className="absolute -top-1.5 -right-2 text-[10px] font-bold rounded-full min-w-4 h-4 px-1 flex items-center justify-center"
-                  style={{ background: "var(--accent)", color: "white" }}
-                >
+                <span className="absolute -top-1.5 -right-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold text-primary-foreground">
                   {pagerUnread}
                 </span>
               )}
             </div>
-            <span className="font-medium" style={{ fontSize: 12 }}>
-              {tab.label}
-            </span>
+            <span className="text-xs font-medium">{tab.label}</span>
           </Link>
         );
       })}
       {/* "More" — opens mobile sidebar */}
       <button
         onClick={() => setMobileSidebarOpen(true)}
-        className="flex flex-col items-center justify-center gap-0.5 py-1 px-2 rounded-lg transition-transform duration-150 active:scale-[0.90]"
-        style={{ color: "var(--text-tertiary)", minWidth: 52 }}
+        className="flex min-w-13 flex-col items-center justify-center gap-0.5 rounded-lg px-2 py-1 text-muted-foreground transition-transform duration-150 active:scale-[0.90]"
         aria-label="More"
       >
         <Menu size={22} strokeWidth={2} />
-        <span className="font-medium" style={{ fontSize: 12 }}>
-          More
-        </span>
+        <span className="text-xs font-medium">More</span>
       </button>
     </nav>
   );
