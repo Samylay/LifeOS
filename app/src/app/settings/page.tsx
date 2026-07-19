@@ -30,10 +30,14 @@ const themeStore = {
     const root = document.documentElement;
     root.classList.remove("light", "dark");
     if (t === "system") localStorage.removeItem("lifeos-theme");
-    else {
-      localStorage.setItem("lifeos-theme", t);
-      root.classList.add(t);
-    }
+    else localStorage.setItem("lifeos-theme", t);
+    // The effective class must always be present (shadcn tokens + `dark:`
+    // utilities key off it), so resolve "system" here too.
+    const effective =
+      t === "system"
+        ? matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"
+        : t;
+    root.classList.add(effective);
     for (const l of themeListeners) l();
   },
 };

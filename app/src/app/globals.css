@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "tw-animate-css";
 @import "@fontsource/plus-jakarta-sans/400.css";
 @import "@fontsource/plus-jakarta-sans/500.css";
 @import "@fontsource/plus-jakarta-sans/600.css";
@@ -74,6 +75,95 @@
   --duration-slow: 300ms;
   --duration-slower: 500ms;
   --duration-celebration: 1500ms;
+}
+
+/* `dark:` utilities key off the .dark class — the layout script guarantees the
+   class is present whenever the effective theme is dark (stored or system). */
+@custom-variant dark (&:is(.dark, .dark *));
+
+/* ── shadcn/ui semantic tokens (UI overhaul 2026-07-19) ─────────────────────
+   Semantic layer over the sage/warm palette. Components consume these via the
+   Tailwind mappings in the @theme inline block below. Legacy --bg-*/--text-*
+   vars further down are aliases kept until every surface is migrated. */
+:root {
+  --radius: 0.625rem;
+  --background: var(--color-warm-50);
+  --foreground: var(--color-warm-900);
+  --card: #faf8f5;
+  --card-foreground: var(--color-warm-900);
+  --popover: #faf8f5;
+  --popover-foreground: var(--color-warm-900);
+  --primary: var(--color-sage-400);
+  --primary-foreground: var(--color-sage-950);
+  --secondary: var(--color-warm-100);
+  --secondary-foreground: var(--color-warm-800);
+  --muted: var(--color-warm-100);
+  --muted-foreground: var(--color-warm-500);
+  --accent-ui: var(--color-sage-50);
+  --accent-ui-foreground: var(--color-sage-700);
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+  --border: var(--color-warm-200);
+  --input: var(--color-warm-200);
+  --ring: var(--color-sage-400);
+  --chart-1: var(--color-sage-400);
+  --chart-2: #3b82f6;
+  --chart-3: #f59e0b;
+  --chart-4: #8b5cf6;
+  --chart-5: #14b8a6;
+}
+
+.dark {
+  --background: var(--color-warm-950);
+  --foreground: var(--color-warm-100);
+  --card: var(--color-warm-900);
+  --card-foreground: var(--color-warm-100);
+  --popover: var(--color-warm-900);
+  --popover-foreground: var(--color-warm-100);
+  --primary: var(--color-sage-400);
+  --primary-foreground: var(--color-sage-950);
+  --secondary: var(--color-warm-800);
+  --secondary-foreground: var(--color-warm-100);
+  --muted: var(--color-warm-800);
+  --muted-foreground: var(--color-warm-400);
+  --accent-ui: var(--color-warm-800);
+  --accent-ui-foreground: var(--color-warm-100);
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+  --border: var(--color-warm-800);
+  --input: var(--color-warm-700);
+  --ring: var(--color-sage-400);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent-ui);
+  --color-accent-foreground: var(--accent-ui-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
 }
 
 /* Light theme (default) */
