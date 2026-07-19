@@ -2,7 +2,9 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { Activity, Cpu, MemoryStick, HardDrive, Boxes, ExternalLink, Sparkles, RefreshCw } from "lucide-react";
-import { Skeleton } from "@/components/skeleton";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Card } from "@/components/ui/card";
+import { ProgressBar } from "@/components/charts";
 
 // Grafana for deep dives. Reachable once it has a Cloudflare route (pending the
 // tunnel-token refresh); override the base with NEXT_PUBLIC_GRAFANA_URL.
@@ -41,29 +43,27 @@ function uptime(s: number | null): string {
   return d > 0 ? `${d}d ${h}h` : `${h}h`;
 }
 function barColor(pct: number | null): string {
-  if (pct === null) return "var(--text-tertiary)";
-  if (pct >= 90) return "#EF4444";
-  if (pct >= 75) return "#F59E0B";
-  return "var(--accent)";
+  if (pct === null) return "var(--muted-foreground)";
+  if (pct >= 90) return "var(--destructive)";
+  if (pct >= 75) return "var(--chart-3)";
+  return "var(--primary)";
 }
 
 function Vital({
   icon, label, pct, sub,
 }: { icon: React.ReactNode; label: string; pct: number | null; sub: string }) {
   return (
-    <div className="rounded-xl p-4" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-primary)" }}>
-      <div className="flex items-center gap-2 mb-2" style={{ color: "var(--text-secondary)" }}>
+    <Card className="p-4">
+      <div className="mb-2 flex items-center gap-2 text-muted-foreground">
         {icon}
         <span className="text-xs font-bold uppercase tracking-widest">{label}</span>
-        <span className="ml-auto text-sm font-mono" style={{ color: barColor(pct) }}>
+        <span className="ml-auto font-mono text-sm" style={{ color: barColor(pct) }}>
           {pct === null ? "–" : `${pct.toFixed(0)}%`}
         </span>
       </div>
-      <div className="h-2 rounded-full overflow-hidden" style={{ background: "var(--bg-tertiary)" }}>
-        <div className="h-full w-full rounded-full origin-left transition-transform" style={{ transform: `scaleX(${(pct ?? 0) / 100})`, background: barColor(pct) }} />
-      </div>
-      <p className="text-xs mt-1.5" style={{ color: "var(--text-tertiary)" }}>{sub}</p>
-    </div>
+      <ProgressBar value={pct ?? 0} max={100} color={barColor(pct)} />
+      <p className="mt-1.5 text-xs text-muted-foreground">{sub}</p>
+    </Card>
   );
 }
 
@@ -100,26 +100,34 @@ export default function StatusPage() {
   const running = containers.filter((c) => c.up).length;
 
   return (
-    <div className="space-y-5 max-w-3xl">
-      <div className="flex items-center justify-between gap-4 flex-wrap">
+    <div className="max-w-3xl space-y-5">
+      <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold flex items-center gap-2" style={{ color: "var(--text-primary)" }}>
-            <Activity size={22} style={{ color: "var(--accent)" }} /> Status
+          <h1 className="flex items-center gap-2 text-2xl font-semibold">
+            <Activity size={22} className="text-primary" /> Status
           </h1>
-          <p className="text-xs mt-1" style={{ color: "var(--text-tertiary)" }}>
+          <p className="mt-1 text-xs text-muted-foreground">
             Homelab health · {running}/{containers.length} containers up
             {host?.uptimeSeconds != null && ` · up ${uptime(host.uptimeSeconds)}`}
             {host?.load1 != null && ` · load ${host.load1.toFixed(2)}`}
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={load} title="Refresh" aria-label="Refresh status" className="p-2 rounded-lg transition-transform duration-150 active:scale-[0.92]" style={{ color: "var(--text-tertiary)", background: "var(--bg-tertiary)" }}>
+          <button
+            onClick={load}
+            title="Refresh"
+            aria-label="Refresh status"
+            className="rounded-lg bg-muted p-2 text-muted-foreground transition-transform duration-150 active:scale-[0.92]"
+          >
             <RefreshCw size={15} />
           </button>
           {GRAFANA_URL && (
-            <a href={GRAFANA_URL} target={native ? "_self" : "_blank"} rel="noreferrer"
-              className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium"
-              style={{ color: "var(--accent)", background: "var(--accent-bg)" }}>
+            <a
+              href={GRAFANA_URL}
+              target={native ? "_self" : "_blank"}
+              rel="noreferrer"
+              className="flex items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-accent-foreground"
+            >
               <Sparkles size={14} /> Open Grafana <ExternalLink size={12} className="opacity-50" />
             </a>
           )}
@@ -127,14 +135,12 @@ export default function StatusPage() {
       </div>
 
       {err && !data && (
-        <div className="rounded-xl p-4 text-sm" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-primary)", color: "var(--text-secondary)" }}>
-          Couldn&apos;t reach the status API.
-        </div>
+        <Card className="p-4 text-sm text-muted-foreground">Couldn&apos;t reach the status API.</Card>
       )}
 
       {/* Host vitals */}
       {host ? (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <Vital icon={<Cpu size={15} />} label="CPU" pct={host.cpuPct}
             sub={host.enabled ? "16 threads" : "metrics offline"} />
           <Vital icon={<MemoryStick size={15} />} label="Memory" pct={host.memPct}
@@ -143,25 +149,23 @@ export default function StatusPage() {
             sub={`${gb(host.diskUsedBytes)} / ${gb(host.diskTotalBytes)}`} />
         </div>
       ) : !err && (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           {Array.from({ length: 3 }).map((_, i) => (
             <Skeleton key={i} className="h-[92px]" />
           ))}
         </div>
       )}
       {host && !host.enabled && (
-        <p className="text-xs" style={{ color: "var(--text-tertiary)" }}>
+        <p className="text-xs text-muted-foreground">
           Host metrics offline — is the monitoring stack (Prometheus) running?
         </p>
       )}
 
       {/* Containers */}
       <div>
-        <div className="flex items-center gap-2 mb-2">
-          <Boxes size={16} style={{ color: "var(--accent)" }} />
-          <h2 className="text-xs font-bold uppercase tracking-widest" style={{ color: "var(--text-secondary)" }}>
-            Containers
-          </h2>
+        <div className="mb-2 flex items-center gap-2">
+          <Boxes size={16} className="text-primary" />
+          <h2 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Containers</h2>
         </div>
         {!data && !err ? (
           <div className="space-y-1.5">
@@ -170,26 +174,24 @@ export default function StatusPage() {
             ))}
           </div>
         ) : !data?.containers.ok ? (
-          <p className="text-sm" style={{ color: "var(--text-tertiary)" }}>
-            {data?.containers.reason || "Loading…"}
-          </p>
+          <p className="text-sm text-muted-foreground">{data?.containers.reason || "Loading…"}</p>
         ) : (
           <div className="space-y-1.5">
             {containers.map((c) => (
-              <div key={c.name} className="flex items-center gap-3 rounded-lg px-3 py-2"
-                style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-primary)" }}>
-                <span className="shrink-0 h-2.5 w-2.5 rounded-full" style={{
-                  background: c.up ? "#22C55E" : "#EF4444",
-                  boxShadow: c.up ? "0 0 6px -1px #22C55E" : "none",
-                }} />
-                <span className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
-                  {c.label || c.name}
-                </span>
-                {c.label && <span className="text-[10px] font-mono" style={{ color: "var(--text-tertiary)" }}>{c.name}</span>}
-                <span className="text-xs ml-auto truncate" style={{ color: c.up ? "var(--text-tertiary)" : "#EF4444" }}>
+              <Card key={c.name} className="flex flex-row items-center gap-3 rounded-lg px-3 py-2">
+                <span
+                  className="h-2.5 w-2.5 shrink-0 rounded-full"
+                  style={{
+                    background: c.up ? "#22C55E" : "var(--destructive)",
+                    boxShadow: c.up ? "0 0 6px -1px #22C55E" : "none",
+                  }}
+                />
+                <span className="text-sm font-medium">{c.label || c.name}</span>
+                {c.label && <span className="font-mono text-[10px] text-muted-foreground">{c.name}</span>}
+                <span className={`ml-auto truncate text-xs ${c.up ? "text-muted-foreground" : "text-destructive"}`}>
                   {c.up ? c.status : c.state}
                 </span>
-              </div>
+              </Card>
             ))}
           </div>
         )}
@@ -197,13 +199,12 @@ export default function StatusPage() {
 
       {/* Hermes */}
       {data?.hermes && (
-        <div className="rounded-xl p-3 flex items-center gap-2 text-xs"
-          style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-primary)", color: "var(--text-secondary)" }}>
-          <Activity size={13} style={{ color: data.hermes.ranToday ? "#22C55E" : "var(--text-tertiary)" }} />
+        <Card className="flex flex-row items-center gap-2 p-3 text-xs text-muted-foreground">
+          <Activity size={13} className={data.hermes.ranToday ? "text-emerald-500" : "text-muted-foreground"} />
           {data.hermes.ok
             ? `Hermes: ${data.hermes.processed ?? 0} notes enriched · last run ${data.hermes.lastRun ? new Date(data.hermes.lastRun).toLocaleString() : "—"}${data.hermes.ranToday ? " · ran today ✓" : ""}`
             : `Hermes: ${data.hermes.reason}`}
-        </div>
+        </Card>
       )}
     </div>
   );

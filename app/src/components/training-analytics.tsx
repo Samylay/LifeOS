@@ -1,6 +1,8 @@
 "use client";
 
-import { Skeleton } from "@/components/skeleton";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Card } from "@/components/ui/card";
+import { BarChart } from "@/components/charts";
 
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -19,15 +21,6 @@ import {
   Heart,
   Zap,
 } from "lucide-react";
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-  Legend,
-} from "recharts";
 import {
   type ActivityRow,
   type SportBucket,
@@ -55,13 +48,9 @@ const SPORT_ICONS: Record<SportBucket, React.ComponentType<{ size?: number; styl
 
 const SPORT_ORDER: SportBucket[] = ["run", "ride", "swim", "other"];
 
-function cardStyle(): React.CSSProperties {
-  return { background: "var(--bg-secondary)", border: "1px solid var(--border-primary)" };
-}
-
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <h2 className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: "var(--text-tertiary)" }}>
+    <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
       {children}
     </h2>
   );
@@ -72,9 +61,9 @@ function DeltaBadge({ current, previous }: { current: number; previous: number }
   const diff = current - previous;
   const pct = previous > 0 ? (diff / previous) * 100 : current > 0 ? 100 : 0;
   const Icon = diff > 0 ? TrendingUp : diff < 0 ? TrendingDown : Minus;
-  const color = diff > 0 ? "#7C9E8A" : diff < 0 ? "#C97A6A" : "var(--text-tertiary)";
+  const color = diff > 0 ? "text-emerald-500" : diff < 0 ? "text-destructive" : "text-muted-foreground";
   return (
-    <span className="inline-flex items-center gap-0.5 text-[11px] font-mono" style={{ color }}>
+    <span className={`inline-flex items-center gap-0.5 text-[11px] font-mono ${color}`}>
       <Icon size={11} />
       {previous > 0 ? `${Math.abs(pct).toFixed(0)}%` : "new"}
     </span>
@@ -129,7 +118,7 @@ export default function TrainingAnalytics() {
     }
   };
 
-  const rows = activities || [];
+  const rows = useMemo(() => activities || [], [activities]);
 
   // --- This week vs last week ---
   const { thisWeekRows, lastWeekRows } = useMemo(() => {
@@ -175,7 +164,7 @@ export default function TrainingAnalytics() {
       <div className="space-y-6">
         <section>
           <SectionLabel>This Week</SectionLabel>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             {Array.from({ length: 3 }).map((_, i) => (
               <Skeleton key={i} className="h-[84px]" />
             ))}
@@ -187,46 +176,41 @@ export default function TrainingAnalytics() {
 
   if (unconfigured) {
     return (
-      <div className="rounded-xl p-8 text-center" style={cardStyle()}>
-        <Activity size={32} style={{ color: "var(--text-tertiary)" }} className="mx-auto mb-3" />
-        <p className="text-sm font-medium mb-1" style={{ color: "var(--text-primary)" }}>
-          Strava isn&apos;t connected yet
-        </p>
-        <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
+      <Card className="p-8 text-center">
+        <Activity size={32} className="mx-auto mb-3 text-muted-foreground" />
+        <p className="mb-1 text-sm font-medium">Strava isn&apos;t connected yet</p>
+        <p className="text-xs text-muted-foreground">
           Connect Strava in Settings to see your training analytics here.
         </p>
-      </div>
+      </Card>
     );
   }
 
   if (rows.length === 0) {
     return (
-      <div className="rounded-xl p-8 text-center" style={cardStyle()}>
-        <Activity size={32} style={{ color: "var(--text-tertiary)" }} className="mx-auto mb-3" />
-        <p className="text-sm font-medium mb-2" style={{ color: "var(--text-primary)" }}>
-          No activities synced yet
-        </p>
+      <Card className="p-8 text-center">
+        <Activity size={32} className="mx-auto mb-3 text-muted-foreground" />
+        <p className="mb-2 text-sm font-medium">No activities synced yet</p>
         <button
           onClick={handleSync}
           disabled={syncing}
-          className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium bg-sage-400 text-white hover:bg-sage-500 transition-colors"
+          className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
         >
           {syncing ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
           Sync Strava
         </button>
-      </div>
+      </Card>
     );
   }
 
   return (
     <div className="space-y-6">
       {/* Header / sync */}
-      <div className="flex items-center justify-end -mt-2">
+      <div className="-mt-2 flex items-center justify-end">
         <button
           onClick={handleSync}
           disabled={syncing}
-          className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors hover:opacity-80"
-          style={{ color: "var(--accent)" }}
+          className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-primary transition-colors hover:opacity-80"
         >
           {syncing ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
           Sync
@@ -234,46 +218,42 @@ export default function TrainingAnalytics() {
       </div>
 
       {error && (
-        <div className="rounded-lg p-3 text-xs" style={{ background: "var(--bg-tertiary)", color: "#C97A6A" }}>
-          {error}
-        </div>
+        <div className="rounded-lg bg-muted p-3 text-xs text-destructive">{error}</div>
       )}
 
       {/* 1. This week */}
       <section>
         <SectionLabel>This Week</SectionLabel>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           {SPORT_ORDER.filter((s) => s !== "other" || thisWeekTotals.other.count > 0 || lastWeekTotals.other.count > 0).map((sport) => {
             const Icon = SPORT_ICONS[sport];
             const cur = thisWeekTotals[sport];
             const prev = lastWeekTotals[sport];
             return (
-              <div key={sport} className="rounded-xl p-4" style={cardStyle()}>
-                <div className="flex items-center justify-between mb-2">
+              <Card key={sport} className="p-4">
+                <div className="mb-2 flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Icon size={16} style={{ color: SPORT_COLORS[sport] }} />
-                    <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-tertiary)" }}>
+                    <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                       {SPORT_LABELS[sport]}
                     </span>
                   </div>
                   <DeltaBadge current={cur.moving_time_s} previous={prev.moving_time_s} />
                 </div>
                 {cur.count === 0 ? (
-                  <p className="text-sm" style={{ color: "var(--text-tertiary)" }}>No activity</p>
+                  <p className="text-sm text-muted-foreground">No activity</p>
                 ) : (
                   <div className="flex items-baseline gap-3">
-                    <span className="text-xl font-bold font-mono" style={{ color: "var(--text-primary)" }}>
+                    <span className="font-mono text-xl font-bold">
                       {sport === "other" ? formatDuration(cur.moving_time_s) : formatDistance(cur.distance_m)}
                     </span>
-                    <span className="text-xs font-mono" style={{ color: "var(--text-secondary)" }}>
+                    <span className="font-mono text-xs text-muted-foreground/90">
                       {formatDuration(cur.moving_time_s)}
                     </span>
-                    <span className="text-xs" style={{ color: "var(--text-tertiary)" }}>
-                      {cur.count}x
-                    </span>
+                    <span className="text-xs text-muted-foreground">{cur.count}x</span>
                   </div>
                 )}
-              </div>
+              </Card>
             );
           })}
         </div>
@@ -281,80 +261,59 @@ export default function TrainingAnalytics() {
 
       {/* 2. Weekly trend */}
       <section>
-        <div className="flex items-center justify-between mb-3">
+        <div className="mb-3 flex items-center justify-between">
           <SectionLabel>Weekly Trend (12 weeks)</SectionLabel>
           <div className="flex gap-1 text-xs">
             {(["hours", "km"] as const).map((m) => (
               <button
                 key={m}
                 onClick={() => setTrendMetric(m)}
-                className="px-2 py-1 rounded-full transition-colors"
-                style={{
-                  background: trendMetric === m ? "var(--accent)" : "var(--bg-tertiary)",
-                  color: trendMetric === m ? "white" : "var(--text-secondary)",
-                }}
+                className={`rounded-full px-2 py-1 transition-colors ${
+                  trendMetric === m
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-muted text-muted-foreground"
+                }`}
               >
                 {m === "hours" ? "Hours" : "Km"}
               </button>
             ))}
           </div>
         </div>
-        <div className="rounded-xl p-4" style={cardStyle()}>
-          <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={trendData} margin={{ top: 4, right: 4, left: -16, bottom: 0 }}>
-              <XAxis
-                dataKey="label"
-                tick={{ fontSize: 10, fill: "var(--text-tertiary)" }}
-                axisLine={{ stroke: "var(--border-primary)" }}
-                tickLine={false}
-                interval={1}
-              />
-              <YAxis tick={{ fontSize: 10, fill: "var(--text-tertiary)" }} axisLine={false} tickLine={false} width={32} />
-              <Tooltip
-                formatter={(value, name) => [
-                  trendMetric === "hours" ? `${Number(value).toFixed(1)} h` : `${Number(value).toFixed(1)} km`,
-                  SPORT_LABELS[name as SportBucket] ?? String(name),
-                ]}
-                contentStyle={{
-                  background: "var(--bg-elevated)",
-                  border: "1px solid var(--border-primary)",
-                  borderRadius: 8,
-                  fontSize: 12,
-                }}
-              />
-              <Legend
-                formatter={(value) => SPORT_LABELS[value as SportBucket] ?? value}
-                wrapperStyle={{ fontSize: 11, color: "var(--text-secondary)" }}
-              />
-              <Bar dataKey="run" stackId="a" fill={SPORT_COLORS.run} radius={[0, 0, 0, 0]} />
-              <Bar dataKey="ride" stackId="a" fill={SPORT_COLORS.ride} radius={[0, 0, 0, 0]} />
-              <Bar dataKey="swim" stackId="a" fill={SPORT_COLORS.swim} radius={[0, 0, 0, 0]} />
-              <Bar dataKey="other" stackId="a" fill={SPORT_COLORS.other} radius={[2, 2, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
+        <Card className="p-4">
+          <BarChart
+            data={trendData}
+            index="label"
+            categories={SPORT_ORDER}
+            colors={SPORT_ORDER.map((s) => SPORT_COLORS[s])}
+            categoryLabels={SPORT_LABELS}
+            stacked
+            showLegend
+            valueFormatter={(v) => (trendMetric === "hours" ? `${v.toFixed(1)} h` : `${v.toFixed(1)} km`)}
+            className="h-[220px]"
+          />
+        </Card>
       </section>
 
       {/* 3. Sport breakdown (this year) */}
       <section>
         <SectionLabel>This Year</SectionLabel>
-        <div className="rounded-xl overflow-hidden" style={cardStyle()}>
+        <Card className="overflow-hidden p-0">
           <table className="w-full text-sm">
             <thead>
-              <tr style={{ borderBottom: "1px solid var(--border-primary)" }}>
-                <th className="text-left px-4 py-2 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-tertiary)" }}>
+              <tr className="border-b border-border">
+                <th className="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   Sport
                 </th>
-                <th className="text-right px-4 py-2 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-tertiary)" }}>
+                <th className="px-4 py-2 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   Count
                 </th>
-                <th className="text-right px-4 py-2 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-tertiary)" }}>
+                <th className="px-4 py-2 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   Distance
                 </th>
-                <th className="text-right px-4 py-2 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-tertiary)" }}>
+                <th className="px-4 py-2 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   Time
                 </th>
-                <th className="text-right px-4 py-2 text-xs font-semibold uppercase tracking-wider hidden sm:table-cell" style={{ color: "var(--text-tertiary)" }}>
+                <th className="hidden px-4 py-2 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground sm:table-cell">
                   Elevation
                 </th>
               </tr>
@@ -364,23 +323,23 @@ export default function TrainingAnalytics() {
                 const Icon = SPORT_ICONS[sport];
                 const t = yearTotals[sport];
                 return (
-                  <tr key={sport} style={{ borderBottom: "1px solid var(--border-secondary)" }}>
+                  <tr key={sport} className="border-b border-border/60">
                     <td className="px-4 py-2.5">
-                      <span className="flex items-center gap-2 text-sm font-medium" style={{ color: "var(--text-primary)" }}>
+                      <span className="flex items-center gap-2 text-sm font-medium">
                         <Icon size={14} style={{ color: SPORT_COLORS[sport] }} />
                         {SPORT_LABELS[sport]}
                       </span>
                     </td>
-                    <td className="text-right px-4 py-2.5 font-mono text-sm" style={{ color: "var(--text-secondary)" }}>
+                    <td className="px-4 py-2.5 text-right font-mono text-sm text-muted-foreground">
                       {t.count}
                     </td>
-                    <td className="text-right px-4 py-2.5 font-mono text-sm" style={{ color: "var(--text-secondary)" }}>
+                    <td className="px-4 py-2.5 text-right font-mono text-sm text-muted-foreground">
                       {formatDistance(t.distance_m)}
                     </td>
-                    <td className="text-right px-4 py-2.5 font-mono text-sm" style={{ color: "var(--text-secondary)" }}>
+                    <td className="px-4 py-2.5 text-right font-mono text-sm text-muted-foreground">
                       {formatDuration(t.moving_time_s)}
                     </td>
-                    <td className="text-right px-4 py-2.5 font-mono text-sm hidden sm:table-cell" style={{ color: "var(--text-secondary)" }}>
+                    <td className="hidden px-4 py-2.5 text-right font-mono text-sm text-muted-foreground sm:table-cell">
                       {Math.round(t.elevation_m)} m
                     </td>
                   </tr>
@@ -388,7 +347,7 @@ export default function TrainingAnalytics() {
               })}
             </tbody>
           </table>
-        </div>
+        </Card>
       </section>
 
       {/* 4. Recent activities */}
@@ -400,51 +359,41 @@ export default function TrainingAnalytics() {
             const Icon = SPORT_ICONS[sport];
             const pace = formatPaceForSport(sport, r.average_speed_mps);
             return (
-              <div key={r.id} className="rounded-xl p-3 flex items-center gap-3" style={cardStyle()}>
+              <Card key={r.id} className="flex flex-row items-center gap-3 p-3">
                 <div
-                  className="flex items-center justify-center rounded-lg shrink-0"
+                  className="flex shrink-0 items-center justify-center rounded-lg"
                   style={{ width: 32, height: 32, background: `${SPORT_COLORS[sport]}1A` }}
                 >
                   <Icon size={16} style={{ color: SPORT_COLORS[sport] }} />
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-sm font-semibold truncate" style={{ color: "var(--text-primary)" }}>
-                      {r.name}
-                    </span>
-                    <span className="text-xs font-mono shrink-0" style={{ color: "var(--text-tertiary)" }}>
+                    <span className="truncate text-sm font-semibold">{r.name}</span>
+                    <span className="shrink-0 font-mono text-xs text-muted-foreground">
                       {activityDate(r).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
                     </span>
                   </div>
-                  <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-0.5">
+                  <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5">
                     {r.distance_m > 0 && (
-                      <span className="text-xs font-mono" style={{ color: "var(--text-secondary)" }}>
-                        {formatKm(r.distance_m)} km
-                      </span>
+                      <span className="font-mono text-xs text-muted-foreground">{formatKm(r.distance_m)} km</span>
                     )}
-                    <span className="text-xs font-mono" style={{ color: "var(--text-secondary)" }}>
-                      {formatDuration(r.moving_time_s)}
-                    </span>
-                    {pace && (
-                      <span className="text-xs font-mono" style={{ color: "var(--text-secondary)" }}>
-                        {pace}
-                      </span>
-                    )}
+                    <span className="font-mono text-xs text-muted-foreground">{formatDuration(r.moving_time_s)}</span>
+                    {pace && <span className="font-mono text-xs text-muted-foreground">{pace}</span>}
                     {r.average_heartrate ? (
-                      <span className="flex items-center gap-1 text-xs font-mono" style={{ color: "#C97A6A" }}>
+                      <span className="flex items-center gap-1 font-mono text-xs text-destructive">
                         <Heart size={10} />
                         {Math.round(r.average_heartrate)}
                       </span>
                     ) : null}
                     {r.average_watts ? (
-                      <span className="flex items-center gap-1 text-xs font-mono" style={{ color: "var(--text-tertiary)" }}>
+                      <span className="flex items-center gap-1 font-mono text-xs text-muted-foreground">
                         <Zap size={10} />
                         {Math.round(r.average_watts)}W
                       </span>
                     ) : null}
                   </div>
                 </div>
-              </div>
+              </Card>
             );
           })}
         </div>
@@ -453,7 +402,7 @@ export default function TrainingAnalytics() {
       {/* 5. Records */}
       <section>
         <SectionLabel>Records</SectionLabel>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {records.longestRun && (
             <RecordCard
               icon={<Footprints size={16} style={{ color: SPORT_COLORS.run }} />}
@@ -488,7 +437,7 @@ export default function TrainingAnalytics() {
           )}
           {records.biggestClimb && records.biggestClimb.elevation_m > 0 && (
             <RecordCard
-              icon={<Mountain size={16} style={{ color: "var(--accent)" }} />}
+              icon={<Mountain size={16} className="text-primary" />}
               label="Biggest Climbing Day"
               value={`${Math.round(records.biggestClimb.elevation_m)} m`}
               sub={records.biggestClimb.row.name}
@@ -496,7 +445,7 @@ export default function TrainingAnalytics() {
           )}
           {records.longestWeek && (
             <RecordCard
-              icon={<CalendarRange size={16} style={{ color: "var(--text-secondary)" }} />}
+              icon={<CalendarRange size={16} className="text-muted-foreground" />}
               label="Longest Week (Distance)"
               value={formatDistance(records.longestWeek.distance_m)}
               sub={`Week of ${new Date(records.longestWeek.weekStart).toLocaleDateString("en-US", { month: "short", day: "numeric" })}`}
@@ -523,19 +472,13 @@ function RecordCard({
   sub: string;
 }) {
   return (
-    <div className="rounded-xl p-4" style={cardStyle()}>
-      <div className="flex items-center gap-2 mb-1.5">
+    <Card className="p-4">
+      <div className="mb-1.5 flex items-center gap-2">
         {icon}
-        <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-tertiary)" }}>
-          {label}
-        </span>
+        <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{label}</span>
       </div>
-      <p className="text-lg font-bold font-mono mb-0.5" style={{ color: "var(--text-primary)" }}>
-        {value}
-      </p>
-      <p className="text-xs truncate" style={{ color: "var(--text-secondary)" }}>
-        {sub}
-      </p>
-    </div>
+      <p className="mb-0.5 font-mono text-lg font-bold">{value}</p>
+      <p className="truncate text-xs text-muted-foreground">{sub}</p>
+    </Card>
   );
 }
