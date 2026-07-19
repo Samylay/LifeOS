@@ -10,6 +10,8 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, GraduationCap, Loader2, Mic, Square } from "lucide-react";
 import { useVoiceRecorder } from "@/lib/use-voice-recorder";
 import { useToast } from "@/components/toast";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 interface Turn {
   id: string;
@@ -92,32 +94,30 @@ export default function TeachSessionPage({ params }: { params: Promise<{ id: str
   return (
     <div className="mx-auto flex h-full max-w-2xl flex-col px-4 pb-6">
       <div className="flex items-center gap-3 py-4">
-        <button
+        <Button
+          variant="ghost"
+          size="icon-sm"
           onClick={() => router.push("/knowledge")}
           aria-label="Back to knowledge"
-          className="rounded-lg p-2 transition-transform duration-100 active:scale-[0.97]"
-          style={{ color: "var(--text-secondary)" }}
+          className="text-muted-foreground"
         >
           <ArrowLeft size={18} />
-        </button>
-        <GraduationCap size={18} style={{ color: "var(--accent-primary)" }} />
+        </Button>
+        <GraduationCap size={18} className="text-primary" />
         <div className="min-w-0 flex-1">
-          <h1 className="truncate text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
-            {topic || "…"}
-          </h1>
-          <p className="text-xs" style={{ color: "var(--text-tertiary)" }}>
-            Teaching session · {status}
-          </p>
+          <h1 className="truncate text-sm font-semibold text-foreground">{topic || "…"}</h1>
+          <p className="text-xs text-muted-foreground/70">Teaching session · {status}</p>
         </div>
         {status === "live" && (
-          <button
+          <Button
+            variant="secondary"
+            size="sm"
             onClick={end}
             disabled={ending}
-            className="rounded-lg px-3 py-1.5 text-xs font-medium transition-transform duration-100 active:scale-[0.97]"
-            style={{ background: "var(--bg-tertiary)", color: "var(--text-secondary)" }}
+            className="text-xs"
           >
             {ending ? "Filing…" : "End session"}
-          </button>
+          </Button>
         )}
       </div>
 
@@ -125,19 +125,16 @@ export default function TeachSessionPage({ params }: { params: Promise<{ id: str
         {turns.map((t) => (
           <div
             key={t.id}
-            className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
-              t.role === "learner" ? "ml-auto" : ""
-            }`}
-            style={{
-              background: t.role === "learner" ? "var(--accent-muted, var(--bg-tertiary))" : "var(--bg-secondary)",
-              color: "var(--text-primary)",
-            }}
+            className={cn(
+              "max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed text-foreground",
+              t.role === "learner" ? "ml-auto bg-primary/10" : "bg-card"
+            )}
           >
             {t.text}
             {t.role === "tutor" && (t.followUps?.length ?? 0) > 0 && (
               <ul className="mt-2 space-y-1">
                 {t.followUps!.map((q, i) => (
-                  <li key={i} className="text-xs" style={{ color: "var(--text-secondary)" }}>
+                  <li key={i} className="text-xs text-muted-foreground">
                     → {q}
                   </li>
                 ))}
@@ -146,10 +143,7 @@ export default function TeachSessionPage({ params }: { params: Promise<{ id: str
           </div>
         ))}
         {busy && (
-          <div
-            className="flex w-fit items-center gap-2 rounded-2xl px-4 py-3 text-xs"
-            style={{ background: "var(--bg-secondary)", color: "var(--text-tertiary)" }}
-          >
+          <div className="flex w-fit items-center gap-2 rounded-2xl bg-card px-4 py-3 text-xs text-muted-foreground/70">
             <Loader2 size={13} className="animate-spin" /> listening back…
           </div>
         )}
@@ -162,14 +156,11 @@ export default function TeachSessionPage({ params }: { params: Promise<{ id: str
             onClick={voice.state === "recording" ? voice.stop : voice.start}
             disabled={busy}
             aria-label={voice.state === "recording" ? "Stop recording" : "Start talking"}
-            className="flex h-20 w-20 items-center justify-center rounded-full transition-transform active:scale-[0.94]"
-            style={{
-              background: voice.state === "recording" ? "var(--danger, #dc2626)" : "var(--accent-primary)",
-              color: "white",
-              transitionDuration: "var(--duration-fast)",
-              transitionTimingFunction: "var(--ease-out-custom)",
-              opacity: busy ? 0.5 : 1,
-            }}
+            className={cn(
+              "flex h-20 w-20 items-center justify-center rounded-full text-white transition-transform duration-150 [transition-timing-function:var(--ease-out-custom)] active:scale-[0.94]",
+              voice.state === "recording" ? "bg-destructive" : "bg-primary",
+              busy && "opacity-50"
+            )}
           >
             {voice.state === "recording" ? (
               <Square size={26} fill="currentColor" className="animate-pulse" />
@@ -182,7 +173,7 @@ export default function TeachSessionPage({ params }: { params: Promise<{ id: str
         </div>
       )}
       {status === "live" && (
-        <p className="pb-1 text-center text-xs" style={{ color: "var(--text-tertiary)" }}>
+        <p className="pb-1 text-center text-xs text-muted-foreground/70">
           {voice.state === "recording" ? "tap to finish your thought" : "tap and just talk"}
         </p>
       )}

@@ -32,6 +32,10 @@ import {
   type GoalSession,
   type GoalPlanState,
 } from "@/lib/types";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Progress } from "@/components/ui/progress";
 
 // --- Plan-state vocabulary ------------------------------------------------
 // One label per goal that makes the gap between a vague wish and a decided,
@@ -40,7 +44,7 @@ import {
 const PLAN_STATE: Record<GoalPlanState, { label: string; color: string }> = {
   unplanned: { label: "Needs a plan", color: "#F59E0B" },
   planned: { label: "Planned", color: "#3B82F6" },
-  "in-motion": { label: "In motion", color: "var(--accent)" },
+  "in-motion": { label: "In motion", color: "var(--primary)" },
   stale: { label: "Stale", color: "#EF4444" },
 };
 
@@ -86,11 +90,10 @@ function ReadinessTrack({
         <div
           key={s.label}
           title={`${s.label}: ${s.on ? "done" : "not set"}`}
-          className="flex items-center gap-1 rounded-md px-1.5 py-0.5 transition-colors"
-          style={{
-            background: s.on ? "var(--accent-bg)" : "var(--bg-tertiary)",
-            color: s.on ? "var(--accent)" : "var(--text-tertiary)",
-          }}
+          className={cn(
+            "flex items-center gap-1 rounded-md px-1.5 py-0.5 transition-colors",
+            s.on ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground/70"
+          )}
         >
           <s.Icon size={11} />
           <span className="text-[10px] font-medium">{s.label}</span>
@@ -113,33 +116,56 @@ export function GoalEditor({
   const [quarter, setQuarter] = useState(quarterOf());
   const [why, setWhy] = useState("");
   const [outcome, setOutcome] = useState("");
-  const s = {
-    color: "var(--text-primary)",
-    background: "var(--bg-tertiary)",
-    border: "1px solid var(--border-primary)",
-  };
+
   return (
-    <div className="rounded-xl p-4 space-y-3 enter" style={{ background: "var(--bg-secondary)", border: "1px solid var(--accent)" }}>
-      <input autoFocus value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Objective for the quarter…"
-        className="w-full text-sm font-medium outline-none rounded-lg px-3 py-2" style={s} />
+    <div className="rounded-xl border border-primary bg-card p-4 space-y-3 enter">
+      <Input
+        autoFocus
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+        placeholder="Objective for the quarter…"
+        className="text-sm font-medium"
+      />
       <div className="flex gap-2 flex-wrap">
-        <input value={quarter} onChange={(e) => setQuarter(e.target.value)} placeholder="2026-Q3"
-          className="w-28 text-xs outline-none rounded-lg px-2 py-1.5 text-center" style={s} />
-        <input value={why} onChange={(e) => setWhy(e.target.value)} placeholder="Why it matters (optional)"
-          className="flex-1 min-w-0 text-xs outline-none rounded-lg px-2 py-1.5" style={s} />
+        <Input
+          value={quarter}
+          onChange={(e) => setQuarter(e.target.value)}
+          placeholder="2026-Q3"
+          className="w-28 text-xs text-center"
+        />
+        <Input
+          value={why}
+          onChange={(e) => setWhy(e.target.value)}
+          placeholder="Why it matters (optional)"
+          className="flex-1 min-w-0 text-xs"
+        />
       </div>
-      <input value={outcome} onChange={(e) => setOutcome(e.target.value)} placeholder="Definition of done (optional — Claude can draft this)"
-        className="w-full text-xs outline-none rounded-lg px-3 py-2" style={s} />
+      <Input
+        value={outcome}
+        onChange={(e) => setOutcome(e.target.value)}
+        placeholder="Definition of done (optional — Claude can draft this)"
+        className="text-xs"
+      />
       <div className="flex items-center gap-2 justify-end">
-        <button onClick={onCancel} className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-transform duration-150 active:scale-[0.97]"
-          style={{ color: "var(--text-secondary)", background: "var(--bg-tertiary)" }}>
+        <Button variant="secondary" size="sm" onClick={onCancel} className="gap-1.5 text-xs">
           <X size={14} /> Cancel
-        </button>
-        <button onClick={() => title.trim() && onSave({ title: title.trim(), quarter: quarter.trim() || quarterOf(), why: why.trim() || undefined, outcome: outcome.trim() || undefined })}
+        </Button>
+        <Button
+          size="sm"
+          onClick={() =>
+            title.trim() &&
+            onSave({
+              title: title.trim(),
+              quarter: quarter.trim() || quarterOf(),
+              why: why.trim() || undefined,
+              outcome: outcome.trim() || undefined,
+            })
+          }
           disabled={!title.trim()}
-          className="flex items-center gap-1.5 rounded-lg px-4 py-1.5 text-sm font-medium bg-sage-400 text-white hover:bg-sage-500 transition-[background,transform] duration-150 active:scale-[0.97] disabled:opacity-50">
+          className="gap-1.5 text-sm px-4"
+        >
           <Check size={14} /> Create
-        </button>
+        </Button>
       </div>
     </div>
   );
@@ -167,10 +193,9 @@ function SessionSparkline({ sessions }: { sessions: GoalSession[] }) {
       {cols.map((c, i) => (
         <span
           key={i}
-          className="flex-1 rounded-[2px]"
+          className={cn("flex-1 rounded-[2px]", c > 0 ? "bg-primary" : "bg-muted")}
           style={{
             height: c > 0 ? "100%" : "24%",
-            background: c > 0 ? "var(--accent)" : "var(--bg-tertiary)",
             opacity: c > 0 ? Math.min(1, 0.45 + c * 0.28) : 1,
           }}
         />
@@ -221,7 +246,7 @@ export function GoalSection({
   const sessions = sessionsThisWeekForGoal(goal, week);
   const state = goalPlanState(goal, week);
   const lastAgo = lastSessionDaysAgo(goal);
-  const weekPct = weekCommits.length > 0 ? doneCount / weekCommits.length : 0;
+  const weekPct = weekCommits.length > 0 ? (doneCount / weekCommits.length) * 100 : 0;
 
   const draft = async () => {
     setDrafting(true);
@@ -237,24 +262,21 @@ export function GoalSection({
   };
 
   const DraftButton = ({ primary }: { primary?: boolean }) => (
-    <button onClick={draft} disabled={drafting}
-      className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-transform duration-150 active:scale-[0.97] disabled:opacity-50 ${primary ? "bg-sage-400 text-white hover:bg-sage-500" : ""}`}
-      style={primary ? undefined : { color: "var(--accent)", background: "var(--accent-bg)" }}>
+    <Button
+      variant={primary ? "default" : "ghost"}
+      size="sm"
+      onClick={draft}
+      disabled={drafting}
+      className={cn("gap-1.5 text-xs", !primary && "text-primary bg-primary/10 hover:bg-primary/15")}
+    >
       {drafting ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
       {drafting ? "Drafting…" : primary ? "Draft plan with Claude" : "Draft with Claude"}
-    </button>
+    </Button>
   );
 
   return (
     <section className="enter" style={{ ["--enter-delay" as string]: `${delay}ms` }}>
-      <div
-        className="rounded-xl p-4"
-        style={{
-          background: "var(--bg-secondary)",
-          border: "1px solid var(--border-primary)",
-          borderLeft: "3px solid var(--accent)",
-        }}
-      >
+      <div className="rounded-xl border border-border border-l-[3px] border-l-primary bg-card p-4">
         <div className="flex items-start gap-3">
           <button
             onClick={() => setExpanded((e) => !e)}
@@ -262,23 +284,25 @@ export function GoalSection({
             className="flex-1 text-left min-w-0 rounded-lg -m-1 p-1 transition-transform duration-150 active:scale-[0.99]"
           >
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-[10px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded-md" style={{ background: "var(--bg-tertiary)", color: "var(--text-tertiary)" }}>
+              <span className="text-[10px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded-md bg-muted text-muted-foreground/70">
                 {goal.quarter}
               </span>
               <PlanBadge state={state} />
               {goal.status !== "active" && (
-                <span className="text-[10px] uppercase tracking-wider" style={{ color: "var(--text-tertiary)" }}>{goal.status}</span>
+                <span className="text-[10px] uppercase tracking-wider text-muted-foreground/70">{goal.status}</span>
               )}
             </div>
-            <p className="text-sm font-semibold mt-1.5 line-clamp-2" style={{ color: "var(--text-primary)" }} title={goal.title}>{goal.title}</p>
+            <p className="text-sm font-semibold mt-1.5 line-clamp-2 text-foreground" title={goal.title}>{goal.title}</p>
             {goal.why && (
-              <p className="text-xs mt-0.5 line-clamp-1" style={{ color: "var(--text-tertiary)" }}>{goal.why}</p>
+              <p className="text-xs mt-0.5 line-clamp-1 text-muted-foreground/70">{goal.why}</p>
             )}
           </button>
           <ChevronDown
             size={16}
-            className="shrink-0 mt-1 transition-transform duration-200"
-            style={{ color: "var(--text-tertiary)", transform: expanded ? "rotate(180deg)" : "rotate(0deg)" }}
+            className={cn(
+              "shrink-0 mt-1 text-muted-foreground/70 transition-transform duration-200",
+              expanded && "rotate-180"
+            )}
           />
         </div>
 
@@ -291,14 +315,14 @@ export function GoalSection({
             </span>
             <button
               onClick={() => { updateGoal(goal.id, { quarter: thisQuarter }); toast(`Carried into ${thisQuarter}`); }}
-              className="flex items-center gap-1 text-[11px] font-semibold rounded-md px-2 py-1 transition-transform duration-150 active:scale-[0.95]"
-              style={{ color: "var(--accent)", background: "var(--accent-bg)" }}>
+              className="flex items-center gap-1 text-[11px] font-semibold rounded-md px-2 py-1 text-primary bg-primary/10 transition-transform duration-150 active:scale-[0.95]"
+            >
               <ArrowRight size={12} /> Carry into {thisQuarter}
             </button>
             <button
               onClick={() => { updateGoal(goal.id, { status: "done" }); toast("Goal closed"); }}
-              className="text-[11px] font-medium transition-transform duration-150 active:scale-[0.95]"
-              style={{ color: "var(--text-tertiary)" }}>
+              className="text-[11px] font-medium text-muted-foreground/70 transition-transform duration-150 active:scale-[0.95]"
+            >
               Close it
             </button>
           </div>
@@ -309,23 +333,18 @@ export function GoalSection({
           <ReadinessTrack hasOutcome={hasOutcome} hasMilestones={hasMilestones} hasWeek={hasWeek} />
           {weekCommits.length > 0 ? (
             <div>
-              <div className="flex items-center justify-between text-[11px] mb-1" style={{ color: "var(--text-tertiary)" }}>
+              <div className="flex items-center justify-between text-[11px] mb-1 text-muted-foreground/70">
                 <span>This week</span>
                 <span className="font-mono">{doneCount}/{weekCommits.length}</span>
               </div>
-              <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "var(--bg-tertiary)" }}>
-                <div
-                  className="h-full w-full rounded-full origin-left transition-transform duration-300"
-                  style={{ transform: `scaleX(${weekPct})`, background: "var(--accent)", transitionTimingFunction: "var(--ease-out-custom)" }}
-                />
-              </div>
+              <Progress value={weekPct} className="h-1.5 bg-muted [&>div]:duration-300 [&>div]:[transition-timing-function:var(--ease-out-custom)]" />
             </div>
           ) : (
-            <p className="text-[11px]" style={{ color: "var(--text-tertiary)" }}>
+            <p className="text-[11px] text-muted-foreground/70">
               No commitment set for this week yet.
             </p>
           )}
-          <p className="text-[11px]" style={{ color: "var(--text-tertiary)" }}>
+          <p className="text-[11px] text-muted-foreground/70">
             {sessions} session{sessions === 1 ? "" : "s"} this week (ships count)
             {lastAgo !== null && ` · last worked ${lastAgo === 0 ? "today" : `${lastAgo}d ago`}`}
           </p>
@@ -345,48 +364,63 @@ export function GoalSection({
         )}
 
         {expanded && (
-          <div className="mt-3 pt-3 space-y-4 enter" style={{ borderTop: "1px solid var(--border-primary)" }}>
+          <div className="mt-3 pt-3 space-y-4 border-t border-border enter">
             {goal.outcome ? (
-              <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
-                <span className="font-semibold" style={{ color: "var(--text-tertiary)" }}>Done when: </span>{goal.outcome}
+              <p className="text-xs text-muted-foreground">
+                <span className="font-semibold text-muted-foreground/70">Done when: </span>{goal.outcome}
               </p>
             ) : (
-              <p className="text-xs" style={{ color: "var(--text-tertiary)" }}>
+              <p className="text-xs text-muted-foreground/70">
                 No definition of done yet — draft one to make &ldquo;done&rdquo; unambiguous.
               </p>
             )}
 
             {/* This week */}
             <div>
-              <p className="text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: "var(--text-tertiary)" }}>This week</p>
+              <p className="text-[10px] font-bold uppercase tracking-widest mb-1.5 text-muted-foreground/70">This week</p>
               <div className="space-y-1">
                 {weekCommits.map((c) => (
                   <div key={c.id} className="flex items-center gap-2 group">
-                    <button onClick={() => toggleCommitment(goal.id, c.id)} aria-label={c.done ? "Mark not done" : "Mark done"}
-                      className="shrink-0 transition-transform duration-150 active:scale-[0.85]" style={{ color: c.done ? "var(--accent)" : "var(--text-tertiary)" }}>
+                    <button
+                      onClick={() => toggleCommitment(goal.id, c.id)}
+                      aria-label={c.done ? "Mark not done" : "Mark done"}
+                      className={cn(
+                        "shrink-0 transition-transform duration-150 active:scale-[0.85]",
+                        c.done ? "text-primary" : "text-muted-foreground/70"
+                      )}
+                    >
                       {c.done ? <CheckCircle2 size={16} /> : <Circle size={16} />}
                     </button>
-                    <span className="text-sm flex-1" style={{ color: "var(--text-primary)", textDecoration: c.done ? "line-through" : "none", opacity: c.done ? 0.6 : 1 }}>
+                    <span className={cn("text-sm flex-1 text-foreground", c.done && "line-through opacity-60")}>
                       {c.text}
                     </span>
-                    <button onClick={() => removeCommitment(goal.id, c.id)} aria-label="Remove commitment"
-                      className="shrink-0 opacity-0 group-hover:opacity-100 transition-transform duration-150 active:scale-[0.85]" style={{ color: "var(--text-tertiary)" }}>
+                    <button
+                      onClick={() => removeCommitment(goal.id, c.id)}
+                      aria-label="Remove commitment"
+                      className="shrink-0 opacity-0 group-hover:opacity-100 text-muted-foreground/70 transition-transform duration-150 active:scale-[0.85]"
+                    >
                       <X size={13} />
                     </button>
                   </div>
                 ))}
               </div>
               <div className="flex items-center gap-1.5 mt-2">
-                <input value={newCommit} onChange={(e) => setNewCommit(e.target.value)}
+                <Input
+                  value={newCommit}
+                  onChange={(e) => setNewCommit(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter" && newCommit.trim()) { addCommitment(goal.id, newCommit); setNewCommit(""); } }}
                   placeholder="Add a commitment for this week…"
-                  className="flex-1 text-xs outline-none rounded-lg px-2 py-1.5"
-                  style={{ color: "var(--text-primary)", background: "var(--bg-tertiary)", border: "1px solid var(--border-primary)" }} />
-                <button onClick={() => { if (newCommit.trim()) { addCommitment(goal.id, newCommit); setNewCommit(""); } }}
+                  className="flex-1 text-xs"
+                />
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={() => { if (newCommit.trim()) { addCommitment(goal.id, newCommit); setNewCommit(""); } }}
                   aria-label="Add commitment"
-                  className="shrink-0 p-1.5 rounded-lg transition-transform duration-150 active:scale-[0.9]" style={{ color: "var(--accent)" }}>
+                  className="text-primary"
+                >
                   <Plus size={15} />
-                </button>
+                </Button>
               </div>
             </div>
 
@@ -396,9 +430,9 @@ export function GoalSection({
               const done = goal.doneMilestones ?? [];
               return (
                 <div>
-                  <p className="text-[10px] font-bold uppercase tracking-widest mb-1.5 flex items-center gap-2" style={{ color: "var(--text-tertiary)" }}>
+                  <p className="text-[10px] font-bold uppercase tracking-widest mb-1.5 flex items-center gap-2 text-muted-foreground/70">
                     Milestones
-                    <span className="font-mono" style={{ color: mp.done === mp.total ? "var(--accent)" : "var(--text-tertiary)" }}>{mp.done}/{mp.total}</span>
+                    <span className={cn("font-mono", mp.done === mp.total ? "text-primary" : "text-muted-foreground/70")}>{mp.done}/{mp.total}</span>
                   </p>
                   <ul className="space-y-1 text-sm">
                     {goal.milestones.map((m, i) => {
@@ -408,20 +442,20 @@ export function GoalSection({
                           <button
                             onClick={() => toggleMilestone(goal.id, m)}
                             aria-label={isDone ? "Mark milestone not done" : "Mark milestone done"}
-                            className="shrink-0 mt-0.5 h-4 w-4 rounded-[5px] border flex items-center justify-center transition-transform duration-150 active:scale-[0.85]"
-                            style={{
-                              borderColor: isDone ? "var(--accent)" : "var(--border)",
-                              background: isDone ? "var(--accent)" : "transparent",
-                            }}>
-                            {isDone && <Check size={11} className="text-white" />}
+                            className={cn(
+                              "shrink-0 mt-0.5 h-4 w-4 rounded-[5px] border flex items-center justify-center transition-transform duration-150 active:scale-[0.85]",
+                              isDone ? "border-primary bg-primary" : "border-border bg-transparent"
+                            )}
+                          >
+                            {isDone && <Check size={11} className="text-primary-foreground" />}
                           </button>
-                          <span className="flex-1" style={{ color: "var(--text-secondary)", textDecoration: isDone ? "line-through" : "none", opacity: isDone ? 0.55 : 1 }}>{m}</span>
+                          <span className={cn("flex-1 text-muted-foreground", isDone && "line-through opacity-55")}>{m}</span>
                           {!isDone && (
                             <button
                               onClick={() => { addCommitment(goal.id, m); toast("Added to this week"); }}
                               title="Make this week's commitment"
-                              className="shrink-0 flex items-center gap-0.5 text-[10px] font-medium opacity-0 group-hover:opacity-100 transition-transform duration-150 active:scale-[0.9]"
-                              style={{ color: "var(--accent)" }}>
+                              className="shrink-0 flex items-center gap-0.5 text-[10px] font-medium text-primary opacity-0 group-hover:opacity-100 transition-transform duration-150 active:scale-[0.9]"
+                            >
                               <ArrowUpRight size={12} /> This week
                             </button>
                           )}
@@ -435,23 +469,39 @@ export function GoalSection({
 
             {/* Actions */}
             <div className="flex items-center gap-2 flex-wrap">
-              <button onClick={() => { logSession(goal.id); toast("Session logged"); }}
-                className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium bg-sage-400 text-white hover:bg-sage-500 transition-[background,transform] duration-150 active:scale-[0.97]">
+              <Button
+                size="sm"
+                onClick={() => { logSession(goal.id); toast("Session logged"); }}
+                className="gap-1.5 text-xs"
+              >
                 <Check size={13} /> Log session
-              </button>
+              </Button>
               <DraftButton />
               {goal.status === "active" ? (
-                <button onClick={() => updateGoal(goal.id, { status: "done" })} className="text-xs font-medium transition-transform duration-150 active:scale-[0.97]" style={{ color: "var(--text-tertiary)" }}>
+                <button
+                  onClick={() => updateGoal(goal.id, { status: "done" })}
+                  className="text-xs font-medium text-muted-foreground/70 transition-transform duration-150 active:scale-[0.97]"
+                >
                   Mark done
                 </button>
               ) : (
-                <button onClick={() => updateGoal(goal.id, { status: "active" })} className="text-xs font-medium transition-transform duration-150 active:scale-[0.97]" style={{ color: "var(--text-tertiary)" }}>
+                <button
+                  onClick={() => updateGoal(goal.id, { status: "active" })}
+                  className="text-xs font-medium text-muted-foreground/70 transition-transform duration-150 active:scale-[0.97]"
+                >
                   Reactivate
                 </button>
               )}
-              <button onClick={() => deleteGoal(goal.id)} aria-label="Delete goal" title="Delete" className="ml-auto p-1.5 rounded-lg transition-transform duration-150 active:scale-[0.9]" style={{ color: "var(--text-tertiary)" }}>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                onClick={() => deleteGoal(goal.id)}
+                aria-label="Delete goal"
+                title="Delete"
+                className="ml-auto text-muted-foreground/70"
+              >
                 <Trash2 size={14} />
-              </button>
+              </Button>
             </div>
           </div>
         )}
@@ -459,10 +509,10 @@ export function GoalSection({
 
       {/* Projects serving this goal, nested under a connecting rail */}
       {nest && (
-        <div className="ml-3 pl-3 mt-2 space-y-2" style={{ borderLeft: "2px solid color-mix(in srgb, var(--accent) 35%, transparent)" }}>
+        <div className="ml-3 pl-3 mt-2 space-y-2" style={{ borderLeft: "2px solid color-mix(in srgb, var(--primary) 35%, transparent)" }}>
           {children}
           {projectCount === 0 && (
-            <p className="text-[11px] py-1" style={{ color: "var(--text-tertiary)" }}>
+            <p className="text-[11px] py-1 text-muted-foreground/70">
               No project is driving this goal — link one below, or create one.
             </p>
           )}

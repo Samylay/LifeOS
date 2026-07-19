@@ -7,6 +7,9 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CalendarClock, GraduationCap, Loader2, Play, Plus } from "lucide-react";
 import { useToast } from "@/components/toast";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card } from "@/components/ui/card";
 
 interface Topic {
   id: string;
@@ -110,33 +113,27 @@ export function TeachSection() {
   const liveSession = sessions.find((s) => s.status === "live");
 
   return (
-    <section
-      className="rounded-xl p-4"
-      style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-primary)" }}
-    >
+    <Card className="gap-0 rounded-xl p-4">
       <div className="mb-3 flex items-center justify-between">
-        <h2
-          className="flex items-center gap-2 text-sm font-semibold"
-          style={{ color: "var(--text-primary)" }}
-        >
-          <GraduationCap size={16} style={{ color: "var(--accent-primary)" }} />
+        <h2 className="flex items-center gap-2 text-sm font-semibold text-foreground">
+          <GraduationCap size={16} className="text-primary" />
           Teach me
         </h2>
-        <button
+        <Button
+          variant="ghost"
+          size="icon-sm"
           onClick={() => setAdding((v) => !v)}
           aria-label="Add learning topic"
-          className="rounded-lg p-1.5 transition-transform duration-100 active:scale-[0.97]"
-          style={{ color: "var(--text-secondary)" }}
+          className="text-muted-foreground"
         >
           <Plus size={16} />
-        </button>
+        </Button>
       </div>
 
       {liveSession && (
         <button
           onClick={() => router.push(`/knowledge/teach/${liveSession.id}`)}
-          className="mb-3 flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-left text-sm font-medium transition-transform duration-100 active:scale-[0.98]"
-          style={{ background: "var(--accent-primary)", color: "white" }}
+          className="mb-3 flex w-full items-center gap-2 rounded-lg bg-primary px-3 py-2.5 text-left text-sm font-medium text-primary-foreground transition-transform duration-100 active:scale-[0.98]"
         >
           <Play size={14} /> Resume: {liveSession.topic}
         </button>
@@ -144,41 +141,31 @@ export function TeachSection() {
 
       {adding && (
         <div className="mb-3 space-y-2">
-          <input
+          <Input
             value={newTopic}
             onChange={(e) => setNewTopic(e.target.value)}
             placeholder="What do you want to learn?"
-            className="w-full rounded-lg px-3 py-2 text-sm"
-            style={{
-              color: "var(--text-primary)",
-              background: "var(--bg-tertiary)",
-              border: "1px solid var(--border-primary)",
-            }}
+            className="text-sm bg-muted"
           />
-          <input
+          <Input
             value={newMission}
             onChange={(e) => setNewMission(e.target.value)}
             placeholder="Why? (grounds every lesson)"
-            className="w-full rounded-lg px-3 py-2 text-sm"
-            style={{
-              color: "var(--text-primary)",
-              background: "var(--bg-tertiary)",
-              border: "1px solid var(--border-primary)",
-            }}
+            className="text-sm bg-muted"
           />
           {newTopic.trim() && !newMission.trim() && (
-            <p className="text-xs" style={{ color: "var(--accent-danger, #d97757)" }}>
+            <p className="text-xs text-destructive">
               A mission is required — say why this matters before adding it.
             </p>
           )}
-          <button
+          <Button
+            size="sm"
             onClick={add}
             disabled={!newTopic.trim() || !newMission.trim()}
-            className="rounded-lg px-3 py-1.5 text-xs font-medium transition-transform duration-100 active:scale-[0.97] disabled:opacity-50"
-            style={{ background: "var(--accent-primary)", color: "white" }}
+            className="text-xs"
           >
             Add to queue
-          </button>
+          </Button>
         </div>
       )}
 
@@ -188,17 +175,14 @@ export function TeachSection() {
           .map((t) => (
             <li
               key={t.id}
-              className="flex items-center gap-2 rounded-lg px-3 py-2"
-              style={{ background: "var(--bg-tertiary)" }}
+              className="flex items-center gap-2 rounded-lg bg-muted px-3 py-2"
             >
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm" style={{ color: "var(--text-primary)" }}>
-                  {t.topic}
-                </p>
-                <p className="truncate text-xs" style={{ color: "var(--text-tertiary)" }}>
+                <p className="truncate text-sm text-foreground">{t.topic}</p>
+                <p className="truncate text-xs text-muted-foreground/70">
                   {t.mission || "no mission yet"}
                 </p>
-                <p className="truncate text-[11px]" style={{ color: "var(--text-tertiary)" }}>
+                <p className="truncate text-[11px] text-muted-foreground/70">
                   {t.status === "scheduled" && t.scheduledFor ? `session ${t.scheduledFor} · ` : ""}
                   {(() => {
                     const d = lastTaughtDate(t.learningRecords);
@@ -206,31 +190,33 @@ export function TeachSection() {
                   })()}
                 </p>
               </div>
-              <button
+              <Button
+                variant="ghost"
+                size="icon-sm"
                 onClick={() => schedule(t)}
                 aria-label={`Schedule a session on ${t.topic}`}
-                className="rounded-lg p-1.5 transition-transform duration-100 active:scale-[0.97]"
-                style={{ color: "var(--text-secondary)" }}
+                className="text-muted-foreground"
               >
                 <CalendarClock size={15} />
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon-sm"
                 onClick={() => start(t)}
                 disabled={busyId === t.id}
                 aria-label={`Start a session on ${t.topic}`}
-                className="rounded-lg p-1.5 transition-transform duration-100 active:scale-[0.97]"
-                style={{ color: "var(--accent-primary)" }}
+                className="text-primary"
               >
                 {busyId === t.id ? <Loader2 size={15} className="animate-spin" /> : <Play size={15} />}
-              </button>
+              </Button>
             </li>
           ))}
         {topics.length === 0 && !adding && (
-          <li className="py-1 text-xs" style={{ color: "var(--text-tertiary)" }}>
+          <li className="py-1 text-xs text-muted-foreground/70">
             Nothing queued — add a topic to get started.
           </li>
         )}
       </ul>
-    </section>
+    </Card>
   );
 }

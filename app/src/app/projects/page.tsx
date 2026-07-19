@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState } from "react";
 import {
   FolderKanban, Plus, Archive, MoreHorizontal, Rocket, Flag,
   ChevronDown, ChevronUp, AlertTriangle,
@@ -17,6 +17,34 @@ import { GoalSection, GoalEditor, GOAL_STATE_RANK } from "@/components/goal-sect
 import type { Project, ProjectStatus, AreaId, Task, ShipLogEntry, Goal } from "@/lib/types";
 import { AREAS, mondayOf, goalPlanState, commitmentsForWeek, localDayOf, withShipActivity, parseTags } from "@/lib/types";
 import { TaskItem, TaskCreateForm } from "@/components/task-list";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Card } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 // --- Status metadata ---
 
@@ -104,10 +132,9 @@ function MomentumHero({
               <span
                 key={i}
                 aria-hidden
-                className="h-1.5 w-6 rounded-full"
+                className="h-1.5 w-6 rounded-full transition-colors duration-200 [transition-timing-function:var(--ease-out-custom)]"
                 style={{
                   background: i < activeCount ? (atLimit ? "#F5C87B" : "#7C9E8A") : "rgba(255,255,255,0.14)",
-                  transition: "background-color var(--dur-base) var(--ease-out-custom)",
                 }}
               />
             ))}
@@ -135,9 +162,8 @@ function LooseEnds({ items }: { items: { project: Project; reason: string }[] })
       </div>
       <div className="space-y-1.5">
         {items.map(({ project, reason }) => (
-          <div key={project.id} className="flex items-center gap-2 rounded-lg px-3 py-2"
-            style={{ background: "var(--bg-secondary)" }}>
-            <span className="flex-1 min-w-0 text-sm truncate" style={{ color: "var(--text-primary)" }}>{project.title}</span>
+          <div key={project.id} className="flex items-center gap-2 rounded-lg bg-muted px-3 py-2">
+            <span className="flex-1 min-w-0 text-sm truncate text-foreground">{project.title}</span>
             <span className="text-xs shrink-0 text-right" style={{ color: "#F59E0B" }}>{reason}</span>
           </div>
         ))}
@@ -177,37 +203,68 @@ function ProjectCreateForm({ goals, defaultGoalId, onSubmit, onCancel }: {
     });
   };
 
-  const field = { background: "var(--bg-tertiary)", color: "var(--text-primary)", border: "1px solid var(--border-primary)" } as const;
-
   return (
-    <form onSubmit={handleSubmit} className="rounded-xl p-4 space-y-3 enter" style={{ background: "var(--bg-secondary)", border: "1px solid var(--accent)" }}>
-      <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Project title..."
-        autoFocus className="w-full text-sm font-medium outline-none rounded-lg px-3 py-2" style={field} />
-      <input type="text" value={nextAction} onChange={(e) => setNextAction(e.target.value)} placeholder="Next action..."
-        className="w-full text-xs outline-none rounded-lg px-3 py-2" style={field} />
-      <input type="text" value={shippingEvent} onChange={(e) => setShippingEvent(e.target.value)}
+    <form onSubmit={handleSubmit} className="rounded-xl border border-primary bg-card p-4 space-y-3 enter">
+      <Input
+        type="text"
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+        placeholder="Project title..."
+        autoFocus
+        className="text-sm font-medium"
+      />
+      <Input
+        type="text"
+        value={nextAction}
+        onChange={(e) => setNextAction(e.target.value)}
+        placeholder="Next action..."
+        className="text-xs"
+      />
+      <Input
+        type="text"
+        value={shippingEvent}
+        onChange={(e) => setShippingEvent(e.target.value)}
         placeholder="Shipping event — what leaves the machine, to whom? (required to be Active)"
-        className="w-full text-xs outline-none rounded-lg px-3 py-2" style={field} />
+        className="text-xs"
+      />
       <div className="flex flex-wrap items-center gap-2">
-        <select value={goalId} onChange={(e) => setGoalId(e.target.value)}
-          className="text-xs rounded-lg px-2 py-1.5 outline-none max-w-[180px]" style={field}>
-          <option value="">No goal</option>
-          {goals.map((g) => (<option key={g.id} value={g.id}>{g.title}</option>))}
-        </select>
-        <select value={area} onChange={(e) => setArea(e.target.value as AreaId | "")}
-          className="text-xs rounded-lg px-2 py-1.5 outline-none" style={field}>
-          <option value="">No area</option>
-          {Object.entries(AREAS).map(([id, a]) => (<option key={id} value={id}>{a.name}</option>))}
-        </select>
-        <select value={status} onChange={(e) => setStatus(e.target.value as ProjectStatus)}
-          className="text-xs rounded-lg px-2 py-1.5 outline-none" style={field}>
-          {STATUS_COLUMNS.map((col) => (<option key={col.status} value={col.status}>{col.label}</option>))}
-        </select>
-        <input type="date" value={targetDate} onChange={(e) => setTargetDate(e.target.value)}
-          className="text-xs rounded-lg px-2 py-1.5 outline-none" style={field} />
+        <Select value={goalId || "__none"} onValueChange={(v) => setGoalId(v === "__none" ? "" : v)}>
+          <SelectTrigger size="sm" className="text-xs bg-muted max-w-[180px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__none">No goal</SelectItem>
+            {goals.map((g) => (<SelectItem key={g.id} value={g.id}>{g.title}</SelectItem>))}
+          </SelectContent>
+        </Select>
+        <Select value={area || "__none"} onValueChange={(v) => setArea(v === "__none" ? "" : (v as AreaId))}>
+          <SelectTrigger size="sm" className="text-xs bg-muted">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__none">No area</SelectItem>
+            {Object.entries(AREAS).map(([id, a]) => (<SelectItem key={id} value={id}>{a.name}</SelectItem>))}
+          </SelectContent>
+        </Select>
+        <Select value={status} onValueChange={(v) => setStatus(v as ProjectStatus)}>
+          <SelectTrigger size="sm" className="text-xs bg-muted">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {STATUS_COLUMNS.map((col) => (<SelectItem key={col.status} value={col.status}>{col.label}</SelectItem>))}
+          </SelectContent>
+        </Select>
+        <Input
+          type="date"
+          value={targetDate}
+          onChange={(e) => setTargetDate(e.target.value)}
+          className="text-xs h-8 w-auto bg-muted"
+        />
         <div className="flex-1" />
-        <button type="button" onClick={onCancel} className="text-xs px-3 py-1.5 rounded-lg transition-transform duration-150 active:scale-[0.97]" style={{ color: "var(--text-secondary)", background: "var(--bg-tertiary)" }}>Cancel</button>
-        <button type="submit" className="text-xs px-3 py-1.5 rounded-lg bg-sage-400 text-white hover:bg-sage-500 transition-colors font-medium active:scale-[0.97]">Create</button>
+        <Button type="button" variant="ghost" size="sm" onClick={onCancel} className="text-xs text-muted-foreground">
+          Cancel
+        </Button>
+        <Button type="submit" size="sm" className="text-xs">Create</Button>
       </div>
     </form>
   );
@@ -226,58 +283,46 @@ function ArchiveDialog({
   onCancel: () => void;
 }) {
   const [reason, setReason] = useState("");
-  const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  useEffect(() => {
-    if (!open) return;
-    const t = setTimeout(() => inputRef.current?.focus(), 0);
-    const onEsc = (e: KeyboardEvent) => { if (e.key === "Escape") onCancel(); };
-    document.addEventListener("keydown", onEsc);
-    return () => { clearTimeout(t); document.removeEventListener("keydown", onEsc); };
-  }, [open, onCancel]);
-
-  if (!open) return null;
   const submit = () => { onConfirm(reason.trim() || undefined); setReason(""); };
   const cancel = () => { setReason(""); onCancel(); };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: "rgba(0,0,0,0.5)" }} onClick={cancel}>
-      <div className="rounded-xl p-6 max-w-sm w-full mx-4 pop-in origin-center"
-        style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-primary)", boxShadow: "var(--shadow-lg)" }}
-        onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center gap-3 mb-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full" style={{ background: "#F59E0B15" }}>
-            <Archive size={18} style={{ color: "#F59E0B" }} />
+    <Dialog open={open} onOpenChange={(v) => { if (!v) cancel(); }}>
+      <DialogContent
+        className="sm:max-w-sm"
+        onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) submit(); }}
+      >
+        <DialogHeader>
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full" style={{ background: "#F59E0B15" }}>
+              <Archive size={18} style={{ color: "#F59E0B" }} />
+            </div>
+            <DialogTitle>Archive project</DialogTitle>
           </div>
-          <h3 className="text-base font-semibold" style={{ color: "var(--text-primary)" }}>Archive project</h3>
-        </div>
-        <p className="text-sm mb-3" style={{ color: "var(--text-secondary)" }}>
-          Killing <span className="font-medium" style={{ color: "var(--text-primary)" }}>&ldquo;{title}&rdquo;</span> is fine — but log why, so it&rsquo;s a decision, not drift.
-        </p>
-        <textarea
-          ref={inputRef}
+          <DialogDescription className="pt-1">
+            Killing <span className="font-medium text-foreground">&ldquo;{title}&rdquo;</span> is fine — but log why, so it&rsquo;s a decision, not drift.
+          </DialogDescription>
+        </DialogHeader>
+        <Textarea
+          autoFocus
           value={reason}
           onChange={(e) => setReason(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) submit(); }}
           rows={2}
           placeholder="One-line reason (optional)"
-          className="w-full rounded-lg px-3 py-2 text-sm resize-none mb-5 outline-none focus:ring-1"
-          style={{ background: "var(--bg-tertiary)", color: "var(--text-primary)", border: "1px solid var(--border-primary)" }}
+          className="resize-none"
         />
-        <div className="flex justify-end gap-2">
-          <button onClick={cancel}
-            className="rounded-lg px-4 py-2 text-sm font-medium transition-transform duration-150 active:scale-[0.97]"
-            style={{ background: "var(--bg-tertiary)", color: "var(--text-secondary)" }}>
-            Cancel
-          </button>
-          <button onClick={submit}
-            className="rounded-lg px-4 py-2 text-sm font-medium text-white transition-transform duration-150 active:scale-[0.97]"
-            style={{ background: "#F59E0B" }}>
+        <DialogFooter>
+          <Button variant="secondary" onClick={cancel}>Cancel</Button>
+          <Button
+            onClick={submit}
+            className="bg-[#F59E0B] text-white hover:bg-[#F59E0B]/90"
+          >
             Archive
-          </button>
-        </div>
-      </div>
-    </div>
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -296,20 +341,9 @@ function ProjectCard({
   onTaskCreate: (data: Omit<Task, "id" | "createdAt" | "updatedAt">) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const [showMenu, setShowMenu] = useState(false);
   const [showTaskForm, setShowTaskForm] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [showArchive, setShowArchive] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!showMenu) return;
-    const handleClick = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setShowMenu(false);
-    };
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [showMenu]);
 
   const projectTasks = tasks.filter((t) => t.projectId === project.id);
   const doneTasks = projectTasks.filter((t) => t.status === "done").length;
@@ -320,8 +354,7 @@ function ProjectCard({
   const sinceShip = lastShip ? daysSince(lastShip) : null;
 
   return (
-    <div className="rounded-xl hover-lift"
-      style={{ background: "var(--bg-secondary)", border: hero ? "1px solid var(--accent)" : "1px solid var(--border-primary)" }}>
+    <div className={cn("rounded-xl border bg-card hover-lift", hero ? "border-primary" : "border-border")}>
       <div className="flex items-start gap-2 p-4">
         {/* Toggle surface — a real button, keyboard-operable */}
         <button
@@ -331,35 +364,39 @@ function ProjectCard({
         >
           <div className="flex items-center gap-2 flex-wrap mb-1">
             {project.area && (
-              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded"
-                style={{ background: `${AREA_COLORS[project.area] || "#64748B"}18`, color: AREA_COLORS[project.area] || "#64748B" }}>
+              <span
+                className="text-[10px] font-semibold px-1.5 py-0.5 rounded"
+                style={{ background: `${AREA_COLORS[project.area] || "#64748B"}18`, color: AREA_COLORS[project.area] || "#64748B" }}
+              >
                 {AREAS[project.area]?.name}
               </span>
             )}
             {drift && (
-              <span className="flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded"
-                style={{ background: "#F59E0B18", color: "#F59E0B" }}>
+              <span
+                className="flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded"
+                style={{ background: "#F59E0B18", color: "#F59E0B" }}
+              >
                 <AlertTriangle size={9} /> needs a call
               </span>
             )}
           </div>
 
-          <h3 className={`font-semibold ${hero ? "text-base" : "text-sm"} truncate`} style={{ color: "var(--text-primary)" }}>
+          <h3 className={cn("font-semibold truncate text-foreground", hero ? "text-base" : "text-sm")}>
             {project.title}
           </h3>
 
           {/* Next action — first-class, not a footnote */}
           {project.nextAction && (
-            <p className="text-xs mt-1.5 flex items-start gap-1.5" style={{ color: "var(--text-secondary)" }}>
-              <span className="font-mono shrink-0" style={{ color: "var(--accent)" }}>→</span>
+            <p className="text-xs mt-1.5 flex items-start gap-1.5 text-muted-foreground">
+              <span className="font-mono shrink-0 text-primary">→</span>
               <span className="min-w-0">{project.nextAction}</span>
             </p>
           )}
 
           {/* Shipping event / drift prompt */}
           {project.shippingEvent ? (
-            <p className="text-xs mt-1 flex items-center gap-1.5" style={{ color: "var(--text-tertiary)" }}>
-              <Rocket size={11} style={{ color: "var(--accent)", flexShrink: 0 }} />
+            <p className="text-xs mt-1 flex items-center gap-1.5 text-muted-foreground/70">
+              <Rocket size={11} className="text-primary shrink-0" />
               <span className="truncate">Ships: {project.shippingEvent}</span>
             </p>
           ) : (project.status === "active" || project.status === "planning") && (
@@ -373,15 +410,12 @@ function ProjectCard({
           {totalTasks > 0 && (
             <div className="mt-2.5 max-w-[220px]">
               <div className="flex justify-between mb-1">
-                <span className="text-[10px] uppercase tracking-wider" style={{ color: "var(--text-tertiary)" }}>
+                <span className="text-[10px] uppercase tracking-wider text-muted-foreground/70">
                   {doneTasks}/{totalTasks} tasks
                 </span>
-                <span className="text-[10px] font-mono" style={{ color: "var(--accent)" }}>{progress}%</span>
+                <span className="text-[10px] font-mono text-primary">{progress}%</span>
               </div>
-              <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "var(--bg-tertiary)" }}>
-                <div className="h-full w-full rounded-full origin-left transition-transform"
-                  style={{ transform: `scaleX(${progress / 100})`, background: "var(--accent)", transitionDuration: "var(--dur-slow)", transitionTimingFunction: "var(--ease-out-custom)" }} />
-              </div>
+              <Progress value={progress} className="h-1.5 bg-muted [&>div]:duration-300 [&>div]:[transition-timing-function:var(--ease-out-custom)]" />
             </div>
           )}
 
@@ -389,17 +423,22 @@ function ProjectCard({
             {sinceShip !== null ? (
               // Staleness thresholds from the mobile design: amber past a week,
               // red past two — the card itself says when a project has gone cold.
-              <span className="text-[11px] font-mono" style={{ color: sinceShip > 14 ? "#EF4444" : sinceShip > 7 ? "#F59E0B" : "var(--text-tertiary)" }}>
-                {sinceShip === 0 ? "shipped today" : `${sinceShip}d since ship`}
+              <span
+                className="text-[11px] font-mono"
+                style={{ color: sinceShip > 14 ? "#EF4444" : sinceShip > 7 ? "#F59E0B" : undefined }}
+              >
+                <span className={sinceShip > 7 ? "" : "text-muted-foreground/70"}>
+                  {sinceShip === 0 ? "shipped today" : `${sinceShip}d since ship`}
+                </span>
               </span>
             ) : project.updatedAt && (
               // No ship yet — fall back to last-touched so the card still shows recency.
-              <span className="text-[11px] font-mono" style={{ color: "var(--text-tertiary)" }}>
+              <span className="text-[11px] font-mono text-muted-foreground/70">
                 updated {daysSince(new Date(project.updatedAt))}d ago
               </span>
             )}
             {project.targetDate && (
-              <span className="text-[11px]" style={{ color: "var(--text-tertiary)" }}>
+              <span className="text-[11px] text-muted-foreground/70">
                 Target {new Date(project.targetDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
               </span>
             )}
@@ -408,81 +447,89 @@ function ProjectCard({
 
         {/* Right column: status + expand + menu (siblings, not nested in the button) */}
         <div className="flex items-center gap-1 shrink-0">
-          <span className="text-[11px] px-2 py-0.5 rounded-full capitalize"
-            style={{ background: `${meta?.color || "#64748B"}20`, color: meta?.color || "#64748B" }}>
+          <span
+            className="text-[11px] px-2 py-0.5 rounded-full capitalize"
+            style={{ background: `${meta?.color || "#64748B"}20`, color: meta?.color || "#64748B" }}
+          >
             {project.status}
           </span>
-          <button onClick={() => setExpanded((e) => !e)} aria-label={expanded ? "Collapse" : "Expand"}
-            className="p-1 rounded transition-transform duration-150 active:scale-[0.9]" style={{ color: "var(--text-tertiary)" }}>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={() => setExpanded((e) => !e)}
+            aria-label={expanded ? "Collapse" : "Expand"}
+            className="text-muted-foreground/70"
+          >
             {expanded ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
-          </button>
-          <div className="relative" ref={menuRef}>
-            <button onClick={() => setShowMenu((s) => !s)} aria-label="Project actions"
-              className="p-1 rounded transition-transform duration-150 active:scale-[0.9]" style={{ color: "var(--text-tertiary)" }}>
-              <MoreHorizontal size={15} />
-            </button>
-            {showMenu && (
-              <div className="absolute right-0 top-full mt-1 rounded-lg shadow-lg py-1 z-50 min-w-[150px] pop-in origin-top-right"
-                style={{ background: "var(--bg-elevated)", border: "1px solid var(--border-primary)" }}>
-                {STATUS_COLUMNS.map((col) => (
-                  <button key={col.status}
-                    onClick={() => { onUpdate(project.id, { status: col.status }); setShowMenu(false); }}
-                    className="w-full text-left text-xs px-3 py-1.5 flex items-center gap-2 hover:bg-[var(--bg-tertiary)] transition-colors"
-                    style={{ color: "var(--text-primary)" }}>
-                    <span className="h-1.5 w-1.5 rounded-full" style={{ background: col.color }} /> {col.label}
-                  </button>
-                ))}
-                <div className="my-1 h-px" style={{ background: "var(--border-primary)" }} />
-                <button
-                  onClick={() => {
-                    setShowMenu(false);
-                    // Kills are fine, but they're a decision: in-flight projects
-                    // don't get archived without a logged reason (captured in a
-                    // real dialog); anything else archives straight away.
-                    const inFlight = project.status === "active" || project.status === "planning";
-                    if (inFlight) setShowArchive(true);
-                    else onUpdate(project.id, { status: "archived" as ProjectStatus });
-                  }}
-                  className="w-full text-left text-xs px-3 py-1.5 flex items-center gap-2 hover:bg-[var(--bg-tertiary)] transition-colors"
-                  style={{ color: "var(--text-secondary)" }}>
-                  <Archive size={12} /> Archive
-                </button>
-                <button
-                  onClick={() => { setConfirmDelete(true); setShowMenu(false); }}
-                  className="w-full text-left text-xs px-3 py-1.5 hover:bg-[var(--bg-tertiary)] transition-colors"
-                  style={{ color: "#EF4444" }}>
-                  Delete
-                </button>
-              </div>
-            )}
-          </div>
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon-sm" aria-label="Project actions" className="text-muted-foreground/70">
+                <MoreHorizontal size={15} />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="min-w-[150px]">
+              {STATUS_COLUMNS.map((col) => (
+                <DropdownMenuItem
+                  key={col.status}
+                  onClick={() => onUpdate(project.id, { status: col.status })}
+                  className="gap-2 text-xs"
+                >
+                  <span className="h-1.5 w-1.5 rounded-full" style={{ background: col.color }} /> {col.label}
+                </DropdownMenuItem>
+              ))}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => {
+                  // Kills are fine, but they're a decision: in-flight projects
+                  // don't get archived without a logged reason (captured in a
+                  // real dialog); anything else archives straight away.
+                  const inFlight = project.status === "active" || project.status === "planning";
+                  if (inFlight) setShowArchive(true);
+                  else onUpdate(project.id, { status: "archived" as ProjectStatus });
+                }}
+                className="gap-2 text-xs"
+              >
+                <Archive size={12} /> Archive
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => setConfirmDelete(true)}
+                variant="destructive"
+                className="text-xs"
+              >
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
       {expanded && (
-        <div className="px-4 pb-4 border-t enter" style={{ borderColor: "var(--border-primary)" }}>
+        <div className="px-4 pb-4 border-t border-border enter">
           {/* Goal link — which direction this project serves; ships roll up there */}
           <div className="flex items-center gap-2 mt-3">
-            <Flag size={12} style={{ color: "var(--text-tertiary)" }} />
-            <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "var(--text-tertiary)" }}>Goal</span>
-            <select
-              value={project.goalId ?? ""}
-              onChange={(e) => onUpdate(project.id, { goalId: e.target.value } as Partial<Project>)}
-              className="text-xs rounded-lg px-2 py-1 outline-none max-w-[220px]"
-              style={{ background: "var(--bg-tertiary)", color: "var(--text-primary)", border: "1px solid var(--border-primary)" }}
+            <Flag size={12} className="text-muted-foreground/70" />
+            <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70">Goal</span>
+            <Select
+              value={project.goalId ?? "__none"}
+              onValueChange={(v) => onUpdate(project.id, { goalId: v === "__none" ? undefined : v } as Partial<Project>)}
             >
-              <option value="">No goal</option>
-              {goals.map((g) => (<option key={g.id} value={g.id}>{g.title}</option>))}
-            </select>
+              <SelectTrigger size="sm" className="text-xs bg-muted max-w-[220px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none">No goal</SelectItem>
+                {goals.map((g) => (<SelectItem key={g.id} value={g.id}>{g.title}</SelectItem>))}
+              </SelectContent>
+            </Select>
           </div>
           <div className="flex items-center justify-between mt-3 mb-2">
-            <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "var(--text-tertiary)" }}>
+            <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70">
               Linked tasks ({totalTasks})
             </span>
-            <button onClick={() => setShowTaskForm(true)}
-              className="text-xs px-2 py-1 rounded bg-sage-400 text-white transition-transform duration-150 active:scale-[0.95]">
-              <Plus size={12} className="inline mr-1" />Add
-            </button>
+            <Button size="sm" onClick={() => setShowTaskForm(true)} className="h-7 gap-1 text-xs">
+              <Plus size={12} />Add
+            </Button>
           </div>
           {showTaskForm && (
             <div className="mb-2">
@@ -494,7 +541,7 @@ function ProjectCard({
           )}
           <div className="space-y-1">
             {projectTasks.length === 0 && !showTaskForm && (
-              <p className="text-xs py-2 text-center" style={{ color: "var(--text-tertiary)" }}>
+              <p className="text-xs py-2 text-center text-muted-foreground/70">
                 No linked tasks — this project may run off its ROADMAP instead.
               </p>
             )}
@@ -566,59 +613,73 @@ function ShipLogSection({ entries, projects, onLog }: {
     setShowForm(false);
   };
 
-  const field = { background: "var(--bg-tertiary)", color: "var(--text-primary)", border: "1px solid var(--border-primary)" } as const;
-
   return (
     <div className="mt-10 lg:mt-0">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <Rocket size={16} style={{ color: "var(--accent)" }} />
-          <h2 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>Ship Log</h2>
-          <span className="text-xs px-2 py-0.5 rounded-full font-mono"
-            style={{
-              background: shipped30 === 0 ? "#EF444420" : "var(--bg-tertiary)",
-              color: shipped30 === 0 ? "#EF4444" : "var(--text-secondary)",
-            }}>
+          <Rocket size={16} className="text-primary" />
+          <h2 className="text-sm font-semibold text-foreground">Ship Log</h2>
+          <span
+            className={cn(
+              "text-xs px-2 py-0.5 rounded-full font-mono",
+              shipped30 === 0 ? "bg-destructive/15 text-destructive" : "bg-muted text-muted-foreground"
+            )}
+          >
             {shipped30} shipped / 30d
           </span>
         </div>
-        <button onClick={() => setShowForm(true)}
-          className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-sage-400 text-white hover:bg-sage-500 transition-colors font-medium active:scale-[0.97]">
+        <Button size="sm" onClick={() => setShowForm(true)} className="gap-1.5 text-xs">
           <Plus size={12} /> Log a ship
-        </button>
+        </Button>
       </div>
 
       {shipped30 === 0 && entries.length === 0 && !showForm && (
-        <p className="text-xs mb-3" style={{ color: "var(--text-tertiary)" }}>
+        <p className="text-xs mb-3 text-muted-foreground/70">
           Nothing has left the machine yet. Progress here beats progress on the tracker.
         </p>
       )}
 
       {showForm && (
-        <form onSubmit={submit} className="rounded-xl p-4 space-y-3 mb-4 enter"
-          style={{ background: "var(--bg-secondary)", border: "1px solid var(--accent)" }}>
-          <input type="text" value={what} onChange={(e) => setWhat(e.target.value)} autoFocus
+        <form onSubmit={submit} className="rounded-xl border border-primary bg-card p-4 space-y-3 mb-4 enter">
+          <Input
+            type="text"
+            value={what}
+            onChange={(e) => setWhat(e.target.value)}
+            autoFocus
             placeholder="What shipped? (rough is fine — it left the machine)"
-            className="w-full text-sm font-medium outline-none rounded-lg px-3 py-2" style={field} />
-          <input type="text" value={toWhom} onChange={(e) => setToWhom(e.target.value)}
+            className="text-sm font-medium"
+          />
+          <Input
+            type="text"
+            value={toWhom}
+            onChange={(e) => setToWhom(e.target.value)}
             placeholder="To whom? (a person, a public post, a deploy someone was told about)"
-            className="w-full text-xs outline-none rounded-lg px-3 py-2" style={field} />
-          <input type="text" value={tagsInput} onChange={(e) => setTagsInput(e.target.value)}
+            className="text-xs"
+          />
+          <Input
+            type="text"
+            value={tagsInput}
+            onChange={(e) => setTagsInput(e.target.value)}
             placeholder="Tags, comma-separated (lifeos, content, infra…)"
-            className="w-full text-xs outline-none rounded-lg px-3 py-2" style={field} />
+            className="text-xs"
+          />
           <div className="flex items-center gap-2">
-            <select value={projectId} onChange={(e) => setProjectId(e.target.value)}
-              className="text-xs rounded-lg px-2 py-1.5 outline-none" style={field}>
-              <option value="">No project</option>
-              {projects.filter((p) => p.status !== "archived").map((p) => (
-                <option key={p.id} value={p.id}>{p.title}</option>
-              ))}
-            </select>
+            <Select value={projectId || "__none"} onValueChange={(v) => setProjectId(v === "__none" ? "" : v)}>
+              <SelectTrigger size="sm" className="text-xs bg-muted">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none">No project</SelectItem>
+                {projects.filter((p) => p.status !== "archived").map((p) => (
+                  <SelectItem key={p.id} value={p.id}>{p.title}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <div className="flex-1" />
-            <button type="button" onClick={() => setShowForm(false)}
-              className="text-xs px-3 py-1.5 rounded-lg active:scale-[0.97] transition-transform duration-150" style={{ color: "var(--text-secondary)", background: "var(--bg-tertiary)" }}>Cancel</button>
-            <button type="submit"
-              className="text-xs px-3 py-1.5 rounded-lg bg-sage-400 text-white hover:bg-sage-500 transition-colors font-medium active:scale-[0.97]">Log it</button>
+            <Button type="button" variant="ghost" size="sm" onClick={() => setShowForm(false)} className="text-xs text-muted-foreground">
+              Cancel
+            </Button>
+            <Button type="submit" size="sm" className="text-xs">Log it</Button>
           </div>
         </form>
       )}
@@ -626,21 +687,24 @@ function ShipLogSection({ entries, projects, onLog }: {
       {/* Tag filter — only appears once entries carry tags */}
       {allTags.length > 0 && (
         <div className="flex items-center gap-1.5 flex-wrap mb-3">
-          <button onClick={() => setTagFilter(null)}
-            className="text-[11px] font-medium rounded-full px-2.5 py-1 transition-[background,color,transform] duration-150 active:scale-[0.95]"
-            style={{
-              background: tagFilter === null ? "var(--accent)" : "var(--bg-tertiary)",
-              color: tagFilter === null ? "#fff" : "var(--text-secondary)",
-            }}>
+          <button
+            onClick={() => setTagFilter(null)}
+            className={cn(
+              "text-[11px] font-medium rounded-full px-2.5 py-1 transition-[background,color,transform] duration-150 active:scale-[0.95]",
+              tagFilter === null ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+            )}
+          >
             All
           </button>
           {allTags.map((t) => (
-            <button key={t} onClick={() => setTagFilter(tagFilter === t ? null : t)}
-              className="text-[11px] font-medium rounded-full px-2.5 py-1 transition-[background,color,transform] duration-150 active:scale-[0.95]"
-              style={{
-                background: tagFilter === t ? "var(--accent)" : "var(--bg-tertiary)",
-                color: tagFilter === t ? "#fff" : "var(--text-secondary)",
-              }}>
+            <button
+              key={t}
+              onClick={() => setTagFilter(tagFilter === t ? null : t)}
+              className={cn(
+                "text-[11px] font-medium rounded-full px-2.5 py-1 transition-[background,color,transform] duration-150 active:scale-[0.95]",
+                tagFilter === t ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+              )}
+            >
               {t} <span className="font-mono opacity-70">{tagCounts.get(t)}</span>
             </button>
           ))}
@@ -649,34 +713,33 @@ function ShipLogSection({ entries, projects, onLog }: {
 
       {/* Compact rows: dot + what + relative time; expand for the audience,
           tags, and project. */}
-      <div className="rounded-xl overflow-hidden" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-primary)" }}>
+      <div className="rounded-xl border border-border overflow-hidden">
         {visible.map((entry, i) => {
           const open = openId === entry.id;
           const days = daysSince(new Date(entry.date));
           return (
-            <div key={entry.id} style={i > 0 ? { borderTop: "1px solid var(--border-primary)" } : undefined}>
+            <div key={entry.id} className={cn(i > 0 && "border-t border-border")}>
               <button
                 onClick={() => setOpenId(open ? null : entry.id)}
                 aria-expanded={open}
                 className="w-full flex items-center gap-3 px-4 py-3 text-left transition-transform duration-150 active:scale-[0.99]"
               >
-                <span className="h-2 w-2 rounded-full shrink-0" style={{ background: "var(--accent)" }} />
-                <span className="flex-1 min-w-0 text-sm truncate" style={{ color: "var(--text-primary)" }}>{entry.what}</span>
-                <span className="text-xs font-mono shrink-0" style={{ color: "var(--text-tertiary)" }}>
+                <span className="h-2 w-2 rounded-full shrink-0 bg-primary" />
+                <span className="flex-1 min-w-0 text-sm truncate text-foreground">{entry.what}</span>
+                <span className="text-xs font-mono shrink-0 text-muted-foreground/70">
                   {days === 0 ? "today" : `${days}d`}
                 </span>
                 <ChevronDown
                   size={13}
-                  className="shrink-0 transition-transform duration-200"
-                  style={{ color: "var(--text-tertiary)", transform: open ? "rotate(180deg)" : "rotate(0deg)" }}
+                  className={cn("shrink-0 text-muted-foreground/70 transition-transform duration-200", open && "rotate-180")}
                 />
               </button>
               {open && (
                 <div className="px-4 pb-3 enter">
-                  <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
+                  <p className="text-xs text-muted-foreground">
                     → {entry.toWhom}
                     {projectTitle(entry.projectId) && (
-                      <span className="ml-2 px-1.5 py-0.5 rounded" style={{ background: "var(--bg-tertiary)", color: "var(--text-tertiary)" }}>
+                      <span className="ml-2 px-1.5 py-0.5 rounded bg-muted text-muted-foreground/70">
                         {projectTitle(entry.projectId)}
                       </span>
                     )}
@@ -684,9 +747,11 @@ function ShipLogSection({ entries, projects, onLog }: {
                   {(entry.tags?.length ?? 0) > 0 && (
                     <div className="flex items-center gap-1 flex-wrap mt-1.5">
                       {entry.tags!.map((t) => (
-                        <button key={t} onClick={() => setTagFilter(t)}
-                          className="text-[10px] font-medium rounded-full px-2 py-0.5 transition-transform duration-150 active:scale-[0.95]"
-                          style={{ background: "var(--accent-bg)", color: "var(--accent)" }}>
+                        <button
+                          key={t}
+                          onClick={() => setTagFilter(t)}
+                          className="text-[10px] font-medium rounded-full px-2 py-0.5 bg-primary/10 text-primary transition-transform duration-150 active:scale-[0.95]"
+                        >
                           {t}
                         </button>
                       ))}
@@ -709,7 +774,7 @@ function GroupHeader({ color, label, count }: { color: string; label: string; co
     <div className="flex items-center gap-2 mb-2">
       <span className="h-2 w-2 rounded-full" style={{ background: color }} />
       <h2 className="text-xs font-bold uppercase tracking-widest" style={{ color }}>{label}</h2>
-      <span className="text-xs font-mono" style={{ color: "var(--text-tertiary)" }}>{count}</span>
+      <span className="text-xs font-mono text-muted-foreground/70">{count}</span>
     </div>
   );
 }
@@ -821,13 +886,13 @@ export default function ProjectsPage() {
       {/* Header */}
       <div className="flex items-center justify-between gap-4 flex-wrap enter">
         <div>
-          <h1 className="text-2xl font-semibold flex items-center gap-2" style={{ color: "var(--text-primary)" }}>
-            <FolderKanban size={22} style={{ color: "var(--accent)" }} /> Projects
+          <h1 className="text-2xl font-semibold flex items-center gap-2 text-foreground">
+            <FolderKanban size={22} className="text-primary" /> Projects
           </h1>
-          <p className="text-xs mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5" style={{ color: "var(--text-tertiary)" }}>
+          <p className="text-xs mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-muted-foreground/70">
             <span>Goals set the direction · projects ship it · the ship log keeps score.</span>
             {weekCommits.length > 0 && (
-              <span className="font-mono" style={{ color: "var(--text-secondary)" }}>
+              <span className="font-mono text-muted-foreground">
                 {weekDone}/{weekCommits.length} committed this week
               </span>
             )}
@@ -835,17 +900,19 @@ export default function ProjectsPage() {
         </div>
         <div className="flex items-center gap-2">
           {!showGoalForm && (
-            <button onClick={() => setShowGoalForm(true)}
-              className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-[background,transform] duration-150 active:scale-[0.97]"
-              style={{ color: "var(--accent)", background: "var(--accent-bg)" }}>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowGoalForm(true)}
+              className="gap-1.5 text-sm text-primary bg-primary/10 hover:bg-primary/15"
+            >
               <Flag size={15} /> New goal
-            </button>
+            </Button>
           )}
           {!showForm && (
-            <button onClick={() => setShowForm(true)}
-              className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium bg-sage-400 text-white hover:bg-sage-500 transition-colors active:scale-[0.97]">
+            <Button size="sm" onClick={() => setShowForm(true)} className="gap-1.5 text-sm">
               <Plus size={15} /> New project
-            </button>
+            </Button>
           )}
         </div>
       </div>
@@ -882,14 +949,13 @@ export default function ProjectsPage() {
 
       {/* Empty */}
       {!loading && !anyLive && !showForm && !showGoalForm && (
-        <div className="flex flex-col items-center justify-center py-16 rounded-xl text-center enter"
-          style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-primary)" }}>
-          <FolderKanban size={44} style={{ color: "var(--text-tertiary)" }} className="mb-4" />
-          <p className="text-lg font-medium" style={{ color: "var(--text-primary)" }}>Nothing in flight</p>
-          <p className="text-sm mt-1 max-w-sm" style={{ color: "var(--text-secondary)" }}>
+        <Card className="flex flex-col items-center justify-center gap-0 py-16 rounded-xl text-center enter">
+          <FolderKanban size={44} className="mb-4 text-muted-foreground/70" />
+          <p className="text-lg font-medium text-foreground">Nothing in flight</p>
+          <p className="text-sm mt-1 max-w-sm text-muted-foreground">
             Set a goal for the quarter, hang a project on it, name the shipping event, then get it out the door.
           </p>
-        </div>
+        </Card>
       )}
 
       {/* Goals — each with the projects that serve it nested beneath */}
@@ -913,7 +979,7 @@ export default function ProjectsPage() {
         <div className="enter" style={{ ["--enter-delay" as string]: "120ms" }}>
           <GroupHeader color="#64748B" label={activeGoals.length > 0 ? "No goal" : "Projects"} count={unaligned.length} />
           {activeGoals.length > 0 && (
-            <p className="text-[11px] mb-2 -mt-1" style={{ color: "var(--text-tertiary)" }}>
+            <p className="text-[11px] mb-2 -mt-1 text-muted-foreground/70">
               These serve no goal — link them (expand a card) or ask why they&apos;re in flight.
             </p>
           )}
@@ -930,8 +996,8 @@ export default function ProjectsPage() {
             className="flex items-center gap-2 mb-2 transition-transform duration-150 active:scale-[0.98]">
             <span className="h-2 w-2 rounded-full" style={{ background: "#6366F1" }} />
             <span className="text-xs font-bold uppercase tracking-widest" style={{ color: "#6366F1" }}>Completed</span>
-            <span className="text-xs font-mono" style={{ color: "var(--text-tertiary)" }}>{doneP.length}</span>
-            {showDone ? <ChevronUp size={14} style={{ color: "var(--text-tertiary)" }} /> : <ChevronDown size={14} style={{ color: "var(--text-tertiary)" }} />}
+            <span className="text-xs font-mono text-muted-foreground/70">{doneP.length}</span>
+            {showDone ? <ChevronUp size={14} className="text-muted-foreground/70" /> : <ChevronDown size={14} className="text-muted-foreground/70" />}
           </button>
           {showDone && (
             <div className="space-y-2 enter">
@@ -946,10 +1012,10 @@ export default function ProjectsPage() {
         <div>
           <button onClick={() => setShowDoneGoals((s) => !s)}
             className="flex items-center gap-2 mb-2 transition-transform duration-150 active:scale-[0.98]">
-            <span className="h-2 w-2 rounded-full" style={{ background: "var(--text-tertiary)" }} />
-            <span className="text-xs font-bold uppercase tracking-widest" style={{ color: "var(--text-secondary)" }}>Past goals</span>
-            <span className="text-xs font-mono" style={{ color: "var(--text-tertiary)" }}>{doneGoals.length}</span>
-            {showDoneGoals ? <ChevronUp size={14} style={{ color: "var(--text-tertiary)" }} /> : <ChevronDown size={14} style={{ color: "var(--text-tertiary)" }} />}
+            <span className="h-2 w-2 rounded-full bg-muted-foreground/70" />
+            <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Past goals</span>
+            <span className="text-xs font-mono text-muted-foreground/70">{doneGoals.length}</span>
+            {showDoneGoals ? <ChevronUp size={14} className="text-muted-foreground/70" /> : <ChevronDown size={14} className="text-muted-foreground/70" />}
           </button>
           {showDoneGoals && (
             <div className="space-y-2 enter">

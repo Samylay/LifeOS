@@ -16,6 +16,11 @@ import { useKnowledge, type Note } from "@/lib/use-kb";
 import { useToast } from "@/components/toast";
 import { LearningBacklog } from "@/components/learning-backlog";
 import { TeachSection } from "@/components/teach/teach-section";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 
 function timeAgo(ms: number): string {
   const d = Date.now() - ms;
@@ -40,63 +45,48 @@ function CaptureForm({
   const [content, setContent] = useState("");
   const [folder, setFolder] = useState("01-Inbox");
 
-  const inputStyle = {
-    color: "var(--text-primary)",
-    background: "var(--bg-tertiary)",
-    border: "1px solid var(--border-primary)",
-  };
-
   return (
-    <div
-      className="rounded-xl p-4 space-y-3"
-      style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-primary)" }}
-    >
-      <input
+    <Card className="gap-3 rounded-xl p-4">
+      <Input
         type="text"
         value={title}
         onChange={(e) => setTitle(e.target.value)}
         placeholder="Note title…"
         autoFocus
-        className="w-full text-sm font-medium outline-none rounded-lg px-3 py-2"
-        style={inputStyle}
+        className="text-sm font-medium"
       />
-      <textarea
+      <Textarea
         value={content}
         onChange={(e) => setContent(e.target.value)}
         rows={5}
         placeholder="Write your note (Markdown). Hermes will add a summary and tags."
-        className="w-full text-sm outline-none rounded-lg px-3 py-2 resize-none"
-        style={inputStyle}
+        className="text-sm resize-none"
       />
       <div className="flex items-center gap-2 justify-between flex-wrap">
-        <label className="flex items-center gap-2 text-xs" style={{ color: "var(--text-tertiary)" }}>
+        <label className="flex items-center gap-2 text-xs text-muted-foreground/70">
           Folder
-          <input
+          <Input
             type="text"
             value={folder}
             onChange={(e) => setFolder(e.target.value)}
-            className="text-xs outline-none rounded-lg px-2 py-1.5 w-32"
-            style={inputStyle}
+            className="text-xs h-7 w-32"
           />
         </label>
         <div className="flex items-center gap-2">
-          <button
-            onClick={onCancel}
-            className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium"
-            style={{ color: "var(--text-secondary)", background: "var(--bg-tertiary)" }}
-          >
+          <Button variant="secondary" size="sm" onClick={onCancel} className="gap-1.5 text-xs">
             <X size={14} /> Cancel
-          </button>
-          <button
+          </Button>
+          <Button
+            size="sm"
             onClick={() => title.trim() && onSave({ title: title.trim(), content, folder: folder.trim() || "01-Inbox" })}
             disabled={!title.trim()}
-            className="flex items-center gap-1.5 rounded-lg px-4 py-1.5 text-sm font-medium bg-sage-400 text-white hover:bg-sage-500 transition-colors disabled:opacity-50"
+            className="gap-1.5 text-sm px-4"
           >
             <Check size={14} /> Capture
-          </button>
+          </Button>
         </div>
       </div>
-    </div>
+    </Card>
   );
 }
 
@@ -105,59 +95,37 @@ function CaptureForm({
 function NoteReader({ note, onBack }: { note: Note; onBack: () => void }) {
   return (
     <div className="space-y-4">
-      <button
-        onClick={onBack}
-        className="flex items-center gap-1.5 text-sm font-medium"
-        style={{ color: "var(--accent)" }}
-      >
+      <button onClick={onBack} className="flex items-center gap-1.5 text-sm font-medium text-primary">
         <ArrowLeft size={14} /> Back to notes
       </button>
 
       <div className="flex items-center gap-2 flex-wrap">
-        <h1 className="text-xl font-semibold" style={{ color: "var(--text-primary)" }}>
-          {note.title}
-        </h1>
-        <span className="text-xs font-mono" style={{ color: "var(--text-tertiary)" }}>
-          {note.path}
-        </span>
+        <h1 className="text-xl font-semibold text-foreground">{note.title}</h1>
+        <span className="text-xs font-mono text-muted-foreground/70">{note.path}</span>
       </div>
 
       {(note.summary || note.tags?.length) && (
-        <div
-          className="rounded-xl p-3"
-          style={{ background: "var(--accent-bg)", border: "1px solid var(--border-primary)" }}
-        >
+        <Card className="gap-0 rounded-xl border-border bg-primary/10 p-3">
           <div className="flex items-center gap-1.5 mb-1">
-            <Sparkles size={13} style={{ color: "var(--accent)" }} />
-            <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "var(--accent)" }}>
+            <Sparkles size={13} className="text-primary" />
+            <span className="text-[10px] font-bold uppercase tracking-widest text-primary">
               Hermes
             </span>
           </div>
-          {note.summary && (
-            <p className="text-sm" style={{ color: "var(--text-primary)" }}>
-              {note.summary}
-            </p>
-          )}
+          {note.summary && <p className="text-sm text-foreground">{note.summary}</p>}
           {note.tags && note.tags.length > 0 && (
             <div className="flex flex-wrap gap-1.5 mt-2">
               {note.tags.map((t) => (
-                <span
-                  key={t}
-                  className="flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-md"
-                  style={{ background: "var(--bg-tertiary)", color: "var(--text-secondary)" }}
-                >
+                <Badge key={t} variant="secondary" className="gap-1 rounded-md text-xs font-normal">
                   <Tag size={10} /> {t}
-                </span>
+                </Badge>
               ))}
             </div>
           )}
-        </div>
+        </Card>
       )}
 
-      <pre
-        className="rounded-xl p-4 text-sm whitespace-pre-wrap font-sans overflow-x-auto"
-        style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-primary)", color: "var(--text-primary)" }}
-      >
+      <pre className="rounded-xl border border-border bg-card p-4 text-sm whitespace-pre-wrap font-sans overflow-x-auto text-foreground">
         {note.content}
       </pre>
     </div>
@@ -185,30 +153,24 @@ export default function KnowledgePage() {
       {/* Header */}
       <div className="flex items-center justify-between gap-4 flex-wrap enter">
         <div>
-          <h1 className="text-2xl font-semibold flex items-center gap-2" style={{ color: "var(--text-primary)" }}>
-            <Brain size={22} style={{ color: "var(--accent)" }} /> Knowledge
+          <h1 className="text-2xl font-semibold flex items-center gap-2 text-foreground">
+            <Brain size={22} className="text-primary" /> Knowledge
           </h1>
-          <p className="text-xs mt-1" style={{ color: "var(--text-tertiary)" }}>
+          <p className="text-xs mt-1 text-muted-foreground/70">
             Your Obsidian vault, enriched by Hermes. Capture here — Hermes summarizes &amp; tags.
           </p>
         </div>
         {enabled && !capturing && (
-          <button
-            onClick={() => setCapturing(true)}
-            className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium bg-sage-400 text-white hover:bg-sage-500 transition-colors"
-          >
+          <Button size="sm" onClick={() => setCapturing(true)} className="gap-1.5">
             <Plus size={15} /> Capture note
-          </button>
+          </Button>
         )}
       </div>
 
       {!enabled && (
-        <div
-          className="rounded-xl p-4 text-sm"
-          style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-primary)", color: "var(--text-secondary)" }}
-        >
+        <Card className="gap-0 rounded-xl p-4 text-sm text-muted-foreground">
           The knowledge base isn&apos;t mounted. Set <code>KB_PATH</code> to the vault path and restart.
-        </div>
+        </Card>
       )}
 
       {capturing && (
@@ -228,21 +190,17 @@ export default function KnowledgePage() {
 
       {/* Search */}
       {enabled && (
-        <div
-          className="flex items-center gap-2 rounded-lg px-3 py-2"
-          style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-primary)" }}
-        >
-          <Search size={15} style={{ color: "var(--text-tertiary)" }} />
+        <div className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2">
+          <Search size={15} className="text-muted-foreground/70 shrink-0" />
           <input
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search notes…"
-            className="flex-1 bg-transparent text-sm outline-none"
-            style={{ color: "var(--text-primary)" }}
+            className="flex-1 bg-transparent text-sm outline-none text-foreground placeholder:text-muted-foreground"
           />
           {query && (
-            <button onClick={() => setQuery("")} style={{ color: "var(--text-tertiary)" }}>
+            <button onClick={() => setQuery("")} className="text-muted-foreground/70">
               <X size={14} />
             </button>
           )}
@@ -253,9 +211,9 @@ export default function KnowledgePage() {
       {enabled && (
         <div className="space-y-2">
           {loading && notes.length === 0 ? (
-            <p className="text-sm" style={{ color: "var(--text-tertiary)" }}>Loading…</p>
+            <p className="text-sm text-muted-foreground/70">Loading…</p>
           ) : notes.length === 0 ? (
-            <p className="text-sm" style={{ color: "var(--text-tertiary)" }}>
+            <p className="text-sm text-muted-foreground/70">
               {query ? "No notes match." : "No notes yet."}
             </p>
           ) : (
@@ -267,37 +225,32 @@ export default function KnowledgePage() {
                   if (full) setActive(full);
                   else toast("Could not open note");
                 }}
-                className="w-full text-left rounded-xl p-4 transition-colors hover:bg-[var(--bg-tertiary)]"
-                style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-primary)" }}
+                className="w-full text-left rounded-xl border border-border bg-card p-4 transition-colors hover:bg-muted active:scale-[0.99] duration-150"
               >
                 <div className="flex items-start gap-3">
-                  <div
-                    className="shrink-0 flex h-9 w-9 items-center justify-center rounded-lg"
-                    style={{ background: "var(--bg-tertiary)" }}
-                  >
-                    <FileText size={16} style={{ color: "var(--accent)" }} />
+                  <div className="shrink-0 flex h-9 w-9 items-center justify-center rounded-lg bg-muted">
+                    <FileText size={16} className="text-primary" />
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <p className="text-sm font-medium truncate" style={{ color: "var(--text-primary)" }}>
-                        {n.title}
-                      </p>
-                      <span className="text-[10px] px-1.5 py-0.5 rounded-md" style={{ background: "var(--bg-tertiary)", color: "var(--text-tertiary)" }}>
+                      <p className="text-sm font-medium truncate text-foreground">{n.title}</p>
+                      <Badge variant="secondary" className="rounded-md text-[10px] font-normal">
                         {n.folder}
-                      </span>
-                      <span className="text-xs ml-auto shrink-0" style={{ color: "var(--text-tertiary)" }}>
+                      </Badge>
+                      <span className="text-xs ml-auto shrink-0 text-muted-foreground/70">
                         {timeAgo(n.mtime)}
                       </span>
                     </div>
                     {n.summary && (
-                      <p className="text-xs mt-1 line-clamp-2" style={{ color: "var(--text-secondary)" }}>
-                        {n.summary}
-                      </p>
+                      <p className="text-xs mt-1 line-clamp-2 text-muted-foreground">{n.summary}</p>
                     )}
                     {n.tags && n.tags.length > 0 && (
                       <div className="flex flex-wrap gap-1 mt-1.5">
                         {n.tags.slice(0, 5).map((t) => (
-                          <span key={t} className="text-[10px] px-1.5 py-0.5 rounded-md" style={{ background: "var(--accent-bg)", color: "var(--accent)" }}>
+                          <span
+                            key={t}
+                            className="text-[10px] px-1.5 py-0.5 rounded-md bg-primary/10 text-primary"
+                          >
                             {t}
                           </span>
                         ))}
@@ -318,8 +271,8 @@ export default function KnowledgePage() {
 
       {/* Learning backlog (merged from the retired /things-to-learn route) */}
       <div
-        className="pt-5 enter"
-        style={{ borderTop: "1px solid var(--border-primary)", ["--enter-delay" as string]: "60ms" }}
+        className="pt-5 border-t border-border enter"
+        style={{ ["--enter-delay" as string]: "60ms" }}
       >
         <LearningBacklog />
       </div>

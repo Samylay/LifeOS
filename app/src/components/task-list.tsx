@@ -1,9 +1,19 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Check, Circle, Clock, X, ChevronDown, Filter, Flame } from "lucide-react";
+import { Plus, Check, Circle, Clock, X, Flame } from "lucide-react";
 import type { Task, TaskStatus, TaskPriority, AreaId } from "@/lib/types";
 import { AREAS } from "@/lib/types";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface TaskItemProps {
   task: Task;
@@ -11,6 +21,8 @@ interface TaskItemProps {
   onDelete: (id: string) => void;
 }
 
+// Priority/area/status colors are semantic signal, not chrome — kept as raw
+// hex per the house style (STYLE.md: "keep area/tier color usage as-is").
 const PRIORITY_COLORS: Record<TaskPriority, string> = {
   urgent: "#EF4444",
   high: "#F59E0B",
@@ -25,9 +37,18 @@ const STATUS_ICONS: Record<TaskStatus, typeof Circle> = {
   cancelled: X,
 };
 
+const AREA_COLOR_MAP: Record<string, string> = {
+  teal: "#14B8A6",
+  indigo: "#6366F1",
+  amber: "#F59E0B",
+  violet: "#8B5CF6",
+  slate: "#64748B",
+};
+
 export function TaskItem({ task, onUpdate, onDelete }: TaskItemProps) {
   const StatusIcon = STATUS_ICONS[task.status];
   const isDone = task.status === "done" || task.status === "cancelled";
+  const areaColor = task.area ? AREA_COLOR_MAP[AREAS[task.area]?.color ?? ""] ?? "#64748B" : undefined;
 
   const cycleStatus = () => {
     const next: Record<TaskStatus, TaskStatus> = {
@@ -41,53 +62,44 @@ export function TaskItem({ task, onUpdate, onDelete }: TaskItemProps) {
 
   return (
     <div
-      className="group flex items-center gap-3 rounded-lg px-4 py-3 transition-[background,border-color]"
-      style={{
-        background: "var(--bg-secondary)",
-        border: "1px solid var(--border-primary)",
-        opacity: isDone ? 0.6 : 1,
-      }}
+      className={cn(
+        "group flex items-center gap-3 rounded-lg border border-border bg-card px-4 py-3 transition-[background,border-color]",
+        isDone && "opacity-60"
+      )}
     >
       <button
         onClick={cycleStatus}
         aria-label="Cycle task status"
-        className="shrink-0 rounded-full p-0.5 transition-colors"
-        style={{ color: isDone ? "var(--accent)" : "var(--text-tertiary)" }}
+        className={cn(
+          "shrink-0 rounded-full p-0.5 transition-transform duration-150 active:scale-[0.9]",
+          isDone ? "text-primary" : "text-muted-foreground/70"
+        )}
       >
-        <StatusIcon size={18} fill={isDone ? "var(--accent)" : "none"} />
+        <StatusIcon size={18} fill={isDone ? "currentColor" : "none"} />
       </button>
 
       <div className="flex-1 min-w-0">
-        <p
-          className="text-sm font-medium truncate"
-          style={{
-            color: "var(--text-primary)",
-            textDecoration: isDone ? "line-through" : "none",
-          }}
-        >
+        <p className={cn("text-sm font-medium truncate text-foreground", isDone && "line-through")}>
           {task.title}
         </p>
         <div className="flex items-center gap-2 mt-0.5">
           {task.area && (
             <span
               className="text-xs font-medium px-1.5 py-0.5 rounded"
-              style={{
-                background: `${AREAS[task.area]?.color === "teal" ? "#14B8A6" : AREAS[task.area]?.color === "indigo" ? "#6366F1" : AREAS[task.area]?.color === "amber" ? "#F59E0B" : AREAS[task.area]?.color === "violet" ? "#8B5CF6" : "#64748B"}15`,
-                color: AREAS[task.area]?.color === "teal" ? "#14B8A6" : AREAS[task.area]?.color === "indigo" ? "#6366F1" : AREAS[task.area]?.color === "amber" ? "#F59E0B" : AREAS[task.area]?.color === "violet" ? "#8B5CF6" : "#64748B",
-              }}
+              style={{ background: `${areaColor}15`, color: areaColor }}
             >
               {AREAS[task.area]?.name}
             </span>
           )}
           {task.energy && (
-            <span className="flex items-center gap-0.5 text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-bg-tertiary text-tertiary border border-primary">
+            <span className="flex items-center gap-0.5 text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-muted text-muted-foreground border border-border">
               <Flame size={8} className={task.energy >= 1 ? "text-amber-500" : ""} fill={task.energy >= 1 ? "currentColor" : "none"} />
               <Flame size={8} className={task.energy >= 2 ? "text-amber-500" : ""} fill={task.energy >= 2 ? "currentColor" : "none"} />
               <Flame size={8} className={task.energy >= 3 ? "text-amber-500" : ""} fill={task.energy >= 3 ? "currentColor" : "none"} />
             </span>
           )}
           {task.dueDate && (
-            <span className="text-xs" style={{ color: "var(--text-tertiary)" }}>
+            <span className="text-xs text-muted-foreground/70">
               {new Date(task.dueDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
             </span>
           )}
@@ -102,22 +114,13 @@ export function TaskItem({ task, onUpdate, onDelete }: TaskItemProps) {
 
       <button
         onClick={() => onDelete(task.id)}
-        className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity rounded p-1"
-        style={{ color: "var(--text-tertiary)" }}
+        className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity rounded p-1 text-muted-foreground/70"
       >
         <X size={14} />
       </button>
     </div>
   );
 }
-
-const AREA_COLOR_MAP: Record<string, string> = {
-  teal: "#14B8A6",
-  indigo: "#6366F1",
-  amber: "#F59E0B",
-  violet: "#8B5CF6",
-  slate: "#64748B",
-};
 
 interface TaskCreateFormProps {
   onSubmit: (data: Omit<Task, "id" | "createdAt" | "updatedAt">) => void;
@@ -150,104 +153,71 @@ export function TaskCreateForm({ onSubmit, onCancel }: TaskCreateFormProps) {
   };
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      className="rounded-xl p-4 space-y-3"
-      style={{
-        background: "var(--bg-secondary)",
-        border: "1px solid var(--accent)",
-      }}
-    >
-      <input
+    <form onSubmit={handleSubmit} className="rounded-xl border border-border bg-card p-4 space-y-3">
+      <Input
         type="text"
         value={title}
         onChange={(e) => setTitle(e.target.value)}
         placeholder="Task title..."
         autoFocus
-        className="w-full bg-transparent text-sm font-medium outline-none"
-        style={{ color: "var(--text-primary)" }}
+        className="border-none bg-transparent px-0 h-auto py-0 text-sm font-medium shadow-none focus-visible:ring-0"
       />
 
       <div className="flex flex-wrap items-center gap-2">
         {/* Priority */}
-        <select
-          value={priority}
-          onChange={(e) => setPriority(e.target.value as TaskPriority)}
-          className="text-xs rounded-lg px-2 py-1.5 outline-none"
-          style={{
-            background: "var(--bg-tertiary)",
-            color: "var(--text-primary)",
-            border: "1px solid var(--border-primary)",
-          }}
-        >
-          <option value="low">Low Priority</option>
-          <option value="medium">Medium Priority</option>
-          <option value="high">High Priority</option>
-          <option value="urgent">Urgent</option>
-        </select>
+        <Select value={priority} onValueChange={(v) => setPriority(v as TaskPriority)}>
+          <SelectTrigger size="sm" className="text-xs h-8 bg-muted">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="low">Low Priority</SelectItem>
+            <SelectItem value="medium">Medium Priority</SelectItem>
+            <SelectItem value="high">High Priority</SelectItem>
+            <SelectItem value="urgent">Urgent</SelectItem>
+          </SelectContent>
+        </Select>
 
         {/* Energy */}
-        <select
-          value={energy}
-          onChange={(e) => setEnergy(parseInt(e.target.value))}
-          className="text-xs rounded-lg px-2 py-1.5 outline-none"
-          style={{
-            background: "var(--bg-tertiary)",
-            color: "var(--text-primary)",
-            border: "1px solid var(--border-primary)",
-          }}
-        >
-          <option value={1}>Low Energy</option>
-          <option value={2}>Medium Energy</option>
-          <option value={3}>High Energy</option>
-        </select>
+        <Select value={String(energy)} onValueChange={(v) => setEnergy(parseInt(v))}>
+          <SelectTrigger size="sm" className="text-xs h-8 bg-muted">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="1">Low Energy</SelectItem>
+            <SelectItem value="2">Medium Energy</SelectItem>
+            <SelectItem value="3">High Energy</SelectItem>
+          </SelectContent>
+        </Select>
 
         {/* Area */}
-        <select
-          value={area}
-          onChange={(e) => setArea(e.target.value as AreaId | "")}
-          className="text-xs rounded-lg px-2 py-1.5 outline-none"
-          style={{
-            background: "var(--bg-tertiary)",
-            color: "var(--text-primary)",
-            border: "1px solid var(--border-primary)",
-          }}
-        >
-          <option value="">No area</option>
-          {Object.entries(AREAS).map(([id, a]) => (
-            <option key={id} value={id}>{a.name}</option>
-          ))}
-        </select>
+        <Select value={area || "__none"} onValueChange={(v) => setArea(v === "__none" ? "" : (v as AreaId))}>
+          <SelectTrigger size="sm" className="text-xs h-8 bg-muted">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__none">No area</SelectItem>
+            {Object.entries(AREAS).map(([id, a]) => (
+              <SelectItem key={id} value={id}>{a.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
 
         {/* Due date */}
-        <input
+        <Input
           type="date"
           value={dueDate}
           onChange={(e) => setDueDate(e.target.value)}
-          className="text-xs rounded-lg px-2 py-1.5 outline-none"
-          style={{
-            background: "var(--bg-tertiary)",
-            color: "var(--text-primary)",
-            border: "1px solid var(--border-primary)",
-          }}
+          className="text-xs h-8 w-auto bg-muted"
         />
 
         <div className="flex-1" />
 
-        <button
-          type="button"
-          onClick={onCancel}
-          className="text-xs px-3 py-1.5 rounded-lg transition-colors"
-          style={{ color: "var(--text-secondary)" }}
-        >
+        <Button type="button" variant="ghost" size="sm" onClick={onCancel} className="text-xs text-muted-foreground">
           Cancel
-        </button>
-        <button
-          type="submit"
-          className="text-xs px-3 py-1.5 rounded-lg bg-sage-400 text-white hover:bg-sage-500 transition-colors font-medium"
-        >
+        </Button>
+        <Button type="submit" size="sm" className="text-xs">
           Add Task
-        </button>
+        </Button>
       </div>
     </form>
   );
@@ -286,50 +256,37 @@ export function TaskList({ tasks, onUpdate, onDelete, onCreate, title = "Tasks",
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-semibold" style={{ color: "var(--text-primary)" }}>
-          {title}
-        </h2>
-        <button
-          onClick={() => setShowForm(true)}
-          className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium bg-sage-400 text-white hover:bg-sage-500 transition-colors"
-        >
+        <h2 className="text-lg font-semibold text-foreground">{title}</h2>
+        <Button size="sm" onClick={() => setShowForm(true)} className="text-xs gap-1.5">
           <Plus size={14} />
           Add Task
-        </button>
+        </Button>
       </div>
 
       {showFilters && (
         <div className="flex gap-2 mb-3">
-          <select
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value as TaskStatus | "all")}
-            className="text-xs rounded-lg px-2 py-1.5 outline-none"
-            style={{
-              background: "var(--bg-tertiary)",
-              color: "var(--text-primary)",
-              border: "1px solid var(--border-primary)",
-            }}
-          >
-            <option value="all">All statuses</option>
-            <option value="todo">To Do</option>
-            <option value="in_progress">In Progress</option>
-            <option value="done">Done</option>
-          </select>
-          <select
-            value={filterArea}
-            onChange={(e) => setFilterArea(e.target.value as AreaId | "all")}
-            className="text-xs rounded-lg px-2 py-1.5 outline-none"
-            style={{
-              background: "var(--bg-tertiary)",
-              color: "var(--text-primary)",
-              border: "1px solid var(--border-primary)",
-            }}
-          >
-            <option value="all">All areas</option>
-            {Object.entries(AREAS).map(([id, a]) => (
-              <option key={id} value={id}>{a.name}</option>
-            ))}
-          </select>
+          <Select value={filterStatus} onValueChange={(v) => setFilterStatus(v as TaskStatus | "all")}>
+            <SelectTrigger size="sm" className="text-xs h-8 bg-muted">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All statuses</SelectItem>
+              <SelectItem value="todo">To Do</SelectItem>
+              <SelectItem value="in_progress">In Progress</SelectItem>
+              <SelectItem value="done">Done</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={filterArea} onValueChange={(v) => setFilterArea(v as AreaId | "all")}>
+            <SelectTrigger size="sm" className="text-xs h-8 bg-muted">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All areas</SelectItem>
+              {Object.entries(AREAS).map(([id, a]) => (
+                <SelectItem key={id} value={id}>{a.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       )}
 
@@ -347,7 +304,7 @@ export function TaskList({ tasks, onUpdate, onDelete, onCreate, title = "Tasks",
 
       <div className="space-y-2">
         {sorted.length === 0 && (
-          <p className="text-sm py-6 text-center" style={{ color: "var(--text-tertiary)" }}>
+          <p className="text-sm py-6 text-center text-muted-foreground/70">
             No tasks yet. Click &quot;Add Task&quot; to get started.
           </p>
         )}

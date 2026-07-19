@@ -6,6 +6,11 @@ import { useLearnItems } from "@/lib/use-learn-items";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import type { LearnItem, LearnStatus } from "@/lib/types";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Card } from "@/components/ui/card";
 
 const STATUSES: { status: LearnStatus; label: string; color: string }[] = [
   { status: "parked", label: "Parked", color: "#64748B" },
@@ -22,12 +27,6 @@ type Draft = Omit<LearnItem, "id" | "createdAt" | "updatedAt">;
 
 const EMPTY: Draft = { topic: "", why: "", firstStep: "", status: "parked" };
 
-const inputStyle = {
-  color: "var(--text-primary)",
-  background: "var(--bg-tertiary)",
-  border: "1px solid var(--border-primary)",
-};
-
 function ItemEditor({
   initial,
   onSave,
@@ -41,63 +40,61 @@ function ItemEditor({
   const set = (patch: Partial<Draft>) => setD((prev) => ({ ...prev, ...patch }));
 
   return (
-    <div className="rounded-xl p-4 space-y-3 enter" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-primary)" }}>
-      <input
+    <Card className="gap-3 rounded-xl p-4 enter">
+      <Input
         type="text"
         value={d.topic}
         onChange={(e) => set({ topic: e.target.value })}
         placeholder="Topic (e.g. Chess openings)…"
         autoFocus
-        className="w-full text-sm font-medium outline-none rounded-lg px-3 py-2"
-        style={inputStyle}
+        className="text-sm font-medium"
       />
-      <textarea
+      <Textarea
         value={d.why}
         onChange={(e) => set({ why: e.target.value })}
         rows={2}
         placeholder="Why — what pulled you toward it?"
-        className="w-full text-sm outline-none rounded-lg px-3 py-2 resize-none"
-        style={inputStyle}
+        className="text-sm resize-none"
       />
-      <textarea
+      <Textarea
         value={d.firstStep || ""}
         onChange={(e) => set({ firstStep: e.target.value })}
         rows={2}
         placeholder="First step (optional) — smallest concrete entry point"
-        className="w-full text-sm outline-none rounded-lg px-3 py-2 resize-none"
-        style={inputStyle}
+        className="text-sm resize-none"
       />
       <div className="flex items-center gap-2 flex-wrap">
-        <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-tertiary)" }}>
+        <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">
           Status
         </span>
         {STATUSES.map((s) => (
           <button
             key={s.status}
             onClick={() => set({ status: s.status })}
-            className="text-xs font-medium rounded-full px-3 py-1 transition-transform duration-150 active:scale-[0.97]"
-            style={{
-              color: d.status === s.status ? "#fff" : "var(--text-secondary)",
-              background: d.status === s.status ? s.color : "var(--bg-tertiary)",
-            }}
+            className={cn(
+              "text-xs font-medium rounded-full px-3 py-1 transition-transform duration-150 active:scale-[0.97]",
+              d.status === s.status ? "text-white" : "text-muted-foreground bg-muted"
+            )}
+            style={d.status === s.status ? { background: s.color } : undefined}
           >
             {s.label}
           </button>
         ))}
       </div>
       <div className="flex items-center gap-2 justify-end">
-        <button onClick={onCancel} className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-transform duration-150 active:scale-[0.97]" style={{ color: "var(--text-secondary)", background: "var(--bg-tertiary)" }}>
+        <Button variant="secondary" size="sm" onClick={onCancel} className="gap-1.5 text-xs">
           <X size={14} /> Cancel
-        </button>
-        <button
+        </Button>
+        <Button
+          size="sm"
           onClick={() => d.topic.trim() && onSave({ ...d, topic: d.topic.trim(), firstStep: d.firstStep?.trim() || undefined })}
           disabled={!d.topic.trim()}
-          className="flex items-center gap-1.5 rounded-lg px-4 py-1.5 text-sm font-medium bg-sage-400 text-white hover:bg-sage-500 transition-transform duration-150 active:scale-[0.97] disabled:opacity-50"
+          className="gap-1.5 text-sm px-4"
         >
           <Check size={14} /> Save
-        </button>
+        </Button>
       </div>
-    </div>
+    </Card>
   );
 }
 
@@ -114,32 +111,31 @@ function ItemRow({
 }) {
   const meta = STATUS_META[item.status];
   return (
-    <div className="rounded-xl p-4 hover-lift" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-primary)" }}>
+    <Card className="gap-0 rounded-xl p-4 hover-lift">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <span className="text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full" style={{ background: `${meta.color}20`, color: meta.color }}>
+          <span
+            className="text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full"
+            style={{ background: `${meta.color}20`, color: meta.color }}
+          >
             {meta.label}
           </span>
-          <h3 className="text-base font-semibold mt-2" style={{ color: "var(--text-primary)" }}>
-            {item.topic}
-          </h3>
+          <h3 className="text-base font-semibold mt-2 text-foreground">{item.topic}</h3>
         </div>
         <div className="flex items-center gap-1 shrink-0">
-          <button onClick={onEdit} aria-label="Edit item" className="p-1.5 rounded-lg transition-transform duration-150 active:scale-[0.92]" style={{ color: "var(--text-tertiary)" }}>
+          <Button variant="ghost" size="icon-sm" onClick={onEdit} aria-label="Edit item" className="text-muted-foreground/70">
             <Pencil size={14} />
-          </button>
-          <button onClick={onDelete} aria-label="Delete item" className="p-1.5 rounded-lg transition-transform duration-150 active:scale-[0.92]" style={{ color: "var(--text-tertiary)" }}>
+          </Button>
+          <Button variant="ghost" size="icon-sm" onClick={onDelete} aria-label="Delete item" className="text-muted-foreground/70">
             <Trash2 size={14} />
-          </button>
+          </Button>
         </div>
       </div>
       {item.why && (
-        <p className="text-sm mt-2 whitespace-pre-wrap" style={{ color: "var(--text-secondary)" }}>
-          {item.why}
-        </p>
+        <p className="text-sm mt-2 whitespace-pre-wrap text-muted-foreground">{item.why}</p>
       )}
       {item.firstStep && (
-        <p className="text-xs mt-2" style={{ color: "var(--text-tertiary)" }}>
+        <p className="text-xs mt-2 text-muted-foreground/70">
           <span className="font-semibold uppercase tracking-wider">First step · </span>
           {item.firstStep}
         </p>
@@ -149,17 +145,17 @@ function ItemRow({
           <button
             key={s.status}
             onClick={() => onStatus(s.status)}
-            className="text-[11px] font-medium rounded-full px-2.5 py-1 transition-transform duration-150 active:scale-[0.97]"
-            style={{
-              color: item.status === s.status ? "#fff" : "var(--text-tertiary)",
-              background: item.status === s.status ? s.color : "var(--bg-tertiary)",
-            }}
+            className={cn(
+              "text-[11px] font-medium rounded-full px-2.5 py-1 transition-transform duration-150 active:scale-[0.97]",
+              item.status === s.status ? "text-white" : "text-muted-foreground/70 bg-muted"
+            )}
+            style={item.status === s.status ? { background: s.color } : undefined}
           >
             {s.label}
           </button>
         ))}
       </div>
-    </div>
+    </Card>
   );
 }
 
@@ -173,17 +169,17 @@ export function LearningBacklog() {
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h2 className="text-lg font-semibold flex items-center gap-2" style={{ color: "var(--text-primary)" }}>
-            <GraduationCap size={18} style={{ color: "var(--accent)" }} /> Learning backlog
+          <h2 className="text-lg font-semibold flex items-center gap-2 text-foreground">
+            <GraduationCap size={18} className="text-primary" /> Learning backlog
           </h2>
-          <p className="text-xs mt-0.5" style={{ color: "var(--text-tertiary)" }}>
+          <p className="text-xs mt-0.5 text-muted-foreground/70">
             Topics parked until there&rsquo;s time to learn or build them.
           </p>
         </div>
         {!creating && (
-          <button onClick={() => setCreating(true)} className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium bg-sage-400 text-white hover:bg-sage-500 transition-transform duration-150 active:scale-[0.97]">
+          <Button size="sm" onClick={() => setCreating(true)} className="gap-1.5">
             <Plus size={15} /> New item
-          </button>
+          </Button>
         )}
       </div>
 
@@ -199,7 +195,7 @@ export function LearningBacklog() {
       )}
 
       {items.length === 0 && !loading && !creating && (
-        <p className="text-sm" style={{ color: "var(--text-tertiary)" }}>
+        <p className="text-sm text-muted-foreground/70">
           Nothing parked yet — add a topic you want to learn or build.
         </p>
       )}
