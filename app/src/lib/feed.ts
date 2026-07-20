@@ -59,6 +59,24 @@ export interface FeedConceptMap {
   createdAt?: unknown;
 }
 
+/** Tolerant read for concept maps — a node missing numeric `covered` reads as
+ * 0 instead of NaN-poisoning the least-covered sort forever. */
+export function normalizeConceptMap(id: string, raw: Record<string, unknown>): FeedConceptMap {
+  const nodes = Array.isArray(raw.subConcepts) ? raw.subConcepts : [];
+  return {
+    id,
+    topicId: String(raw.topicId ?? id),
+    subConcepts: nodes
+      .map((n) => {
+        const node = (n ?? {}) as Record<string, unknown>;
+        const covered = Number(node.covered);
+        return { name: String(node.name ?? ""), covered: Number.isFinite(covered) ? covered : 0 };
+      })
+      .filter((n) => n.name),
+    createdAt: raw.createdAt,
+  };
+}
+
 export type FeedEventType = "shown" | "keep" | "kill" | "flag" | "quiz_correct" | "quiz_wrong";
 
 export function dateMarker(ms?: number): { __date: string } {
@@ -161,6 +179,10 @@ export function applyReaction(cardId: string, type: "keep" | "kill" | "flag"): F
   const card = getCard(cardId);
   if (!card) return null;
   if (type === "keep") {
+    // Idempotent: a resurfaced kept card (or a double-tap) must not append a
+    // duplicate learning record — learningRecords feeds the "don't re-teach"
+    // prompt and accretes noise otherwise.
+    if (card.status === "kept") return card;
     updateDoc(CARDS, cardId, { status: "kept", postable: true, keptAt: dateMarker() });
     const topic = getTopic(card.topicId);
     if (topic) {
@@ -200,17 +222,23 @@ export function isDue(card: FeedCard, nowMs: number): boolean {
   return shownMs + INTERVALS_DAYS[card.intervalIndex] * DAY_MS <= nowMs;
 }
 
+/** Sub-concept keys are (topicId, name) — bare names collide across topics
+ * (two LLM-generated maps can both have a "framing" node). */
+function subKey(c: FeedCard): string {
+  return `${c.topicId}::${c.subConcept}`;
+}
+
 /** Sub-concepts with ≥1 shown non-quiz card — the quiz exposure gate. */
 function exposedSubConcepts(cards: FeedCard[], served: FeedCard[]): Set<string> {
   const set = new Set<string>();
-  for (const c of cards) if (c.format !== "quiz" && c.timesShown > 0) set.add(c.subConcept);
-  for (const c of served) if (c.format !== "quiz") set.add(c.subConcept);
+  for (const c of cards) if (c.format !== "quiz" && c.timesShown > 0) set.add(subKey(c));
+  for (const c of served) if (c.format !== "quiz") set.add(subKey(c));
   return set;
 }
 
 function subConceptsWithCorrect(cards: FeedCard[]): Set<string> {
   const set = new Set<string>();
-  for (const c of cards) if (c.quiz && c.lastResult === "correct") set.add(c.subConcept);
+  for (const c of cards) if (c.quiz && c.lastResult === "correct") set.add(subKey(c));
   return set;
 }
 
@@ -224,8 +252,8 @@ export function planFeedBatch(all: FeedCard[], nowMs: number, count = 10): FeedC
       const q = Number(Boolean(b.quiz)) - Number(Boolean(a.quiz));
       if (q !== 0) return q;
       const d =
-        Number(b.quiz?.kind === "discrimination" && hasCorrect.has(b.subConcept)) -
-        Number(a.quiz?.kind === "discrimination" && hasCorrect.has(a.subConcept));
+        Number(b.quiz?.kind === "discrimination" && hasCorrect.has(subKey(b))) -
+        Number(a.quiz?.kind === "discrimination" && hasCorrect.has(subKey(a)));
       if (d !== 0) return d;
       return (markerMs(a.lastShownAt) ?? 0) - (markerMs(b.lastShownAt) ?? 0);
     });
@@ -240,7 +268,7 @@ export function planFeedBatch(all: FeedCard[], nowMs: number, count = 10): FeedC
   const take = (c: FeedCard) => {
     batch.push(c);
     taken.add(c.id);
-    if (c.format !== "quiz") exposed.add(c.subConcept);
+    if (c.format !== "quiz") exposed.add(subKey(c));
   };
 
   for (let slot = 0; slot < count; slot++) {
@@ -249,8 +277,13 @@ export function planFeedBatch(all: FeedCard[], nowMs: number, count = 10): FeedC
     const wantDue = slot % 3 === 1;
     const wantQuiz = slot % 4 === 3;
 
+    const altOk = (c: FeedCard) => c.topicId !== prevTopic;
+
     if (wantDue) {
-      const d = due.find((c) => !taken.has(c.id));
+      // Topic alternation applies to due cards too; relax it if the due pool
+      // is single-topic rather than skipping the resurfacing slot.
+      const d =
+        due.find((c) => !taken.has(c.id) && altOk(c)) ?? due.find((c) => !taken.has(c.id));
       if (d) {
         take(d);
         continue;
@@ -258,18 +291,21 @@ export function planFeedBatch(all: FeedCard[], nowMs: number, count = 10): FeedC
     }
 
     const pool = fresh.filter((c) => !taken.has(c.id));
-    const gateOk = (c: FeedCard) => c.format !== "quiz" || exposed.has(c.subConcept);
-    const altOk = (c: FeedCard) => c.topicId !== prevTopic;
+    const gateOk = (c: FeedCard) => c.format !== "quiz" || exposed.has(subKey(c));
 
     const pick =
       // Full constraints, honoring the soft quiz-slot preference.
       (wantQuiz ? pool.find((c) => c.format === "quiz" && gateOk(c) && altOk(c)) : undefined) ??
       pool.find((c) => gateOk(c) && altOk(c)) ??
+      // Relax 1.5: an off-mix due card that keeps topics alternating beats
+      // breaking alternation on fresh.
+      due.find((c) => !taken.has(c.id) && altOk(c)) ??
       // Relax 2: topic alternation.
       pool.find((c) => gateOk(c)) ??
       // Relax 3: exposure gate — a quiz beats an empty feed.
       pool.find(() => true) ??
-      // Nothing fresh left: drain due even off-mix.
+      // Nothing fresh left: drain due even off-mix (alternating when possible).
+      due.find((c) => !taken.has(c.id) && altOk(c)) ??
       due.find((c) => !taken.has(c.id));
 
     if (!pick) break;
@@ -294,8 +330,13 @@ export function shuffleQuiz(quiz: FeedQuiz, seed: number): FeedQuiz {
     const j = Math.floor(rand() * (i + 1));
     [idx[i], idx[j]] = [idx[j], idx[i]];
   }
+  // `misconceptions` is distractor-ordered and internal-only (spec) — a
+  // shuffled copy must not carry it, or consumers would misattribute
+  // misconceptions to the wrong options. The stored card keeps it.
   return {
-    ...quiz,
+    kind: quiz.kind,
+    question: quiz.question,
+    why: quiz.why,
     options: idx.map((i) => quiz.options[i]),
     answerIndex: idx.indexOf(quiz.answerIndex),
   };

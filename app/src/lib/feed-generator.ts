@@ -13,6 +13,7 @@ import {
   contentHash,
   dateMarker,
   listCards,
+  normalizeConceptMap,
   type FeedCard,
   type FeedConceptMap,
   type FeedQuiz,
@@ -50,9 +51,10 @@ function eligibleTopics(): TopicRow[] {
 // --- Stage 2: concept map (once ever per topic) ------------------------------
 
 async function ensureConceptMap(topic: TopicRow): Promise<FeedConceptMap> {
-  const existing = getDoc(CONCEPT_MAPS, topic.id) as Record<string, unknown> | null;
-  if (existing && Array.isArray(existing.subConcepts) && existing.subConcepts.length > 0) {
-    return existing as unknown as FeedConceptMap;
+  const raw = getDoc(CONCEPT_MAPS, topic.id) as Record<string, unknown> | null;
+  if (raw) {
+    const existing = normalizeConceptMap(topic.id, raw);
+    if (existing.subConcepts.length > 0) return existing;
   }
   const res = await generateJson<{ subConcepts: string[] }>(
     `You are decomposing a personal learning topic into a concept map for a microlearning feed.
@@ -224,24 +226,25 @@ Reply with a JSON array of verdicts only.`
   const byIndex = new Map<number, JudgeVerdict>();
   for (const v of Array.isArray(verdicts) ? verdicts : []) byIndex.set(Number(v.index), v);
   const survivors: DraftCard[] = [];
-  const rejectCounts: Record<string, number> = {};
+  const failCounts: Record<string, number> = {};
+  const HARD = ["oneFact", "traceableCue", "answerCorrect"] as const;
+  const SOFT = ["noEnumeration", "distractorsPlausible"] as const;
   drafts.forEach((d, i) => {
     const v = byIndex.get(i);
     // Judge said nothing about a card → fail closed (don't insert unverified).
-    const hardFails = !v
-      ? ["unjudged"]
-      : ([
-          ["oneFact", v.oneFact],
-          ["traceableCue", v.traceableCue],
-          ["answerCorrect", v.answerCorrect],
-        ] as const)
-          .filter(([, ok]) => !ok)
-          .map(([k]) => k);
-    if (hardFails.length === 0) survivors.push(d);
-    else for (const f of hardFails) rejectCounts[f] = (rejectCounts[f] ?? 0) + 1;
+    if (!v) {
+      failCounts.unjudged = (failCounts.unjudged ?? 0) + 1;
+      return;
+    }
+    // Log EVERY failed criterion (P2 prompt tuning reads these), but only the
+    // hard criteria reject: soft fails ship with a note in the log.
+    for (const k of [...HARD, ...SOFT]) if (!v[k]) failCounts[k] = (failCounts[k] ?? 0) + 1;
+    if (HARD.every((k) => v[k])) survivors.push(d);
   });
-  if (drafts.length !== survivors.length)
-    log(`"${topic.topic}": judge rejected ${drafts.length - survivors.length} (${JSON.stringify(rejectCounts)})`);
+  if (Object.keys(failCounts).length > 0)
+    log(
+      `"${topic.topic}": judge fails ${JSON.stringify(failCounts)} — rejected ${drafts.length - survivors.length}`
+    );
   return survivors;
 }
 

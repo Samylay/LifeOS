@@ -4,12 +4,17 @@
 // restart inside the same day doesn't regenerate (cards created in the last
 // 20h ⇒ the night already ran; the fresh-buffer caps bound the damage anyway).
 import { runFeedGeneration } from "./feed-generator";
-import { listCards } from "./feed";
-import { markerMs } from "./feed";
+import { dateMarker, markerMs } from "./feed";
+import { getDoc, updateDoc } from "./server-db";
 import { BRIEF_TZ, isPastHourInTz, msUntilNextRun } from "@/lib/brief/tz";
 
 const RUN_HOUR = 3;
 const ALREADY_RAN_WINDOW_MS = 20 * 60 * 60 * 1000;
+// Run stamp, written at run START — a zero-insert night (judge rejected all,
+// everything deduped) must still count as "ran" or every boot re-spends the
+// full 2-LLM-calls-per-topic pipeline.
+const META = "users/local/feedMeta";
+const STAMP_ID = "scheduler";
 
 declare global {
   var __feedSchedulerStarted: boolean | undefined;
@@ -20,15 +25,17 @@ function log(msg: string) {
 }
 
 function ranRecently(): boolean {
-  const cutoff = Date.now() - ALREADY_RAN_WINDOW_MS;
-  return listCards().some((c) => (markerMs(c.createdAt) ?? 0) >= cutoff);
+  const stamp = getDoc(META, STAMP_ID) as Record<string, unknown> | null;
+  const last = markerMs(stamp?.lastRunAt) ?? 0;
+  return last >= Date.now() - ALREADY_RAN_WINDOW_MS;
 }
 
 async function runSafely(trigger: string) {
   if (trigger === "catch-up" && ranRecently()) {
-    log("catch-up skipped: cards already generated in the last 20h");
+    log("catch-up skipped: generation already ran in the last 20h");
     return;
   }
+  updateDoc(META, STAMP_ID, { lastRunAt: dateMarker() });
   try {
     const res = await runFeedGeneration();
     log(`${trigger} run done: ${res.inserted} card(s) across ${res.topics} topic(s)` +

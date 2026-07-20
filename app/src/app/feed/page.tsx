@@ -10,6 +10,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Bookmark, Check, ChevronUp, Flag, RotateCw, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Skeleton } from "@/components/ui/skeleton";
 import type { FeedCard } from "@/lib/feed";
 
 type ServedCard = FeedCard & { review?: { keptAt?: unknown } };
@@ -100,8 +101,13 @@ export default function FeedPage() {
       </Link>
 
       {phase === "loading" && (
-        <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-          loading…
+        <div className="flex h-full flex-col justify-center px-6">
+          <div className="mx-auto w-full max-w-md space-y-3">
+            <Skeleton className="h-4 w-24" />
+            <Skeleton className="h-6 w-4/5" />
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-3/4" />
+          </div>
         </div>
       )}
       {phase === "error" && (
@@ -273,6 +279,7 @@ function ReactionButton({
     <button
       aria-label={label}
       onClick={onClick}
+      disabled={active}
       className={cn(
         "flex h-11 w-11 items-center justify-center rounded-full border border-border bg-card text-muted-foreground transition-transform duration-150 active:scale-[0.97]",
         active && activeClass

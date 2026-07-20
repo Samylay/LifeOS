@@ -104,6 +104,33 @@ describe("planFeedBatch", () => {
     expect(qPos).toBeGreaterThan(ePos); // exposure precedes the quiz
   });
 
+  it("exposure gate is per-topic: same sub-concept name in another topic does not unlock", () => {
+    const all = [
+      // Topic A's "framing" concept was shown — must NOT unlock topic B's
+      // "framing" quiz (bare sub-concept names collide across LLM-made maps).
+      card({ subConcept: "framing", format: "concept", topicId: "tA", timesShown: 1 }),
+      card({ id: "qB", subConcept: "framing", format: "quiz", quiz: quiz(), topicId: "tB" }),
+      card({ id: "eB", subConcept: "framing", format: "concept", topicId: "tB" }),
+      card({ subConcept: "other", format: "concept", topicId: "tA" }),
+    ];
+    const batch = planFeedBatch(all, NOW, 4);
+    const qPos = batch.findIndex((c) => c.id === "qB");
+    const ePos = batch.findIndex((c) => c.id === "eB");
+    expect(qPos).toBeGreaterThan(ePos);
+  });
+
+  it("due cards respect topic alternation when the due pool allows it", () => {
+    const dueA = card({ status: "kept", lastShownAt: dateMarker(NOW - 5 * DAY), topicId: "tA" });
+    const dueB = card({ status: "kept", lastShownAt: dateMarker(NOW - 5 * DAY), topicId: "tB" });
+    const freshA = card({ topicId: "tA" });
+    // Slot 0 = freshA or freshB, slot 1 = due; the due pick must not repeat
+    // the previous card's topic while an alternative exists.
+    const batch = planFeedBatch([dueA, dueB, freshA, card({ topicId: "tB" })], NOW, 4);
+    for (let i = 1; i < batch.length; i++) {
+      expect(batch[i].topicId).not.toBe(batch[i - 1].topicId);
+    }
+  });
+
   it("serves an unexposed quiz over an empty feed (gate is last relaxation)", () => {
     const all = [card({ format: "quiz", quiz: quiz() })];
     expect(planFeedBatch(all, NOW, 1)).toHaveLength(1);
@@ -144,6 +171,10 @@ describe("shuffleQuiz", () => {
       expect(s.options[s.answerIndex]).toBe(q.options[q.answerIndex]);
       expect([...s.options].sort()).toEqual([...q.options].sort());
     }
+  });
+  it("never carries distractor-ordered misconceptions into the shuffled copy", () => {
+    const s = shuffleQuiz(quiz({ misconceptions: ["m1", "m2", "m3"] }), 3);
+    expect(s.misconceptions).toBeUndefined();
   });
   it("is deterministic per seed and leaves the input untouched", () => {
     const q = quiz();
