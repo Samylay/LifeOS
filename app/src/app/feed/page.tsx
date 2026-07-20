@@ -33,6 +33,7 @@ export default function FeedPage() {
   const [cards, setCards] = useState<ServedCard[]>([]);
   const [phase, setPhase] = useState<"loading" | "ready" | "empty" | "error">("loading");
   const [generating, setGenerating] = useState(false);
+  const [genError, setGenError] = useState<string | null>(null);
   const [showHint, setShowHint] = useState(false);
   const fetching = useRef(false);
   const exhaustedUntil = useRef(0);
@@ -92,9 +93,17 @@ export default function FeedPage() {
 
   const generateNow = async () => {
     setGenerating(true);
+    setGenError(null);
     try {
-      await fetch("/api/feed/generate", { method: "POST" });
+      const res = await fetch("/api/feed/generate", { method: "POST" });
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        setGenError(data?.error ?? `generation failed (HTTP ${res.status})`);
+        return; // don't silently re-spend LLM calls on blind retries
+      }
       await fetchMore();
+    } catch {
+      setGenError("generation failed — network error");
     } finally {
       setGenerating(false);
     }
@@ -138,6 +147,7 @@ export default function FeedPage() {
             {generating && <RotateCw className="h-4 w-4 animate-spin" />}
             {generating ? "generating (takes a few minutes)" : "Generate now"}
           </button>
+          {genError && <p className="text-sm text-destructive">{genError}</p>}
         </div>
       )}
 
