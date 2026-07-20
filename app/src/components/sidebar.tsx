@@ -20,6 +20,7 @@ import {
   Radar,
   Newspaper,
   Mic,
+  GalleryVerticalEnd,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -37,6 +38,7 @@ const NAV_ITEMS = [
   { href: "/news", label: "News", icon: Newspaper },
   { href: "/workouts", label: "Training", icon: Dumbbell },
   { href: "/knowledge", label: "Knowledge", icon: Brain },
+  { href: "/feed", label: "Feed", icon: GalleryVerticalEnd },
 ];
 
 const BOTTOM_ITEMS = [

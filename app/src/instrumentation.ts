@@ -10,5 +10,7 @@ export async function register() {
     startNewsScheduler();
     const { startShipsVaultScheduler } = await import("@/lib/ships-vault-scheduler");
     startShipsVaultScheduler();
+    const { startFeedScheduler } = await import("@/lib/feed-scheduler");
+    startFeedScheduler();
   }
 }
