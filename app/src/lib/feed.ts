@@ -35,7 +35,13 @@ export interface FeedQuiz {
 
 export interface FeedCard {
   id: string;
-  topicId: string;
+  topicId: string; // "" for explore cards (no owning topic yet)
+  /** queue = generated from a TeachTopic; explore = the discovery lane —
+   * cards from OUTSIDE the queue that scout new centers of interest. */
+  origin: "queue" | "explore";
+  /** Explore cards only: the candidate interest domain (tag-shaped, lowercase
+   * 2-4 words) — 2 keeps promote it into the T58 proposal deck. */
+  domain?: string;
   subConcept: string;
   format: CardFormat;
   hook: string;
@@ -103,6 +109,8 @@ export function normalizeCard(id: string, raw: Record<string, unknown>): FeedCar
   return {
     id,
     topicId: String(raw.topicId ?? ""),
+    origin: raw.origin === "explore" ? "explore" : "queue",
+    domain: typeof raw.domain === "string" && raw.domain ? raw.domain : undefined,
     subConcept: String(raw.subConcept ?? ""),
     format: (raw.format as CardFormat) ?? "concept",
     hook: String(raw.hook ?? ""),
@@ -271,11 +279,15 @@ export function planFeedBatch(all: FeedCard[], nowMs: number, count = 10): FeedC
   const taken = new Set<string>();
   const exposed = exposedSubConcepts(all, batch);
   let dueTaken = 0;
+  let exploreTaken = 0;
+  // Exploration stays seasoning, never the meal: ≤~20% of a batch.
+  const exploreCap = Math.ceil(count * 0.2);
 
   const take = (c: FeedCard) => {
     batch.push(c);
     taken.add(c.id);
     if (isDue(c, nowMs)) dueTaken++;
+    if (c.origin === "explore") exploreTaken++;
     if (c.format !== "quiz") exposed.add(subKey(c));
   };
 
@@ -298,7 +310,9 @@ export function planFeedBatch(all: FeedCard[], nowMs: number, count = 10): FeedC
       }
     }
 
-    const pool = fresh.filter((c) => !taken.has(c.id));
+    const pool = fresh.filter(
+      (c) => !taken.has(c.id) && (c.origin !== "explore" || exploreTaken < exploreCap)
+    );
     const gateOk = (c: FeedCard) => c.format !== "quiz" || exposed.has(subKey(c));
 
     const pick =
@@ -323,6 +337,37 @@ export function planFeedBatch(all: FeedCard[], nowMs: number, count = 10): FeedC
     take(pick);
   }
   return batch;
+}
+
+// --- Exploration signals -----------------------------------------------------
+//
+// The explore lane's feedback loop: keeps promote a domain toward a topic
+// proposal (read by proposals.ts, surfaced through the existing T58 deck);
+// kills cool a domain out of future generation. Both are pure counts over
+// card state — no separate ledger to drift.
+
+/** Keeps per explore domain. 2+ ⇒ eligible as a topic proposal. */
+export function exploreKeepCounts(cards?: FeedCard[]): Map<string, number> {
+  const counts = new Map<string, number>();
+  for (const c of cards ?? listCards()) {
+    if (c.origin === "explore" && c.domain && c.status === "kept") {
+      counts.set(c.domain, (counts.get(c.domain) ?? 0) + 1);
+    }
+  }
+  return counts;
+}
+
+/** Domains with 2+ killed cards — excluded from explore generation. This is a
+ * generation cooldown, NOT a tombstone: only Samy's "never" verdict in the
+ * proposal deck tombstones (map 11's single eligibility mechanism). */
+export function exploreKilledDomains(cards?: FeedCard[]): Set<string> {
+  const kills = new Map<string, number>();
+  for (const c of cards ?? listCards()) {
+    if (c.origin === "explore" && c.domain && c.status === "killed") {
+      kills.set(c.domain, (kills.get(c.domain) ?? 0) + 1);
+    }
+  }
+  return new Set([...kills.entries()].filter(([, n]) => n >= 2).map(([d]) => d));
 }
 
 /** Serve-time option shuffle. Returns a NEW quiz with remapped answerIndex —

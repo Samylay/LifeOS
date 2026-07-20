@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   contentHash,
   dateMarker,
+  exploreKeepCounts,
+  exploreKilledDomains,
   isDue,
   nextIntervalIndex,
   planFeedBatch,
@@ -24,6 +26,7 @@ function card(partial: Partial<FeedCard>): FeedCard {
     hook: `hook ${n}`,
     body: "body",
     status: "fresh",
+    origin: "queue",
     timesShown: 0,
     intervalIndex: 0,
     postable: false,
@@ -178,6 +181,16 @@ describe("planFeedBatch", () => {
     expect(dueServed).toBeLessThanOrEqual(4);
   });
 
+  it("caps explore cards at ~20% of a batch even when they dominate the pool", () => {
+    const explore = Array.from({ length: 8 }, (_, i) =>
+      card({ origin: "explore", domain: `d${i}`, topicId: "" })
+    );
+    const queue = Array.from({ length: 8 }, (_, i) => card({ topicId: i % 2 ? "tA" : "tB" }));
+    const batch = planFeedBatch([...explore, ...queue], NOW, 10);
+    expect(batch.filter((c) => c.origin === "explore").length).toBeLessThanOrEqual(2);
+    expect(batch.length).toBe(10);
+  });
+
   it("returns no duplicates", () => {
     const all = Array.from({ length: 6 }, () => card({ topicId: `t${n % 3}` }));
     const batch = planFeedBatch(all, NOW, 20);
@@ -202,6 +215,28 @@ describe("shuffleQuiz", () => {
     const q = quiz();
     expect(shuffleQuiz(q, 7)).toEqual(shuffleQuiz(q, 7));
     expect(q.answerIndex).toBe(2);
+  });
+});
+
+describe("exploration signals", () => {
+  const pool = [
+    card({ origin: "explore", domain: "biomimicry", status: "kept" }),
+    card({ origin: "explore", domain: "biomimicry", status: "kept" }),
+    card({ origin: "explore", domain: "biomimicry", status: "killed" }),
+    card({ origin: "explore", domain: "numismatics", status: "killed" }),
+    card({ origin: "explore", domain: "numismatics", status: "killed" }),
+    card({ origin: "queue", status: "kept" }), // queue keeps never count as explore signal
+  ];
+  it("counts keeps per domain, explore cards only", () => {
+    const keeps = exploreKeepCounts(pool);
+    expect(keeps.get("biomimicry")).toBe(2);
+    expect(keeps.has("numismatics")).toBe(false);
+    expect(keeps.size).toBe(1);
+  });
+  it("cools a domain after 2 kills, one kill is not a verdict", () => {
+    const cooled = exploreKilledDomains(pool);
+    expect(cooled.has("numismatics")).toBe(true);
+    expect(cooled.has("biomimicry")).toBe(false);
   });
 });
 

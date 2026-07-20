@@ -199,6 +199,11 @@ function CardView({ card }: { card: ServedCard }) {
     <section className="relative flex h-dvh w-full snap-start flex-col justify-center px-6 pb-28 pt-14">
       <div className={cn("mx-auto w-full max-w-md transition-opacity duration-150", dimmed && "opacity-30")}>
         <div className="mb-3 flex items-center gap-2 text-xs text-muted-foreground">
+          {card.origin === "explore" && (
+            <span className="rounded-full bg-accent-ui/60 px-2 py-0.5 font-medium">
+              explore · {card.domain}
+            </span>
+          )}
           <span className="rounded-full border border-border px-2 py-0.5">
             {FORMAT_LABEL[card.format]}
           </span>

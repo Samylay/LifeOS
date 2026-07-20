@@ -12,6 +12,8 @@ import {
   CONCEPT_MAPS,
   contentHash,
   dateMarker,
+  exploreKeepCounts,
+  exploreKilledDomains,
   listCards,
   normalizeConceptMap,
   type FeedCard,
@@ -267,6 +269,7 @@ function insertCards(topic: TopicRow, map: FeedConceptMap, drafts: DraftCard[]):
     existingHashes.add(hash);
     createDoc(CARDS, {
       topicId: topic.id,
+      origin: "queue",
       subConcept: d.subConcept,
       format: d.format,
       hook: d.hook,
@@ -289,6 +292,106 @@ function insertCards(topic: TopicRow, map: FeedConceptMap, drafts: DraftCard[]):
     }));
     updateDoc(CONCEPT_MAPS, topic.id, { subConcepts });
   }
+  return inserted;
+}
+
+// --- Explore lane (Samy, 2026-07-20: "feed the homelab with new centers of
+// interest") ------------------------------------------------------------------
+//
+// One extra call per night: 3 cards from domains OUTSIDE the topic queue,
+// adjacent to Samy's standing interests. Kept explore cards promote their
+// domain into the T58 proposal deck (proposals.ts reads exploreKeepCounts);
+// 2 kills cool a domain out of generation. Same judge, no quizzes (a quiz on
+// first contact with an unfamiliar domain is noise, not recall).
+
+const EXPLORE_FRESH_CAP = 8;
+const EXPLORE_CARDS_PER_RUN = 3;
+// Interest anchors from Samy's profile (persona.txt isn't mounted in the
+// container; sourced from the 2026-07-14 interest audit — edit freely).
+const INTEREST_ANCHORS =
+  "game design & interactive narrative (not engines), solarpunk & sustainable tech, CS theory, Rust, typography & UI craft, self-hosting, learning science";
+
+async function generateExploreCards(): Promise<number> {
+  const cards = listCards();
+  const exploreFresh = cards.filter((c) => c.origin === "explore" && c.status === "fresh");
+  if (exploreFresh.length >= EXPLORE_FRESH_CAP) {
+    log(`explore skipped: ${exploreFresh.length} fresh explore cards buffered`);
+    return 0;
+  }
+  const topics = eligibleTopics().map((t) => t.topic);
+  const kept = [...exploreKeepCounts(cards).keys()];
+  const cooled = [...exploreKilledDomains(cards)];
+  const recentDomains = [
+    ...new Set(cards.filter((c) => c.origin === "explore" && c.domain).map((c) => c.domain)),
+  ].slice(-12);
+
+  const drafts = await generateJson<unknown[]>(
+    `You scout NEW interests for a personal learning feed. The reader already
+has a learning queue — your job is the unexpected-but-resonant card from
+OUTSIDE it that might become a new center of interest.
+
+STANDING INTERESTS (anchor adjacency, don't repeat them verbatim): ${INTEREST_ANCHORS}
+CURRENT QUEUE (do NOT overlap): ${topics.join("; ") || "(none)"}
+DOMAINS HE KEPT (more like these, different angles): ${kept.join(", ") || "(none yet)"}
+DOMAINS TO AVOID (he killed these): ${cooled.join(", ") || "(none)"}
+DOMAINS ALREADY TRIED RECENTLY (pick fresh ones): ${recentDomains.join(", ") || "(none)"}
+
+Write exactly ${EXPLORE_CARDS_PER_RUN} cards in 2-3 DISTINCT new domains.
+Rules:
+- "domain": lowercase, 2-4 words, tag-shaped (e.g. "information theory",
+  "biomimicry", "type systems") — it may become a learning-topic name.
+- format: "concept" | "wild_example" | "misconception" (never quiz).
+- hook: one line that earns the stop mid-scroll. body: <=60 words, ONE claim
+  + one concrete example. No listicles, no "did you know" filler.
+- Surprise beats syllabus: pick the single most captivating idea in the
+  domain, not its introduction.
+Reply with a JSON array only:
+[{"domain": string, "subConcept": string (the specific idea), "format": ...,
+  "hook": string, "body": string}]`
+  );
+  if (!Array.isArray(drafts)) return 0;
+  const valid = drafts.filter((d) => {
+    const c = d as Record<string, unknown>;
+    return (
+      typeof c.domain === "string" && c.domain.trim() &&
+      typeof c.subConcept === "string" && c.subConcept.trim() &&
+      ["concept", "wild_example", "misconception"].includes(c.format as string) &&
+      typeof c.hook === "string" && c.hook.trim() &&
+      typeof c.body === "string" && c.body.trim() && c.body.split(/\s+/).length <= 80
+    );
+  }) as Array<{ domain: string; subConcept: string; format: FeedCard["format"]; hook: string; body: string }>;
+
+  // Same judge as queue cards (quiz criteria auto-pass on non-quiz).
+  const judged = await judgeCards(
+    { id: "", topic: "exploration lane", mission: "", status: "", learningRecords: [] },
+    valid.map((c) => ({ subConcept: c.subConcept, format: c.format, hook: c.hook, body: c.body }))
+  );
+  const judgedSet = new Set(judged.map((j) => contentHash(j.hook, j.body)));
+
+  const existingHashes = new Set(cards.map((c) => c.contentHash));
+  let inserted = 0;
+  for (const d of valid) {
+    const hash = contentHash(d.hook, d.body);
+    if (!judgedSet.has(hash) || existingHashes.has(hash)) continue;
+    existingHashes.add(hash);
+    createDoc(CARDS, {
+      topicId: "",
+      origin: "explore",
+      domain: d.domain.trim().toLowerCase(),
+      subConcept: d.subConcept,
+      format: d.format,
+      hook: d.hook,
+      body: d.body,
+      status: "fresh",
+      timesShown: 0,
+      intervalIndex: 0,
+      postable: false,
+      contentHash: hash,
+      createdAt: dateMarker(),
+    });
+    inserted++;
+  }
+  log(`explore: drafted ${drafts.length}, valid ${valid.length}, judged-in ${judged.length}, inserted ${inserted}`);
   return inserted;
 }
 
@@ -324,6 +427,12 @@ export async function runFeedGeneration(): Promise<FeedGenResult> {
       log(`"${topic.topic}" crashed: ${e instanceof Error ? e.message : e}`);
       result.skipped.push(`${topic.topic} (error)`);
     }
+  }
+  try {
+    result.inserted += await generateExploreCards();
+  } catch (e) {
+    log(`explore lane crashed: ${e instanceof Error ? e.message : e}`);
+    result.skipped.push("exploration lane (error)");
   }
   return result;
 }
