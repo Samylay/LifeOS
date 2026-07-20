@@ -24,8 +24,13 @@ import {
 
 const TOPICS = "users/local/teachTopics";
 const TOPIC_FRESH_CAP = 15;
-const GLOBAL_FRESH_CAP = 60;
 const CARDS_PER_TOPIC_PER_RUN = 5;
+
+/** Global fresh buffer scales with the queue so a wide queue still feels
+ * infinite: ~8 cards of headroom per topic, floor 60, ceiling 200. */
+function globalFreshCap(topicCount: number): number {
+  return Math.min(200, Math.max(60, topicCount * 8));
+}
 
 function log(msg: string) {
   console.log(`[feed-generator] ${new Date().toISOString()} ${msg}`);
@@ -145,15 +150,40 @@ ${targets
   .map((t) => `- ${t.name}${t.hooks.length ? ` — already covered by: ${t.hooks.join(" / ")}` : ""}`)
   .join("\n")}
 
-Write exactly ${CARDS_PER_TOPIC_PER_RUN} cards. Rules:
-- At least 1 and at most 2 cards have format "quiz". Mix both quiz kinds across
-  cards when possible: "recognition" (identify the concept) and
-  "discrimination" (spot the concept in a realistic example among lookalikes).
-- Quiz distractors: each of the 3 wrong options embodies a DISTINCT common
-  misconception (name it in "misconceptions", same order as the distractors).
-  Never a random or trivially-eliminable wrong answer.
+Write exactly ${CARDS_PER_TOPIC_PER_RUN} cards. Craft rules (non-negotiable):
+
+HOOKS — the reader is mid-scroll; the hook is everything:
+- Open with a question or claim the reader would confidently and WRONGLY
+  answer, or the specific surprising instance — never by naming the concept.
+- The hook's tension must resolve into a small revelation, never a letdown.
+- Never open with "Did you know", "It's fascinating", or any throat-clearing.
+
+BODIES (<=60 words, ONE claim):
+- Exactly one concrete number, date, size, or named real instance per card.
+  Never a vague quantifier ("many", "often", "significant").
+- An analogy must let the reader predict a second true fact about the real
+  thing; cut decorative analogies.
+- Second person, present tense, active voice. Vary sentence length — never
+  three same-length sentences in a row. Cut every hedge ("can", "may",
+  "sometimes") unless the hedge is the point.
+- No em dashes. No "isn't just X, it's Y". Plain direct sentences.
+
+MISCONCEPTION cards:
+- State the wrong belief as a confident claim ("Heavier objects fall
+  faster"), never hedged ("some people think..."). Refute it in the next
+  sentence. End on the correction stated MORE plainly than the myth.
+
+WILD_EXAMPLE cards:
+- The example must be causally load-bearing: it fails to make sense without
+  the concept. Named, dated, specific. Pick the one with the highest
+  surprise-to-plausibility ratio, closest to a CS student's daily life.
+
+QUIZ cards (at least 1, at most 2; mix "recognition" and "discrimination"
+across nights):
+- Each of the 3 distractors embodies a DISTINCT common misconception (name
+  it in "misconceptions", same order). Never trivially eliminable.
 - "why" must justify the correct answer AND say why each distractor is wrong.
-- Bodies <=60 words, ONE claim + one concrete example, no enumerations.
+
 - Never duplicate an "already covered by" hook's angle.
 ${retryError ? `\nYour previous reply failed validation: ${retryError}\nFix that and reply again.` : ""}
 Reply with a JSON array only, schema:
@@ -201,6 +231,8 @@ interface JudgeVerdict {
   noEnumeration: boolean;
   answerCorrect: boolean;
   distractorsPlausible: boolean;
+  hookTension: boolean;
+  concreteDetail: boolean;
 }
 
 async function judgeCards(topic: TopicRow, drafts: DraftCard[]): Promise<DraftCard[]> {
@@ -225,6 +257,11 @@ For each card, output:
   non-quiz cards
 - "distractorsPlausible": for quiz cards, true iff distractors map to real
   misconceptions and none is trivially eliminable; true for non-quiz cards
+- "hookTension": true iff the hook creates a specific tension WITHOUT naming
+  the concept, and the body resolves it as a small revelation. A hook that
+  merely announces the topic ("Let's talk about entropy") fails.
+- "concreteDetail": true iff the body contains at least one concrete number,
+  date, size, or named real instance (not a vague quantifier)
 
 Reply with a JSON array of verdicts only.`
   );
@@ -232,8 +269,10 @@ Reply with a JSON array of verdicts only.`
   for (const v of Array.isArray(verdicts) ? verdicts : []) byIndex.set(Number(v.index), v);
   const survivors: DraftCard[] = [];
   const failCounts: Record<string, number> = {};
-  const HARD = ["oneFact", "traceableCue", "answerCorrect"] as const;
-  const SOFT = ["noEnumeration", "distractorsPlausible"] as const;
+  // hookTension is HARD (Samy 2026-07-20: quality over volume — a flat hook
+  // is exactly the card he doesn't want); watch its reject rate in the logs.
+  const HARD = ["oneFact", "traceableCue", "answerCorrect", "hookTension"] as const;
+  const SOFT = ["noEnumeration", "distractorsPlausible", "concreteDetail"] as const;
   drafts.forEach((d, i) => {
     const v = byIndex.get(i);
     // Judge said nothing about a card → fail closed (don't insert unverified).
@@ -354,10 +393,14 @@ Rules:
 - "domain": lowercase, 2-4 words, tag-shaped (e.g. "information theory",
   "biomimicry", "type systems") — it may become a learning-topic name.
 - format: "concept" | "wild_example" | "misconception" (never quiz).
-- hook: one line that earns the stop mid-scroll. body: <=60 words, ONE claim
-  + one concrete example. No listicles, no "did you know" filler.
 - Surprise beats syllabus: pick the single most captivating idea in the
   domain, not its introduction.
+- Hook: open with a claim the reader would confidently get wrong or the
+  surprising specific instance, never the concept's name, never "did you
+  know". Its tension must resolve into a small revelation.
+- Body <=60 words, ONE claim, exactly one concrete number/date/named
+  instance. Second person, present tense, no hedges, no em dashes, vary
+  sentence length. Analogies only if they predict a second true fact.
 Reply with a JSON array only:
 [{"domain": string, "subConcept": string (the specific idea), "format": ...,
   "hook": string, "body": string}]`
@@ -435,7 +478,7 @@ export async function runFeedGeneration(): Promise<FeedGenResult> {
   const result: FeedGenResult = { topics: topics.length, inserted: 0, skipped: [] };
   for (const topic of topics) {
     const fresh = listCards().filter((c) => c.status === "fresh");
-    if (fresh.length >= GLOBAL_FRESH_CAP) {
+    if (fresh.length >= globalFreshCap(topics.length)) {
       result.skipped.push(`${topic.topic} (global fresh cap)`);
       continue;
     }
@@ -462,4 +505,33 @@ export async function runFeedGeneration(): Promise<FeedGenResult> {
     result.skipped.push("exploration lane (error)");
   }
   return result;
+}
+
+// --- Low-water top-up ----------------------------------------------------
+//
+// The infinite-scroll contract: the pool refills BEFORE it runs dry, not at
+// 03:00. The serving path calls this fire-and-forget when fresh stock dips;
+// the lock + cooldown keep a scroll session from stacking runs, and the
+// per-topic/global caps inside runFeedGeneration bound the spend.
+
+const LOW_WATER = 20;
+const TOPUP_COOLDOWN_MS = 30 * 60 * 1000;
+
+declare global {
+  var __feedTopUp: { running: boolean; lastAt: number } | undefined;
+}
+
+export function maybeTopUp(freshCount: number): void {
+  if (freshCount >= LOW_WATER) return;
+  const state = (globalThis.__feedTopUp ??= { running: false, lastAt: 0 });
+  if (state.running || Date.now() - state.lastAt < TOPUP_COOLDOWN_MS) return;
+  state.running = true;
+  state.lastAt = Date.now();
+  log(`low-water top-up: ${freshCount} fresh cards left, generating`);
+  void runFeedGeneration()
+    .then((r) => log(`top-up done: ${r.inserted} inserted`))
+    .catch((e) => log(`top-up crashed: ${e instanceof Error ? e.message : e}`))
+    .finally(() => {
+      state.running = false;
+    });
 }
