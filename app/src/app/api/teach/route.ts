@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
         const date = String(body.date || "");
         if (!/^\d{4}-\d{2}-\d{2}$/.test(date))
           return NextResponse.json({ error: "date must be YYYY-MM-DD" }, { status: 400 });
-        scheduleTopic(String(body.topicId), date);
+        await scheduleTopic(String(body.topicId), date);
         return NextResponse.json({ ok: true });
       }
       case "start": {

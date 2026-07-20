@@ -17,6 +17,8 @@ const {
   attachedItems,
   lastTaughtDate,
   selectMaterialForBudget,
+  scheduleTopic,
+  retryTodoistSchedules,
 } = await import("./teach");
 const { createDoc, updateDoc } = await import("./server-db");
 const { TRIAGE_COLLECTION } = await import("./triage-ingest");
@@ -197,5 +199,89 @@ describe("topic-tag tombstones", () => {
     // idempotent re-tombstone shouldn't create a second ledger entry or flip back
     neverProposeTag("humor");
     expect(isTagTombstoned("humor")).toBe(true);
+  });
+});
+
+describe("scheduleTopic — writes a Todoist task (T60)", () => {
+  const originalFetch = globalThis.fetch;
+  const originalToken = process.env.TODOIST_API_TOKEN;
+
+  afterAll(() => {
+    globalThis.fetch = originalFetch;
+    process.env.TODOIST_API_TOKEN = originalToken;
+  });
+
+  it("schedules locally and posts one Todoist task with the topic sentence + due date", async () => {
+    process.env.TODOIST_API_TOKEN = "test-token";
+    const calls: Array<{ url: string; body: unknown }> = [];
+    globalThis.fetch = (async (url: string, init?: RequestInit) => {
+      calls.push({ url: String(url), body: JSON.parse(String(init?.body)) });
+      return new Response(JSON.stringify({ id: "todoist-task-1" }), { status: 200 });
+    }) as typeof globalThis.fetch;
+
+    const id = addTopic("learn rust", "ship the CLI faster");
+    await scheduleTopic(id, "2026-08-01");
+
+    const topic = getTopic(id);
+    expect(topic?.status).toBe("scheduled");
+    expect(topic?.scheduledFor).toBe("2026-08-01");
+    expect(topic?.todoistSynced).toBe(true);
+    expect(topic?.todoistTaskId).toBe("todoist-task-1");
+    expect(calls).toHaveLength(1);
+    expect(calls[0].url).toContain("api.todoist.com");
+    expect(calls[0].body).toMatchObject({ content: "Learn: learn rust", due_date: "2026-08-01" });
+  });
+
+  it("a write failure leaves the topic scheduled locally and marks it for retry, not lost", async () => {
+    process.env.TODOIST_API_TOKEN = "test-token";
+    globalThis.fetch = (async () => {
+      throw new Error("network down");
+    }) as typeof globalThis.fetch;
+
+    const id = addTopic("learn zig", "curiosity");
+    await scheduleTopic(id, "2026-08-02");
+
+    const topic = getTopic(id);
+    expect(topic?.status).toBe("scheduled");
+    expect(topic?.scheduledFor).toBe("2026-08-02");
+    expect(topic?.todoistSynced).toBe(false);
+  });
+
+  it("retryTodoistSchedules retries only unsynced scheduled topics and syncs them on success", async () => {
+    process.env.TODOIST_API_TOKEN = "test-token";
+    globalThis.fetch = (async () => {
+      throw new Error("network down");
+    }) as typeof globalThis.fetch;
+    const id = addTopic("learn nix", "reproducible boxes");
+    await scheduleTopic(id, "2026-08-03");
+    expect(getTopic(id)?.todoistSynced).toBe(false);
+
+    const calls: Array<{ body: unknown }> = [];
+    globalThis.fetch = (async (_url: string, init?: RequestInit) => {
+      calls.push({ body: JSON.parse(String(init?.body)) });
+      return new Response(JSON.stringify({ id: "todoist-task-retry" }), { status: 200 });
+    }) as typeof globalThis.fetch;
+
+    const { retried } = await retryTodoistSchedules();
+    expect(retried).toContain(id);
+    expect(calls.length).toBeGreaterThanOrEqual(1);
+    const topic = getTopic(id);
+    expect(topic?.todoistSynced).toBe(true);
+    expect(topic?.todoistTaskId).toBe("todoist-task-retry");
+  });
+
+  it("does not attempt a live POST when no token is configured", async () => {
+    delete process.env.TODOIST_API_TOKEN;
+    let called = false;
+    globalThis.fetch = (async () => {
+      called = true;
+      throw new Error("should not be called");
+    }) as typeof globalThis.fetch;
+
+    const id = addTopic("learn go", "faster CLIs");
+    await scheduleTopic(id, "2026-08-04");
+
+    expect(called).toBe(false);
+    expect(getTopic(id)?.todoistSynced).toBe(false);
   });
 });

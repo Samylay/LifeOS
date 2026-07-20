@@ -5,7 +5,7 @@
 //   GET: topics scheduled for today or earlier — consumed by the morning
 //   attention push.
 import { NextResponse } from "next/server";
-import { dueTopics, sweepStaleSessions } from "@/lib/teach";
+import { dueTopics, retryTodoistSchedules, sweepStaleSessions } from "@/lib/teach";
 import { sweepStaleChatSessions } from "@/lib/chat-log";
 import { sweepStaleCaptures } from "@/lib/voicepal";
 
@@ -19,7 +19,8 @@ export async function POST() {
     // VoicePal captures (standalone capture surface) ride the same sweep so an
     // abandoned capture still reaches the vault — no new cron caller needed.
     const voicepal = await sweepStaleCaptures();
-    return NextResponse.json({ ...result, chat, voicepal });
+    const todoist = await retryTodoistSchedules();
+    return NextResponse.json({ ...result, chat, voicepal, todoist });
   } catch (e) {
     return NextResponse.json(
       { error: e instanceof Error ? e.message : "sweep failed" },

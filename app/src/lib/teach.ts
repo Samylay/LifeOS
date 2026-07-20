@@ -45,6 +45,11 @@ export interface TeachTopic {
   origin: "authored" | "proposed"; // authored = Samy typed it; proposed = accepted from a T58 tag-cluster proposal
   status: "queued" | "scheduled" | "active" | "done";
   scheduledFor?: string; // YYYY-MM-DD
+  // T60: the Todoist task written when this topic was scheduled — the
+  // commitment act. `todoistSynced === false` means the write failed (outage)
+  // and the sweep should retry it; the schedule itself never rolls back.
+  todoistTaskId?: string;
+  todoistSynced?: boolean;
   // Learning records — ADR-style capture of what he now knows / where he
   // struggled; drives zone-of-proximal-development for the next session.
   learningRecords: string[];
@@ -103,6 +108,8 @@ function normalizeTopic(id: string, raw: Record<string, unknown>): TeachTopic {
     origin: raw.origin === "proposed" ? "proposed" : "authored",
     status: (raw.status as TeachTopic["status"]) ?? "queued",
     scheduledFor: raw.scheduledFor as string | undefined,
+    todoistTaskId: raw.todoistTaskId as string | undefined,
+    todoistSynced: raw.todoistSynced as boolean | undefined,
     learningRecords: Array.isArray(raw.learningRecords) ? (raw.learningRecords as string[]) : [],
     createdAt: raw.createdAt,
     updatedAt: raw.updatedAt,
@@ -149,8 +156,60 @@ export function isTagTombstoned(tag: string): boolean {
   return existing.some((t) => t.neverPropose);
 }
 
-export function scheduleTopic(topicId: string, date: string): void {
+const TODOIST_TASKS_URL = "https://api.todoist.com/api/v1/tasks";
+
+/** One Todoist task per scheduled topic — never a daily recurring task, never
+ * a mirror of the queue (map 03, T60). Fail soft: a Todoist outage must not
+ * lose the schedule, so the local `status: "scheduled"` write always lands
+ * first and stands regardless of what the POST does. */
+async function writeTodoistTask(topic: string, date: string): Promise<string | null> {
+  const token = process.env.TODOIST_API_TOKEN;
+  if (!token) {
+    console.error("teach: TODOIST_API_TOKEN not set — schedule task not written, will retry");
+    return null;
+  }
+  try {
+    const r = await globalThis.fetch(TODOIST_TASKS_URL, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ content: `Learn: ${topic}`, due_date: date }),
+      signal: AbortSignal.timeout(20_000),
+    });
+    if (!r.ok) throw new Error(`todoist ${r.status}`);
+    const created = (await r.json()) as { id?: string };
+    return created.id ?? null;
+  } catch (e) {
+    console.error("teach: Todoist task write failed, will retry", e);
+    return null;
+  }
+}
+
+/** Scheduling is the commitment act: also writes ONE Todoist task. The local
+ * schedule commits unconditionally; the Todoist write is best-effort and
+ * `todoistSynced: false` marks it for `retryTodoistSchedules()` on failure. */
+export async function scheduleTopic(topicId: string, date: string): Promise<void> {
   updateDoc(TOPICS, topicId, { status: "scheduled", scheduledFor: date });
+  const topic = getTopic(topicId);
+  const taskId = await writeTodoistTask(topic?.topic || "", date);
+  updateDoc(TOPICS, topicId, { todoistTaskId: taskId ?? undefined, todoistSynced: taskId !== null });
+}
+
+/** Retries the Todoist write for any scheduled topic whose last attempt
+ * failed. Called by the same sweep cron that retries other fail-soft writes. */
+export async function retryTodoistSchedules(): Promise<{ retried: string[] }> {
+  const retried: string[] = [];
+  const scheduled = (listDocs(TOPICS, {
+    where: [["status", "==", "scheduled"]],
+  }) as unknown as Array<{ id: string } & Record<string, unknown>>).map((raw) => normalizeTopic(raw.id, raw));
+  for (const topic of scheduled) {
+    if (topic.todoistSynced !== false || !topic.scheduledFor) continue;
+    const taskId = await writeTodoistTask(topic.topic, topic.scheduledFor);
+    if (taskId) {
+      updateDoc(TOPICS, topic.id, { todoistTaskId: taskId, todoistSynced: true });
+      retried.push(topic.id);
+    }
+  }
+  return { retried };
 }
 
 /** Date of the most recent learning record, parsed from its `YYYY-MM-DD: `
