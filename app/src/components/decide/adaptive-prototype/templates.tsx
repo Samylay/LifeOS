@@ -23,8 +23,8 @@ const ICONS: Record<IconName, typeof BookOpen> = {
 };
 
 const VERDICT_COLORS: Record<string, string> = {
-  pursue: "#22C55E", adopt: "#22C55E",
-  maybe: "#F59E0B", try: "#F59E0B",
+  pursue: "var(--success)", adopt: "var(--success)",
+  maybe: "var(--warning)", try: "var(--warning)",
   skim: "var(--muted-foreground)",
   pass: "#EF4444", skip: "#EF4444",
 };

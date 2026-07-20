@@ -153,10 +153,10 @@ function MomentumHero({
 function LooseEnds({ items }: { items: { project: Project; reason: string }[] }) {
   if (items.length === 0) return null;
   return (
-    <div className="rounded-xl p-4" style={{ background: "#F59E0B0D", border: "1px solid #F59E0B33" }}>
+    <div className="rounded-xl p-4 bg-warning/5 border border-warning/20">
       <div className="flex items-center gap-2 mb-2.5">
-        <AlertTriangle size={14} style={{ color: "#F59E0B" }} />
-        <h2 className="text-xs font-bold uppercase tracking-widest" style={{ color: "#F59E0B" }}>
+        <AlertTriangle size={14} className="text-warning" />
+        <h2 className="text-xs font-bold uppercase tracking-widest text-warning">
           Loose ends ({items.length})
         </h2>
       </div>
@@ -164,7 +164,7 @@ function LooseEnds({ items }: { items: { project: Project; reason: string }[] })
         {items.map(({ project, reason }) => (
           <div key={project.id} className="flex items-center gap-2 rounded-lg bg-muted px-3 py-2">
             <span className="flex-1 min-w-0 text-sm truncate text-foreground">{project.title}</span>
-            <span className="text-xs shrink-0 text-right" style={{ color: "#F59E0B" }}>{reason}</span>
+            <span className="text-xs shrink-0 text-right text-warning">{reason}</span>
           </div>
         ))}
       </div>
@@ -295,8 +295,8 @@ function ArchiveDialog({
       >
         <DialogHeader>
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full" style={{ background: "#F59E0B15" }}>
-              <Archive size={18} style={{ color: "#F59E0B" }} />
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-warning/10">
+              <Archive size={18} className="text-warning" />
             </div>
             <DialogTitle>Archive project</DialogTitle>
           </div>
@@ -316,7 +316,7 @@ function ArchiveDialog({
           <Button variant="secondary" onClick={cancel}>Cancel</Button>
           <Button
             onClick={submit}
-            className="bg-[#F59E0B] text-white hover:bg-[#F59E0B]/90"
+            className="bg-warning text-warning-foreground hover:bg-warning/90"
           >
             Archive
           </Button>
@@ -373,8 +373,7 @@ function ProjectCard({
             )}
             {drift && (
               <span
-                className="flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded"
-                style={{ background: "#F59E0B18", color: "#F59E0B" }}
+                className="flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-warning/10 text-warning"
               >
                 <AlertTriangle size={9} /> needs a call
               </span>
@@ -400,7 +399,7 @@ function ProjectCard({
               <span className="truncate">Ships: {project.shippingEvent}</span>
             </p>
           ) : (project.status === "active" || project.status === "planning") && (
-            <p className="text-xs mt-1" style={{ color: "#F59E0B" }}>
+            <p className="text-xs mt-1 text-warning">
               No shipping event — what leaves the machine, and to whom?
             </p>
           )}
@@ -425,7 +424,7 @@ function ProjectCard({
               // red past two — the card itself says when a project has gone cold.
               <span
                 className="text-[11px] font-mono"
-                style={{ color: sinceShip > 14 ? "#EF4444" : sinceShip > 7 ? "#F59E0B" : undefined }}
+                style={{ color: sinceShip > 14 ? "var(--destructive)" : sinceShip > 7 ? "var(--warning)" : undefined }}
               >
                 <span className={sinceShip > 7 ? "" : "text-muted-foreground/70"}>
                   {sinceShip === 0 ? "shipped today" : `${sinceShip}d since ship`}

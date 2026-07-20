@@ -22,7 +22,7 @@ export function DecisionCard({ item }: { item: DecisionItem }) {
   const [showRaw, setShowRaw] = useState(false);
   const b = item.brief;
   const rec = (b?.recommendation ?? "").toLowerCase();
-  const recClass = rec.startsWith("approve") ? "text-[#22C55E]" : rec.startsWith("reject") ? "text-destructive" : "text-[#F59E0B]";
+  const recClass = rec.startsWith("approve") ? "text-success" : rec.startsWith("reject") ? "text-destructive" : "text-warning";
 
   return (
     <div className="space-y-3 p-5">

@@ -48,9 +48,9 @@
   --color-tier-expert: #F59E0B;
   --color-tier-master: #EF4444;
 
-  /* Semantic Colors */
-  --color-success: #7C9E8A;
-  --color-warning: #F59E0B;
+  /* Semantic status colors. success/warning are defined in the semantic token
+     layer below (--success/--warning) so `bg-success`/`text-warning` etc. stay
+     the single source of truth; danger/info kept here for legacy utilities. */
   --color-danger: #EF4444;
   --color-info: #3B82F6;
 
@@ -104,6 +104,10 @@
   --accent-ui-foreground: var(--color-sage-700);
   --destructive: #ef4444;
   --destructive-foreground: #ffffff;
+  --success: #22c55e;
+  --success-foreground: #ffffff;
+  --warning: #f59e0b;
+  --warning-foreground: #ffffff;
   --border: var(--color-warm-200);
   --input: var(--color-warm-200);
   --ring: var(--color-sage-400);
@@ -131,6 +135,10 @@
   --accent-ui-foreground: var(--color-warm-100);
   --destructive: #ef4444;
   --destructive-foreground: #ffffff;
+  --success: #22c55e;
+  --success-foreground: #ffffff;
+  --warning: #f59e0b;
+  --warning-foreground: #ffffff;
   --border: var(--color-warm-800);
   --input: var(--color-warm-700);
   --ring: var(--color-sage-400);
@@ -153,6 +161,10 @@
   --color-accent-foreground: var(--accent-ui-foreground);
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);

@@ -18,9 +18,17 @@ component library (Radix primitives + recharts are the only runtime deps).
 ## Tokens (`src/app/globals.css`)
 
 - **Semantic layer** — `--background`, `--foreground`, `--card`, `--primary`
-  (sage), `--secondary`, `--muted`, `--accent-ui`, `--destructive`, `--border`,
-  `--input`, `--ring`, `--chart-1..5`, `--radius`. Consume via Tailwind classes
-  (`bg-card`, `text-muted-foreground`, `border-border`, `rounded-lg`).
+  (sage), `--secondary`, `--muted`, `--accent-ui`, `--destructive`, `--success`
+  (green), `--warning` (amber), `--border`, `--input`, `--ring`, `--chart-1..5`,
+  `--radius`. Consume via Tailwind classes (`bg-card`, `text-muted-foreground`,
+  `border-border`, `rounded-lg`).
+- **Status colors are tokens, not hexes**: use `text-success`/`bg-success`/
+  `border-success` (+`text-success-foreground`), same for `warning` and
+  `destructive`, or `var(--success)`/`var(--warning)` in inline styles and JS
+  color maps. Never hardcode `#22c55e`/`#f59e0b` for a success/warning meaning.
+  Genuine multi-hue *data* palettes (area colors, priority scales, lead
+  lifecycle, category chips) stay as their own hex maps — they aren't the
+  success/warning semantic pair even when a shade coincides.
 - Built on the **sage/warm palette** (`--color-sage-*`, `--color-warm-*`).
   Dark mode first; light fully supported. The `.dark` class on `<html>` is
   authoritative — the layout script and theme store always resolve "system"

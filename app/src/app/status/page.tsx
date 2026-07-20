@@ -182,8 +182,8 @@ export default function StatusPage() {
                 <span
                   className="h-2.5 w-2.5 shrink-0 rounded-full"
                   style={{
-                    background: c.up ? "#22C55E" : "var(--destructive)",
-                    boxShadow: c.up ? "0 0 6px -1px #22C55E" : "none",
+                    background: c.up ? "var(--success)" : "var(--destructive)",
+                    boxShadow: c.up ? "0 0 6px -1px var(--success)" : "none",
                   }}
                 />
                 <span className="text-sm font-medium">{c.label || c.name}</span>

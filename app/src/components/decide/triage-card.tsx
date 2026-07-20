@@ -33,10 +33,10 @@ const CATEGORY_META: Record<string, { label: string; color: string }> = {
 };
 
 const VERDICT_COLORS: Record<string, string> = {
-  pursue: "#22C55E", adopt: "#22C55E",
-  maybe: "#F59E0B", try: "#F59E0B",
+  pursue: "var(--success)", adopt: "var(--success)",
+  maybe: "var(--warning)", try: "var(--warning)",
   skim: "var(--muted-foreground)",
-  pass: "#EF4444", skip: "#EF4444",
+  pass: "var(--destructive)", skip: "var(--destructive)",
 };
 
 function parseDate(v: TriageQueueItem["savedAt"]): string {

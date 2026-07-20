@@ -60,14 +60,14 @@ interface CardStackProps<T extends { id: string }> {
 
 const TONE: Record<DeckAction["tone"], string> = {
   danger: "bg-destructive/10 text-destructive",
-  success: "bg-[#22C55E]/10 text-[#22C55E]",
+  success: "bg-success/10 text-success",
   accent: "bg-accent text-accent-foreground",
   neutral: "bg-muted text-muted-foreground",
 };
 
 const TONE_FG: Record<DeckAction["tone"], string> = {
   danger: "var(--destructive)",
-  success: "#22C55E",
+  success: "var(--success)",
   accent: "var(--accent-ui-foreground)",
   neutral: "var(--muted-foreground)",
 };

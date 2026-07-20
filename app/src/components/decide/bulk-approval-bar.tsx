@@ -26,7 +26,7 @@ const VERDICTS: { id: DecisionVerdict; label: string; verb: string; icon: Lucide
 
 const TONE: Record<"danger" | "success" | "neutral", string> = {
   danger: "bg-destructive/10 text-destructive border-destructive",
-  success: "bg-[#22C55E]/10 text-[#22C55E] border-[#22C55E]",
+  success: "bg-success/10 text-success border-success",
   neutral: "bg-accent text-accent-foreground border-accent-foreground",
 };
 

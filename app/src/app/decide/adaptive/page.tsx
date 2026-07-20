@@ -216,7 +216,7 @@ export default function AdaptivePrototypePage() {
         </Link>
         <Sparkles size={20} className="text-primary" />
         <h1 className="text-2xl font-semibold text-foreground">Approved</h1>
-        <Badge className="ml-auto rounded-full bg-[#F59E0B]/13 text-[10px] font-bold uppercase tracking-wider text-[#F59E0B]">
+        <Badge className="ml-auto rounded-full bg-warning/[0.13] text-[10px] font-bold uppercase tracking-wider text-warning">
           prototype
         </Badge>
       </div>

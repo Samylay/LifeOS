@@ -309,8 +309,8 @@ export function GoalSection({
         {/* Past-quarter goal that's still active: burying it made the page look
             dead. Surface the decision instead — carry it or close it. */}
         {pastQuarter && (
-          <div className="mt-3 flex items-center gap-2 flex-wrap rounded-lg px-3 py-2" style={{ background: "#F59E0B10", border: "1px solid #F59E0B33" }}>
-            <span className="text-[11px] flex-1 min-w-0" style={{ color: "#F59E0B" }}>
+          <div className="mt-3 flex items-center gap-2 flex-wrap rounded-lg px-3 py-2 bg-warning/10 border border-warning/20">
+            <span className="text-[11px] flex-1 min-w-0 text-warning">
               From {goal.quarter} — still a goal, or done with it?
             </span>
             <button
@@ -358,7 +358,7 @@ export function GoalSection({
           </div>
         )}
         {!expanded && state === "stale" && (
-          <p className="mt-3 text-[11px]" style={{ color: "#F59E0B" }}>
+          <p className="mt-3 text-[11px] text-warning">
             Not touched in a while — ship something on a project below, or set this week&apos;s commitment.
           </p>
         )}

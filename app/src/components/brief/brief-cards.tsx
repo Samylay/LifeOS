@@ -16,9 +16,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 const STATUS_COLOR: Record<string, string> = {
-  green: "#22C55E",
-  amber: "#F59E0B",
-  red: "#EF4444",
+  green: "var(--success)",
+  amber: "var(--warning)",
+  red: "var(--destructive)",
   neutral: "var(--muted-foreground)",
 };
 
@@ -86,7 +86,7 @@ function CardShell({ card, children }: { card: BriefCard; children: React.ReactN
           className="shrink-0 h-2.5 w-2.5 rounded-full"
           style={{
             background: STATUS_COLOR[card.status] ?? STATUS_COLOR.neutral,
-            boxShadow: card.status === "green" ? "0 0 6px -1px #22C55E" : "none",
+            boxShadow: card.status === "green" ? "0 0 6px -1px var(--success)" : "none",
           }}
         />
         <span className="text-muted-foreground">{TYPE_ICON[card.type] ?? <Link2 size={15} />}</span>
