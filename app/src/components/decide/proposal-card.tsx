@@ -36,11 +36,21 @@ export function ProposalCard({
       <div className="flex items-center gap-2">
         <Sparkles size={18} className="text-primary" />
         <p className="text-sm font-semibold text-foreground">
-          {item.count} saved items cluster on <code className="font-mono">{item.tag}</code>
+          {item.source === "feed" ? (
+            <>
+              you kept {item.count} feed cards on <code className="font-mono">{item.tag}</code>
+            </>
+          ) : (
+            <>
+              {item.count} saved items cluster on <code className="font-mono">{item.tag}</code>
+            </>
+          )}
         </p>
       </div>
       <p className="text-xs text-muted-foreground">
-        No topic owns this tag yet. Make it a topic?
+        {item.source === "feed"
+          ? "The feed's explore lane found this interest. Make it a topic?"
+          : "No topic owns this tag yet. Make it a topic?"}
       </p>
       <label className="mt-auto flex flex-col gap-1.5">
         <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">

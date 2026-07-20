@@ -230,7 +230,13 @@ export function isDue(card: FeedCard, nowMs: number): boolean {
   if (!resurfaceable) return false;
   const shownMs = markerMs(card.lastShownAt);
   if (shownMs === null) return false;
-  return shownMs + INTERVALS_DAYS[card.intervalIndex] * DAY_MS <= nowMs;
+  // Quiz cards space on intervalIndex (moved ONLY by answers — the law).
+  // Kept non-quiz cards have no answers to move it, so they space on how
+  // often they've been shown — otherwise every bookmark reruns daily forever.
+  const idx = card.quiz
+    ? card.intervalIndex
+    : Math.min(Math.max(card.timesShown - 1, 0), INTERVALS_DAYS.length - 1);
+  return shownMs + INTERVALS_DAYS[idx] * DAY_MS <= nowMs;
 }
 
 /** Sub-concept keys are (topicId, name) — bare names collide across topics
@@ -290,6 +296,9 @@ export function planFeedBatch(all: FeedCard[], nowMs: number, count = 10): FeedC
     if (c.origin === "explore") exploreTaken++;
     if (c.format !== "quiz") exposed.add(subKey(c));
   };
+  // The explore cap binds EVERY pool, due included — kept explore cards must
+  // not turn resurfacing slots into an uncapped explore rerun channel.
+  const exploreOk = (c: FeedCard) => c.origin !== "explore" || exploreTaken < exploreCap;
 
   for (let slot = 0; slot < count; slot++) {
     const prevTopic = batch.length ? batch[batch.length - 1].topicId : null;
@@ -303,16 +312,15 @@ export function planFeedBatch(all: FeedCard[], nowMs: number, count = 10): FeedC
       // Topic alternation applies to due cards too; relax it if the due pool
       // is single-topic rather than skipping the resurfacing slot.
       const d =
-        due.find((c) => !taken.has(c.id) && altOk(c)) ?? due.find((c) => !taken.has(c.id));
+        due.find((c) => !taken.has(c.id) && exploreOk(c) && altOk(c)) ??
+        due.find((c) => !taken.has(c.id) && exploreOk(c));
       if (d) {
         take(d);
         continue;
       }
     }
 
-    const pool = fresh.filter(
-      (c) => !taken.has(c.id) && (c.origin !== "explore" || exploreTaken < exploreCap)
-    );
+    const pool = fresh.filter((c) => !taken.has(c.id) && exploreOk(c));
     const gateOk = (c: FeedCard) => c.format !== "quiz" || exposed.has(subKey(c));
 
     const pick =
@@ -323,15 +331,15 @@ export function planFeedBatch(all: FeedCard[], nowMs: number, count = 10): FeedC
       // breaking alternation on fresh — but capped at ~40% of the batch, or a
       // single-topic fresh pool turns the feed into mostly reruns.
       (dueTaken < Math.ceil((slot + 1) * 0.4)
-        ? due.find((c) => !taken.has(c.id) && altOk(c))
+        ? due.find((c) => !taken.has(c.id) && exploreOk(c) && altOk(c))
         : undefined) ??
       // Relax 2: topic alternation.
       pool.find((c) => gateOk(c)) ??
       // Relax 3: exposure gate — a quiz beats an empty feed.
       pool.find(() => true) ??
       // Nothing fresh left: drain due even off-mix (alternating when possible).
-      due.find((c) => !taken.has(c.id) && altOk(c)) ??
-      due.find((c) => !taken.has(c.id));
+      due.find((c) => !taken.has(c.id) && exploreOk(c) && altOk(c)) ??
+      due.find((c) => !taken.has(c.id) && exploreOk(c));
 
     if (!pick) break;
     take(pick);

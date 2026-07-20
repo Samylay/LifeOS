@@ -57,14 +57,24 @@ describe("nextIntervalIndex (SM-2-lite)", () => {
 });
 
 describe("isDue", () => {
-  it("kept card due after its interval elapses, not before", () => {
+  it("kept quiz card spaces on intervalIndex (the answer-moved law)", () => {
     const c = card({
       status: "kept",
+      quiz: quiz(),
       intervalIndex: 1, // 3 days
       lastShownAt: dateMarker(NOW - 2 * DAY),
     });
     expect(isDue(c, NOW)).toBe(false);
     expect(isDue({ ...c, lastShownAt: dateMarker(NOW - 3 * DAY) }, NOW)).toBe(true);
+  });
+  it("kept non-quiz card widens with timesShown instead of rerunning daily forever", () => {
+    const base = { status: "kept" as const, lastShownAt: dateMarker(NOW - 2 * DAY) };
+    // Shown twice → next gap 3 days: not due at 2 days.
+    expect(isDue(card({ ...base, timesShown: 2 }), NOW)).toBe(false);
+    // First resurface → 1-day gap: due at 2 days.
+    expect(isDue(card({ ...base, timesShown: 1 }), NOW)).toBe(true);
+    // Heavily reshown → capped at 21 days.
+    expect(isDue(card({ ...base, timesShown: 9, lastShownAt: dateMarker(NOW - 20 * DAY) }), NOW)).toBe(false);
   });
   it("fresh card with a quiz history resurfaces; plain fresh never does", () => {
     const shown = { lastShownAt: dateMarker(NOW - 5 * DAY) };
@@ -154,7 +164,10 @@ describe("planFeedBatch", () => {
 
   it("does not resurface a card before its interval (short batch beats wrong batch)", () => {
     const all = [
-      card({ status: "kept", intervalIndex: 3, lastShownAt: dateMarker(NOW - 1 * DAY) }),
+      // Non-quiz kept card shown 4 times → 21-day gap; 1 day ago is early.
+      card({ status: "kept", timesShown: 4, lastShownAt: dateMarker(NOW - 1 * DAY) }),
+      // Quiz card at intervalIndex 3 (21d), also early.
+      card({ status: "kept", quiz: quiz(), intervalIndex: 3, lastShownAt: dateMarker(NOW - 1 * DAY) }),
     ];
     expect(planFeedBatch(all, NOW, 5)).toHaveLength(0);
   });
@@ -189,6 +202,22 @@ describe("planFeedBatch", () => {
     const batch = planFeedBatch([...explore, ...queue], NOW, 10);
     expect(batch.filter((c) => c.origin === "explore").length).toBeLessThanOrEqual(2);
     expect(batch.length).toBe(10);
+  });
+
+  it("explore cap binds the due pool too — kept explore cards can't flood via resurfacing", () => {
+    const dueExplore = Array.from({ length: 6 }, (_, i) =>
+      card({
+        origin: "explore",
+        domain: `d${i}`,
+        topicId: "",
+        status: "kept",
+        timesShown: 1,
+        lastShownAt: dateMarker(NOW - 5 * DAY),
+      })
+    );
+    const queue = Array.from({ length: 8 }, (_, i) => card({ topicId: i % 2 ? "tA" : "tB" }));
+    const batch = planFeedBatch([...dueExplore, ...queue], NOW, 10);
+    expect(batch.filter((c) => c.origin === "explore").length).toBeLessThanOrEqual(2);
   });
 
   it("returns no duplicates", () => {

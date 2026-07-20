@@ -7,6 +7,7 @@
 // node), NOT novelty detection; the hash is only a backstop.
 import { createDoc, getDoc, listDocs, updateDoc } from "./server-db";
 import { generateJson } from "./claude-cli";
+import { isTagTombstoned } from "./teach";
 import {
   CARDS,
   CONCEPT_MAPS,
@@ -35,6 +36,7 @@ interface TopicRow {
   topic: string;
   mission: string;
   status: string;
+  tags: string[];
   learningRecords: string[];
 }
 
@@ -46,6 +48,7 @@ function eligibleTopics(): TopicRow[] {
       topic: String(t.topic ?? ""),
       mission: String(t.mission ?? ""),
       status: String(t.status ?? ""),
+      tags: Array.isArray(t.tags) ? (t.tags as string[]) : [],
       learningRecords: Array.isArray(t.learningRecords) ? (t.learningRecords as string[]) : [],
     }));
 }
@@ -319,7 +322,17 @@ async function generateExploreCards(): Promise<number> {
     return 0;
   }
   const topics = eligibleTopics().map((t) => t.topic);
-  const kept = [...exploreKeepCounts(cards).keys()];
+  // Domains already decided leave the steering prompt: accepted → they're a
+  // topic now (owned tag, would contradict "do NOT overlap"); "never"
+  // tombstoned → asking for more of it defies the verdict.
+  const ownedTags = new Set(
+    (listDocs(TOPICS) as unknown as Array<Record<string, unknown>>).flatMap((t) =>
+      Array.isArray(t.tags) ? (t.tags as string[]) : []
+    )
+  );
+  const kept = [...exploreKeepCounts(cards).keys()].filter(
+    (d) => !ownedTags.has(d) && !isTagTombstoned(d)
+  );
   const cooled = [...exploreKilledDomains(cards)];
   const recentDomains = [
     ...new Set(cards.filter((c) => c.origin === "explore" && c.domain).map((c) => c.domain)),
@@ -352,8 +365,12 @@ Reply with a JSON array only:
   if (!Array.isArray(drafts)) return 0;
   const valid = drafts.filter((d) => {
     const c = d as Record<string, unknown>;
+    const domain = typeof c.domain === "string" ? c.domain.trim() : "";
     return (
-      typeof c.domain === "string" && c.domain.trim() &&
+      // Tag-shaped domain, enforced (it flows into proposal ids and topic
+      // tags): ≤4 words, ≤40 chars, no separators the id scheme uses.
+      domain.length > 0 && domain.length <= 40 &&
+      domain.split(/\s+/).length <= 4 && !/[:,;\n]/.test(domain) &&
       typeof c.subConcept === "string" && c.subConcept.trim() &&
       ["concept", "wild_example", "misconception"].includes(c.format as string) &&
       typeof c.hook === "string" && c.hook.trim() &&
@@ -361,18 +378,28 @@ Reply with a JSON array only:
     );
   }) as Array<{ domain: string; subConcept: string; format: FeedCard["format"]; hook: string; body: string }>;
 
-  // Same judge as queue cards (quiz criteria auto-pass on non-quiz).
-  const judged = await judgeCards(
-    { id: "", topic: "exploration lane", mission: "", status: "", learningRecords: [] },
-    valid.map((c) => ({ subConcept: c.subConcept, format: c.format, hook: c.hook, body: c.body }))
+  // Same judge as queue cards (quiz criteria auto-pass on non-quiz). Verdicts
+  // are matched back by object identity — judgeCards returns the same draft
+  // objects it was given, so no lossy hash round-trip.
+  const draftObjs = valid.map((c) => ({
+    subConcept: c.subConcept,
+    format: c.format,
+    hook: c.hook,
+    body: c.body,
+  }));
+  const judged = new Set(
+    await judgeCards(
+      { id: "", topic: "exploration lane", mission: "", status: "", tags: [], learningRecords: [] },
+      draftObjs
+    )
   );
-  const judgedSet = new Set(judged.map((j) => contentHash(j.hook, j.body)));
 
   const existingHashes = new Set(cards.map((c) => c.contentHash));
   let inserted = 0;
-  for (const d of valid) {
+  for (let i = 0; i < valid.length; i++) {
+    const d = valid[i];
     const hash = contentHash(d.hook, d.body);
-    if (!judgedSet.has(hash) || existingHashes.has(hash)) continue;
+    if (!judged.has(draftObjs[i]) || existingHashes.has(hash)) continue;
     existingHashes.add(hash);
     createDoc(CARDS, {
       topicId: "",
@@ -391,7 +418,7 @@ Reply with a JSON array only:
     });
     inserted++;
   }
-  log(`explore: drafted ${drafts.length}, valid ${valid.length}, judged-in ${judged.length}, inserted ${inserted}`);
+  log(`explore: drafted ${drafts.length}, valid ${valid.length}, judged-in ${judged.size}, inserted ${inserted}`);
   return inserted;
 }
 

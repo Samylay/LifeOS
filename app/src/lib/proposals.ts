@@ -48,6 +48,9 @@ export interface TopicProposal {
   kind: "topic";
   tag: string;
   count: number;
+  /** Provenance shown on the deck card: triage tag-cluster (default) or the
+   * feed's explore lane (count = kept feed cards, threshold 2 not 3). */
+  source?: "triage" | "feed";
 }
 
 export type Proposal = TagProposal | TopicProposal;
@@ -104,7 +107,13 @@ export function previewProposals(): Proposal[] {
     if (keeps < FEED_EXPLORE_KEEP_MIN) continue;
     if (owned.has(domain) || proposedIds.has(`topic:${domain}`)) continue;
     if (isTagTombstoned(domain)) continue;
-    topicProposals.push({ id: `topic:${domain}`, kind: "topic", tag: domain, count: keeps });
+    topicProposals.push({
+      id: `topic:${domain}`,
+      kind: "topic",
+      tag: domain,
+      count: keeps,
+      source: "feed",
+    });
   }
 
   return [...tagProposals, ...topicProposals];
