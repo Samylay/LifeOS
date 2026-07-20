@@ -5,12 +5,14 @@
 // never lose the message or fail the caller).
 //
 //   POST { text, title?, stream?, severity? }
-//   GET  -> { latest } (newest message; used by the notify-pipeline standing goal)
+//   GET                     -> { latest } (newest message; the notify-pipeline goal depends on this shape)
+//   GET ?limit=N[&stream=S] -> { messages: [...] } (recent history, newest-first; for reading the pager back)
 //
 // Stream/severity are inferred from the emoji conventions the homelab
 // notifiers already use, so callers can stay dumb (`curl -d '{"text":…}'`).
 import { NextRequest, NextResponse } from "next/server";
 import { createDoc, listDocs, deleteDoc, runInTransaction } from "@/lib/server-db";
+import type { QuerySpec } from "@/lib/server-db";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -137,10 +139,30 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ id, stream, severity, pushed });
 }
 
-export async function GET() {
-  const [latest] = listDocs(COLLECTION, {
+export async function GET(req: NextRequest) {
+  const { searchParams } = new URL(req.url);
+  const limitParam = searchParams.get("limit");
+  const streamParam = searchParams.get("stream");
+
+  // No query params: preserve the legacy { latest } shape the notify-pipeline
+  // standing goal reads. Only the presence of ?limit/?stream switches to list.
+  if (limitParam === null && streamParam === null) {
+    const [latest] = listDocs(COLLECTION, {
+      orderBy: ["createdAt", "desc"],
+      limit: 1,
+    });
+    return NextResponse.json({ latest: latest ?? null });
+  }
+
+  const limit = Math.min(Math.max(Math.trunc(Number(limitParam)) || 20, 1), 100);
+  const where: QuerySpec["where"] = STREAMS.includes(streamParam as Stream)
+    ? [["stream", "==", streamParam]]
+    : undefined;
+
+  const messages = listDocs(COLLECTION, {
+    ...(where ? { where } : {}),
     orderBy: ["createdAt", "desc"],
-    limit: 1,
+    limit,
   });
-  return NextResponse.json({ latest: latest ?? null });
+  return NextResponse.json({ messages });
 }
