@@ -156,6 +156,28 @@ describe("planFeedBatch", () => {
     expect(planFeedBatch(all, NOW, 5)).toHaveLength(0);
   });
 
+  it("never re-serves an answered card through the fresh pool before it is due", () => {
+    const answeredWrong = card({
+      id: "aw",
+      status: "fresh",
+      lastResult: "wrong",
+      intervalIndex: 0, // due in 1 day
+      lastShownAt: dateMarker(NOW - 60 * 60 * 1000), // answered an hour ago
+    });
+    const batch = planFeedBatch([answeredWrong, card({}), card({})], NOW, 3);
+    expect(batch.map((c) => c.id)).not.toContain("aw");
+  });
+
+  it("caps due borrowing so a single-topic fresh pool stays majority-fresh", () => {
+    const dueCards = Array.from({ length: 6 }, () =>
+      card({ status: "kept", lastShownAt: dateMarker(NOW - 5 * DAY), topicId: "tOld" })
+    );
+    const freshSingleTopic = Array.from({ length: 6 }, () => card({ topicId: "tOnly" }));
+    const batch = planFeedBatch([...dueCards, ...freshSingleTopic], NOW, 10);
+    const dueServed = batch.filter((c) => c.status === "kept").length;
+    expect(dueServed).toBeLessThanOrEqual(4);
+  });
+
   it("returns no duplicates", () => {
     const all = Array.from({ length: 6 }, () => card({ topicId: `t${n % 3}` }));
     const batch = planFeedBatch(all, NOW, 20);

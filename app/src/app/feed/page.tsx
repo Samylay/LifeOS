@@ -35,10 +35,11 @@ export default function FeedPage() {
   const [generating, setGenerating] = useState(false);
   const [showHint, setShowHint] = useState(false);
   const fetching = useRef(false);
+  const exhaustedUntil = useRef(0);
   const sentinel = useRef<HTMLDivElement>(null);
 
   const fetchMore = useCallback(async () => {
-    if (fetching.current) return;
+    if (fetching.current || Date.now() < exhaustedUntil.current) return;
     fetching.current = true;
     try {
       const res = await fetch("/api/feed/next?count=10");
@@ -47,6 +48,9 @@ export default function FeedPage() {
       setCards((prev) => {
         const seen = new Set(prev.map((c) => c.id));
         const fresh = data.cards.filter((c) => !seen.has(c.id));
+        // All-duplicates ⇒ the pool is drained; back off so the sentinel
+        // doesn't hammer the server (each repeat serve mutates timesShown).
+        if (fresh.length === 0 && prev.length > 0) exhaustedUntil.current = Date.now() + 60_000;
         const next = [...prev, ...fresh];
         setPhase(next.length === 0 ? "empty" : "ready");
         return next;
@@ -64,7 +68,13 @@ export default function FeedPage() {
       sessionStorage.setItem("feed-hint-shown", "1");
       setShowHint(true);
       const t = setTimeout(() => setShowHint(false), 4000);
-      return () => clearTimeout(t);
+      // Also reset on cleanup: under strict-mode double-effects the second
+      // run sees the flag and skips, so the timer must not be the only path
+      // back to hidden.
+      return () => {
+        clearTimeout(t);
+        setShowHint(false);
+      };
     }
   }, [fetchMore]);
 

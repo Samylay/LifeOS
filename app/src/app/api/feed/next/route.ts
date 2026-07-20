@@ -14,7 +14,8 @@ function seedFor(cardId: string, timesShown: number): number {
 }
 
 export async function GET(req: NextRequest) {
-  const count = Math.min(Math.max(Number(req.nextUrl.searchParams.get("count") ?? 10), 1), 30);
+  const raw = Number(req.nextUrl.searchParams.get("count") ?? 10);
+  const count = Number.isFinite(raw) ? Math.min(Math.max(Math.floor(raw), 1), 30) : 10;
   const batch = planFeedBatch(listCards(), Date.now(), count);
   for (const card of batch) markShown(card.id);
   const cards = batch.map((card) => ({

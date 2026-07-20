@@ -31,8 +31,11 @@ function ranRecently(): boolean {
 }
 
 async function runSafely(trigger: string) {
-  if (trigger === "catch-up" && ranRecently()) {
-    log("catch-up skipped: generation already ran in the last 20h");
+  // Guard ALL scheduler triggers, not just catch-up: a 23:xx boot would
+  // otherwise catch-up and then run again at 03:00 — double LLM spend.
+  // (The manual /api/feed/generate trigger bypasses this by design.)
+  if (ranRecently()) {
+    log(`${trigger} skipped: generation already ran in the last 20h`);
     return;
   }
   updateDoc(META, STAMP_ID, { lastRunAt: dateMarker() });

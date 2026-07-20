@@ -163,7 +163,9 @@ export function nextIntervalIndex(current: number, correct: boolean): number {
 
 export function applyQuizResult(cardId: string, correct: boolean): FeedCard | null {
   const card = getCard(cardId);
-  if (!card) return null;
+  // A non-quiz card must never gain quiz history — lastResult would pull it
+  // into the due pool (isDue treats history as resurfaceable).
+  if (!card || !card.quiz) return null;
   const intervalIndex = nextIntervalIndex(card.intervalIndex, correct);
   updateDoc(CARDS, cardId, {
     intervalIndex,
@@ -181,8 +183,9 @@ export function applyReaction(cardId: string, type: "keep" | "kill" | "flag"): F
   if (type === "keep") {
     // Idempotent: a resurfaced kept card (or a double-tap) must not append a
     // duplicate learning record — learningRecords feeds the "don't re-teach"
-    // prompt and accretes noise otherwise.
-    if (card.status === "kept") return card;
+    // prompt and accretes noise otherwise. Kill/flag are forever: keep must
+    // not resurrect a removed card.
+    if (card.status !== "fresh") return card;
     updateDoc(CARDS, cardId, { status: "kept", postable: true, keptAt: dateMarker() });
     const topic = getTopic(card.topicId);
     if (topic) {
@@ -257,17 +260,22 @@ export function planFeedBatch(all: FeedCard[], nowMs: number, count = 10): FeedC
       if (d !== 0) return d;
       return (markerMs(a.lastShownAt) ?? 0) - (markerMs(b.lastShownAt) ?? 0);
     });
+  // A card with quiz history belongs to the due population ONLY — serving it
+  // through the fresh pool minutes after a wrong answer lets short-term
+  // memory fake a correct and advance the interval with zero retention gap.
   const fresh = all
-    .filter((c) => c.status === "fresh" && !isDue(c, nowMs))
+    .filter((c) => c.status === "fresh" && c.lastResult === undefined)
     .sort((a, b) => a.timesShown - b.timesShown || (markerMs(a.createdAt) ?? 0) - (markerMs(b.createdAt) ?? 0));
 
   const batch: FeedCard[] = [];
   const taken = new Set<string>();
   const exposed = exposedSubConcepts(all, batch);
+  let dueTaken = 0;
 
   const take = (c: FeedCard) => {
     batch.push(c);
     taken.add(c.id);
+    if (isDue(c, nowMs)) dueTaken++;
     if (c.format !== "quiz") exposed.add(subKey(c));
   };
 
@@ -298,8 +306,11 @@ export function planFeedBatch(all: FeedCard[], nowMs: number, count = 10): FeedC
       (wantQuiz ? pool.find((c) => c.format === "quiz" && gateOk(c) && altOk(c)) : undefined) ??
       pool.find((c) => gateOk(c) && altOk(c)) ??
       // Relax 1.5: an off-mix due card that keeps topics alternating beats
-      // breaking alternation on fresh.
-      due.find((c) => !taken.has(c.id) && altOk(c)) ??
+      // breaking alternation on fresh — but capped at ~40% of the batch, or a
+      // single-topic fresh pool turns the feed into mostly reruns.
+      (dueTaken < Math.ceil((slot + 1) * 0.4)
+        ? due.find((c) => !taken.has(c.id) && altOk(c))
+        : undefined) ??
       // Relax 2: topic alternation.
       pool.find((c) => gateOk(c)) ??
       // Relax 3: exposure gate — a quiz beats an empty feed.
