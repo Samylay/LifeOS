@@ -1,12 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Workflow, Copy, Download, Trash2, Sparkles } from "lucide-react";
+import { Workflow, Copy, Download, Trash2, Sparkles, Mic, Square, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/toast";
+import { useVoiceRecorder } from "@/lib/use-voice-recorder";
 
 interface Diagram {
   id: string;
@@ -33,6 +34,14 @@ export default function DiagramsPage() {
   const [kind, setKind] = useState<(typeof KINDS)[number]>("auto");
   const [busy, setBusy] = useState(false);
   const promptRef = useRef<HTMLTextAreaElement>(null);
+
+  const { state: voice, start: startVoice, stop: stopVoice } = useVoiceRecorder({
+    onTranscript: (t) => {
+      setPrompt((p) => (p.trim() ? `${p.trim()} ${t}` : t));
+      promptRef.current?.focus();
+    },
+    onError: (m) => toast(m, "error"),
+  });
 
   const load = useCallback(async () => {
     const res = await fetch("/api/diagrams");
@@ -119,6 +128,36 @@ export default function DiagramsPage() {
           disabled={busy}
         />
         <div className="flex items-center justify-between gap-2">
+          {voice === "recording" ? (
+            <Button
+              size="icon-sm"
+              onClick={stopVoice}
+              aria-label="Stop recording"
+              title="Stop recording"
+              className="shrink-0 bg-destructive text-white hover:bg-destructive/90 active:scale-[0.97]"
+            >
+              <Square size={12} className="animate-pulse" />
+            </Button>
+          ) : (
+            <Button
+              variant="secondary"
+              size="icon-sm"
+              onClick={startVoice}
+              disabled={voice !== "idle" || busy}
+              aria-label="Dictate the diagram prompt"
+              title="Dictate the diagram prompt"
+              className="shrink-0 text-muted-foreground active:scale-[0.97]"
+            >
+              {voice === "transcribing" ? (
+                <Loader2 size={14} className="animate-spin text-primary" />
+              ) : (
+                <Mic size={14} />
+              )}
+            </Button>
+          )}
+          <p role="status" className="sr-only">
+            {voice === "recording" ? "recording" : voice === "transcribing" ? "transcribing" : ""}
+          </p>
           <div className="flex flex-wrap gap-1">
             {KINDS.map((k) => (
               <button
