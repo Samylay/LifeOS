@@ -52,6 +52,15 @@ services:
       NTFY_TOPIC: "homelab"
       # IP-based so notification taps work regardless of the phone's DNS state.
       PAGER_CLICK_URL: "http://100.124.149.101:3000/pager"
+      # Finance (Enable Banking, T67–T72): ENABLE_BANKING_APP_ID reaches the
+      # container via env_file (.env) once Samy registers the app — no compose
+      # change needed for the id itself. The private key is a FILE
+      # (~/.config/homelab/enable-banking.pem, the only copy, never committed:
+      # *.pem in .gitignore + enable-banking.pem in the global git ignore);
+      # its transport into the container is undecided (MAP.md Q5: base64 in
+      # .env vs a read-only volume mount). If Q5 lands on the mount, add
+      #   - ~/.config/homelab/enable-banking.pem:/secrets/enable-banking.pem:ro
+      # under volumes: in its own commit stating the operational effect.
     networks:
       - default
       - monitoring
