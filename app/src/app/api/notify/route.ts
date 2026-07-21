@@ -1,26 +1,51 @@
-// Homelab pager ingest — the single entry point replacing the Telegram/n8n
-// webhook. Stores every message in the local doc store (collection
-// `users/local/notifications`, rendered by /pager) and forwards it to the
-// self-hosted ntfy instance for phone push (best-effort: a dead ntfy must
-// never lose the message or fail the caller).
+// Homelab notification GATEWAY — the single entry point replacing the
+// Telegram/n8n webhook. Stores every message in the local doc store
+// (collection `users/local/notifications`, rendered by /pager), forwards it
+// to the self-hosted ntfy instance (best-effort: a dead ntfy must never lose
+// the message or fail the caller), and pushes high-severity messages to
+// registered web-push subscriptions (PWA service worker, /api/push/*).
 //
-//   POST { text, title?, stream?, severity? }
+//   POST { text, title?, stream?, severity?, source? }
 //   GET                     -> { latest } (newest message; the notify-pipeline goal depends on this shape)
 //   GET ?limit=N[&stream=S] -> { messages: [...] } (recent history, newest-first; for reading the pager back)
 //
 // Stream/severity are inferred from the emoji conventions the homelab
 // notifiers already use, so callers can stay dumb (`curl -d '{"text":…}'`).
+// severity accepts BOTH vocabularies: legacy "page"|"info"|"low" (all
+// existing callers, unchanged) and gateway "high"|"normal"|"low".
+//
+// Gateway behaviour (see src/lib/notify-gateway.ts):
+//   - dedupe: identical (title+text) delivered once per 10 min; duplicates
+//     are logged as deduped and delivered nowhere.
+//   - quiet hours (default 23:00-07:00 Asia/Tokyo, users/local/settings doc
+//     "notify"): web-push only for severity high; /pager always gets it.
+//     The ntfy dual-write is deliberately UNTOUCHED until Samy verifies
+//     web-push on his real phone (MAP.md T01) — do not gate or remove it.
+//   - delivery log: users/local/notifyLog, pruned to 30 days on write.
 import { NextRequest, NextResponse } from "next/server";
 import { createDoc, listDocs, deleteDoc, runInTransaction } from "@/lib/server-db";
 import type { QuerySpec } from "@/lib/server-db";
+import {
+  toGatewayLevel,
+  toPagerSeverity,
+  getNotifySettings,
+  isQuietHours,
+  decidePush,
+  isDuplicate,
+  appendNotifyLog,
+  type GatewayLevel,
+  type ChannelOutcome,
+} from "@/lib/notify-gateway";
+import { listPushSubs, sendPushToAll } from "@/lib/web-push-channel";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const STREAMS = ["alerts", "nightly", "weekly", "capture", "system"] as const;
-const SEVERITIES = ["page", "info", "low"] as const;
+// Legacy pager vocabulary + the gateway vocabulary — both accepted on POST.
+const SEVERITIES = ["page", "info", "low", "high", "normal"] as const;
 type Stream = (typeof STREAMS)[number];
-type Severity = (typeof SEVERITIES)[number];
+type Severity = "page" | "info" | "low";
 
 const COLLECTION = "users/local/notifications";
 
@@ -103,6 +128,7 @@ export async function POST(req: NextRequest) {
     title?: unknown;
     stream?: unknown;
     severity?: unknown;
+    source?: unknown;
     actions?: unknown;
   };
   try {
@@ -119,11 +145,27 @@ export async function POST(req: NextRequest) {
   const stream = STREAMS.includes(body.stream as Stream)
     ? (body.stream as Stream)
     : inferStream(text);
-  const severity = SEVERITIES.includes(body.severity as Severity)
-    ? (body.severity as Severity)
-    : inferSeverity(text, stream);
+  const source =
+    typeof body.source === "string" && body.source.trim() ? body.source.trim() : null;
+  const level: GatewayLevel = SEVERITIES.includes(body.severity as (typeof SEVERITIES)[number])
+    ? toGatewayLevel(body.severity as (typeof SEVERITIES)[number])
+    : toGatewayLevel(inferSeverity(text, stream));
+  const severity = toPagerSeverity(level); // legacy vocabulary /pager stores + renders
 
   prune();
+
+  // Dedupe: identical (title+text) already delivered within 10 min -> log it
+  // as deduped and deliver nowhere (pager included — one delivery per window).
+  if (isDuplicate(title, text)) {
+    appendNotifyLog({
+      title,
+      text,
+      severity: level,
+      source,
+      channels: { pager: "deduped", ntfy: "deduped", push: "deduped" },
+    });
+    return NextResponse.json({ id: null, stream, severity, pushed: false, deduped: true });
+  }
 
   const id = createDoc(COLLECTION, {
     stream,
@@ -135,8 +177,40 @@ export async function POST(req: NextRequest) {
     readAt: null,
   });
 
+  // ntfy dual-write — behaviour unchanged (stays until Samy verifies web-push
+  // on his phone; see MAP.md T01 gate).
   const pushed = await pushToNtfy(text, title, stream, severity);
-  return NextResponse.json({ id, stream, severity, pushed });
+  const ntfyOutcome: ChannelOutcome = !process.env.NTFY_URL ? "off" : pushed ? "delivered" : "error";
+
+  // Web-push: high always; normal only outside quiet hours with pushNormal on;
+  // low never. A failed/refused endpoint prunes the subscription.
+  const settings = getNotifySettings();
+  const quiet = isQuietHours(new Date(), settings);
+  const decision = decidePush(level, quiet, settings, listPushSubs().length);
+  let pushOutcome: ChannelOutcome = decision === "send" ? "error" : decision;
+  let pushInfo: string | undefined;
+  if (decision === "send") {
+    const r = await sendPushToAll({
+      title: title ?? `LifeOS · ${stream}`,
+      body: text,
+      tag: `lifeos-${stream}`,
+    });
+    pushOutcome = r.delivered > 0 ? "delivered" : "error";
+    pushInfo = `${r.delivered}/${r.attempted} delivered${r.pruned ? `, ${r.pruned} pruned` : ""}${
+      r.errors ? `, ${r.errors} errors` : ""
+    }`;
+  }
+
+  appendNotifyLog({
+    title,
+    text,
+    severity: level,
+    source,
+    channels: { pager: "delivered", ntfy: ntfyOutcome, push: pushOutcome },
+    ...(pushInfo ? { pushInfo } : {}),
+  });
+
+  return NextResponse.json({ id, stream, severity, pushed, push: pushOutcome });
 }
 
 export async function GET(req: NextRequest) {
