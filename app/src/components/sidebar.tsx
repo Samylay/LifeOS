@@ -73,6 +73,17 @@ export function Sidebar({ mobile }: { mobile?: boolean }) {
     if (mobile) setMobileSidebarOpen(false);
   };
 
+  // Lock body scroll while the mobile drawer is open, otherwise a swipe on the
+  // drawer scrolls the page behind it instead of the nav list.
+  useEffect(() => {
+    if (!mobile || !mobileSidebarOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [mobile, mobileSidebarOpen]);
+
   useEffect(() => {
     if (!mobile || !mobileSidebarOpen) return;
     const onKeyDown = (e: KeyboardEvent) => {
@@ -139,7 +150,10 @@ export function Sidebar({ mobile }: { mobile?: boolean }) {
         </div>
 
         {/* Nav items */}
-        <nav className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-2 py-6">
+        <nav
+          className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-2 py-6"
+          style={{ overscrollBehavior: "contain", touchAction: "pan-y", WebkitOverflowScrolling: "touch" }}
+        >
           <div className="space-y-1">
             {NAV_ITEMS.map((item) => {
               const Icon = item.icon;
