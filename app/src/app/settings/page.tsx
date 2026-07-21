@@ -15,9 +15,11 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
 // --- Theme -------------------------------------------------------------
-// globals.css defines .light/.dark on :root with a prefers-color-scheme
-// fallback when neither is set; layout.tsx applies the stored class before
-// first paint. This control just keeps class + localStorage in step.
+// globals.css defines .light/.dark on :root; layout.tsx applies the effective
+// class before first paint. Dark is the default: no stored preference resolves
+// to dark regardless of the OS. "system" is now stored as an explicit value
+// (not the absence of a key) so it stays distinguishable from the unset
+// default — this control just keeps class + localStorage in step.
 
 type Theme = "light" | "system" | "dark";
 
@@ -29,13 +31,15 @@ const themeStore = {
   },
   get(): Theme {
     const s = localStorage.getItem("lifeos-theme");
-    return s === "light" || s === "dark" ? s : "system";
+    // Unset ⇒ dark default (matches the pre-paint script in layout.tsx).
+    return s === "light" || s === "dark" || s === "system" ? s : "dark";
   },
   set(t: Theme) {
     const root = document.documentElement;
     root.classList.remove("light", "dark");
-    if (t === "system") localStorage.removeItem("lifeos-theme");
-    else localStorage.setItem("lifeos-theme", t);
+    // Store every explicit choice — including "system" — so the unset state
+    // stays reserved for the dark default.
+    localStorage.setItem("lifeos-theme", t);
     // The effective class must always be present (shadcn tokens + `dark:`
     // utilities key off it), so resolve "system" here too.
     const effective =
@@ -48,7 +52,7 @@ const themeStore = {
 };
 
 function useTheme(): [Theme, (t: Theme) => void] {
-  const theme = useSyncExternalStore(themeStore.subscribe, themeStore.get, () => "system" as Theme);
+  const theme = useSyncExternalStore(themeStore.subscribe, themeStore.get, () => "dark" as Theme);
   return [theme, themeStore.set];
 }
 

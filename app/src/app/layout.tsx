@@ -35,13 +35,16 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <head>
         <link rel="apple-touch-icon" href="/icon-192.png" />
-        {/* Apply the effective theme class before first paint. The .dark class
-            must always be present when dark is active (stored OR system) so the
-            shadcn token layer and `dark:` utilities key off it. */}
+        {/* Apply the effective theme class before first paint. Dark is the
+            default: with no stored preference we apply "dark" regardless of the
+            OS setting. Only an explicit stored "light" stays light, and the
+            explicit "system" choice resolves to the OS preference. The .dark
+            class must be present whenever dark is active so the shadcn token
+            layer and `dark:` utilities key off it. */}
         <script
           dangerouslySetInnerHTML={{
             __html:
-              'try{var t=localStorage.getItem("lifeos-theme");if(t!=="light"&&t!=="dark")t=matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light";document.documentElement.classList.add(t)}catch(e){}',
+              'try{var t=localStorage.getItem("lifeos-theme");if(t==="system")t=matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light";else if(t!=="light"&&t!=="dark")t="dark";document.documentElement.classList.add(t)}catch(e){}',
           }}
         />
       </head>
