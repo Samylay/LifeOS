@@ -103,8 +103,9 @@ export function Sidebar({ mobile }: { mobile?: boolean }) {
       )}
 
       <aside
-        className="fixed left-0 top-0 z-40 flex h-screen flex-col overflow-y-auto overflow-x-hidden border-r border-border bg-card"
+        className="fixed left-0 top-0 z-40 flex flex-col overflow-hidden border-r border-border bg-card"
         style={{
+          height: "100dvh",
           width: mobile ? 280 : sidebarExpanded ? 256 : 64,
           transition: "transform var(--dur-slow) var(--ease-drawer)",
           transform: mobile
@@ -138,7 +139,7 @@ export function Sidebar({ mobile }: { mobile?: boolean }) {
         </div>
 
         {/* Nav items */}
-        <nav className="flex flex-1 flex-col gap-2 px-2 py-6">
+        <nav className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-2 py-6">
           <div className="space-y-1">
             {NAV_ITEMS.map((item) => {
               const Icon = item.icon;
