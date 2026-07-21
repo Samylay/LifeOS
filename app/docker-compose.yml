@@ -45,12 +45,8 @@ services:
       BRIEF_OUT: "/data/brief.json"
       OBJECTIVES_DIR: "/objectives"
       WHISPER_URL: "http://host.docker.internal:8091"
-      # Pager push arm: self-hosted ntfy (~/infra/ntfy), reached via the host
-      # tailscale IP (docker-proxy binds it there; host.docker.internal maps
-      # to the bridge gateway, where nothing listens). Click opens /pager.
-      NTFY_URL: "http://100.124.149.101:8096"
-      NTFY_TOPIC: "homelab"
-      # IP-based so notification taps work regardless of the phone's DNS state.
+      # Pager tap deep-link origin (IP-based so taps work regardless of the
+      # phone's DNS state). Kept for any future deep-link consumer.
       PAGER_CLICK_URL: "http://100.124.149.101:3000/pager"
       # Finance (Enable Banking, T67–T72): ENABLE_BANKING_APP_ID reaches the
       # container via env_file (.env) once Samy registers the app — no compose
