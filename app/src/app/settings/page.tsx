@@ -8,6 +8,7 @@ import {
   BellRing, Sunrise, RefreshCw, Gauge, Send,
 } from "lucide-react";
 import { useGarmin } from "@/lib/use-garmin";
+import { PushSettings } from "@/components/push-settings";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -392,6 +393,9 @@ export default function SettingsPage() {
 
         {/* Notifications */}
         <Section title="Notifications" sub="Pager inbox + ntfy push to your phone (topic: homelab, tailnet-only).">
+          <div className="mb-4">
+            <PushSettings />
+          </div>
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
