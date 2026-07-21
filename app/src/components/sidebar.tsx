@@ -21,6 +21,7 @@ import {
   Newspaper,
   Mic,
   GalleryVerticalEnd,
+  Workflow,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -39,6 +40,7 @@ const NAV_ITEMS = [
   { href: "/workouts", label: "Training", icon: Dumbbell },
   { href: "/knowledge", label: "Knowledge", icon: Brain },
   { href: "/feed", label: "Feed", icon: GalleryVerticalEnd },
+  { href: "/diagrams", label: "Diagrams", icon: Workflow },
 ];
 
 const BOTTOM_ITEMS = [
