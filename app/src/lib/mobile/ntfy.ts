@@ -14,6 +14,8 @@
 // and the AndroidManifest stay in sync with it, the same pattern as
 // cf-access.ts / CfAccess.java.
 
+import { APP_URL } from "./cf-access";
+
 /** Self-hosted ntfy instance — tailnet IP, plain HTTP (ntfy serves no TLS;
  * the manifest's network security config permits cleartext for exactly this
  * host and nothing else — the WebView's app URL stays HTTPS-only). */
@@ -27,6 +29,29 @@ export const PAGER_PATH = "/pager";
 
 /** Intent extra key carrying the path MainActivity should navigate to. */
 export const OPEN_PATH_EXTRA = "com.samylayaida.lifeos.OPEN_PATH";
+
+/**
+ * Absolute Click URL /api/notify publishes with a deep-linked message, so
+ * the standalone ntfy app (or a browser subscriber) opens the same screen
+ * the native app does. Always the public app origin — never the tailnet IP.
+ */
+export function clickUrlForPath(path: string): string {
+  return `${APP_URL}${path}`;
+}
+
+/**
+ * Derive the in-app path a notification tap should open from a message's
+ * `click` URL. Mirrored by NtfyService.pathFromClick() — only the app's own
+ * origin (or a bare absolute in-app path) deep-links; anything else falls
+ * back to the pager, so a hostile/foreign click URL can never steer the
+ * WebView off-origin ("//host" would be protocol-relative, hence the guard).
+ */
+export function pathFromClick(click: string | null | undefined): string {
+  if (!click) return PAGER_PATH;
+  if (click.startsWith("/")) return click.startsWith("//") ? PAGER_PATH : click;
+  if (click.startsWith(`${APP_URL}/`)) return click.slice(APP_URL.length);
+  return PAGER_PATH;
+}
 
 /**
  * ntfy JSON-stream subscribe URL. `sinceId` (the last message id we
@@ -61,6 +86,8 @@ export type NtfyMessage = {
   title: string | null;
   message: string;
   priority: number;
+  /** Absolute Click URL, if the publisher set one (deep-link source). */
+  click: string | null;
 };
 
 /**
@@ -89,5 +116,6 @@ export function parseNtfyEvent(line: string): NtfyMessage | null {
     title: typeof o.title === "string" && o.title ? o.title : null,
     message,
     priority: typeof o.priority === "number" ? o.priority : 3,
+    click: typeof o.click === "string" && o.click ? o.click : null,
   };
 }

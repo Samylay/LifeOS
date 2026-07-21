@@ -37,6 +37,7 @@ import {
   type ChannelOutcome,
 } from "@/lib/notify-gateway";
 import { listPushSubs, sendPushToAll } from "@/lib/web-push-channel";
+import { clickUrlForPath } from "@/lib/mobile/ntfy";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -50,6 +51,26 @@ type Severity = "page" | "info" | "low";
 const COLLECTION = "users/local/notifications";
 
 type PagerAction = { label: string; kind: "ack" };
+
+// Deep-link target per message: callers pass an in-app `path` ("/prime",
+// "/decide", …); when they don't, the stream picks a sensible screen. Every
+// delivery channel consumes it — pager row link, ntfy Click, web-push URL.
+const STREAM_PATHS: Record<Stream, string> = {
+  alerts: "/pager",
+  nightly: "/pager",
+  weekly: "/pager",
+  capture: "/decide", // captured items land in the triage deck
+  system: "/pager",
+};
+
+// Absolute in-app path only — no scheme, no protocol-relative "//", no
+// whitespace. Anything else is ignored (falls back to the stream default).
+function parsePath(raw: unknown): string | null {
+  if (typeof raw !== "string") return null;
+  const p = raw.trim();
+  if (!p.startsWith("/") || p.startsWith("//") || p.length > 200 || /\s/.test(p)) return null;
+  return p;
+}
 
 function parseActions(raw: unknown): PagerAction[] | null {
   if (!Array.isArray(raw)) return null;
@@ -101,7 +122,13 @@ const NTFY_PRIORITY: Record<Severity, string> = {
   low: "min",
 };
 
-async function pushToNtfy(text: string, title: string | null, stream: Stream, severity: Severity) {
+async function pushToNtfy(
+  text: string,
+  title: string | null,
+  stream: Stream,
+  severity: Severity,
+  path: string
+) {
   const base = process.env.NTFY_URL;
   if (!base) return false;
   try {
@@ -112,7 +139,8 @@ async function pushToNtfy(text: string, title: string | null, stream: Stream, se
         Title: title ?? `LifeOS · ${stream}`,
         Priority: NTFY_PRIORITY[severity],
         Tags: stream,
-        Click: process.env.PAGER_CLICK_URL ?? "",
+        // Per-message deep link; PAGER_CLICK_URL stays as a global override.
+        Click: process.env.PAGER_CLICK_URL || clickUrlForPath(path),
       },
       signal: AbortSignal.timeout(5000),
     });
@@ -130,6 +158,7 @@ export async function POST(req: NextRequest) {
     severity?: unknown;
     source?: unknown;
     actions?: unknown;
+    path?: unknown;
   };
   try {
     body = await req.json();
@@ -151,6 +180,7 @@ export async function POST(req: NextRequest) {
     ? toGatewayLevel(body.severity as (typeof SEVERITIES)[number])
     : toGatewayLevel(inferSeverity(text, stream));
   const severity = toPagerSeverity(level); // legacy vocabulary /pager stores + renders
+  const path = parsePath(body.path) ?? STREAM_PATHS[stream];
 
   prune();
 
@@ -173,13 +203,14 @@ export async function POST(req: NextRequest) {
     title,
     body: text,
     actions: parseActions(body.actions),
+    path,
     createdAt: { __date: new Date().toISOString() },
     readAt: null,
   });
 
   // ntfy dual-write — behaviour unchanged (stays until Samy verifies web-push
   // on his phone; see MAP.md T01 gate).
-  const pushed = await pushToNtfy(text, title, stream, severity);
+  const pushed = await pushToNtfy(text, title, stream, severity, path);
   const ntfyOutcome: ChannelOutcome = !process.env.NTFY_URL ? "off" : pushed ? "delivered" : "error";
 
   // Web-push: high always; normal only outside quiet hours with pushNormal on;
@@ -194,6 +225,7 @@ export async function POST(req: NextRequest) {
       title: title ?? `LifeOS · ${stream}`,
       body: text,
       tag: `lifeos-${stream}`,
+      url: path,
     });
     pushOutcome = r.delivered > 0 ? "delivered" : "error";
     pushInfo = `${r.delivered}/${r.attempted} delivered${r.pruned ? `, ${r.pruned} pruned` : ""}${

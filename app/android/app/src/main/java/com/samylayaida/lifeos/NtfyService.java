@@ -49,6 +49,10 @@ public class NtfyService extends Service {
     static final String NTFY_TOPIC = "homelab";
     static final String PAGER_PATH = "/pager";
     static final String OPEN_PATH_EXTRA = "com.samylayaida.lifeos.OPEN_PATH";
+    // The app's public origin — deep-link click URLs must live on it.
+    // (Duplicated from cf-access.ts on purpose: this class never touches
+    // Cloudflare Access. ntfy-consistency.test.ts pins the value.)
+    static final String CLICK_URL_BASE = "https://lab.samylayaida.com";
 
     static final String CHANNEL_SERVICE = "ntfy_service";
     static final String CHANNEL_URGENT = "pager_urgent";
@@ -193,19 +197,20 @@ public class NtfyService extends Service {
         }
         String title = event.optString("title", "");
         int priority = event.optInt("priority", 3);
-        showMessage(id, title, message, priority);
+        String click = event.optString("click", "");
+        showMessage(id, title, message, priority, click);
         getSharedPreferences(PREFS, MODE_PRIVATE).edit()
             .putString(PREF_LAST_ID, id).apply();
     }
 
-    private void showMessage(String id, String title, String message, int priority) {
+    private void showMessage(String id, String title, String message, int priority, String click) {
         Notification notification = new NotificationCompat.Builder(this, channelForPriority(priority))
             .setSmallIcon(R.drawable.splash_mark)
             .setContentTitle(title.isEmpty() ? "LifeOS" : title)
             .setContentText(message)
             .setStyle(new NotificationCompat.BigTextStyle().bigText(message))
             .setAutoCancel(true)
-            .setContentIntent(openPagerIntent())
+            .setContentIntent(openPathIntent(id.hashCode(), pathFromClick(click)))
             .build();
         NotificationManager manager = getSystemService(NotificationManager.class);
         // ntfy ids are unique per message; hashCode keeps distinct messages
@@ -226,11 +231,30 @@ public class NtfyService extends Service {
         return CHANNEL_DEFAULT;
     }
 
-    private PendingIntent openPagerIntent() {
+    /** Mirrors pathFromClick() in ntfy.ts: a click URL on the app's own
+     * origin (or a bare absolute in-app path) deep-links; anything else —
+     * empty, foreign origin, protocol-relative "//" — opens the pager. */
+    static String pathFromClick(String click) {
+        if (click == null || click.isEmpty()) {
+            return PAGER_PATH;
+        }
+        if (click.startsWith("/")) {
+            return click.startsWith("//") ? PAGER_PATH : click;
+        }
+        if (click.startsWith(CLICK_URL_BASE + "/")) {
+            return click.substring(CLICK_URL_BASE.length());
+        }
+        return PAGER_PATH;
+    }
+
+    private PendingIntent openPathIntent(int requestCode, String path) {
         Intent intent = new Intent(this, MainActivity.class);
-        intent.putExtra(OPEN_PATH_EXTRA, PAGER_PATH);
+        intent.putExtra(OPEN_PATH_EXTRA, path);
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP);
-        return PendingIntent.getActivity(this, 0, intent,
+        // requestCode = message id hash: extras don't count for Intent
+        // equality, so a shared code would collapse every pending tap onto
+        // the most recent message's path.
+        return PendingIntent.getActivity(this, requestCode, intent,
             PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
     }
 

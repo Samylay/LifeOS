@@ -1,5 +1,6 @@
 // LifeOS service worker — web-push only. No caching, no offline logic:
-// its single job is rendering pushed notifications and opening /pager on tap.
+// its single job is rendering pushed notifications and opening the pushed
+// message's in-app path (payload `url`, /pager when absent) on tap.
 self.addEventListener("install", () => {
   self.skipWaiting();
 });
@@ -9,19 +10,24 @@ self.addEventListener("activate", (event) => {
 });
 
 self.addEventListener("push", (event) => {
-  let data = { title: "LifeOS", body: "", tag: "lifeos" };
+  let data = { title: "LifeOS", body: "", tag: "lifeos", url: "/pager" };
   try {
     if (event.data) data = { ...data, ...event.data.json() };
   } catch {
     if (event.data) data.body = event.data.text();
   }
+  // Absolute in-app paths only — same guard as the notify gateway.
+  const url =
+    typeof data.url === "string" && data.url.startsWith("/") && !data.url.startsWith("//")
+      ? data.url
+      : "/pager";
   event.waitUntil(
     self.registration.showNotification(data.title, {
       body: data.body,
       tag: data.tag, // collapses repeated pushes of the same stream
       icon: "/icon-192.png",
       badge: "/icon-192.png",
-      data: { url: "/pager" },
+      data: { url },
     })
   );
 });

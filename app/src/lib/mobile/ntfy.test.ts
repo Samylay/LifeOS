@@ -2,13 +2,17 @@ import { describe, it, expect } from "vitest";
 import {
   NTFY_BASE_URL,
   NTFY_TOPIC,
+  PAGER_PATH,
   subscribeUrl,
   channelForPriority,
   parseNtfyEvent,
+  clickUrlForPath,
+  pathFromClick,
   CHANNEL_URGENT,
   CHANNEL_DEFAULT,
   CHANNEL_LOW,
 } from "./ntfy";
+import { APP_URL } from "./cf-access";
 
 describe("subscribeUrl", () => {
   it("subscribes to the homelab topic's JSON stream on the self-hosted instance", () => {
@@ -62,7 +66,16 @@ describe("parseNtfyEvent", () => {
       title: "LifeOS · nightly",
       message: "🌙 autoloop night run: ✅ lifeos",
       priority: 3,
+      click: null,
     });
+  });
+
+  it("carries the click URL when the publisher set one (deep-link source)", () => {
+    const parsed = parseNtfyEvent(
+      JSON.stringify({ ...message, click: `${APP_URL}/prime` })
+    );
+    expect(parsed?.click).toBe(`${APP_URL}/prime`);
+    expect(parseNtfyEvent(JSON.stringify({ ...message, click: "" }))?.click).toBeNull();
   });
 
   it("defaults priority to 3 and title to null when absent (ntfy omits defaults)", () => {
@@ -87,5 +100,29 @@ describe("parseNtfyEvent", () => {
     expect(parseNtfyEvent('"a string"')).toBeNull();
     expect(parseNtfyEvent(JSON.stringify({ ...message, message: "" }))).toBeNull();
     expect(parseNtfyEvent(JSON.stringify({ ...message, id: undefined }))).toBeNull();
+  });
+});
+
+describe("deep links (clickUrlForPath / pathFromClick, mirrored by NtfyService)", () => {
+  it("publishes click URLs on the app's public origin", () => {
+    expect(clickUrlForPath("/prime")).toBe(`${APP_URL}/prime`);
+  });
+
+  it("round-trips: the path that goes out is the path that comes back", () => {
+    for (const path of ["/prime", "/decide", "/knowledge/teach/abc"]) {
+      expect(pathFromClick(clickUrlForPath(path))).toBe(path);
+    }
+  });
+
+  it("accepts a bare absolute in-app path", () => {
+    expect(pathFromClick("/decide")).toBe("/decide");
+  });
+
+  it("falls back to the pager for empty, foreign, or protocol-relative clicks", () => {
+    expect(pathFromClick(null)).toBe(PAGER_PATH);
+    expect(pathFromClick("")).toBe(PAGER_PATH);
+    expect(pathFromClick("https://evil.example/pwn")).toBe(PAGER_PATH);
+    expect(pathFromClick("//evil.example/pwn")).toBe(PAGER_PATH);
+    expect(pathFromClick(`${APP_URL}.evil.example/pwn`)).toBe(PAGER_PATH);
   });
 });

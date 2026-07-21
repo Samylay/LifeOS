@@ -116,6 +116,8 @@ export async function sendPushToAll(payload: {
   title: string;
   body: string;
   tag: string;
+  /** In-app path the notification tap opens (sw.js falls back to /pager). */
+  url?: string;
 }): Promise<PushSendResult> {
   const subs = listPushSubs();
   const result: PushSendResult = { attempted: subs.length, delivered: 0, pruned: 0, errors: 0 };

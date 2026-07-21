@@ -3,7 +3,8 @@
 // Pager — the homelab notification inbox (Telegram replacement). Messages
 // arrive via POST /api/notify; streams mirror the homelab's four sources.
 import { useState } from "react";
-import { BellRing, Check, CheckCheck, Trash2 } from "lucide-react";
+import Link from "next/link";
+import { ArrowUpRight, BellRing, Check, CheckCheck, Trash2 } from "lucide-react";
 import {
   useNotifications,
   PAGER_STREAMS,
@@ -125,6 +126,16 @@ export default function PagerPage() {
                 <p className="text-sm whitespace-pre-wrap break-words text-muted-foreground">
                   {m.body}
                 </p>
+                {m.path && m.path !== "/pager" && (
+                  <Link
+                    href={m.path}
+                    onClick={() => !m.readAt && markRead(m.id)}
+                    className="inline-flex items-center gap-1 mt-1.5 text-xs font-medium text-primary active:scale-[0.97] transition-transform"
+                  >
+                    Open {m.path}
+                    <ArrowUpRight size={12} />
+                  </Link>
+                )}
                 {!m.readAt && (m.actions?.length ?? 0) > 0 && (
                   <div className="flex flex-wrap gap-2 mt-2">
                     {m.actions!.map((a, i) => (

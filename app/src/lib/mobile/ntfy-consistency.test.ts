@@ -16,7 +16,9 @@ import {
   CHANNEL_DEFAULT,
   CHANNEL_LOW,
   channelForPriority,
+  pathFromClick,
 } from "./ntfy";
+import { APP_URL } from "./cf-access";
 
 const appRoot = path.resolve(__dirname, "../../..");
 const read = (rel: string) => fs.readFileSync(path.join(appRoot, rel), "utf8");
@@ -66,6 +68,22 @@ describe("NtfyService.java mirrors ntfy.ts", () => {
   it("taps open the pager path via the shared intent extra", () => {
     expect(serviceJava).toContain(`"${PAGER_PATH}"`);
     expect(serviceJava).toContain(`"${OPEN_PATH_EXTRA}"`);
+  });
+
+  it("deep-links via the message's click URL with the same rules as pathFromClick()", () => {
+    // Java reads the click field and derives the path from it.
+    expect(serviceJava).toMatch(/optString\("click", ""\)/);
+    expect(serviceJava).toMatch(/pathFromClick\(/);
+    // Same origin pin as clickUrlForPath() (constant duplicated on purpose —
+    // NtfyService must never reference CfAccess).
+    expect(serviceJava).toContain(`"${APP_URL}"`);
+    // Same fallback + guards as the TS spec.
+    expect(serviceJava).toMatch(/startsWith\("\/\/"\) \? PAGER_PATH/);
+    expect(serviceJava).toMatch(/CLICK_URL_BASE \+ "\/"/);
+    expect(pathFromClick(`${APP_URL}/prime`)).toBe("/prime");
+    // Distinct notifications must keep distinct tap targets: the PendingIntent
+    // request code varies per message (extras don't count for Intent equality).
+    expect(serviceJava).toMatch(/openPathIntent\(id\.hashCode\(\), pathFromClick\(click\)\)/);
   });
 
   it("uses the LifeOS mark as the notification icon (branding, not ntfy's)", () => {

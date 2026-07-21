@@ -10,12 +10,21 @@ const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "lifeos-notify-test-"));
 process.env.LIFEOS_DB_PATH = path.join(tmpDir, "test.db");
 
 const { createDoc } = await import("@/lib/server-db");
-const { GET } = await import("./route");
+const { GET, POST } = await import("./route");
 
 const COLLECTION = "users/local/notifications";
 
 function get(url: string): Promise<Response> {
   return GET(new Request(url) as unknown as NextRequest);
+}
+
+function post(body: unknown): Promise<Response> {
+  return POST(
+    new Request("http://localhost/api/notify", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }) as unknown as NextRequest
+  );
 }
 
 // Seed with distinct, ordered createdAt so newest-first is unambiguous.
@@ -70,5 +79,32 @@ describe("GET /api/notify", () => {
 
     const huge = await (await get("http://localhost/api/notify?limit=99999")).json();
     expect(huge.messages.length).toBeLessThanOrEqual(100);
+  });
+});
+
+// POSTs write rows stamped "now" — this block runs after the GET suite so it
+// cannot disturb the newest-first assertions above.
+describe("POST /api/notify deep-link path", () => {
+  async function storedPath(text: string, extra: Record<string, unknown> = {}) {
+    const res = await post({ text, ...extra });
+    expect(res.status).toBe(200);
+    const { id } = await res.json();
+    const { getDoc } = await import("@/lib/server-db");
+    return (getDoc(COLLECTION, id) as { path?: string }).path;
+  }
+
+  it("stores the caller's in-app path on the pager row", async () => {
+    expect(await storedPath("deep-link me", { path: "/prime" })).toBe("/prime");
+  });
+
+  it("defaults by stream when no path is given (capture -> /decide, alerts -> /pager)", async () => {
+    expect(await storedPath("📥 captured a reel")).toBe("/decide");
+    expect(await storedPath("🚨 something broke")).toBe("/pager");
+  });
+
+  it("rejects non-path values back to the stream default (scheme, //, whitespace)", async () => {
+    expect(await storedPath("bad path 1", { path: "https://evil.example/x" })).toBe("/pager");
+    expect(await storedPath("bad path 2", { path: "//evil.example/x" })).toBe("/pager");
+    expect(await storedPath("bad path 3", { path: "/pri me" })).toBe("/pager");
   });
 });

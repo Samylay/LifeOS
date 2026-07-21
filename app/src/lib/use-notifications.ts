@@ -19,6 +19,8 @@ export interface PagerMessage {
   title?: string | null;
   body: string;
   actions?: PagerAction[] | null;
+  /** In-app deep link the notification targets (absent on legacy rows). */
+  path?: string | null;
   createdAt: Date;
   readAt?: Date | null;
 }
