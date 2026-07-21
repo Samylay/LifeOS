@@ -103,7 +103,10 @@ export default function PagerPage() {
             <Card
               key={m.id}
               className="p-4 gap-0 flex-row items-start"
-              style={{ opacity: m.readAt ? 0.6 : 1 }}
+              // Read state is signalled by the hollow dot + muted title below,
+              // NOT by dimming the whole card: an `opacity` dim over the light
+              // ground washed read messages out to ~2:1 (unreadable). Body text
+              // stays at full muted-foreground so read messages remain legible.
             >
               <span
                 className="mt-1.5 mr-3 rounded-full shrink-0 h-2 w-2"
@@ -119,7 +122,11 @@ export default function PagerPage() {
                   </span>
                 </div>
                 {m.title && (
-                  <p className="text-sm font-semibold mb-0.5 text-foreground">
+                  <p
+                    className={`text-sm font-semibold mb-0.5 ${
+                      m.readAt ? "text-muted-foreground" : "text-foreground"
+                    }`}
+                  >
                     {m.title}
                   </p>
                 )}

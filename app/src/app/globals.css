@@ -99,7 +99,11 @@
   --secondary: var(--color-warm-100);
   --secondary-foreground: var(--color-warm-800);
   --muted: var(--color-warm-100);
-  --muted-foreground: var(--color-warm-500);
+  /* warm-600 (not warm-500): warm-500 on the warm-50 ground is ~3.3:1, below
+     WCAG AA for body text — every muted subtitle/label/secondary line read as
+     washed out in light. warm-600 clears ~5:1. Dark keeps warm-400 (own
+     override below), where the contrast was already ~7:1. */
+  --muted-foreground: var(--color-warm-600);
   --accent-ui: var(--color-sage-50);
   --accent-ui-foreground: var(--color-sage-700);
   --destructive: #ef4444;
@@ -186,8 +190,10 @@
   --bg-tertiary: var(--color-warm-100);
   --bg-elevated: #FAF8F5;
   --text-primary: var(--color-warm-900);
-  --text-secondary: var(--color-warm-500);
-  --text-tertiary: var(--color-warm-400);
+  /* Bumped one step darker than the dark-theme equivalents: on the light warm
+     ground warm-500/400 fell below AA (see --muted-foreground note above). */
+  --text-secondary: var(--color-warm-600);
+  --text-tertiary: var(--color-warm-500);
   --border-primary: var(--color-warm-200);
   --border-secondary: var(--color-warm-100);
   --accent: var(--color-sage-400);
