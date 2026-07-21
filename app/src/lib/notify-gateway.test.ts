@@ -86,7 +86,7 @@ describe("push routing", () => {
 });
 
 describe("dedupe (identical title+text within 10 minutes)", () => {
-  const delivered = { pager: "delivered", ntfy: "delivered", push: "skipped" } as const;
+  const delivered = { pager: "delivered", push: "skipped" } as const;
 
   it("collapses a repeat within the window, but not after it", () => {
     const t0 = new Date("2026-07-21T00:00:00Z");
@@ -111,7 +111,7 @@ describe("dedupe (identical title+text within 10 minutes)", () => {
 
   it("a deduped log row does not extend the window", () => {
     const t0 = new Date("2026-07-21T02:00:00Z");
-    const dd = { pager: "deduped", ntfy: "deduped", push: "deduped" } as const;
+    const dd = { pager: "deduped", push: "deduped" } as const;
     appendNotifyLog(
       { title: "x", text: "y", severity: "normal", source: null, channels: delivered },
       t0
@@ -129,7 +129,7 @@ describe("notifyLog retention", () => {
   it("prunes entries older than 30 days on write", () => {
     const old = new Date("2026-05-01T00:00:00Z");
     const now = new Date("2026-07-21T03:00:00Z");
-    const ch = { pager: "delivered", ntfy: "off", push: "skipped" } as const;
+    const ch = { pager: "delivered", push: "skipped" } as const;
     appendNotifyLog({ title: "ancient", text: "old", severity: "low", source: null, channels: ch }, old);
     appendNotifyLog({ title: "fresh", text: "new", severity: "low", source: null, channels: ch }, now);
     const titles = listDocs(LOG_COLLECTION).map((d) => d.title);

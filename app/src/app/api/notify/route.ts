@@ -1,9 +1,9 @@
 // Homelab notification GATEWAY — the single entry point replacing the
 // Telegram/n8n webhook. Stores every message in the local doc store
-// (collection `users/local/notifications`, rendered by /pager), forwards it
-// to the self-hosted ntfy instance (best-effort: a dead ntfy must never lose
-// the message or fail the caller), and pushes high-severity messages to
-// registered web-push subscriptions (PWA service worker, /api/push/*).
+// (collection `users/local/notifications`, rendered by /pager) and pushes
+// high-severity messages to registered web-push subscriptions (PWA service
+// worker, /api/push/*). ntfy was removed 2026-07-21: delivery is pager +
+// web-push only.
 //
 //   POST { text, title?, stream?, severity?, source? }
 //   GET                     -> { latest } (newest message; the notify-pipeline goal depends on this shape)
@@ -19,8 +19,6 @@
 //     are logged as deduped and delivered nowhere.
 //   - quiet hours (default 23:00-07:00 Asia/Tokyo, users/local/settings doc
 //     "notify"): web-push only for severity high; /pager always gets it.
-//     The ntfy dual-write is deliberately UNTOUCHED until Samy verifies
-//     web-push on his real phone (MAP.md T01) — do not gate or remove it.
 //   - delivery log: users/local/notifyLog, pruned to 30 days on write.
 import { NextRequest, NextResponse } from "next/server";
 import { createDoc, listDocs, deleteDoc, runInTransaction } from "@/lib/server-db";
@@ -37,7 +35,6 @@ import {
   type ChannelOutcome,
 } from "@/lib/notify-gateway";
 import { listPushSubs, sendPushToAll } from "@/lib/web-push-channel";
-import { clickUrlForPath } from "@/lib/mobile/ntfy";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -54,7 +51,7 @@ type PagerAction = { label: string; kind: "ack" };
 
 // Deep-link target per message: callers pass an in-app `path` ("/prime",
 // "/decide", …); when they don't, the stream picks a sensible screen. Every
-// delivery channel consumes it — pager row link, ntfy Click, web-push URL.
+// delivery channel consumes it — pager row link, web-push URL.
 const STREAM_PATHS: Record<Stream, string> = {
   alerts: "/pager",
   nightly: "/pager",
@@ -116,40 +113,6 @@ function inferSeverity(text: string, stream: Stream): Severity {
   return stream === "alerts" ? "page" : "info";
 }
 
-const NTFY_PRIORITY: Record<Severity, string> = {
-  page: "urgent",
-  info: "default",
-  low: "min",
-};
-
-async function pushToNtfy(
-  text: string,
-  title: string | null,
-  stream: Stream,
-  severity: Severity,
-  path: string
-) {
-  const base = process.env.NTFY_URL;
-  if (!base) return false;
-  try {
-    const res = await fetch(`${base}/${process.env.NTFY_TOPIC || "homelab"}`, {
-      method: "POST",
-      body: text,
-      headers: {
-        Title: title ?? `LifeOS · ${stream}`,
-        Priority: NTFY_PRIORITY[severity],
-        Tags: stream,
-        // Per-message deep link; PAGER_CLICK_URL stays as a global override.
-        Click: process.env.PAGER_CLICK_URL || clickUrlForPath(path),
-      },
-      signal: AbortSignal.timeout(5000),
-    });
-    return res.ok;
-  } catch {
-    return false;
-  }
-}
-
 export async function POST(req: NextRequest) {
   let body: {
     text?: unknown;
@@ -192,7 +155,7 @@ export async function POST(req: NextRequest) {
       text,
       severity: level,
       source,
-      channels: { pager: "deduped", ntfy: "deduped", push: "deduped" },
+      channels: { pager: "deduped", push: "deduped" },
     });
     return NextResponse.json({ id: null, stream, severity, pushed: false, deduped: true });
   }
@@ -207,11 +170,6 @@ export async function POST(req: NextRequest) {
     createdAt: { __date: new Date().toISOString() },
     readAt: null,
   });
-
-  // ntfy dual-write — behaviour unchanged (stays until Samy verifies web-push
-  // on his phone; see MAP.md T01 gate).
-  const pushed = await pushToNtfy(text, title, stream, severity, path);
-  const ntfyOutcome: ChannelOutcome = !process.env.NTFY_URL ? "off" : pushed ? "delivered" : "error";
 
   // Web-push: high always; normal only outside quiet hours with pushNormal on;
   // low never. A failed/refused endpoint prunes the subscription.
@@ -238,11 +196,11 @@ export async function POST(req: NextRequest) {
     text,
     severity: level,
     source,
-    channels: { pager: "delivered", ntfy: ntfyOutcome, push: pushOutcome },
+    channels: { pager: "delivered", push: pushOutcome },
     ...(pushInfo ? { pushInfo } : {}),
   });
 
-  return NextResponse.json({ id, stream, severity, pushed, push: pushOutcome });
+  return NextResponse.json({ id, stream, severity, push: pushOutcome });
 }
 
 export async function GET(req: NextRequest) {

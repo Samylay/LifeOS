@@ -327,7 +327,7 @@ export default function SettingsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text: "Test notification from Settings", title: "LifeOS test" }),
       });
-      toast(res.ok ? "Test sent — check /pager and your phone (ntfy)" : "Send failed", res.ok ? undefined : "error");
+      toast(res.ok ? "Test sent — check /pager and your phone (push)" : "Send failed", res.ok ? undefined : "error");
     } catch {
       toast("Send failed", "error");
     } finally {
@@ -396,7 +396,7 @@ export default function SettingsPage() {
         </Section>
 
         {/* Notifications */}
-        <Section title="Notifications" sub="Pager inbox + ntfy push to your phone (topic: homelab, tailnet-only).">
+        <Section title="Notifications" sub="Pager inbox + web-push to your devices (tailnet-only).">
           <div className="mb-4">
             <PushSettings />
           </div>
