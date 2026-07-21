@@ -20,14 +20,15 @@ interface Topic {
   learningRecords?: string[];
 }
 
-/** Mirrors `lastTaughtDate` in `src/lib/teach.ts` — the API returns raw docs,
- * not the normalized `TeachTopic`, so this reads the same `YYYY-MM-DD: `
- * prefix client-side rather than adding a round trip. */
-function lastTaughtDate(records: string[] | undefined): string | null {
+/** Mirrors `lastTaughtDate`/`latestProgress` in `src/lib/teach.ts` — the API
+ * returns raw docs, not the normalized `TeachTopic`, so this reads the same
+ * `YYYY-MM-DD: <prose>` shape client-side rather than adding a round trip.
+ * Narrative only (map 08) — never a count, a percentage, or a streak. */
+function lastRecord(records: string[] | undefined): { date: string; text: string } | null {
   const list = records || [];
   for (let i = list.length - 1; i >= 0; i--) {
-    const m = /^(\d{4}-\d{2}-\d{2}):/.exec(list[i]);
-    if (m) return m[1];
+    const m = /^(\d{4}-\d{2}-\d{2}):\s*(.*)$/.exec(list[i]);
+    if (m) return { date: m[1], text: m[2] };
   }
   return null;
 }
@@ -194,8 +195,8 @@ export function TeachSection() {
                 <p className="truncate text-[11px] text-muted-foreground/70">
                   {t.status === "scheduled" && t.scheduledFor ? `session ${t.scheduledFor} · ` : ""}
                   {(() => {
-                    const d = lastTaughtDate(t.learningRecords);
-                    return d ? `last taught ${d}` : "never taught";
+                    const r = lastRecord(t.learningRecords);
+                    return r ? `${r.date}: ${r.text}` : "never taught";
                   })()}
                 </p>
               </div>

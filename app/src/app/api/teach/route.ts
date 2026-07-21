@@ -2,7 +2,7 @@
 // POST = addTopic | schedule | start.
 import { NextRequest, NextResponse } from "next/server";
 import { listDocs } from "@/lib/server-db";
-import { addTopic, scheduleTopic, startSession } from "@/lib/teach";
+import { addTopic, latestProgress, scheduleTopic, startSession } from "@/lib/teach";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   const topics = listDocs("users/local/teachTopics", { orderBy: ["createdAt", "desc"] });
   const sessions = listDocs("users/local/teachSessions", { orderBy: ["startedAt", "desc"] }).slice(0, 20);
-  return NextResponse.json({ topics, sessions });
+  return NextResponse.json({ topics, sessions, latestProgress: latestProgress() });
 }
 
 export async function POST(req: NextRequest) {

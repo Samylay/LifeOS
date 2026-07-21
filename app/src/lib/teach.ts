@@ -224,6 +224,25 @@ export function lastTaughtDate(topic: Pick<TeachTopic, "learningRecords">): stri
   return null;
 }
 
+/** The most recent learning-record narrative across ALL topics — the one line
+ * Today shows (map 08). No score, no aggregation: just the latest prose the
+ * tutor wrote, verbatim. Null when nothing has been taught yet. Never touches
+ * `shipLog` — a learning session is input, not a ship (map 08). */
+export function latestProgress(): { topic: string; date: string; text: string } | null {
+  const topics = (listDocs(TOPICS) as unknown as Array<{ id: string } & Record<string, unknown>>).map((raw) =>
+    normalizeTopic(raw.id, raw)
+  );
+  let best: { topic: string; date: string; text: string } | null = null;
+  for (const t of topics) {
+    for (const record of t.learningRecords) {
+      const m = /^(\d{4}-\d{2}-\d{2}):\s*(.*)$/.exec(record);
+      if (!m) continue;
+      if (!best || m[1] > best.date) best = { topic: t.topic, date: m[1], text: m[2] };
+    }
+  }
+  return best;
+}
+
 /** Topics scheduled for today or earlier — consumed by the morning
  * attention push so a scheduled session reaches Samy as a card. */
 export function dueTopics(today: string): TeachTopic[] {

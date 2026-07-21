@@ -16,6 +16,7 @@ const {
   isTagTombstoned,
   attachedItems,
   lastTaughtDate,
+  latestProgress,
   selectMaterialForBudget,
   scheduleTopic,
   retryTodoistSchedules,
@@ -188,6 +189,40 @@ describe("lastTaughtDate — T57's last-taught date, parsed from learningRecords
 
   it("skips a malformed record without a date prefix", () => {
     expect(lastTaughtDate({ learningRecords: ["no date here"] })).toBeNull();
+  });
+});
+
+describe("latestProgress — T61's narrative-only progress readout", () => {
+  it("returns null when nothing has been taught yet (runs before any dated record exists)", () => {
+    addTopic("untaught topic", "because");
+    expect(latestProgress()).toBeNull();
+  });
+
+  it("picks the most recent record across topics, by date, verbatim", () => {
+    const older = addTopic("progress topic A", "because A");
+    const newer = addTopic("progress topic B", "because B");
+    updateDoc("users/local/teachTopics", older, {
+      learningRecords: ["2026-06-01: got the boundary rules"],
+    });
+    updateDoc("users/local/teachTopics", newer, {
+      learningRecords: ["2026-07-18: caching still shaky"],
+    });
+    const progress = latestProgress();
+    expect(progress).toEqual({
+      topic: "progress topic B",
+      date: "2026-07-18",
+      text: "caching still shaky",
+    });
+  });
+
+  it("never carries a number, percentage, or count — only prose", () => {
+    const id = addTopic("prose-only topic", "because");
+    updateDoc("users/local/teachTopics", id, {
+      learningRecords: ["2099-01-01: understands the boundary rules now"],
+    });
+    const progress = latestProgress();
+    expect(progress?.date).toBe("2099-01-01");
+    expect(typeof progress?.text).toBe("string");
   });
 });
 

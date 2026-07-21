@@ -19,6 +19,7 @@ import { useHabits } from "@/lib/use-habits";
 import { useReminders } from "@/lib/use-reminders";
 import { useNotifications } from "@/lib/use-notifications";
 import { useShipLog } from "@/lib/use-ship-log";
+import { useTeachProgress } from "@/lib/use-teach-progress";
 import { CountUp } from "@/components/count-up";
 import { GoalsCard } from "@/components/goals-card";
 import { BriefCards } from "@/components/brief/brief-cards";
@@ -49,6 +50,7 @@ export default function Today() {
   const { overdue: overdueReminders, dueToday: todayReminders } = useReminders();
   const { messages } = useNotifications();
   const { entries: ships } = useShipLog();
+  const teachProgress = useTeachProgress();
 
   const [now] = useState(() => new Date());
   const [brief, setBrief] = useState<BriefResponse | null>(null);
@@ -111,6 +113,11 @@ export default function Today() {
           <p className="text-sm mt-0.5 text-muted-foreground/70">
             {now.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
           </p>
+          {teachProgress && (
+            <p className="text-xs mt-1 text-muted-foreground/70 truncate max-w-md">
+              Learning — {teachProgress.text}
+            </p>
+          )}
         </div>
         <div className="flex flex-wrap items-center gap-2 text-xs">
           <Link
