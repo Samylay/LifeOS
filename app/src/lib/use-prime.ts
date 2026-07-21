@@ -30,7 +30,6 @@ import { useAuth } from "./auth-context";
 
 const SEED_AFFIRMATIONS: { text: string; type: AffirmationType }[] = [
   { text: "I treat my daily practices with the seriousness of ritual.", type: "anchor" },
-  { text: "I trace problems upstream to their source before acting.", type: "anchor" },
   {
     text: "I build a business the way I build systems — small, durable pieces that compound, not loud bets that fade.",
     type: "anchor",
