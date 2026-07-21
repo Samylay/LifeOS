@@ -90,6 +90,14 @@ describe("buildScriptPrompt", () => {
     expect(p).toContain("send test");
   });
 
+  it("carries the anti-slop rules (stop-slop tells fail the draft)", () => {
+    const p = buildScriptPrompt({ title: "x", pillar: "workflow-win", hookFormula: 1 });
+    expect(p).toContain("Anti-slop rules (violating any of these fails the draft):");
+    expect(p).toContain("isn't X, it's Y");
+    expect(p).toContain("No em dashes in spoken lines or captions");
+    expect(p).toContain("No filler adverbs");
+  });
+
   it("includes idea notes when present and rejects unknown hook formulas", () => {
     const p = buildScriptPrompt({
       title: "x",

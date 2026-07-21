@@ -62,6 +62,18 @@ const VOICE_RULES = [
   "Banned words: \"unlock\", \"supercharge\", \"10x your productivity\", model version numbers in hooks",
 ];
 
+// Anti-slop rules (hardikpandya/stop-slop, adopted 2026-07-21) — the AI tells
+// Samy vetoes in finished scripts; the voice rules above say what to sound
+// like, these say what to never emit.
+export const ANTI_SLOP_RULES = [
+  'No binary-contrast reveals: "isn\'t X, it\'s Y", "not because X, but Y", "the answer isn\'t X". State the point directly.',
+  'No throat-clearing: "Here\'s the thing/what/why", "the truth is", "let me be clear". Cut straight to the content.',
+  'No filler adverbs: "actually", "just", "really", "literally", "simply", "genuinely", "honestly".',
+  'No lazy extremes doing vague work: "everyone", "always", "never", "nobody". Name who specifically.',
+  "No em dashes in spoken lines or captions — use a period, comma, or colon.",
+  'No manufactured punch: "Full stop.", "Let that sink in.", "This matters because", pull-quote one-liners.',
+] as const;
+
 // --- Prompt -----------------------------------------------------------------
 
 export interface ScriptableIdea {
@@ -101,6 +113,9 @@ export function buildScriptPrompt(idea: ScriptableIdea): string {
     "",
     "Voice rules:",
     ...VOICE_RULES.map((r) => `- ${r}`),
+    "",
+    "Anti-slop rules (violating any of these fails the draft):",
+    ...ANTI_SLOP_RULES.map((r) => `- ${r}`),
     "",
     "Non-negotiables (hard constraints):",
     ...NON_NEGOTIABLES.map((r) => `- ${r}`),
