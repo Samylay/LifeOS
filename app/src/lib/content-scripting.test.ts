@@ -96,6 +96,7 @@ describe("buildScriptPrompt", () => {
     expect(p).toContain("isn't X, it's Y");
     expect(p).toContain("No em dashes in spoken lines or captions");
     expect(p).toContain("No filler adverbs");
+    expect(p).toContain("No enumeration scaffolding in spoken lines");
   });
 
   it("includes idea notes when present and rejects unknown hook formulas", () => {

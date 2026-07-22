@@ -72,6 +72,8 @@ export const ANTI_SLOP_RULES = [
   'No lazy extremes doing vague work: "everyone", "always", "never", "nobody". Name who specifically.',
   "No em dashes in spoken lines or captions — use a period, comma, or colon.",
   'No manufactured punch: "Full stop.", "Let that sink in.", "This matters because", pull-quote one-liners.',
+  // Samy's ear, 2026-07-22: enumeration cadence is the loudest AI tell in spoken VO.
+  'No enumeration scaffolding in spoken lines: never "X is three things. First… Second… Third…", no recap triads ("brain, tools, loop"), no numbered labels. Visuals carry structure; the voice stays narrative.',
 ] as const;
 
 // --- Prompt -----------------------------------------------------------------
