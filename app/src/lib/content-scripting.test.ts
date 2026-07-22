@@ -99,6 +99,13 @@ describe("buildScriptPrompt", () => {
     expect(p).toContain("No enumeration scaffolding in spoken lines");
   });
 
+  it("carries the spoken-register rules", () => {
+    const p = buildScriptPrompt({ title: "x", pillar: "workflow-win", hookFormula: 1 });
+    expect(p).toContain("Spoken register (the script is read aloud):");
+    expect(p).toContain("Contractions always");
+    expect(p).toContain("survive being said aloud in one breath");
+  });
+
   it("includes idea notes when present and rejects unknown hook formulas", () => {
     const p = buildScriptPrompt({
       title: "x",

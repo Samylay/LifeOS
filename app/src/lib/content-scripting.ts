@@ -76,6 +76,16 @@ export const ANTI_SLOP_RULES = [
   'No enumeration scaffolding in spoken lines: never "X is three things. First… Second… Third…", no recap triads ("brain, tools, loop"), no numbered labels. Visuals carry structure; the voice stays narrative.',
 ] as const;
 
+// Spoken register (2026-07-22): scripts are read aloud — write for the mouth,
+// not the page. Modeled on how top tech creators actually talk.
+export const SPOKEN_REGISTER_RULES = [
+  "Contractions always: \"it's\", \"there's\", \"job's done\" — an uncontracted \"it is\" reads as text-to-speech.",
+  'Second person: talk TO the viewer ("read your files"), not about the world.',
+  'Verbs over noun phrases: "it can do stuff" beats "it gains capabilities".',
+  'Fragments where the breath falls: "Tests pass? It commits, and goes back to sleep." One per beat at most.',
+  "Every sentence must survive being said aloud in one breath — if you'd rewrite it while recording, rewrite it now.",
+] as const;
+
 // --- Prompt -----------------------------------------------------------------
 
 export interface ScriptableIdea {
@@ -118,6 +128,9 @@ export function buildScriptPrompt(idea: ScriptableIdea): string {
     "",
     "Anti-slop rules (violating any of these fails the draft):",
     ...ANTI_SLOP_RULES.map((r) => `- ${r}`),
+    "",
+    "Spoken register (the script is read aloud):",
+    ...SPOKEN_REGISTER_RULES.map((r) => `- ${r}`),
     "",
     "Non-negotiables (hard constraints):",
     ...NON_NEGOTIABLES.map((r) => `- ${r}`),
