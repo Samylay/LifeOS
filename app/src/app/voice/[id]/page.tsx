@@ -32,6 +32,12 @@ interface Utterance {
   text: string;
 }
 
+interface ActionResult {
+  tool: string;
+  summary: string;
+  failed?: boolean;
+}
+
 export default function VoiceCapturePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
@@ -40,6 +46,7 @@ export default function VoiceCapturePage({ params }: { params: Promise<{ id: str
   const [status, setStatus] = useState<"live" | "ended" | "routed" | "loading">("loading");
   const [utterances, setUtterances] = useState<Utterance[]>([]);
   const [followUps, setFollowUps] = useState<string[]>([]);
+  const [actionResults, setActionResults] = useState<ActionResult[]>([]);
   const [presets, setPresets] = useState<Preset[]>([]);
   const [presetsOpen, setPresetsOpen] = useState(false);
   const [draft, setDraft] = useState<string>("");
@@ -75,7 +82,7 @@ export default function VoiceCapturePage({ params }: { params: Promise<{ id: str
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [utterances.length, followUps.length]);
+  }, [utterances.length, followUps.length, actionResults.length]);
 
   const voice = useVoiceRecorder({
     endpoint: `/api/voicepal/${id}`,
@@ -85,6 +92,7 @@ export default function VoiceCapturePage({ params }: { params: Promise<{ id: str
         { id: `u${prev.length}`, idx: prev.length, role: "raw", text: String(data.text) },
       ]);
       setFollowUps((data.followUps as string[]) || []);
+      setActionResults((data.actionResults as ActionResult[]) || []);
       // A new utterance makes any existing draft stale — clear it so Samy
       // re-transforms the fuller stream rather than trusting an old draft.
       setDraft("");
@@ -201,6 +209,27 @@ export default function VoiceCapturePage({ params }: { params: Promise<{ id: str
               <p key={i} className="text-sm leading-snug text-foreground">
                 {q}
               </p>
+            ))}
+          </div>
+        )}
+
+        {/* Actions the agent took on an explicit spoken command — same
+            capability set as the Assistant panel (shared agent-engine) */}
+        {!busy && actionResults.length > 0 && (
+          <div className="enter flex max-w-[85%] flex-wrap gap-1.5">
+            {actionResults.map((a, i) => (
+              <span
+                key={i}
+                className={cn(
+                  "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium",
+                  a.failed || a.summary.startsWith("Failed")
+                    ? "bg-destructive/10 text-destructive"
+                    : "bg-primary/10 text-primary"
+                )}
+              >
+                <Check size={11} />
+                {a.summary}
+              </span>
             ))}
           </div>
         )}

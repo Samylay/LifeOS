@@ -17,7 +17,9 @@
 import fs from "node:fs";
 import path from "node:path";
 import { createDoc, deleteDoc, getDoc, listDocs, updateDoc } from "./server-db";
-import { generateJson, generateText } from "./claude-cli";
+import { generateText } from "./claude-cli";
+import { runAgentTurn } from "./agent-engine";
+import { executeAppActions } from "./app-actions";
 
 const CAPTURES = "users/local/voiceCaptures";
 const UTTERANCES = "users/local/voiceUtterances";
@@ -175,16 +177,23 @@ export function saveAudio(captureId: string, idx: number, audio: Buffer, mime: s
   return p;
 }
 
+export interface VoiceActionResult {
+  tool: string;
+  summary: string;
+  failed?: boolean;
+}
+
 /** Persist an utterance immediately (no-loss), keep the title fresh from the
- * first raw stream, and return the follow-up questions the Shadow Reader asks.
- * The utterance survives even if follow-up generation fails or the client
+ * first raw stream, and return the follow-up questions the Shadow Reader asks
+ * plus the results of any actions the utterance explicitly commanded.
+ * The utterance survives even if the agent turn fails or the client
  * disappears. */
 export async function addUtterance(
   captureId: string,
   text: string,
   role: VoiceUtterance["role"] = "raw",
   audioPath?: string
-): Promise<{ followUps: string[] }> {
+): Promise<{ followUps: string[]; actionResults: VoiceActionResult[] }> {
   const found = getCapture(captureId);
   if (!found) throw new Error("unknown capture");
   const { capture, utterances } = found;
@@ -198,26 +207,55 @@ export async function addUtterance(
   }
   updateDoc(CAPTURES, captureId, patch);
 
-  const followUps = await shadowReader([...utterances, { role, text } as VoiceUtterance]);
-  return { followUps };
+  return voiceAgent([...utterances, { role, text } as VoiceUtterance]);
 }
 
-/** The Shadow Reader: 2–3 short interview-style follow-ups that push the
- * thought deeper — VoicePal's crown jewel. Best-effort; never throws (a failed
- * model call just means no follow-ups this turn, the utterance is already
- * safe). */
-async function shadowReader(utterances: VoiceUtterance[]): Promise<string[]> {
+// The voice agent's system prompt: the Shadow Reader persona, now with the
+// same tool reach as the Assistant chat panel (shared agent-engine backend).
+// Capture stays primary — actions fire only on explicit spoken commands, and
+// the vault-routing tools stay off because endCapture already files the whole
+// transcript to the vault (double-filing every ramble would spam Hermes).
+const VOICE_AGENT_PROMPT = `You are the Shadow Reader inside LifeOS's voice capture surface: a sharp, curious interviewer helping Samy think out loud. Everything below was SPOKEN (whisper-transcribed), so expect disfluencies and transcription slips.
+
+Your PRIMARY job, every turn: put 2–3 short, spoken-style follow-up questions in \`followUps\` that make him go one level deeper or fill an obvious gap — the kind a great podcast host asks. No preamble, no restating what he said.
+
+You ALSO have the same tools as the LifeOS Assistant (app-item tools and homelab tools). Use them ONLY when he speaks a clear imperative command — "queue a claude session to…", "how's the homelab doing?", "approve the X card", "remind me to…", "mark X done", "I want to learn about…". Thinking out loud about something is NOT a command; when in doubt, don't act — ask about it in a follow-up instead.
+
+Never use capture_braindump or create_note here: this capture is already filed to the vault in full when it ends, so the transcript needs no separate filing. Acting on the homelab always goes through the queued-session pipeline — queueing is not launching, and say so in \`reply\` when you queue something.
+
+Keep \`reply\` to one short spoken-style line, and only meaningful when you took actions (what you did / what came back). Otherwise leave it empty.`;
+
+/** One agent turn per utterance: Shadow Reader follow-ups always, plus any
+ * explicitly-commanded actions (homelab tools run inside the engine; app-item
+ * actions commit here). Best-effort; never throws (a failed model call just
+ * means no follow-ups this turn, the utterance is already safe). */
+async function voiceAgent(
+  utterances: VoiceUtterance[]
+): Promise<{ followUps: string[]; actionResults: VoiceActionResult[] }> {
   const stream = utterances
     .slice(-10)
     .map((u) => (u.role === "prompt" ? `Q: ${u.text}` : u.text))
     .join("\n");
   try {
-    const out = await generateJson<{ followUps?: string[] }>(
-      `You are a sharp, curious interviewer helping Samy think out loud. He just SPOKE the following (transcribed). Ask 2–3 short, spoken-style follow-up questions that make him go one level deeper or fill an obvious gap — the kind a great podcast host asks. No preamble, no restating what he said.\n\nWHAT HE SAID:\n${stream}\n\nJSON: {"followUps": ["...", "..."]}`
-    );
-    return (out.followUps || []).slice(0, 3).filter(Boolean);
+    const { followUps, clientActions, serverResults } = await runAgentTurn({
+      systemPrompt: VOICE_AGENT_PROMPT,
+      convoParts: [`USER (spoken):\n${stream}`],
+      maxRounds: 3,
+      includeFollowUps: true,
+    });
+    // Defense in depth against double-filing (see prompt): the transcript
+    // already reaches the vault via endCapture.
+    const actionable = clientActions.filter((a) => a.tool !== "capture_braindump");
+    const appResults = actionable.length ? await executeAppActions(actionable) : [];
+    return {
+      followUps,
+      actionResults: [
+        ...serverResults.map(({ tool, summary, failed }) => ({ tool, summary, failed })),
+        ...appResults,
+      ],
+    };
   } catch {
-    return [];
+    return { followUps: [], actionResults: [] };
   }
 }
 

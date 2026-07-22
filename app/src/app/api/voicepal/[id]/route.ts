@@ -1,7 +1,8 @@
 // One VoicePal capture.
 //   GET   → capture + utterances
-//   POST  → an utterance: multipart {audio, role?} (whisper → persisted → Shadow
-//           Reader follow-ups) OR JSON {text, role?} for typed/testing input.
+//   POST  → an utterance: multipart {audio, role?} (whisper → persisted → agent
+//           turn: Shadow Reader follow-ups + any explicitly-commanded actions)
+//           OR JSON {text, role?} for typed/testing input.
 //   PATCH → {action:"transform", presetId} = render the stream through a preset;
 //           {action:"end"} = finish + route to the vault inbox (Hermes intake).
 //
@@ -79,8 +80,8 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       if (!text) return NextResponse.json({ error: "text required" }, { status: 400 });
     }
 
-    const { followUps } = await addUtterance(id, text, role, audioPath);
-    return NextResponse.json({ text, followUps });
+    const { followUps, actionResults } = await addUtterance(id, text, role, audioPath);
+    return NextResponse.json({ text, followUps, actionResults });
   } catch (e) {
     return NextResponse.json(
       { error: e instanceof Error ? e.message : "utterance failed" },
