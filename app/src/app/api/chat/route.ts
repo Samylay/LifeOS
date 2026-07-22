@@ -1,14 +1,8 @@
 import OpenAI from "openai";
 import { NextRequest, NextResponse } from "next/server";
 import { getOllamaClient, OLLAMA_MODEL } from "@/lib/ollama";
-import { claudeCliEnabled, generateJson } from "@/lib/claude-cli";
-import {
-  HOMELAB_TOOLS,
-  HOMELAB_TOOL_NAMES,
-  HOMELAB_TOOL_STATUS,
-  executeHomelabTool,
-  type HomelabToolResult,
-} from "@/lib/homelab-tools";
+import { claudeCliEnabled } from "@/lib/claude-cli";
+import { APP_TOOLS, runAgentTurn, type AgentAction } from "@/lib/agent-engine";
 import { executeAppActions } from "@/lib/app-actions";
 import { logChatMessage } from "@/lib/chat-log";
 
@@ -37,202 +31,8 @@ Guidelines:
 
 The user's existing data context will be provided when available so you can avoid duplicates.`;
 
-const tools: OpenAI.ChatCompletionTool[] = [
-  {
-    type: "function",
-    function: {
-      name: "create_tasks",
-      description:
-        "Create one or more tasks in the app. Use this for actionable to-do items. You can create multiple tasks at once.",
-      parameters: {
-        type: "object",
-        properties: {
-          tasks: {
-            type: "array",
-            items: {
-              type: "object",
-              properties: {
-                title: {
-                  type: "string",
-                  description: "Short, actionable task title (start with a verb)",
-                },
-                priority: {
-                  type: "string",
-                  enum: ["low", "medium", "high", "urgent"],
-                  description: "Task priority level",
-                },
-                area: {
-                  type: "string",
-                  enum: ["health", "career", "finance", "brand", "admin"],
-                  description: "Life area this task belongs to (optional)",
-                },
-                dueDate: {
-                  type: "string",
-                  description:
-                    "Due date in ISO format YYYY-MM-DD (optional, only if a clear deadline exists)",
-                },
-              },
-              required: ["title", "priority"],
-            },
-            description: "Array of tasks to create",
-          },
-        },
-        required: ["tasks"],
-      },
-    },
-  },
-  {
-    type: "function",
-    function: {
-      name: "create_habit",
-      description:
-        "Create a habit to track. Habits are recurring activities the user wants to build consistency with.",
-      parameters: {
-        type: "object",
-        properties: {
-          name: { type: "string", description: "Habit name" },
-          frequency: {
-            type: "string",
-            enum: ["daily", "weekly"],
-            description: "How often the habit should be done",
-          },
-          area: {
-            type: "string",
-            enum: ["health", "career", "finance", "brand", "admin"],
-            description: "Life area (optional)",
-          },
-        },
-        required: ["name", "frequency"],
-      },
-    },
-  },
-  {
-    type: "function",
-    function: {
-      name: "create_note",
-      description:
-        "Capture a note or piece of information that doesn't fit as a task. Good for ideas, references, and things to process later.",
-      parameters: {
-        type: "object",
-        properties: {
-          content: { type: "string", description: "Note content" },
-          tags: {
-            type: "array",
-            items: { type: "string" },
-            description: "Tags for categorization",
-          },
-          area: {
-            type: "string",
-            enum: ["health", "career", "finance", "brand", "admin"],
-            description: "Life area (optional)",
-          },
-        },
-        required: ["content"],
-      },
-    },
-  },
-  {
-    type: "function",
-    function: {
-      name: "create_reminder",
-      description:
-        "Create a reminder for something due at a specific time or date, optionally recurring.",
-      parameters: {
-        type: "object",
-        properties: {
-          title: { type: "string", description: "Reminder title" },
-          frequency: {
-            type: "string",
-            enum: ["once", "daily", "weekly", "monthly", "yearly"],
-          },
-          dueDate: {
-            type: "string",
-            description: "Due date in ISO format YYYY-MM-DD",
-          },
-          time: {
-            type: "string",
-            description: "Time in HH:mm format (optional)",
-          },
-          area: {
-            type: "string",
-            enum: ["health", "career", "finance", "brand", "admin"],
-            description: "Life area (optional)",
-          },
-        },
-        required: ["title", "frequency", "dueDate"],
-      },
-    },
-  },
-  {
-    type: "function",
-    function: {
-      name: "create_project",
-      description:
-        "Create a project. Projects group related tasks and have a status lifecycle (planning → active → completed).",
-      parameters: {
-        type: "object",
-        properties: {
-          title: { type: "string", description: "Project title" },
-          area: {
-            type: "string",
-            enum: ["health", "career", "finance", "brand", "admin"],
-            description: "Life area (optional)",
-          },
-          status: {
-            type: "string",
-            enum: ["planning", "active", "paused"],
-            description: "Initial project status",
-          },
-        },
-        required: ["title"],
-      },
-    },
-  },
-  {
-    type: "function",
-    function: {
-      name: "capture_braindump",
-      description:
-        "Capture raw, unstructured thinking — a brain dump, a rambling idea, a voice ramble with no clear action in it — into the vault voice inbox, where Hermes picks it up and enriches it. Use this INSTEAD of create_note when the input is thinking-out-loud rather than a discrete fact or reference to file. If the dump also contains clear actions, capture the dump AND create the tasks.",
-      parameters: {
-        type: "object",
-        properties: {
-          content: {
-            type: "string",
-            description:
-              "The dump, verbatim. Do not summarise or clean it up — the raw wording is the point.",
-          },
-          category: {
-            type: "string",
-            description:
-              "Short lowercase kind of dump, e.g. 'braindump', 'idea', 'reflection' (optional).",
-          },
-        },
-        required: ["content"],
-      },
-    },
-  },
-  {
-    type: "function",
-    function: {
-      name: "complete_task",
-      description:
-        "Mark an existing open task as done, fuzzy-matching by title.",
-      parameters: {
-        type: "object",
-        properties: {
-          title: { type: "string", description: "Title or partial title of the task to complete" },
-        },
-        required: ["title"],
-      },
-    },
-  },
-];
 
-export interface ChatAction {
-  tool: string;
-  input: Record<string, unknown>;
-}
+export type ChatAction = AgentAction;
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -305,12 +105,6 @@ export async function POST(req: NextRequest) {
     // check before an action. The response is NDJSON: {type:"status"} lines
     // stream tool activity to the panel, then one {type:"final"} payload.
     if (claudeCliEnabled()) {
-      const toolCatalog = [
-        ...tools
-          .filter((t): t is OpenAI.ChatCompletionFunctionTool => t.type === "function")
-          .map((t) => t.function),
-        ...HOMELAB_TOOLS,
-      ];
       const convoParts: string[] = messages.map(
         (m: { role: string; content: string }) => `${m.role.toUpperCase()}: ${m.content}`
       );
@@ -321,53 +115,18 @@ export async function POST(req: NextRequest) {
           const emit = (obj: unknown) =>
             controller.enqueue(encoder.encode(JSON.stringify(obj) + "\n"));
           try {
-            const serverResults: HomelabToolResult[] = [];
-            let reply = "";
-            let clientActions: ChatAction[] = [];
-            const MAX_ROUNDS = 4;
-
-            for (let round = 0; round < MAX_ROUNDS; round++) {
-              const prompt = [
-                systemPrompt,
-                "",
-                "You can act by emitting tool calls. Available tools (JSON schema):",
-                JSON.stringify(toolCatalog, null, 2),
-                "",
-                `Homelab tools (${[...HOMELAB_TOOL_NAMES].join(", ")}) are executed by the server and their results are appended to the conversation as TOOL_RESULT lines — call them and WAIT for results before answering about homelab state or emitting app-item actions. App-item tools (create_tasks, create_habit, create_note, create_reminder, create_project, complete_task) are executed by the server from your FINAL response — only emit them in a response that contains no homelab tool calls, and never repeat ones you already emitted.`,
-                "",
-                "Conversation so far:",
-                convoParts.join("\n\n"),
-                "",
-                "Respond with ONLY a JSON object of this exact shape — no markdown, no prose outside it:",
-                `{"reply": "<short natural-language summary for the user>", "actions": [{"tool": "<tool name>", "input": { ...args matching that tool's schema }}]}`,
-                "Put every action you want to take in `actions`. If no tool is needed (a question or normal chat), return an empty `actions` array and put your full answer in `reply`.",
-              ].join("\n");
-
-              const envelope = await generateJson<{ reply?: string; actions?: ChatAction[] }>(prompt);
-              reply = typeof envelope.reply === "string" ? envelope.reply : "";
-              const actions = Array.isArray(envelope.actions) ? envelope.actions : [];
-              const homelabCalls = actions.filter((a) => HOMELAB_TOOL_NAMES.has(a.tool));
-              clientActions = actions.filter((a) => !HOMELAB_TOOL_NAMES.has(a.tool));
-
-              if (homelabCalls.length === 0 || round === MAX_ROUNDS - 1) break;
-
-              convoParts.push(`ASSISTANT (tool calls): ${JSON.stringify(homelabCalls)}`);
-              for (const call of homelabCalls) {
-                emit({ type: "status", text: HOMELAB_TOOL_STATUS[call.tool] ?? `Running ${call.tool}…` });
-                const result = await executeHomelabTool(call.tool, call.input ?? {});
-                serverResults.push(result);
-                // Tool results are part of the conversation record — a
-                // service-health snapshot or approvals brief fetched into the
-                // chat must survive the tab (loss-audit F1).
+            const { reply, clientActions, serverResults } = await runAgentTurn({
+              systemPrompt,
+              convoParts,
+              onStatus: (text) => emit({ type: "status", text }),
+              // Tool results are part of the conversation record — a
+              // service-health snapshot or approvals brief fetched into the
+              // chat must survive the tab (loss-audit F1).
+              onToolResult: (result) =>
                 logChatMessage(sessionId, "tool", JSON.stringify(result.data).slice(0, 8000), [
                   { tool: result.tool, summary: result.summary, failed: result.failed },
-                ]);
-                convoParts.push(
-                  `TOOL_RESULT (${result.tool}${result.failed ? ", FAILED" : ""}): ${JSON.stringify(result.data)}`
-                );
-              }
-              emit({ type: "status", text: "Thinking…" });
-            }
+                ]),
+            });
 
             // T45: app-item actions commit HERE, before the reply reaches the
             // client — closing the tab can no longer drop what the model
@@ -420,7 +179,7 @@ export async function POST(req: NextRequest) {
     let response = await callWithRetry(client, {
       model: OLLAMA_MODEL,
       max_tokens: 4096,
-      tools,
+      tools: APP_TOOLS,
       messages: openaiMessages,
     });
 
@@ -457,7 +216,7 @@ export async function POST(req: NextRequest) {
       response = await callWithRetry(client, {
         model: OLLAMA_MODEL,
         max_tokens: 4096,
-        tools,
+        tools: APP_TOOLS,
         messages: openaiMessages,
       });
 
