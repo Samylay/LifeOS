@@ -43,7 +43,9 @@ export interface TeachTopic {
   mission: string; // WHY he wants this — REQUIRED, grounds every lesson (MISSION.md analogue)
   tags: string[]; // controlled topic-tags this topic owns (drives T56 attachment by overlap)
   origin: "authored" | "proposed"; // authored = Samy typed it; proposed = accepted from a T58 tag-cluster proposal
-  status: "queued" | "scheduled" | "active" | "done";
+  // "retired" = Samy refused "not ever" (T62 rule 3) — only he can set this,
+  // never inferred from silence/repeated refusal.
+  status: "queued" | "scheduled" | "active" | "done" | "retired";
   scheduledFor?: string; // YYYY-MM-DD
   // T60: the Todoist task written when this topic was scheduled — the
   // commitment act. `todoistSynced === false` means the write failed (outage)
@@ -137,6 +139,7 @@ export function addTopic(
     origin,
     status: "queued",
     learningRecords: [],
+    createdAt: new Date(),
   });
 }
 
@@ -267,6 +270,79 @@ export function attachedItems(topicId: string): TriageItem[] {
   return (listDocs(TRIAGE_COLLECTION) as unknown as TriageItem[]).filter((item) =>
     (item.topicTags || []).some((t) => tagSet.has(t))
   );
+}
+
+// --- Picker (T62) ------------------------------------------------------------
+
+export type RefusalReason = "not-now" | "not-ever" | "wrong-time";
+
+export interface TopicPick {
+  topic: TeachTopic;
+  rule: "rotation" | "nudge";
+  reason: string;
+}
+
+/** Queued topics only — scheduled/active/done/retired are out of scope for
+ * the picker (scheduling is Samy's own commitment act, T60). */
+function pickableTopics(): TeachTopic[] {
+  return (listDocs(TOPICS, { where: [["status", "==", "queued"]] }) as unknown as Array<
+    { id: string } & Record<string, unknown>
+  >).map((raw) => normalizeTopic(raw.id, raw));
+}
+
+/** Missing `createdAt` (pre-T62 docs) sorts as oldest — it's been waiting the
+ * longest by construction, so "longest-waiting first" still holds. */
+function createdMs(topic: TeachTopic): number {
+  return toMs(topic.createdAt) ?? -Infinity;
+}
+
+/** Complementary rules, never a blended score (map 07): each rule picks from
+ * its own disjoint pool and states its own reason — no weighing one against
+ * the other, no mission-alignment, no usefulness/ROI/recency ranking.
+ * Rule 1, rotation: never-taught topics, longest-waiting (oldest `createdAt`)
+ * first. Rule 2, nudge: taught topics with material saved since the last
+ * session, longest-since-taught first — same rotation principle, just over
+ * the taught pool. Null when neither pool has a candidate (the SRS "due for
+ * review" rule is T64, gated separately). */
+export function pickNextTopic(): TopicPick | null {
+  const topics = pickableTopics();
+
+  const neverTaught = topics.filter((t) => lastTaughtDate(t) === null);
+  if (neverTaught.length > 0) {
+    neverTaught.sort((a, b) => createdMs(a) - createdMs(b));
+    return { topic: neverTaught[0], rule: "rotation", reason: "you've never touched it" };
+  }
+
+  const nudges: { topic: TeachTopic; taught: string; newItems: number }[] = [];
+  for (const topic of topics) {
+    const taught = lastTaughtDate(topic);
+    if (!taught) continue;
+    const taughtMs = Date.parse(taught);
+    const newItems = attachedItems(topic.id).filter((item) => {
+      const savedMs = toMs(item.savedAt) ?? toMs(item.createdAt);
+      return savedMs !== null && savedMs > taughtMs;
+    }).length;
+    if (newItems > 0) nudges.push({ topic, taught, newItems });
+  }
+  if (nudges.length > 0) {
+    nudges.sort((a, b) => (a.taught < b.taught ? -1 : a.taught > b.taught ? 1 : 0));
+    const pick = nudges[0];
+    const count = pick.newItems === 1 ? "1 new save" : `${pick.newItems} new saves`;
+    return { topic: pick.topic, rule: "nudge", reason: `${count} since ${pick.taught}` };
+  }
+
+  return null;
+}
+
+/** Refusal asks why (map 07 rule 2): only `"not-ever"` retires the topic —
+ * that's Samy's call alone (rule 3). `"not-now"`/`"wrong-time"` persist
+ * NOTHING: no counter, no dormancy flag — storing either would make refusal
+ * a down-ranking signal, which is exactly what's banned. The topic is simply
+ * offered again next pick, as if nothing happened. */
+export function refuseTopic(topicId: string, reason: RefusalReason): void {
+  if (reason === "not-ever") {
+    updateDoc(TOPICS, topicId, { status: "retired" });
+  }
 }
 
 // --- Session material, bounded by time (T59) ---------------------------------

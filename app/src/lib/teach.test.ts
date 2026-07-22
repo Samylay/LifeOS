@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { describe, it, expect, beforeAll, beforeEach, afterAll } from "vitest";
 import fs from "fs";
 import os from "os";
 import path from "path";
@@ -20,8 +20,10 @@ const {
   selectMaterialForBudget,
   scheduleTopic,
   retryTodoistSchedules,
+  pickNextTopic,
+  refuseTopic,
 } = await import("./teach");
-const { createDoc, updateDoc } = await import("./server-db");
+const { createDoc, updateDoc, listDocs } = await import("./server-db");
 const { TRIAGE_COLLECTION } = await import("./triage-ingest");
 
 afterAll(() => {
@@ -234,6 +236,115 @@ describe("topic-tag tombstones", () => {
     // idempotent re-tombstone shouldn't create a second ledger entry or flip back
     neverProposeTag("humor");
     expect(isTagTombstoned("humor")).toBe(true);
+  });
+});
+
+describe("pickNextTopic / refuseTopic — T62 picker (rotation + nudge)", () => {
+  // Prior tests (this block and earlier ones) leave `queued`, never-taught
+  // topics behind (shared singleton DB) — take them out of scope before each
+  // test so the picker sees only that test's own fixtures.
+  beforeEach(() => {
+    for (const t of listDocs("users/local/teachTopics", { where: [["status", "==", "queued"]] })) {
+      updateDoc("users/local/teachTopics", t.id, { status: "done" });
+    }
+  });
+
+  function item(topicTags: string[], savedAt: Date) {
+    return createDoc(TRIAGE_COLLECTION, {
+      url: `https://example.com/${Math.random()}`,
+      rawUrl: `https://example.com/${Math.random()}`,
+      source: "other",
+      savedAt,
+      createdAt: savedAt,
+      status: "filed",
+      topicTags,
+    });
+  }
+
+  it("rotation: among never-taught topics, picks the longest-waiting one regardless of attached material", async () => {
+    const older = addTopic("rotation older", "because", ["rot-a"]);
+    await new Promise((r) => setTimeout(r, 5));
+    const newer = addTopic("rotation newer", "because", ["rot-b"]);
+    // pile material onto the newer topic — a "more useful"-looking topic
+    // must NOT jump the never-taught queue; rotation ignores it entirely.
+    for (let i = 0; i < 10; i++) item(["rot-b"], new Date());
+
+    const pick = pickNextTopic();
+    expect(pick?.topic.id).toBe(older);
+    expect(pick?.rule).toBe("rotation");
+    expect(pick?.reason).toMatch(/never touched/i);
+  });
+
+  it("every pick carries a non-empty stated reason", () => {
+    const id = addTopic("reasoned topic", "because", ["reason-tag"]);
+    const pick = pickNextTopic();
+    expect(pick?.topic.id).toBe(id);
+    expect(typeof pick?.reason).toBe("string");
+    expect(pick?.reason.length).toBeGreaterThan(0);
+  });
+
+  it("nudge: a taught topic with material saved since its last session is re-offered with a count reason", () => {
+    const id = addTopic("nudge topic", "because", ["nudge-tag"]);
+    updateDoc("users/local/teachTopics", id, {
+      status: "queued",
+      learningRecords: ["2026-06-01: got the basics"],
+    });
+    item(["nudge-tag"], new Date("2026-05-01")); // before last taught — no nudge
+    item(["nudge-tag"], new Date("2026-06-15"));
+    item(["nudge-tag"], new Date("2026-06-20"));
+
+    const pick = pickNextTopic();
+    expect(pick?.topic.id).toBe(id);
+    expect(pick?.rule).toBe("nudge");
+    expect(pick?.reason).toBe("2 new saves since 2026-06-01");
+  });
+
+  it("a taught topic with no new material since its last session is not picked", () => {
+    const id = addTopic("stale topic", "because", ["stale-tag"]);
+    updateDoc("users/local/teachTopics", id, {
+      status: "queued",
+      learningRecords: ["2026-06-01: got the basics"],
+    });
+    item(["stale-tag"], new Date("2026-01-01"));
+
+    const pick = pickNextTopic();
+    expect(pick).toBeNull();
+  });
+
+  it("refusing not-now leaves the topic unchanged and it is re-offered every time, 5x over", () => {
+    const id = addTopic("refuse-not-now topic", "because", ["refuse-a"]);
+    const before = JSON.stringify(getTopic(id));
+    for (let i = 0; i < 5; i++) {
+      refuseTopic(id, "not-now");
+      expect(pickNextTopic()?.topic.id).toBe(id);
+    }
+    expect(JSON.stringify(getTopic(id))).toBe(before);
+  });
+
+  it("refusing wrong-time leaves the topic unchanged and it is re-offered every time, 5x over", () => {
+    const id = addTopic("refuse-wrong-time topic", "because", ["refuse-b"]);
+    const before = JSON.stringify(getTopic(id));
+    for (let i = 0; i < 5; i++) {
+      refuseTopic(id, "wrong-time");
+      expect(pickNextTopic()?.topic.id).toBe(id);
+    }
+    expect(JSON.stringify(getTopic(id))).toBe(before);
+  });
+
+  it("refusing not-ever retires the topic and it is never picked again", () => {
+    const id = addTopic("refuse-not-ever topic", "because", ["refuse-c"]);
+    refuseTopic(id, "not-ever");
+    expect(getTopic(id)?.status).toBe("retired");
+    expect(pickNextTopic()?.topic.id).not.toBe(id);
+  });
+
+  it("no refusal counter field exists on a topic after any refusal", () => {
+    const id = addTopic("field-check topic", "because", ["refuse-d"]);
+    refuseTopic(id, "not-now");
+    refuseTopic(id, "wrong-time");
+    refuseTopic(id, "not-ever");
+    const fields = Object.keys(getTopic(id) as unknown as Record<string, unknown>);
+    expect(fields.some((f) => /count/i.test(f))).toBe(false);
   });
 });
 
