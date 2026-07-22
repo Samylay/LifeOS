@@ -181,6 +181,9 @@ export interface VoiceActionResult {
   tool: string;
   summary: string;
   failed?: boolean;
+  // Run-now request on a queued homelab prompt — the UI renders the one-tap
+  // confirm chip that actually launches it.
+  confirm?: { promptId: string; title: string };
 }
 
 /** Persist an utterance immediately (no-loss), keep the title fresh from the
@@ -250,7 +253,7 @@ async function voiceAgent(
     return {
       followUps,
       actionResults: [
-        ...serverResults.map(({ tool, summary, failed }) => ({ tool, summary, failed })),
+        ...serverResults.map(({ tool, summary, failed, confirm }) => ({ tool, summary, failed, confirm })),
         ...appResults,
       ],
     };

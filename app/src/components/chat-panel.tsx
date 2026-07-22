@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/lib/store";
 import { useChat, type ActionResult } from "@/lib/use-chat";
+import { RunNowChip } from "@/components/run-now-chip";
 import { useVoiceRecorder } from "@/lib/use-voice-recorder";
 import { useVisualViewport } from "@/lib/use-visual-viewport";
 
@@ -231,9 +232,14 @@ export function ChatPanel() {
                       {msg.content}
                     </div>
                     {msg.actions && msg.actions.length > 0 && (
-                      <div className="flex flex-wrap gap-1">
+                      <div className="flex flex-wrap items-center gap-1">
                         {msg.actions.map((a, i) => (
-                          <ActionBadge key={i} result={a} />
+                          <span key={i} className="inline-flex items-center gap-1">
+                            <ActionBadge result={a} />
+                            {a.confirm && (
+                              <RunNowChip promptId={a.confirm.promptId} title={a.confirm.title} />
+                            )}
+                          </span>
                         ))}
                       </div>
                     )}

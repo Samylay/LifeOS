@@ -22,6 +22,10 @@ export interface HomelabToolResult {
   summary: string; // short human line for the chat badge
   data: unknown; // structured result fed back to the model
   failed?: boolean;
+  // Set when Samy asked for run-now on a queued prompt: the UI renders a
+  // one-tap confirm that launches JUST this prompt via /api/triage/dispatch.
+  // The model can only REQUEST it — the tap is what launches (T47 stays).
+  confirm?: { promptId: string; title: string };
 }
 
 // ── dispatch core (shared with /api/triage/dispatch) ─────────────────────────
@@ -57,13 +61,20 @@ function batchPrompts(queued: QueuedPrompt[]): QueuedPrompt[][] {
   return batches;
 }
 
-export function dispatchQueuedPrompts():
+export function dispatchQueuedPrompts(opts?: { promptId?: string }):
   | { ok: true; dispatchId: string; dispatchIds: string[]; batchCount: number; itemCount: number; titles: string[] }
   | { ok: false; error: string } {
-  const queued = listDocs(PROMPT_QUEUE, {
+  let queued = listDocs(PROMPT_QUEUE, {
     where: [["status", "==", "queued"]],
     orderBy: ["queuedAt", "asc"],
   }) as QueuedPrompt[];
+
+  // Run-now confirm: launch exactly the one prompt Samy tapped, leaving the
+  // rest of the queue for the normal /decide flow.
+  if (opts?.promptId) {
+    queued = queued.filter((q) => q.id === opts.promptId);
+    if (queued.length === 0) return { ok: false, error: "prompt not found or no longer queued" };
+  }
 
   if (queued.length === 0) return { ok: false, error: "prompt queue is empty" };
 
@@ -132,18 +143,27 @@ export const HOMELAB_TOOLS = [
   // let a single chat message — reachable from the phone — start an autonomous
   // Claude Code session with arbitrary instructions within ~10s. That is T29's
   // recorded threat model ("phone message → effective root") arriving via the
-  // sanctioned path. Launching is now a /decide-UI action only. Do not re-add a
+  // sanctioned path. Launching is now a UI action only. Do not re-add a
   // launch tool here: dispatchQueuedPrompts stays exported for that route, and
   // the queue is the gate. Adding one back reopens the phone-to-root gap.
+  //
+  // `run_now` below does NOT reopen it: it only marks the queued doc and
+  // surfaces a confirm chip — the launch still requires Samy's tap in the UI
+  // (POST /api/triage/dispatch {promptId}). Model output never launches.
   {
     name: "queue_homelab_prompt",
     description:
-      "Queue a NEW ad-hoc instruction for a Claude Code session on the homelab (e.g. 'have claude check why the backup is slow'). It is only QUEUED — say that plainly. It does not run until Samy launches it from the /decide approve page; chat cannot launch it.",
+      "Queue a NEW ad-hoc instruction for a Claude Code session on the homelab (e.g. 'have claude check why the backup is slow'). It is only QUEUED — say that plainly. It does not run until Samy launches it from the /decide approve page; chat cannot launch it. If he EXPLICITLY says to run it right now / immediately / skip the queue THIS time, set run_now: the UI will show him a one-tap Run now confirm (you still cannot launch it yourself).",
     parameters: {
       type: "object",
       properties: {
         title: { type: "string", description: "Short title for the queued work" },
         prompt: { type: "string", description: "Full instruction for the Claude session" },
+        run_now: {
+          type: "boolean",
+          description:
+            "ONLY when Samy explicitly asked, in this conversation, to run it now / immediately / without waiting for the queue. Never infer it from urgency.",
+        },
       },
       required: ["title", "prompt"],
     },
@@ -277,6 +297,7 @@ export async function executeHomelabTool(
       if (!title || !prompt) {
         return { tool, summary: "Failed: title and prompt required", data: { error: "title and prompt required" }, failed: true };
       }
+      const runNow = input.run_now === true;
       const id = createDoc(PROMPT_QUEUE, {
         itemId: `chat-${Date.now()}`,
         title,
@@ -284,12 +305,21 @@ export async function executeHomelabTool(
         status: "queued",
         queuedAt: { __date: new Date().toISOString() },
         source: "chat",
+        ...(runNow ? { runNowRequested: true } : {}),
       });
-      // No launch_now branch by design (T47) — see the catalog note above.
+      // Still no launch branch (T47) — run_now only surfaces a confirm chip;
+      // the launch is Samy's tap on it, never this executor.
       return {
         tool,
-        summary: `Queued "${title}"`,
-        data: { id, status: "queued", note: "Queued only. Launch it from the /decide approve page — chat cannot start a session." },
+        summary: runNow ? `Queued "${title}" — tap Run now to launch it` : `Queued "${title}"`,
+        data: {
+          id,
+          status: "queued",
+          note: runNow
+            ? "Queued with a run-now request. It launches only when Samy taps the Run now confirm in the UI — tell him to tap it."
+            : "Queued only. Launch it from the /decide approve page — chat cannot start a session.",
+        },
+        ...(runNow ? { confirm: { promptId: id, title } } : {}),
       };
     }
     case "get_service_health": {

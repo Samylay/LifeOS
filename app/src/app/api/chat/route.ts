@@ -133,7 +133,7 @@ export async function POST(req: NextRequest) {
             // decided to create. The client receives them as results only.
             const appResults = clientActions.length ? await executeAppActions(clientActions) : [];
             const allResults = [
-              ...serverResults.map(({ tool, summary, failed }) => ({ tool, summary, failed })),
+              ...serverResults.map(({ tool, summary, failed, confirm }) => ({ tool, summary, failed, confirm })),
               ...appResults,
             ];
             logChatMessage(sessionId, "assistant", reply, allResults);

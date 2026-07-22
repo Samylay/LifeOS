@@ -21,6 +21,9 @@ export interface ActionResult {
   summary: string;
   count?: number;
   failed?: boolean;
+  // Run-now request on a queued homelab prompt: rendered as a one-tap
+  // confirm chip; the tap (not the model) launches it.
+  confirm?: { promptId: string; title: string };
 }
 
 let msgId = 0;

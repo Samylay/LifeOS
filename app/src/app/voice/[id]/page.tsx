@@ -24,6 +24,7 @@ import { cn } from "@/lib/utils";
 import { useVoiceRecorder } from "@/lib/use-voice-recorder";
 import { useToast } from "@/components/toast";
 import { PresetsModal, type Preset } from "@/components/voice/presets-modal";
+import { RunNowChip } from "@/components/run-now-chip";
 
 interface Utterance {
   id: string;
@@ -36,6 +37,7 @@ interface ActionResult {
   tool: string;
   summary: string;
   failed?: boolean;
+  confirm?: { promptId: string; title: string };
 }
 
 export default function VoiceCapturePage({ params }: { params: Promise<{ id: string }> }) {
@@ -218,17 +220,19 @@ export default function VoiceCapturePage({ params }: { params: Promise<{ id: str
         {!busy && actionResults.length > 0 && (
           <div className="enter flex max-w-[85%] flex-wrap gap-1.5">
             {actionResults.map((a, i) => (
-              <span
-                key={i}
-                className={cn(
-                  "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium",
-                  a.failed || a.summary.startsWith("Failed")
-                    ? "bg-destructive/10 text-destructive"
-                    : "bg-primary/10 text-primary"
-                )}
-              >
-                <Check size={11} />
-                {a.summary}
+              <span key={i} className="inline-flex items-center gap-1.5">
+                <span
+                  className={cn(
+                    "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium",
+                    a.failed || a.summary.startsWith("Failed")
+                      ? "bg-destructive/10 text-destructive"
+                      : "bg-primary/10 text-primary"
+                  )}
+                >
+                  <Check size={11} />
+                  {a.summary}
+                </span>
+                {a.confirm && <RunNowChip promptId={a.confirm.promptId} title={a.confirm.title} />}
               </span>
             ))}
           </div>
