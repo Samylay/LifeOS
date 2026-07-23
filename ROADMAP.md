@@ -40,7 +40,7 @@
 - [x] **T60 — Scheduling a topic writes a Todoist task** (M) — GATED on T57. (2026-07-20: done in autoloop — see Log.) Per map 03. **Scheduling is the commitment act**: `scheduleTopic(topicId, date)` also writes ONE Todoist task (`"Learn: <sentence>"`, due that date); Samy's own Todoist→calendar sync does the rest. Todoist holds **only what he committed to** — never mirror the queue, never create a daily recurring task. **LifeOS currently only READS Todoist** (`brief/fetchers/todoist-centres.ts:6`, `work.ts:11-12`) — a write is a POST to the same `api/v1/tasks` with the token already in the secrets store: **not a new dependency**. Fail soft: a Todoist outage must not lose the schedule (the topic is still `scheduled` locally; log + retry). **Ships LIVE — no feature flag** (Samy, 2026-07-15: the app POSTing to Todoist *when he schedules a topic* is the feature doing its job at his own action, not an agent touching his data; a flag would only have gated the thing he asked for). **But the executor must NOT make a live POST to verify** — that IS user data + live service state, which the contract forbids, and the guard stays intact. Verify against tests, not his account: tsc, `npx vitest run` green incl. the task body/date shape, a write failure leaving local state consistent (the topic stays `scheduled` locally; log + retry), and the POST asserted against a stubbed endpoint; rebuild, redeploy, `/knowledge` 200. **The first real write happens by itself the first time Samy schedules a topic — no chore, nothing to flip.** Note the task id in the Log only if he reports one.
 - [x] **T61 — Progress: narrative only** (S) — GATED on T57. (2026-07-21: done in autoloop — see Log.) Per map 08. Progress is **the `learningRecords` prose the engine already writes** ("got the boundary rules; caching still shaky"). **Never render a number**: no percentage, no bar, no streak, no coverage — 01 made coverage non-terminal (unbounded denominator) and 04 removed per-item consumption entirely, so anything countable here is a lie that climbs while he feels no smarter. Terminal state = **he marks it done**. Shows on `/knowledge` **+ one line on Today**. ⚠️ *Today is his shipping surface — if that line ever reads as a guilt surface, cut it back to /knowledge; do NOT make it louder.* **A learning session is NOT a ship — it must never touch `shipLog`** (map 08: no external "to whom"; it is input, not output, and logging it would corrupt the 30-day exit-velocity tripwire). Verify: tsc, tests, redeploy, `/knowledge` + `/` 200, `grep` proves no shipLog write from any teach path, no numeric progress in the rendered DOM.
 - [x] **T62 — Picker: rotation + new-material nudge** (M) — GATED on T57. (2026-07-22: done in autoloop — see Log.) Per map 07. **Complementary rules, never a blended score** (a weighted blend is unexplainable and its weights are where an ROI thumb hides): *never taught* → **rotation, longest-waiting first**; *new material attached since last session* → a **nudge**. Each rule IS its own explanation — every pick states its reason ("you've never touched it" / "3 new saves since March"). **Mission-alignment is BANNED** (rule 1 — it is the busy-founder lens with better manners). The nudge is about **freshness of material, never worth of interest** — do not let it become "he saved a lot lately". **Refusal ASKS why: "not now / not ever / wrong time".** *"Not ever"* retires the topic (only Samy may — rule 3). **Refusal must NEVER become a signal that down-ranks a topic** (rule 2 — that is dormancy inference). Verify: tests — rotation ignores age and usefulness entirely, every pick carries a stated reason, refusing 5× still re-offers, "not ever" retires, no refusal counter exists anywhere.
-- [ ] **T63 — Chat-queued topics become DRAFT topics, not proposals** (S) — GATED on T57. Per map 06 (+03). `add_learning_topic` (the chat→homelab tool) survives, but a topic cannot exist without a mission (map 06) and a one-handed phone message won't carry one. **A chat-queued topic becomes a `draft` topic** (`status: "needs-mission"`), listed on `/knowledge` until Samy gives it a why — at which point it becomes a normal authored topic. **It is NOT a proposal, and this distinction is load-bearing:** proposals are capped at ≤3/week and carry `neverPropose` tombstones (T58), and a chat-queued topic is Samy's **explicit stated intent**, not the machine noticing a pattern — routing it through the proposal queue would cap his own intent and let a tombstone silence something he asked for by name. So: **uncapped, never tombstoned, no cluster trigger** — it reuses only the why-prompt UI. Rejected: requiring the why *in the message* (one-handed and walking, he'd type something hollow to get past it — the fake mission map 06 exists to prevent). *(Originally filed NEEDS-SAMY as a derivation; reasoned out and decided 2026-07-15 at Samy's direction — the proposal framing was my error, corrected here.)* Verify: tsc, tests (a chat-queued topic lands as `needs-mission` and is invisible to the picker until it has one; it does NOT count against the weekly proposal cap; a tombstoned tag does not suppress it), redeploy, `/knowledge` 200 showing a draft awaiting its why.
+- [x] **T63 — Chat-queued topics become DRAFT topics, not proposals** (S) — GATED on T57. (2026-07-23: done in autoloop — see Log.) Per map 06 (+03). `add_learning_topic` (the chat→homelab tool) survives, but a topic cannot exist without a mission (map 06) and a one-handed phone message won't carry one. **A chat-queued topic becomes a `draft` topic** (`status: "needs-mission"`), listed on `/knowledge` until Samy gives it a why — at which point it becomes a normal authored topic. **It is NOT a proposal, and this distinction is load-bearing:** proposals are capped at ≤3/week and carry `neverPropose` tombstones (T58), and a chat-queued topic is Samy's **explicit stated intent**, not the machine noticing a pattern — routing it through the proposal queue would cap his own intent and let a tombstone silence something he asked for by name. So: **uncapped, never tombstoned, no cluster trigger** — it reuses only the why-prompt UI. Rejected: requiring the why *in the message* (one-handed and walking, he'd type something hollow to get past it — the fake mission map 06 exists to prevent). *(Originally filed NEEDS-SAMY as a derivation; reasoned out and decided 2026-07-15 at Samy's direction — the proposal framing was my error, corrected here.)* Verify: tsc, tests (a chat-queued topic lands as `needs-mission` and is invisible to the picker until it has one; it does NOT count against the weekly proposal cap; a tombstoned tag does not suppress it), redeploy, `/knowledge` 200 showing a draft awaiting its why.
   - SAMY 2026-07-16: approved
 - [ ] **T64 — SRS: spaced repetition for taught topics (LAST — see the falsifier)** (L) — GATED on T62 **and on real usage**. Per map 07/08. The picker's third rule: *taught before* → **due for review**. Needs what does not exist: retrieval outcomes as **structured data** (graded recall), per-topic strength, next-review dates. **Grades are PRIVATE FUEL — never rendered** (T61 stands: Samy sees prose, never a score). ⚠️ **This is a bet, and Samy took it with the evidence in front of him**: at spec time the live DB held **149 triage items and 0 teach topics / 0 sessions / 0 turns** — the engine shipped 2026-07-12 and had never been used once. He kept it anyway, reasoning that zero usage reflected the missing supply + picker (i.e. T53–T62), not disinterest. That is on the record and is **not to be re-litigated by an executor**. **FALSIFIER — check before building: if, with T53–T62 live and real sessions run, Samy has never revisited a topic, this task is dead code. Do not build it; leave it unchecked with a dated note and tell him.** (Precedent: predicted-vs-actual shipped, went unused across 40+ entries, and was cut 2026-07-14 as "pure amber noise" — catching that early is the whole point of this note.) Verify (only if the gate passes): tests for strength/scheduling, `grep` proves no grade reaches the UI, redeploy, `/knowledge` 200.
 
@@ -71,6 +71,48 @@
 - [x] ~~**T13 — per-activity detail (map + streams)**~~ *(2026-07-07: DROPPED per Samy — no leaflet, no stream sync)*
 
 ## Log
+
+- **2026-07-23 (autoloop, T63):** First unchecked non-NEEDS-SAMY task; gate
+  T57 already done. `add_learning_topic`'s tool schema no longer requires
+  `mission` (only `topic` now) — when Samy doesn't state a why over chat, the
+  new `addDraftTopic(topic)` in `teach.ts` creates a `status:"needs-mission"`
+  topic (mission `""`, `origin:"authored"`) instead of failing. **Not a
+  proposal**: no tombstone check, no cluster trigger, no weekly-cap
+  interaction — verified by a test asserting `getProposals().length` is
+  unchanged after adding a draft, and another asserting a tombstoned tag
+  (`neverProposeTag`) doesn't block a draft carrying it. `pickableTopics()`
+  only ever queries `status === "queued"`, so a draft is invisible to
+  `pickNextTopic()` by construction — no new filtering code needed, just a
+  test proving it. New `completeDraftTopic(topicId, mission)` gives the draft
+  its why: throws if the mission is blank (same soft-gate rule as `addTopic`)
+  or if the topic isn't currently `needs-mission`, otherwise flips it to a
+  normal `queued` topic — confirmed picker-eligible immediately after in the
+  same test. Wired through `POST /api/teach {action:"completeDraft"}`. On
+  `/knowledge`, a draft topic renders as its own row (`teach-section.tsx`):
+  topic sentence + "queued from chat — needs a why before it's active" +
+  an inline mission input reusing the same required-before-submit pattern as
+  the existing add-topic form (Add why disabled until non-empty), rather than
+  the normal schedule/start row. `add_learning_topic`'s description now tells
+  the assistant to still queue the topic (as a draft) rather than blocking on
+  a missing why, and never to invent one on his behalf. `npx tsc --noEmit`
+  clean; `npx vitest run` — one pre-existing unrelated failure carried over
+  from T47/commit 1fdcf98 (`queue_homelab_prompt`'s `run_now` param vs. a
+  stale test expectation, confirmed present before this change via `git
+  stash`, out of this task's scope), all other 336 tests green (4 new: draft
+  lands `needs-mission` + invisible to picker, doesn't move the proposal cap,
+  tombstoned tag doesn't suppress it, completing the why makes it
+  picker-eligible + rejects a blank why / a non-draft topic); `docker compose
+  build` + `up -d`; `/`, `/knowledge`, `/api/teach` all 200.
+  Pitch: firing off "add learning topic: Rust" from your phone one-handed no
+  longer fails silently on a missing why or forces you to type one in the
+  moment — it lands on /knowledge as a draft waiting for you, same as before,
+  just honest about not having a reason yet.
+  Quiz: why does completing a draft's why route through `completeDraftTopic`
+  instead of just calling `addTopic` again with the same topic id? *(There is
+  no re-entry path in `addTopic` — it only creates new docs. `completeDraftTopic`
+  updates the existing draft doc in place, and its guard (`status !==
+  "needs-mission"` throws) stops the why-form from being replayed against a
+  topic that's already past the draft stage.)*
 
 - **2026-07-20 (autoloop, T60):** First unchecked non-NEEDS-SAMY task; gate
   T57 already done. `scheduleTopic(topicId, date)` is now async: the local
