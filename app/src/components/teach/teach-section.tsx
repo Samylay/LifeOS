@@ -47,6 +47,7 @@ export function TeachSection() {
   const [newTopic, setNewTopic] = useState("");
   const [newMission, setNewMission] = useState("");
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [draftMissions, setDraftMissions] = useState<Record<string, string>>({});
 
   const load = useCallback(async () => {
     const res = await fetch("/api/teach");
@@ -106,6 +107,26 @@ export function TeachSection() {
     } catch (e) {
       toast(e instanceof Error ? e.message : "couldn't start the session", "error");
       setBusyId(null);
+    }
+  };
+
+  const completeDraft = async (t: Topic) => {
+    const mission = (draftMissions[t.id] || "").trim();
+    if (!mission) {
+      toast("A topic needs a mission — why do you want this?", "error");
+      return;
+    }
+    try {
+      await post({ action: "completeDraft", topicId: t.id, mission });
+      setDraftMissions((prev) => {
+        const next = { ...prev };
+        delete next[t.id];
+        return next;
+      });
+      toast("Added to the learning queue", "success");
+      load();
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "couldn't add the why", "error");
     }
   };
 
@@ -182,45 +203,68 @@ export function TeachSection() {
       <ul className="space-y-2">
         {topics
           .filter((t) => t.status !== "done")
-          .map((t) => (
-            <li
-              key={t.id}
-              className="flex items-center gap-2 rounded-lg bg-muted px-3 py-2"
-            >
-              <div className="min-w-0 flex-1">
+          .map((t) =>
+            t.status === "needs-mission" ? (
+              <li key={t.id} className="space-y-2 rounded-lg bg-muted px-3 py-2">
                 <p className="truncate text-sm text-foreground">{t.topic}</p>
-                <p className="truncate text-xs text-muted-foreground/70">
-                  {t.mission || "no mission yet"}
+                <p className="text-xs text-muted-foreground/70">
+                  queued from chat — needs a why before it's active
                 </p>
-                <p className="truncate text-[11px] text-muted-foreground/70">
-                  {t.status === "scheduled" && t.scheduledFor ? `session ${t.scheduledFor} · ` : ""}
-                  {(() => {
-                    const r = lastRecord(t.learningRecords);
-                    return r ? `${r.date}: ${r.text}` : "never taught";
-                  })()}
-                </p>
-              </div>
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                onClick={() => schedule(t)}
-                aria-label={`Schedule a session on ${t.topic}`}
-                className="text-muted-foreground"
+                <Input
+                  value={draftMissions[t.id] || ""}
+                  onChange={(e) => setDraftMissions((prev) => ({ ...prev, [t.id]: e.target.value }))}
+                  placeholder="Why? (grounds every lesson)"
+                  className="text-sm bg-background"
+                />
+                <Button
+                  size="sm"
+                  onClick={() => completeDraft(t)}
+                  disabled={!(draftMissions[t.id] || "").trim()}
+                  className="text-xs"
+                >
+                  Add why
+                </Button>
+              </li>
+            ) : (
+              <li
+                key={t.id}
+                className="flex items-center gap-2 rounded-lg bg-muted px-3 py-2"
               >
-                <CalendarClock size={15} />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                onClick={() => start(t)}
-                disabled={busyId === t.id}
-                aria-label={`Start a session on ${t.topic}`}
-                className="text-primary"
-              >
-                {busyId === t.id ? <Loader2 size={15} className="animate-spin" /> : <Play size={15} />}
-              </Button>
-            </li>
-          ))}
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm text-foreground">{t.topic}</p>
+                  <p className="truncate text-xs text-muted-foreground/70">
+                    {t.mission || "no mission yet"}
+                  </p>
+                  <p className="truncate text-[11px] text-muted-foreground/70">
+                    {t.status === "scheduled" && t.scheduledFor ? `session ${t.scheduledFor} · ` : ""}
+                    {(() => {
+                      const r = lastRecord(t.learningRecords);
+                      return r ? `${r.date}: ${r.text}` : "never taught";
+                    })()}
+                  </p>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={() => schedule(t)}
+                  aria-label={`Schedule a session on ${t.topic}`}
+                  className="text-muted-foreground"
+                >
+                  <CalendarClock size={15} />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={() => start(t)}
+                  disabled={busyId === t.id}
+                  aria-label={`Start a session on ${t.topic}`}
+                  className="text-primary"
+                >
+                  {busyId === t.id ? <Loader2 size={15} className="animate-spin" /> : <Play size={15} />}
+                </Button>
+              </li>
+            )
+          )}
         {topics.length === 0 && !adding && (
           <li className="py-1 text-xs text-muted-foreground/70">
             Nothing queued — add a topic to get started.

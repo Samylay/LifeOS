@@ -210,14 +210,14 @@ export const HOMELAB_TOOLS = [
   {
     name: "add_learning_topic",
     description:
-      "Add a topic to the user's teaching queue (the 'Teach me' section on /knowledge) when he says he wants to learn/study/go deep on something. A topic cannot exist without a mission — ALWAYS ask why before calling this if he hasn't said.",
+      "Add a topic to the user's teaching queue (the 'Teach me' section on /knowledge) when he says he wants to learn/study/go deep on something. Prefer asking why first — it grounds every future lesson. But if he hasn't said (e.g. a quick one-handed phone message), still call this without mission: it lands as a draft topic on /knowledge until he gives it a why there. Never invent a mission for him.",
     parameters: {
       type: "object",
       properties: {
         topic: { type: "string", description: "What he wants to learn" },
-        mission: { type: "string", description: "Why — grounds every future lesson (required)" },
+        mission: { type: "string", description: "Why — grounds every future lesson (omit if he hasn't said; it becomes a draft)" },
       },
-      required: ["topic", "mission"],
+      required: ["topic"],
     },
   },
 ] as const;
@@ -405,8 +405,15 @@ export async function executeHomelabTool(
       const topic = String(input.topic ?? "").trim();
       if (!topic) return { tool, summary: "Failed: no topic", data: { error: "topic required" }, failed: true };
       const mission = String(input.mission ?? "").trim();
-      if (!mission) return { tool, summary: "Failed: no mission", data: { error: "mission required" }, failed: true };
-      const { addTopic } = await import("./teach");
+      const { addTopic, addDraftTopic } = await import("./teach");
+      if (!mission) {
+        const id = addDraftTopic(topic);
+        return {
+          tool,
+          summary: `Queued "${topic.slice(0, 60)}" as a draft — needs a why`,
+          data: { id, note: "It's a draft on /knowledge until you give it a mission there; it won't show up for a session until then." },
+        };
+      }
       const id = addTopic(topic, mission);
       return {
         tool,

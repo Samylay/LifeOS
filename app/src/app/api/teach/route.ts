@@ -2,7 +2,7 @@
 // POST = addTopic | schedule | start.
 import { NextRequest, NextResponse } from "next/server";
 import { listDocs } from "@/lib/server-db";
-import { addTopic, latestProgress, scheduleTopic, startSession } from "@/lib/teach";
+import { addTopic, completeDraftTopic, latestProgress, scheduleTopic, startSession } from "@/lib/teach";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -24,6 +24,12 @@ export async function POST(req: NextRequest) {
         if (!mission) return NextResponse.json({ error: "mission required" }, { status: 400 });
         const id = addTopic(topic, mission);
         return NextResponse.json({ id });
+      }
+      case "completeDraft": {
+        const mission = String(body.mission || "").trim();
+        if (!mission) return NextResponse.json({ error: "mission required" }, { status: 400 });
+        completeDraftTopic(String(body.topicId), mission);
+        return NextResponse.json({ ok: true });
       }
       case "schedule": {
         const date = String(body.date || "");

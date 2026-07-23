@@ -45,7 +45,9 @@ export interface TeachTopic {
   origin: "authored" | "proposed"; // authored = Samy typed it; proposed = accepted from a T58 tag-cluster proposal
   // "retired" = Samy refused "not ever" (T62 rule 3) — only he can set this,
   // never inferred from silence/repeated refusal.
-  status: "queued" | "scheduled" | "active" | "done" | "retired";
+  // "needs-mission" = T63 draft: chat-queued with no why yet. Invisible to
+  // the picker (pickableTopics only reads "queued") until he supplies one.
+  status: "queued" | "scheduled" | "active" | "done" | "retired" | "needs-mission";
   scheduledFor?: string; // YYYY-MM-DD
   // T60: the Todoist task written when this topic was scheduled — the
   // commitment act. `todoistSynced === false` means the write failed (outage)
@@ -141,6 +143,32 @@ export function addTopic(
     learningRecords: [],
     createdAt: new Date(),
   });
+}
+
+/** T63: a chat-queued topic with no stated why yet — NOT a proposal (no cap,
+ * no tombstone, no cluster trigger; it's Samy's own stated intent, just
+ * missing its mission). Invisible to the picker until completed. */
+export function addDraftTopic(topic: string): string {
+  return createDoc(TOPICS, {
+    topic,
+    mission: "",
+    tags: [],
+    origin: "authored",
+    status: "needs-mission",
+    learningRecords: [],
+    createdAt: new Date(),
+  });
+}
+
+/** Gives a T63 draft topic its why — after this it's a normal authored topic
+ * (status back to "queued", picker-eligible). Mission is still required (map
+ * 06's soft gate holds even for drafts). */
+export function completeDraftTopic(topicId: string, mission: string): void {
+  const m = mission.trim();
+  if (!m) throw new Error("mission is required");
+  const topic = getTopic(topicId);
+  if (!topic || topic.status !== "needs-mission") throw new Error("not a draft topic");
+  updateDoc(TOPICS, topicId, { mission: m, status: "queued" });
 }
 
 /** Tombstones a topic-tag permanently — T58's ONLY eligibility mechanism.

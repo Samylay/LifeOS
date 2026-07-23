@@ -11,6 +11,8 @@ process.env.LIFEOS_DB_PATH = path.join(tmpDir, "test.db");
 
 const {
   addTopic,
+  addDraftTopic,
+  completeDraftTopic,
   getTopic,
   neverProposeTag,
   isTagTombstoned,
@@ -25,6 +27,7 @@ const {
 } = await import("./teach");
 const { createDoc, updateDoc, listDocs } = await import("./server-db");
 const { TRIAGE_COLLECTION } = await import("./triage-ingest");
+const { getProposals } = await import("./proposals");
 
 afterAll(() => {
   fs.rmSync(tmpDir, { recursive: true, force: true });
@@ -429,5 +432,53 @@ describe("scheduleTopic — writes a Todoist task (T60)", () => {
 
     expect(called).toBe(false);
     expect(getTopic(id)?.todoistSynced).toBe(false);
+  });
+});
+
+describe("addDraftTopic / completeDraftTopic — T63 chat-queued drafts", () => {
+  it("lands as needs-mission, with no mission, and is invisible to the picker", () => {
+    for (const t of listDocs("users/local/teachTopics", { where: [["status", "==", "queued"]] })) {
+      updateDoc("users/local/teachTopics", t.id, { status: "done" });
+    }
+    const id = addDraftTopic("learn rust from a chat message");
+    const topic = getTopic(id);
+    expect(topic?.status).toBe("needs-mission");
+    expect(topic?.mission).toBe("");
+    expect(topic?.origin).toBe("authored");
+
+    // the picker only ever reads status "queued" — a draft never surfaces.
+    expect(pickNextTopic()).toBeNull();
+  });
+
+  it("does not count against the weekly proposal cap", () => {
+    const before = getProposals().length;
+    addDraftTopic("another chat-queued topic");
+    expect(getProposals().length).toBe(before);
+  });
+
+  it("a tombstoned tag does not suppress a chat-queued draft", () => {
+    neverProposeTag("chat-draft-tag");
+    const id = addDraftTopic("learn something tagged chat-draft-tag");
+    expect(getTopic(id)?.status).toBe("needs-mission");
+  });
+
+  it("completing the why turns it into a normal queued, picker-eligible topic", () => {
+    for (const t of listDocs("users/local/teachTopics", { where: [["status", "==", "queued"]] })) {
+      updateDoc("users/local/teachTopics", t.id, { status: "done" });
+    }
+    const id = addDraftTopic("learn something over chat");
+    completeDraftTopic(id, "because I said so, later");
+    const topic = getTopic(id);
+    expect(topic?.status).toBe("queued");
+    expect(topic?.mission).toBe("because I said so, later");
+    expect(pickNextTopic()?.topic.id).toBe(id);
+  });
+
+  it("refuses an empty why, and refuses completing a topic that isn't a draft", () => {
+    const draftId = addDraftTopic("empty-why topic");
+    expect(() => completeDraftTopic(draftId, "  ")).toThrow(/mission/i);
+
+    const authoredId = addTopic("already authored", "already has a why");
+    expect(() => completeDraftTopic(authoredId, "trying to re-mission it")).toThrow(/draft/i);
   });
 });
