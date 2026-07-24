@@ -305,7 +305,15 @@ export interface Recipe {
   servings?: number;
   prepMinutes?: number;
   notes?: string;
+  source?: string; // URL or free-text origin
+  keepsDays?: number; // fridge life once prepped
+  // Energy layer: per-serving numbers a future workout agent reads to match
+  // meals against a session's energy demand. Estimates are fine; keep them
+  // per serving, not per batch.
+  kcalPerServing?: number;
+  proteinPerServingG?: number;
   createdAt: Date;
+  updatedAt?: Date;
 }
 
 export type MealDay = "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
