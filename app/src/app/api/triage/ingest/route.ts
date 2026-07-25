@@ -12,7 +12,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
-  let body: { url?: string; source?: string; savedAt?: string; folder?: string };
+  let body: { url?: string; source?: string; savedAt?: string; folder?: string; previewImage?: string };
   try {
     body = await req.json();
   } catch {
@@ -27,6 +27,7 @@ export async function POST(req: NextRequest) {
     source: body.source,
     savedAt: body.savedAt,
     folder: body.folder,
+    previewImage: body.previewImage,
   });
 
   return duplicate

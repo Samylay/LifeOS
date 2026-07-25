@@ -16,6 +16,9 @@ export interface EnqueueInput {
   source?: string;
   savedAt?: string | Date;
   folder?: string;
+  // Grabber-supplied thumbnail (design-RSS's featured image, so far) — a
+  // destination hint for the vault note, not fetched/validated here.
+  previewImage?: string;
 }
 
 export interface EnqueueResult {
@@ -47,6 +50,10 @@ export function enqueueTriageItem(input: EnqueueInput): EnqueueResult {
         : new Date();
 
   const folder = typeof input.folder === "string" ? input.folder.trim().slice(0, 80) : "";
+  const previewImage =
+    typeof input.previewImage === "string" && /^https?:\/\//.test(input.previewImage)
+      ? input.previewImage.slice(0, 2000)
+      : "";
 
   const id = createDoc(TRIAGE_COLLECTION, {
     url,
@@ -56,6 +63,7 @@ export function enqueueTriageItem(input: EnqueueInput): EnqueueResult {
     status: "queued",
     createdAt: { __date: new Date().toISOString() },
     ...(folder ? { folder } : {}),
+    ...(previewImage ? { previewImage } : {}),
   });
 
   return { id, duplicate: false, source };

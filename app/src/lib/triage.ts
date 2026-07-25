@@ -53,6 +53,10 @@ export interface TriageItem {
   // source: a bookmarked tweet still infers source "x" so the syndication
   // fetcher keeps handling it.
   folder?: string;
+  // Grabber-supplied thumbnail (design-RSS's featured image so far). Embedded
+  // in the vault note when present so a design item is recognizable without
+  // opening the source link.
+  previewImage?: string;
   // T53 (learning model): the controlled topic-tags this item owns, used by
   // T56's attach-by-overlap query — distinct from `vaultTags`, the free-form
   // tags merged into the vault note's frontmatter. Absent on older docs (read

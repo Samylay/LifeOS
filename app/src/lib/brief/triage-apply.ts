@@ -36,7 +36,7 @@ interface QProposal {
  * Read-modify-write rather than append, since frontmatter lives at the top.
  * Written atomically: a crash mid-write must not truncate a vault note.
  */
-function fileToVault(url: string, source: string, p: QProposal): void {
+function fileToVault(url: string, source: string, p: QProposal, previewImage?: string): void {
   const date = new Date().toISOString().slice(0, 10);
   const full = path.join(KB_PATH, `${TRIAGE_DIR}/${date}.md`);
   const dir = path.dirname(full);
@@ -44,7 +44,8 @@ function fileToVault(url: string, source: string, p: QProposal): void {
 
   const prev = fs.existsSync(full) ? fs.readFileSync(full, "utf-8") : "";
   const header = prev ? "" : `# Triage — ${date}\n`;
-  const entry = `${header}\n## ${source}: ${url}\n${p.summary ?? ""}\n${p.why_relevant ? `\n**Why:** ${p.why_relevant}\n` : ""}`;
+  const image = previewImage ? `\n![preview](${previewImage})\n` : "";
+  const entry = `${header}\n## ${source}: ${url}${image}\n${p.summary ?? ""}\n${p.why_relevant ? `\n**Why:** ${p.why_relevant}\n` : ""}`;
   const next = mergeFrontmatterTags(prev + entry, p.tags);
 
   const tmp = `${full}.tmp`;
@@ -105,7 +106,7 @@ export function applyActionToItem(
     else action = "vault"; // roadmap:* etc. → park in the vault note for now
   }
 
-  if (action === "vault") fileToVault(url, source, p);
+  if (action === "vault") fileToVault(url, source, p, item.previewImage as string | undefined);
   else if (action === "idea-bank") fileToIdeaBank(url, p);
   else if (action === "backlog") {
     appendBacklogItem((centre ?? "polymath") as BacklogCentre, `${p.summary ?? url} — ${url}`);
