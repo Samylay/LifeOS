@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { Flag, Circle, CheckCircle2 } from "lucide-react";
 import { useGoals } from "@/lib/use-goals";
 import { mondayOf, commitmentsForWeek, quarterOf } from "@/lib/types";
@@ -8,7 +9,13 @@ import { Card } from "@/components/ui/card";
 
 export function GoalsCard() {
   const { active, loading, toggleCommitment } = useGoals();
+  // Optimistic overlay for commitment ticks — flips instantly, server catches
+  // up (same pattern as the habits overlay on the Today page).
+  const [optimistic, setOptimistic] = useState<Record<string, boolean>>({});
   if (loading) return null;
+
+  const isDone = (c: { id: string; done: boolean }) =>
+    c.id in optimistic ? optimistic[c.id] : c.done;
 
   const week = mondayOf();
   // Prefer goals from the current quarter that have commitments this week.
@@ -50,22 +57,28 @@ export function GoalsCard() {
               );
             return (
               <div className="space-y-1">
-                {commits.slice(0, 4).map((c) => (
-                  <button
-                    key={c.id}
-                    onClick={() => toggleCommitment(goal.id, c.id)}
-                    className="flex items-center gap-2 w-full text-left rounded-lg px-2 py-1.5 -mx-2 transition-colors hover:bg-muted active:scale-[0.99] duration-150"
-                  >
-                    <span className={c.done ? "shrink-0 text-primary" : "shrink-0 text-muted-foreground/70"}>
-                      {c.done ? <CheckCircle2 size={15} /> : <Circle size={15} />}
-                    </span>
-                    <span
-                      className={`text-sm flex-1 truncate text-foreground ${c.done ? "line-through opacity-60" : ""}`}
+                {commits.slice(0, 4).map((c) => {
+                  const done = isDone(c);
+                  return (
+                    <button
+                      key={c.id}
+                      onClick={() => {
+                        setOptimistic((o) => ({ ...o, [c.id]: !done }));
+                        toggleCommitment(goal.id, c.id);
+                      }}
+                      className="flex items-center gap-2 w-full text-left rounded-lg px-2 py-1.5 -mx-2 transition-colors hover:bg-muted active:scale-[0.99] duration-150"
                     >
-                      {c.text}
-                    </span>
-                  </button>
-                ))}
+                      <span className={done ? "shrink-0 text-primary" : "shrink-0 text-muted-foreground/70"}>
+                        {done ? <CheckCircle2 size={15} /> : <Circle size={15} />}
+                      </span>
+                      <span
+                        className={`text-sm flex-1 truncate text-foreground ${done ? "line-through opacity-60" : ""}`}
+                      >
+                        {c.text}
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
             );
           })()}

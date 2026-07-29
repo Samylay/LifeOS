@@ -1,13 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   AlertTriangle, Bookmark, Calendar, CheckSquare, ChevronDown, Dumbbell, ExternalLink,
-  Link2, Mic, Newspaper, Rocket, Server, ShieldAlert, Square,
+  Link2, Mic, Rocket, Server, ShieldAlert, Square,
 } from "lucide-react";
 import type {
-  Brief, BriefCard, FtHeadlinesBody, FuiteBody, HomelabBody, PromptBody,
+  Brief, BriefCard, FuiteBody, HomelabBody, PromptBody,
   ShipsBody, TriageBody, WorkBody, WorkoutBody,
 } from "@/lib/brief-types";
 import { TalkCard } from "./talk-card";
@@ -27,7 +27,6 @@ const TYPE_ICON: Record<string, React.ReactNode> = {
   work: <CheckSquare size={15} />,
   homelab: <Server size={15} />,
   fuite: <ShieldAlert size={15} />,
-  ft_headlines: <Newspaper size={15} />,
   quorky_digest: <Link2 size={15} />,
   prompt: <Mic size={15} />,
   ships: <Rocket size={15} />,
@@ -36,13 +35,13 @@ const TYPE_ICON: Record<string, React.ReactNode> = {
 };
 
 const TRIAGE_DEST_COLOR: Record<string, string> = {
-  "idea-bank": "#8B5CF6",
-  vault: "#6366F1",
+  "idea-bank": "var(--chart-4)",
+  vault: "var(--chart-2)",
   discard: "var(--muted-foreground)",
 };
 function destColor(dest: string): string {
-  if (dest.startsWith("backlog")) return "#14B8A6";
-  if (dest.startsWith("roadmap")) return "#F59E0B";
+  if (dest.startsWith("backlog")) return "var(--chart-5)";
+  if (dest.startsWith("roadmap")) return "var(--warning)";
   return TRIAGE_DEST_COLOR[dest] ?? "var(--primary)";
 }
 
@@ -55,11 +54,6 @@ function oneLiner(card: BriefCard): string {
     case "fuite": {
       const n = (card.body as unknown as FuiteBody).entries?.length ?? 0;
       return n === 0 ? "no new leaks" : `${n} ${n === 1 ? "entry" : "entries"}`;
-    }
-    case "ft_headlines": {
-      const b = card.body as unknown as FtHeadlinesBody;
-      const n = b.headlines?.length ?? 0;
-      return `${n} headlines · ${b.edition_date ?? ""}`;
     }
     case "quorky_digest":
       return "today's edition";
@@ -74,52 +68,59 @@ function CardShell({ card, children }: { card: BriefCard; children: React.ReactN
   const [collapsed, setCollapsed] = useState(startCollapsed);
   const collapsible = isState;
 
+  // A card that turns red/amber after first render must re-open itself —
+  // the initial collapse decision would otherwise freeze it shut.
+  useEffect(() => {
+    if (isState && (card.status !== "green" || card.error)) setCollapsed(false);
+  }, [isState, card.status, card.error]);
+
   return (
     <Card className="gap-0 py-0 rounded-xl transition-[background,border-color]">
-      <button
-        onClick={() => collapsible && setCollapsed((c) => !c)}
-        disabled={!collapsible}
-        className="w-full flex items-center gap-2.5 px-4 py-3 text-left"
-        style={{ cursor: collapsible ? "pointer" : "default" }}
-      >
-        <span
-          className="shrink-0 h-2.5 w-2.5 rounded-full"
-          style={{
-            background: STATUS_COLOR[card.status] ?? STATUS_COLOR.neutral,
-            boxShadow: card.status === "green" ? "0 0 6px -1px var(--success)" : "none",
-          }}
-        />
-        <span className="text-muted-foreground">{TYPE_ICON[card.type] ?? <Link2 size={15} />}</span>
-        <span className="text-sm font-semibold text-foreground">
-          {card.title}
-        </span>
-        {collapsed && (
-          <span className="text-xs truncate text-muted-foreground/70">
-            {oneLiner(card)}
+      <div className="flex items-center">
+        <button
+          onClick={() => collapsible && setCollapsed((c) => !c)}
+          disabled={!collapsible}
+          className="min-w-0 flex-1 flex items-center gap-2.5 px-4 py-3 text-left"
+          style={{ cursor: collapsible ? "pointer" : "default" }}
+        >
+          <span
+            className="shrink-0 h-2.5 w-2.5 rounded-full"
+            style={{
+              background: STATUS_COLOR[card.status] ?? STATUS_COLOR.neutral,
+              boxShadow: card.status === "green" ? "0 0 6px -1px var(--success)" : "none",
+            }}
+          />
+          <span className="text-muted-foreground">{TYPE_ICON[card.type] ?? <Link2 size={15} />}</span>
+          <span className="text-sm font-semibold text-foreground">
+            {card.title}
           </span>
-        )}
-        <span className="ml-auto flex items-center gap-2 shrink-0">
-          {card.link && !collapsed && (
-            <a
-              href={card.link}
-              target={card.link.startsWith("/") ? undefined : "_blank"}
-              rel="noreferrer"
-              onClick={(e) => e.stopPropagation()}
-              className="text-muted-foreground/70"
-            >
-              <ExternalLink size={13} />
-            </a>
+          {collapsed && (
+            <span className="text-xs truncate text-muted-foreground/70">
+              {oneLiner(card)}
+            </span>
           )}
           {collapsible && (
             <ChevronDown
               size={14}
-              className="transition-transform text-muted-foreground/70"
+              className="ml-auto shrink-0 transition-transform text-muted-foreground/70"
               style={{ transform: collapsed ? "none" : "rotate(180deg)" }}
             />
           )}
-        </span>
-      </button>
-      {!collapsed && <div className="px-4 pb-4">{children}</div>}
+        </button>
+        {/* Sibling of the toggle, not nested inside it (<a> in <button> is
+            invalid HTML); p-2 pads the tap target out to a comfortable size. */}
+        {card.link && !collapsed && (
+          <a
+            href={card.link}
+            target={card.link.startsWith("/") ? undefined : "_blank"}
+            rel="noreferrer"
+            className="shrink-0 p-2 mr-2 text-muted-foreground/70 transition-transform active:scale-[0.97]"
+          >
+            <ExternalLink size={13} />
+          </a>
+        )}
+      </div>
+      {!collapsed && <div className="px-4 pb-4 enter">{children}</div>}
     </Card>
   );
 }
@@ -127,7 +128,7 @@ function CardShell({ card, children }: { card: BriefCard; children: React.ReactN
 function ErrorBody({ error }: { error: string }) {
   return (
     <div className="flex items-start gap-2 text-xs rounded-lg p-3 bg-muted text-muted-foreground/70">
-      <AlertTriangle size={14} className="shrink-0 mt-0.5 text-amber-500" />
+      <AlertTriangle size={14} className="shrink-0 mt-0.5 text-warning" />
       <span>Source unavailable — {error}</span>
     </div>
   );
@@ -158,7 +159,7 @@ function WorkoutCard({ card, date }: { card: BriefCard; date: string }) {
         <button key={ex.name} onClick={() => toggle(ex.name)}
           className="w-full flex items-center gap-2.5 rounded-lg px-3 py-2 text-left bg-muted">
           {done[ex.name]
-            ? <CheckSquare size={15} className="text-emerald-500" />
+            ? <CheckSquare size={15} className="text-success" />
             : <Square size={15} className="text-muted-foreground/70" />}
           <span className={`text-sm ${done[ex.name] ? "text-muted-foreground/70 line-through" : "text-foreground"}`}>
             {ex.name}
@@ -172,7 +173,11 @@ function WorkoutCard({ card, date }: { card: BriefCard; date: string }) {
   );
 }
 
-const TODOIST_PRIORITY_COLOR: Record<number, string> = { 4: "#EF4444", 3: "#F59E0B", 2: "#3B82F6" };
+const TODOIST_PRIORITY_COLOR: Record<number, string> = {
+  4: "var(--destructive)",
+  3: "var(--warning)",
+  2: "var(--chart-2)",
+};
 
 function fmtTime(iso: string): string {
   try {
@@ -221,7 +226,12 @@ function WorkCard({ card }: { card: BriefCard }) {
               style={{ background: TODOIST_PRIORITY_COLOR[t.priority ?? 1] ?? "var(--muted-foreground)" }} />
             <span className="text-sm text-foreground">{t.content}</span>
             {t.url && (
-              <a href={t.url} target="_blank" rel="noreferrer" className="ml-auto text-muted-foreground/70">
+              <a
+                href={t.url}
+                target="_blank"
+                rel="noreferrer"
+                className="ml-auto p-2 -my-2 -mr-2 text-muted-foreground/70"
+              >
                 <ExternalLink size={12} />
               </a>
             )}
@@ -255,7 +265,11 @@ function HomelabCard({ card }: { card: BriefCard }) {
   );
 }
 
-const FUITE_DOT: Record<string, string> = { green: "🟢", orange: "🟠", red: "🔴" };
+const FUITE_DOT_COLOR: Record<string, string> = {
+  green: "var(--success)",
+  orange: "var(--warning)",
+  red: "var(--destructive)",
+};
 
 function FuiteCard({ card }: { card: BriefCard }) {
   const body = card.body as unknown as FuiteBody;
@@ -267,26 +281,13 @@ function FuiteCard({ card }: { card: BriefCard }) {
     <div className="space-y-1">
       {entries.map((e, i) => (
         <div key={i} className="flex items-center gap-2 text-sm rounded-lg px-3 py-2 bg-muted">
-          <span>{FUITE_DOT[e.status] ?? "⚪"}</span>
+          <span
+            className="h-2.5 w-2.5 shrink-0 rounded-full"
+            style={{ background: FUITE_DOT_COLOR[e.status] ?? "var(--muted-foreground)" }}
+          />
           <span className="font-medium text-foreground">{e.org}</span>
           <span className="text-xs truncate ml-auto text-muted-foreground/70">
             {(e.data_types ?? []).join(", ")}
-          </span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function FtCard({ card }: { card: BriefCard }) {
-  const body = card.body as unknown as FtHeadlinesBody;
-  return (
-    <div className="space-y-1.5">
-      {(body.headlines ?? []).map((h, i) => (
-        <div key={i} className="text-sm text-foreground">
-          {h.text}
-          <span className="ml-2 text-[10px] uppercase tracking-wide text-muted-foreground/70">
-            {(h.topics ?? []).join(" · ")}
           </span>
         </div>
       ))}
@@ -365,7 +366,7 @@ function PlanningCard({ card }: { card: BriefCard }) {
   };
 
   if (b.error_hint) {
-    return <p className="text-xs text-amber-500">{b.error_hint}</p>;
+    return <p className="text-xs text-warning">{b.error_hint}</p>;
   }
 
   return (
@@ -452,10 +453,15 @@ function TriageCard({ card }: { card: BriefCard }) {
       <div className="min-w-0">
         <span className="text-foreground">{it.summary || it.url}</span>
         <span className="ml-2 text-xs px-1.5 py-0.5 rounded-full whitespace-nowrap"
-          style={{ background: `${destColor(it.destination)}20`, color: destColor(it.destination) }}>
+          style={{
+            // color-mix, not a hex+"20" alpha suffix: the tokens are CSS vars,
+            // and a 12% hex alpha was invisible on the dark ground anyway.
+            background: `color-mix(in srgb, ${destColor(it.destination)} 20%, transparent)`,
+            color: destColor(it.destination),
+          }}>
           {it.destination}
         </span>
-        <a href={it.url} target="_blank" rel="noreferrer" className="ml-1.5 inline-block align-middle text-muted-foreground/70">
+        <a href={it.url} target="_blank" rel="noreferrer" className="ml-1.5 inline-flex align-middle p-2 -m-2 text-muted-foreground/70">
           <ExternalLink size={11} />
         </a>
       </div>
@@ -510,10 +516,10 @@ function ShipsCard({ card }: { card: BriefCard }) {
               <div className="min-w-0">
                 <span className="text-foreground">{p.title}</span>
                 {!p.shipping_event && (
-                  <span className="ml-2 text-xs text-amber-500">no shipping event</span>
+                  <span className="ml-2 text-xs text-warning">no shipping event</span>
                 )}
               </div>
-              <span className={`text-xs font-mono shrink-0 ${p.days > 14 ? "text-destructive" : p.days > 7 ? "text-amber-500" : "text-muted-foreground/70"}`}>
+              <span className={`text-xs font-mono shrink-0 ${p.days > 14 ? "text-destructive" : p.days > 7 ? "text-warning" : "text-muted-foreground/70"}`}>
                 {p.never_shipped ? `never shipped · ${p.days}d old` : `${p.days}d since ship`}
               </span>
             </div>
@@ -540,15 +546,14 @@ function CardBody({ card, date }: { card: BriefCard; date: string }) {
     case "work": return <WorkCard card={card} />;
     case "homelab": return <HomelabCard card={card} />;
     case "fuite": return <FuiteCard card={card} />;
-    case "ft_headlines": return <FtCard card={card} />;
     case "quorky_digest": return <DigestCard card={card} />;
     // "prompt" cards never reach CardBody individually — BriefCards merges
     // them into one TalkCard (errored ones fall through to ErrorBody above).
     default:
       return (
-        <pre className="text-xs overflow-x-auto text-muted-foreground/70">
-          {JSON.stringify(card.body, null, 2)}
-        </pre>
+        <p className="text-xs text-muted-foreground/70">
+          Unrecognized card: {card.type}
+        </p>
       );
   }
 }
@@ -557,7 +562,9 @@ export function BriefCards({ brief }: { brief: Brief }) {
   // Action cards first, stable order within each group; red/amber state cards
   // surface above green ones so a bad morning is visible without scrolling.
   const severity: Record<string, number> = { red: 0, amber: 1, neutral: 2, green: 3 };
-  const cards = [...brief.cards].sort((a, b) => {
+  // ft_headlines is retired from the brief — news lives at /news (the
+  // quorky_digest card links there).
+  const cards = brief.cards.filter((c) => c.type !== "ft_headlines").sort((a, b) => {
     if (a.priority !== b.priority) return a.priority === "action" ? -1 : 1;
     if (a.priority === "state") return (severity[a.status] ?? 2) - (severity[b.status] ?? 2);
     return 0;

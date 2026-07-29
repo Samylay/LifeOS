@@ -55,11 +55,13 @@ export default function Today() {
   const [now] = useState(() => new Date());
   const [brief, setBrief] = useState<BriefResponse | null>(null);
   const [briefErr, setBriefErr] = useState(false);
+  const [briefRefreshing, setBriefRefreshing] = useState(false);
 
   // Optimistic overlay for habit ticks — flips instantly, server catches up.
   const [optimistic, setOptimistic] = useState<Record<string, boolean>>({});
 
   const loadBrief = useCallback(async () => {
+    setBriefRefreshing(true);
     try {
       const res = await fetch("/api/brief-json");
       if (!res.ok) throw new Error();
@@ -67,6 +69,8 @@ export default function Today() {
       setBriefErr(false);
     } catch {
       setBriefErr(true);
+    } finally {
+      setBriefRefreshing(false);
     }
   }, []);
 
@@ -75,6 +79,9 @@ export default function Today() {
   }, [loadBrief]);
 
   const todayStr = new Date().toISOString().split("T")[0];
+  // Local-date YYYY-MM-DD for the stale-brief check (the brief is written in
+  // local time; UTC would flag it stale every evening).
+  const todayLocal = new Date().toLocaleDateString("en-CA");
   const todayHabits = habits.filter((h) => h.frequency === "daily");
   const isDone = (h: (typeof todayHabits)[number]) =>
     h.id in optimistic
@@ -142,7 +149,58 @@ export default function Today() {
       </div>
 
       <div className="flex flex-col gap-4 lg:gap-6 lg:grid lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start">
-      {/* Right rail on desktop (first in DOM to keep the mobile order) */}
+      {/* Morning brief — the live daily loop, anchor of this page; first on
+          mobile and the main column on desktop */}
+      <div className="enter lg:col-start-1 lg:row-start-1 min-w-0" style={{ ["--enter-delay" as string]: "120ms" }}>
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex flex-wrap items-center gap-2 min-w-0">
+            <h2 className="text-xs font-bold uppercase tracking-widest flex items-center gap-2 text-muted-foreground">
+              <Flag size={14} className="text-primary" /> Morning brief
+            </h2>
+            {brief && brief.source !== "live" && (
+              <span className="rounded-full bg-warning/15 px-2 py-0.5 text-[10px] font-medium text-warning">
+                Fixture — brief not built
+              </span>
+            )}
+            {brief?.brief?.date && brief.brief.date < todayLocal && (
+              <span className="rounded-full bg-warning/15 px-2 py-0.5 text-[10px] font-medium text-warning">
+                Stale · {brief.brief.date}
+              </span>
+            )}
+            {briefErr && brief && (
+              <span className="rounded-full bg-destructive/10 px-2 py-0.5 text-[10px] font-medium text-destructive">
+                Refresh failed
+              </span>
+            )}
+          </div>
+          <Button
+            onClick={loadBrief}
+            disabled={briefRefreshing}
+            aria-label="Refresh brief"
+            title="Refresh brief"
+            variant="ghost"
+            size="icon-sm"
+            className="text-muted-foreground/70 bg-muted active:scale-[0.92]"
+          >
+            <RefreshCw size={14} className={briefRefreshing ? "animate-spin" : undefined} />
+          </Button>
+        </div>
+        {briefErr && !brief && (
+          <Card className="p-4 text-sm text-muted-foreground">
+            Couldn&apos;t load the brief.
+          </Card>
+        )}
+        {!brief && !briefErr && (
+          <div className="space-y-2">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <Skeleton key={i} className="h-24" />
+            ))}
+          </div>
+        )}
+        {brief?.brief && <BriefCards brief={brief.brief} />}
+      </div>
+
+      {/* Right rail on desktop; below the brief on mobile */}
       <div className="flex flex-col gap-4 lg:col-start-2 lg:row-start-1 min-w-0">
 
       {/* Quick loop: Prime entry + ship momentum */}
@@ -192,7 +250,8 @@ export default function Today() {
               {habitsDone}/{todayHabits.length}
             </span>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          {/* lg keeps one column: two columns cramp inside the 340px rail */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-2">
             {todayHabits.map((habit) => {
               const done = isDone(habit);
               return (
@@ -225,39 +284,6 @@ export default function Today() {
         </Card>
       )}
 
-      </div>
-
-      {/* Morning brief — the live daily loop, anchor of this page; the main
-          column on desktop */}
-      <div className="enter lg:col-start-1 lg:row-start-1 min-w-0" style={{ ["--enter-delay" as string]: "120ms" }}>
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-xs font-bold uppercase tracking-widest flex items-center gap-2 text-muted-foreground">
-            <Flag size={14} className="text-primary" /> Morning brief
-          </h2>
-          <Button
-            onClick={loadBrief}
-            aria-label="Refresh brief"
-            title="Refresh brief"
-            variant="ghost"
-            size="icon-sm"
-            className="text-muted-foreground/70 bg-muted active:scale-[0.92]"
-          >
-            <RefreshCw size={14} />
-          </Button>
-        </div>
-        {briefErr && !brief && (
-          <Card className="p-4 text-sm text-muted-foreground">
-            Couldn&apos;t load the brief.
-          </Card>
-        )}
-        {!brief && !briefErr && (
-          <div className="space-y-1">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <Skeleton key={i} className="h-10" />
-            ))}
-          </div>
-        )}
-        {brief?.brief && <BriefCards brief={brief.brief} />}
       </div>
       </div>
     </div>

@@ -2,9 +2,22 @@
 
 // Pager — the homelab notification inbox (Telegram replacement). Messages
 // arrive via POST /api/notify; streams mirror the homelab's four sources.
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import Link from "next/link";
-import { ArrowUpRight, BellRing, Check, CheckCheck, Trash2 } from "lucide-react";
+import { useSearchParams } from "next/navigation";
+import { toast } from "sonner";
+import {
+  ArrowUpRight,
+  BellRing,
+  Check,
+  CheckCheck,
+  Coffee,
+  Inbox,
+  Moon,
+  Settings,
+  Siren,
+  Trash2,
+} from "lucide-react";
 import {
   useNotifications,
   PAGER_STREAMS,
@@ -13,18 +26,18 @@ import {
 } from "@/lib/use-notifications";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 
-const STREAM_LABELS: Record<PagerStream, string> = {
-  alerts: "🚨 Alerts",
-  nightly: "🌙 Nightly",
-  weekly: "☕ Weekly",
-  capture: "📥 Capture",
-  system: "⚙️ System",
+const STREAM_META: Record<PagerStream, { label: string; icon: React.ReactNode }> = {
+  alerts: { label: "Alerts", icon: <Siren size={12} /> },
+  nightly: { label: "Nightly", icon: <Moon size={12} /> },
+  weekly: { label: "Weekly", icon: <Coffee size={12} /> },
+  capture: { label: "Capture", icon: <Inbox size={12} /> },
+  system: { label: "System", icon: <Settings size={12} /> },
 };
 
 const SEVERITY_COLORS: Record<PagerMessage["severity"], string> = {
-  page: "#EF4444",
+  page: "var(--destructive)",
   info: "var(--primary)",
   low: "var(--muted-foreground)",
 };
@@ -38,13 +51,29 @@ function timeAgo(d: Date): string {
   return `${Math.floor(hours / 24)}d`;
 }
 
-export default function PagerPage() {
-  const { messages, loading, markRead, markAllRead, ack, remove } = useNotifications();
-  const [stream, setStream] = useState<PagerStream | "all">("all");
+function isStream(v: string | null): v is PagerStream {
+  return (PAGER_STREAMS as readonly string[]).includes(v ?? "");
+}
+
+function PagerInner() {
+  const { messages, loading, markRead, markAllRead, ack, remove, undoRemove } =
+    useNotifications();
+  const params = useSearchParams();
+  const [stream, setStream] = useState<PagerStream | "all">(() => {
+    const s = params.get("stream");
+    return isStream(s) ? s : "all";
+  });
 
   const visible = stream === "all" ? messages : messages.filter((m) => m.stream === stream);
   const unreadCount = (s: PagerStream | "all") =>
     messages.filter((m) => !m.readAt && (s === "all" || m.stream === s)).length;
+
+  const handleDelete = (id: string) => {
+    remove(id);
+    toast("Message deleted", {
+      action: { label: "Undo", onClick: () => undoRemove(id) },
+    });
+  };
 
   return (
     <div className="max-w-2xl mx-auto">
@@ -54,71 +83,82 @@ export default function PagerPage() {
           <h1 className="text-2xl font-semibold text-foreground">
             Pager
           </h1>
-          {unreadCount("all") > 0 && (
-            <Badge className="text-xs font-semibold">
-              {unreadCount("all")}
-            </Badge>
-          )}
         </div>
         {unreadCount(stream) > 0 && (
           <Button
             onClick={() => markAllRead(visible)}
             variant="outline"
             size="sm"
-            className="gap-1.5 text-sm font-medium text-muted-foreground"
+            className="gap-1.5 text-sm font-medium text-muted-foreground active:scale-[0.97]"
           >
             <CheckCheck size={16} />
-            Mark all read
+            Mark {unreadCount(stream)} read
           </Button>
         )}
       </div>
 
-      {/* Stream filter */}
+      {/* Stream filter — empty streams hide (All always shows; the selected
+          stream stays visible so the active filter can't strand itself) */}
       <div className="flex flex-wrap gap-2 mb-6">
-        {(["all", ...PAGER_STREAMS] as const).map((s) => {
-          const active = stream === s;
-          const unread = unreadCount(s);
-          return (
-            <button
-              key={s}
-              onClick={() => setStream(s)}
-              className={`text-xs rounded-lg px-3 py-2 font-medium border transition-colors ${
-                active ? "bg-primary text-primary-foreground border-primary" : "bg-card text-muted-foreground border-border"
-              }`}
-            >
-              {s === "all" ? "All" : STREAM_LABELS[s]}
-              {unread > 0 && <span className="ml-1.5 font-semibold">{unread}</span>}
-            </button>
-          );
-        })}
+        {(["all", ...PAGER_STREAMS] as const)
+          .filter((s) => s === "all" || s === stream || messages.some((m) => m.stream === s))
+          .map((s) => {
+            const active = stream === s;
+            const unread = unreadCount(s);
+            return (
+              <button
+                key={s}
+                onClick={() => setStream(s)}
+                className={`flex items-center gap-1.5 text-xs rounded-lg px-3 py-2 font-medium border transition-transform duration-150 active:scale-[0.97] ${
+                  active
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "bg-muted text-muted-foreground border-transparent"
+                }`}
+              >
+                {s !== "all" && STREAM_META[s].icon}
+                {s === "all" ? "All" : STREAM_META[s].label}
+                {unread > 0 && <span className="font-semibold">{unread}</span>}
+              </button>
+            );
+          })}
       </div>
 
       {loading ? (
-        <p className="text-muted-foreground/70">Loading…</p>
+        <div className="space-y-2">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Skeleton key={i} className="h-24" />
+          ))}
+        </div>
       ) : visible.length === 0 ? (
-        <p className="text-muted-foreground/70">Nothing here. The homelab is quiet.</p>
+        <p className="text-muted-foreground/70">
+          Nothing here. The homelab is quiet.{" "}
+          <Link href="/status" className="text-primary">
+            Check status →
+          </Link>
+        </p>
       ) : (
         <div className="space-y-2">
           {visible.map((m) => (
             <Card
               key={m.id}
               className="p-4 gap-0 flex-row items-start"
-              // Read state is signalled by the hollow dot + muted title below,
-              // NOT by dimming the whole card: an `opacity` dim over the light
-              // ground washed read messages out to ~2:1 (unreadable). Body text
-              // stays at full muted-foreground so read messages remain legible.
+              // Read state is signalled by the dot + muted title below, NOT by
+              // dimming the whole card: an `opacity` dim over the light ground
+              // washed read messages out to ~2:1 (unreadable). Body text stays
+              // at full muted-foreground so read messages remain legible.
             >
+              {/* Unread = filled severity-colored dot; read = no dot (a hollow
+                  border dot disappears on the dark ground). */}
               <span
                 className="mt-1.5 mr-3 rounded-full shrink-0 h-2 w-2"
                 style={{
                   background: m.readAt ? "transparent" : SEVERITY_COLORS[m.severity],
-                  border: m.readAt ? "1px solid var(--border)" : "none",
                 }}
               />
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1">
                   <span className="text-xs font-medium text-muted-foreground/70">
-                    {STREAM_LABELS[m.stream] ?? m.stream} · {timeAgo(m.createdAt)}
+                    {STREAM_META[m.stream]?.label ?? m.stream} · {timeAgo(m.createdAt)}
                   </span>
                 </div>
                 {m.title && (
@@ -133,44 +173,48 @@ export default function PagerPage() {
                 <p className="text-sm whitespace-pre-wrap break-words text-muted-foreground">
                   {m.body}
                 </p>
-                {m.path && m.path !== "/pager" && (
+                {m.path && !m.path.startsWith("/pager") && (
                   <Link
                     href={m.path}
                     onClick={() => !m.readAt && markRead(m.id)}
-                    className="inline-flex items-center gap-1 mt-1.5 text-xs font-medium text-primary active:scale-[0.97] transition-transform"
+                    className="inline-flex items-center gap-1 mt-1.5 p-2 -m-2 text-xs font-medium text-primary active:scale-[0.97] transition-transform"
                   >
                     Open {m.path}
                     <ArrowUpRight size={12} />
                   </Link>
                 )}
-                {!m.readAt && (m.actions?.length ?? 0) > 0 && (
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {m.actions!.map((a, i) => (
+                {m.ackedAt ? (
+                  <p className="flex items-center gap-1 mt-1.5 text-xs text-muted-foreground/70">
+                    <Check size={12} /> Acked {timeAgo(m.ackedAt)} ago
+                  </p>
+                ) : (
+                  !m.readAt &&
+                  (m.actions?.length ?? 0) > 0 && (
+                    <div className="mt-2">
                       <Button
-                        key={i}
                         onClick={() => ack(m)}
                         size="sm"
-                        className="text-xs font-medium"
+                        className="text-xs font-medium active:scale-[0.97]"
                       >
-                        {a.label}
+                        Ack
                       </Button>
-                    ))}
-                  </div>
+                    </div>
+                  )
                 )}
               </div>
-              <div className="flex items-center gap-1 shrink-0">
+              <div className="flex items-center shrink-0 -my-2 -mr-2">
                 {!m.readAt && (
                   <button
                     onClick={() => markRead(m.id)}
-                    className="p-1.5 rounded-lg transition-colors text-muted-foreground/70"
+                    className="grid h-11 w-11 place-items-center rounded-lg text-muted-foreground/70 transition-transform duration-150 active:scale-[0.97]"
                     title="Mark read"
                   >
                     <Check size={16} />
                   </button>
                 )}
                 <button
-                  onClick={() => remove(m.id)}
-                  className="p-1.5 rounded-lg transition-colors text-muted-foreground/70"
+                  onClick={() => handleDelete(m.id)}
+                  className="grid h-11 w-11 place-items-center rounded-lg text-muted-foreground/70 transition-transform duration-150 active:scale-[0.97]"
                   title="Delete"
                 >
                   <Trash2 size={16} />
@@ -181,5 +225,14 @@ export default function PagerPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function PagerPage() {
+  // useSearchParams needs a Suspense boundary for the static prerender.
+  return (
+    <Suspense fallback={null}>
+      <PagerInner />
+    </Suspense>
   );
 }
