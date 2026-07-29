@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import {
   LayoutDashboard,
   FolderKanban,
   Settings,
+  ChevronDown,
   ChevronsLeft,
   ChevronsRight,
   Dumbbell,
@@ -21,34 +22,40 @@ import {
   Newspaper,
   Mic,
   GalleryVerticalEnd,
-  Workflow,
   CookingPot,
+  SquareTerminal,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/lib/store";
 import { useNotifications } from "@/lib/use-notifications";
 
-// Primary destinations (IA restructure 2026-07-10: 6 core + 3 footer;
-// /decide added 2026-07-11 — the swipeable decision deck, Samy's ask).
+// Nav diet (ux overhaul 2026-07-29): the sidebar had regrown to 16 flat rows
+// against the documented 6+3 budget. Primary = the surfaces that answer
+// "what now?" (mirrors the bottom nav). Everything you seek deliberately
+// lives behind "More"; utilities stay in the footer. /diagrams left the nav
+// on purpose — it is a tool reached from chat or by URL, not a place.
 const NAV_ITEMS = [
   { href: "/", label: "Today", icon: LayoutDashboard },
   { href: "/decide", label: "Decide", icon: Layers },
   { href: "/projects", label: "Projects", icon: FolderKanban },
   { href: "/content", label: "Content", icon: Clapperboard },
+  { href: "/pager", label: "Pager", icon: BellRing },
+];
+
+const MORE_ITEMS = [
   { href: "/voice", label: "Voice", icon: Mic },
+  { href: "/knowledge", label: "Knowledge", icon: Brain },
+  { href: "/feed", label: "Feed", icon: GalleryVerticalEnd },
   { href: "/news", label: "News", icon: Newspaper },
   { href: "/workouts", label: "Training", icon: Dumbbell },
   { href: "/recipes", label: "Recipes", icon: CookingPot },
-  { href: "/knowledge", label: "Knowledge", icon: Brain },
-  { href: "/feed", label: "Feed", icon: GalleryVerticalEnd },
-  { href: "/diagrams", label: "Diagrams", icon: Workflow },
+  { href: "/leads", label: "Leads", icon: Radar },
 ];
 
 const BOTTOM_ITEMS = [
-  { href: "/leads", label: "Leads", icon: Radar },
-  { href: "/pager", label: "Pager", icon: BellRing },
   { href: "/status", label: "Status", icon: Gauge },
+  { href: "/terminal", label: "Terminal", icon: SquareTerminal },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
@@ -70,6 +77,12 @@ export function Sidebar({ mobile }: { mobile?: boolean }) {
     if (href === "/") return pathname === "/";
     return pathname.startsWith(href);
   };
+
+  // "More" starts open on mobile (the bottom nav's More button exists to reach
+  // these) and whenever the active route lives inside the group.
+  const [moreOpen, setMoreOpen] = useState(
+    () => Boolean(mobile) || MORE_ITEMS.some((i) => isActive(i.href))
+  );
 
   const handleNavClick = () => {
     if (mobile) setMobileSidebarOpen(false);
@@ -169,7 +182,12 @@ export function Sidebar({ mobile }: { mobile?: boolean }) {
                   title={!expanded ? item.label : undefined}
                 >
                   <Icon size={18} className="shrink-0" />
-                  {expanded && <span className="truncate">{item.label}</span>}
+                  {expanded && <span className="flex-1 truncate">{item.label}</span>}
+                  {item.href === "/pager" && pagerUnread > 0 && expanded && (
+                    <span className="rounded-full bg-primary px-2 py-0.5 text-xs font-semibold text-primary-foreground">
+                      {pagerUnread}
+                    </span>
+                  )}
                 </Link>
               );
             })}
@@ -188,6 +206,43 @@ export function Sidebar({ mobile }: { mobile?: boolean }) {
             {expanded && <span>Assistant</span>}
           </button>
 
+          {/* Secondary destinations — deliberate visits, one level down */}
+          <div className="mt-2">
+            <button
+              onClick={() => setMoreOpen((o) => !o)}
+              className={cn(linkClass(false), "w-full text-left")}
+              aria-expanded={moreOpen}
+              title={!expanded ? "More" : undefined}
+            >
+              <ChevronDown
+                size={18}
+                className="shrink-0 transition-transform duration-150"
+                style={{ transform: moreOpen ? undefined : "rotate(-90deg)" }}
+              />
+              {expanded && <span>More</span>}
+            </button>
+            {moreOpen && (
+              <div className="mt-1 space-y-1">
+                {MORE_ITEMS.map((item) => {
+                  const Icon = item.icon;
+                  const active = isActive(item.href);
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      onClick={handleNavClick}
+                      className={linkClass(active)}
+                      title={!expanded ? item.label : undefined}
+                    >
+                      <Icon size={18} className="shrink-0" />
+                      {expanded && <span className="truncate">{item.label}</span>}
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
           <div className="flex-1" />
 
           <div className="mt-auto border-t border-border pt-4">
@@ -204,11 +259,6 @@ export function Sidebar({ mobile }: { mobile?: boolean }) {
                 >
                   <Icon size={18} className="shrink-0" />
                   {expanded && <span className="flex-1">{item.label}</span>}
-                  {item.href === "/pager" && pagerUnread > 0 && expanded && (
-                    <span className="rounded-full bg-primary px-2 py-0.5 text-xs font-semibold text-primary-foreground">
-                      {pagerUnread}
-                    </span>
-                  )}
                 </Link>
               );
             })}

@@ -12,6 +12,21 @@
 
 const POLL_MS = 4000;
 
+// --- Write invalidation ------------------------------------------------------
+// The poll is only a safety net for server-side writers (nightly jobs, chat
+// tools). Client writes announce themselves here so every live listener on the
+// touched collection refetches immediately instead of waiting out the poll —
+// this is what makes ticks/acks/deletes feel instant.
+
+const writeListeners = new Set<{ path: string; refetch: () => void }>();
+
+/** Called by the write helpers with the full `/api/data` path they touched. */
+export function notifyWrite(fullPath: string): void {
+  for (const l of writeListeners) {
+    if (fullPath === l.path || fullPath.startsWith(`${l.path}/`)) l.refetch();
+  }
+}
+
 // Truthy sentinels so existing `if (!db)` / `isConfigured` guards stay happy.
 export const db = { __local: true };
 export const isConfigured = true;
@@ -205,9 +220,12 @@ export function onSnapshot(
 
   fetchOnce();
   const interval = setInterval(fetchOnce, POLL_MS);
+  const listener = { path: target.path, refetch: fetchOnce };
+  writeListeners.add(listener);
   return () => {
     cancelled = true;
     clearInterval(interval);
+    writeListeners.delete(listener);
   };
 }
 
@@ -231,4 +249,5 @@ export async function setDoc(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ data: serializeDates(data), merge: Boolean(options?.merge) }),
   });
+  notifyWrite(ref.path);
 }

@@ -7,6 +7,7 @@ import {
   serializeDates,
   reviveDates,
   buildQueryString,
+  notifyWrite,
   type QueryConstraint,
 } from "./local-db";
 import type {
@@ -51,6 +52,7 @@ async function apiCreate(fullPath: string, data: Record<string, unknown>): Promi
     body: JSON.stringify(serializeDates(data)),
   });
   const { id } = await res.json();
+  notifyWrite(fullPath);
   return id as string;
 }
 
@@ -60,6 +62,7 @@ async function apiUpdate(fullPath: string, data: Record<string, unknown>): Promi
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(serializeDates(data)),
   });
+  notifyWrite(fullPath);
 }
 
 async function apiSet(
@@ -72,10 +75,12 @@ async function apiSet(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ data: serializeDates(data), merge }),
   });
+  notifyWrite(fullPath);
 }
 
 async function apiDelete(fullPath: string): Promise<void> {
   await fetch(`/api/data/${fullPath}`, { method: "DELETE" });
+  notifyWrite(fullPath);
 }
 
 // --- Generic CRUD (also consumed by the useCollection hook factory) ---

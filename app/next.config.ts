@@ -12,6 +12,14 @@ const nextConfig: NextConfig = {
   // hashes were never fetched (the phone kept a year-old HTML). Force
   // revalidation on every document/data request; hashed static assets under
   // /_next/static are immutable and keep their long cache.
+  // Retired surfaces (IA restructures 2026-07): permanent config-level
+  // redirects instead of route files, so bookmarks/deep-links get a 308 once.
+  async redirects() {
+    return [
+      { source: "/brief", destination: "/", permanent: true },
+      { source: "/goals", destination: "/projects", permanent: true },
+    ];
+  },
   async headers() {
     return [
       {

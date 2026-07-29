@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { Providers } from "./providers";
-import { Toaster } from "sonner";
+import { ThemedToaster } from "@/components/themed-toaster";
 
 export const metadata: Metadata = {
   title: "LifeOS",
@@ -23,7 +23,12 @@ export const viewport: Viewport = {
   // it (Android Chrome). iOS Safari ignores this — the chat panel measures
   // `visualViewport` via useVisualViewport() to stay correct there too.
   interactiveWidget: "resizes-content",
-  themeColor: "#7C9E8A",
+  // Dark is the app default; the sage accent (#7C9E8A) matched neither ground.
+  // Browser chrome follows the OS since a meta tag can't read localStorage.
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#F5F2EE" },
+    { media: "(prefers-color-scheme: dark)", color: "#0F0E0D" },
+  ],
 };
 
 export default function RootLayout({
@@ -50,7 +55,7 @@ export default function RootLayout({
       </head>
       <body className="antialiased">
         <Providers>{children}</Providers>
-        <Toaster position="bottom-right" theme="system" richColors closeButton />
+        <ThemedToaster />
       </body>
     </html>
   );

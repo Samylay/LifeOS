@@ -236,31 +236,18 @@
   --shadow-glow: 0 0 20px rgba(124, 158, 138, 0.15);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root:not(.light) {
-    --bg-primary: var(--color-warm-950);
-    --bg-secondary: var(--color-warm-800);
-    --bg-tertiary: var(--color-warm-700);
-    --bg-elevated: var(--color-warm-800);
-    --text-primary: var(--color-warm-100);
-    --text-secondary: var(--color-warm-400);
-    --text-tertiary: var(--color-warm-500);
-    --border-primary: var(--color-warm-700);
-    --border-secondary: var(--color-warm-800);
-    --accent: var(--color-sage-400);
-    --accent-hover: var(--color-sage-300);
-    --accent-bg: rgba(124, 158, 138, 0.1);
-    --focus-ring: rgba(124, 158, 138, 0.5);
-    --shadow-sm: none;
-    --shadow-md: none;
-    --shadow-lg: none;
-    --shadow-glow: 0 0 20px rgba(124, 158, 138, 0.15);
-  }
+/* Native chrome (scrollbars, form controls, overscroll gutter) follows the
+   effective theme class the pre-paint script guarantees on <html>. */
+.dark {
+  color-scheme: dark;
+}
+.light {
+  color-scheme: light;
 }
 
 body {
-  background: var(--bg-primary);
-  color: var(--text-primary);
+  background: var(--background);
+  color: var(--foreground);
   font-family: var(--font-sans);
 }
 
