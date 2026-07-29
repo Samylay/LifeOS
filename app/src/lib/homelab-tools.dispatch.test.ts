@@ -106,10 +106,14 @@ describe("chat cannot launch a Claude session (T47)", () => {
     expect(Object.keys(HOMELAB_TOOL_STATUS)).not.toContain("launch_queued_prompts");
   });
 
-  it("offers no launch_now parameter on queue_homelab_prompt", () => {
+  it("queue_homelab_prompt exposes only title/prompt/run_now — and run_now is a flag, not a launch", () => {
+    // run_now (2026-07-22, T47-safe): marks the queued doc so the UI shows a
+    // one-tap Run now confirm chip. The model still cannot launch anything —
+    // the parameter surface must never grow a direct-dispatch knob.
     const q = HOMELAB_TOOLS.find((t) => t.name === "queue_homelab_prompt");
     expect(q).toBeDefined();
-    expect(Object.keys(q!.parameters.properties)).toEqual(["title", "prompt"]);
+    expect(Object.keys(q!.parameters.properties)).toEqual(["title", "prompt", "run_now"]);
+    expect(q!.parameters.properties.run_now.type).toBe("boolean");
   });
 
   it("queues without dispatching even when asked to launch_now", async () => {
