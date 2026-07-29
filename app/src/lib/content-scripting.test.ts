@@ -57,7 +57,7 @@ describe("buildScriptPrompt", () => {
     expect(p).toContain("Characterization tests first, then refactor");
   });
 
-  it("embeds the Build Log skeleton, the episode number, and the serial CTA for n+1", () => {
+  it("embeds the standalone Built-It skeleton with no serial episode machinery", () => {
     const p = buildScriptPrompt({
       title: "The agent deleted my test suite",
       pillar: "build-log",
@@ -65,22 +65,29 @@ describe("buildScriptPrompt", () => {
       episode: 7,
     });
     expect(p).toContain("30–60s, ~110–150 words");
-    expect(p).toContain("SERIAL CTA");
-    expect(p).toContain("Build Log episode number: 7");
-    expect(p).toContain("tease Build Log 8");
-    // Build Log lessons must survive without the product
+    expect(p).toContain("WHAT HAPPENED");
+    expect(p).toContain("THE LESSON");
+    // Standalone project story — no serial CTA, even when an episode number exists
+    expect(p).not.toContain("SERIAL CTA");
+    expect(p).not.toContain("tease Build Log");
+    expect(p).toContain("no series lore");
+    // Built-It lessons must survive without the product
     expect(p).toContain("never see his product");
   });
 
-  it("embeds the carousel skeleton and asks for slide-per-line output", () => {
+  it("embeds the Concept explainer skeleton as a 90s vertical video script", () => {
     const p = buildScriptPrompt({
-      title: "RAG anatomy in 9 slides",
+      title: "RAG, explained a few steps ahead",
       pillar: "under-the-hood",
       hookFormula: 7,
     });
-    expect(p).toContain("5–10 slides, ≤30 words per slide");
-    expect(p).toContain("Slide 1: One hard claim");
-    expect(p).toContain('"Slide N: <text>"');
+    expect(p).toContain("60–90s vertical video, ~150–220 words");
+    expect(p).toContain("THE CONCEPT");
+    expect(p).toContain("THE MISTAKE");
+    // Video voiceover output, not a carousel
+    expect(p).toContain("the full voiceover script");
+    expect(p).not.toContain("Slide N");
+    expect(p).not.toContain("carousel");
   });
 
   it("carries the non-negotiables, including no tool names in the hook", () => {
@@ -200,10 +207,10 @@ describe("draftScriptForIdea", () => {
 // --- weekly batch plan -----------------------------------------------------------
 
 describe("planWeeklyBatch", () => {
-  it("keeps the weekly quota: 2 build-log + 1 workflow-win + 1 under-the-hood", () => {
-    expect(WEEKLY_SLOTS.filter((p) => p === "build-log")).toHaveLength(2);
+  it("keeps the weekly quota: 2 concept (under-the-hood) + 1 built-it (build-log) + 1 workflow-win", () => {
+    expect(WEEKLY_SLOTS.filter((p) => p === "under-the-hood")).toHaveLength(2);
+    expect(WEEKLY_SLOTS.filter((p) => p === "build-log")).toHaveLength(1);
     expect(WEEKLY_SLOTS.filter((p) => p === "workflow-win")).toHaveLength(1);
-    expect(WEEKLY_SLOTS.filter((p) => p === "under-the-hood")).toHaveLength(1);
   });
 
   it("picks the next unscripted idea per slot in bank order, well above the floor", () => {
@@ -212,10 +219,10 @@ describe("planWeeklyBatch", () => {
     expect(plan.toGenerate).toHaveLength(4);
     expect(plan.blocked).toEqual([]);
     const pillars = plan.toGenerate.map((i) => i.pillar);
-    expect(pillars).toEqual(["workflow-win", "build-log", "build-log", "under-the-hood"]);
-    // the two Build Logs are the next episodes in bank order
+    expect(pillars).toEqual(["under-the-hood", "under-the-hood", "build-log", "workflow-win"]);
+    // the Built-It pick is the next one in bank order
     const eps = plan.toGenerate.filter((i) => i.pillar === "build-log").map((i) => i.episode);
-    expect(eps).toEqual([1, 2]);
+    expect(eps).toEqual([1]);
   });
 
   it("skips scripted/posted ideas and ideas without a hook formula", () => {
@@ -231,9 +238,9 @@ describe("planWeeklyBatch", () => {
   it("reports a slot blocked when its pillar has no script-ready ideas", () => {
     const plan = planWeeklyBatch(bank(8, 0, 8)); // no workflow-win in the bank
     expect(plan.toGenerate.map((i) => i.pillar)).toEqual([
-      "build-log",
-      "build-log",
       "under-the-hood",
+      "under-the-hood",
+      "build-log",
     ]);
     expect(plan.blocked).toEqual([
       { pillar: "workflow-win", reason: expect.stringContaining("no unscripted workflow-win") },
@@ -241,13 +248,13 @@ describe("planWeeklyBatch", () => {
   });
 
   it("never drains the bank below the 12-idea floor: partial batch in keep-priority order", () => {
-    // 14 unscripted → only 2 safe to script. Cut order per 02: carousel first,
-    // then one Build Log — never the Workflow Win.
+    // 14 unscripted → only 2 safe to script. Cut order: the quick-win demo
+    // first, then the Built-It — never the Concept explainers (channel core).
     const plan = planWeeklyBatch(bank(6, 4, 4));
     expect(plan.unscripted).toBe(14);
-    expect(plan.toGenerate.map((i) => i.pillar)).toEqual(["workflow-win", "build-log"]);
+    expect(plan.toGenerate.map((i) => i.pillar)).toEqual(["under-the-hood", "under-the-hood"]);
     const floorBlocked = plan.blocked.filter((b) => b.reason.includes("bank floor"));
-    expect(floorBlocked.map((b) => b.pillar)).toEqual(["build-log", "under-the-hood"]);
+    expect(floorBlocked.map((b) => b.pillar)).toEqual(["build-log", "workflow-win"]);
   });
 
   it("generates nothing at or below the floor", () => {
@@ -265,6 +272,6 @@ describe("planWeeklyBatch", () => {
     const plan = planWeeklyBatch(ideas);
     expect(plan.unscripted).toBe(13);
     expect(plan.toGenerate).toHaveLength(13 - BANK_FLOOR);
-    expect(plan.toGenerate[0].pillar).toBe("workflow-win");
+    expect(plan.toGenerate[0].pillar).toBe("under-the-hood");
   });
 });

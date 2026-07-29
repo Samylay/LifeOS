@@ -11,9 +11,6 @@ import {
   Circle,
   CheckCircle2,
   Loader2,
-  Target,
-  ListChecks,
-  CalendarCheck,
   ArrowUpRight,
   ArrowRight,
 } from "lucide-react";
@@ -36,6 +33,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 
 // --- Plan-state vocabulary ------------------------------------------------
 // One label per goal that makes the gap between a vague wish and a decided,
@@ -65,41 +63,6 @@ function PlanBadge({ state }: { state: GoalPlanState }) {
     >
       {label}
     </span>
-  );
-}
-
-// Three planning checkpoints: outcome → milestones → this week. Filled segments
-// show, at a glance, how far a goal is from being an actionable plan.
-function ReadinessTrack({
-  hasOutcome,
-  hasMilestones,
-  hasWeek,
-}: {
-  hasOutcome: boolean;
-  hasMilestones: boolean;
-  hasWeek: boolean;
-}) {
-  const steps: { on: boolean; label: string; Icon: typeof Target }[] = [
-    { on: hasOutcome, label: "Outcome", Icon: Target },
-    { on: hasMilestones, label: "Milestones", Icon: ListChecks },
-    { on: hasWeek, label: "This week", Icon: CalendarCheck },
-  ];
-  return (
-    <div className="flex items-center gap-1.5" aria-hidden>
-      {steps.map((s) => (
-        <div
-          key={s.label}
-          title={`${s.label}: ${s.on ? "done" : "not set"}`}
-          className={cn(
-            "flex items-center gap-1 rounded-md px-1.5 py-0.5 transition-colors",
-            s.on ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground/70"
-          )}
-        >
-          <s.Icon size={11} />
-          <span className="text-[10px] font-medium">{s.label}</span>
-        </div>
-      ))}
-    </div>
   );
 }
 
@@ -229,11 +192,12 @@ export function GoalSection({
   /** Render the nested-projects rail (off for archive listings). */
   nest?: boolean;
 }) {
-  const { updateGoal, deleteGoal, addCommitment, toggleCommitment, removeCommitment, toggleMilestone, logSession, draftPlan } = useGoals();
+  const { updateGoal, deleteGoal, addCommitment, toggleCommitment, removeCommitment, toggleMilestone, draftPlan } = useGoals();
   const { toast } = useToast();
   const [expanded, setExpanded] = useState(false);
   const [newCommit, setNewCommit] = useState("");
   const [drafting, setDrafting] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   // All readouts below see ships as sessions.
   const goal = withShipActivity(rawGoal, shipDates);
@@ -241,7 +205,7 @@ export function GoalSection({
   const week = mondayOf();
   const thisQuarter = quarterOf();
   const pastQuarter = goal.status === "active" && goal.quarter < thisQuarter;
-  const { hasOutcome, hasMilestones, hasWeek, weekCommits } = goalReadiness(goal, week);
+  const { weekCommits } = goalReadiness(goal, week);
   const doneCount = weekCommits.filter((c) => c.done).length;
   const sessions = sessionsThisWeekForGoal(goal, week);
   const state = goalPlanState(goal, week);
@@ -328,9 +292,8 @@ export function GoalSection({
           </div>
         )}
 
-        {/* At-a-glance readiness + week momentum */}
+        {/* At-a-glance week momentum (PlanBadge above carries readiness) */}
         <div className="mt-3 space-y-2">
-          <ReadinessTrack hasOutcome={hasOutcome} hasMilestones={hasMilestones} hasWeek={hasWeek} />
           {weekCommits.length > 0 ? (
             <div>
               <div className="flex items-center justify-between text-[11px] mb-1 text-muted-foreground/70">
@@ -397,7 +360,7 @@ export function GoalSection({
                     <button
                       onClick={() => removeCommitment(goal.id, c.id)}
                       aria-label="Remove commitment"
-                      className="shrink-0 opacity-0 group-hover:opacity-100 text-muted-foreground/70 transition-transform duration-150 active:scale-[0.85]"
+                      className="shrink-0 opacity-0 group-hover:opacity-100 [@media(hover:none)]:opacity-60 text-muted-foreground/70 transition-transform duration-150 active:scale-[0.85]"
                     >
                       <X size={13} />
                     </button>
@@ -454,7 +417,7 @@ export function GoalSection({
                             <button
                               onClick={() => { addCommitment(goal.id, m); toast("Added to this week"); }}
                               title="Make this week's commitment"
-                              className="shrink-0 flex items-center gap-0.5 text-[10px] font-medium text-primary opacity-0 group-hover:opacity-100 transition-transform duration-150 active:scale-[0.9]"
+                              className="shrink-0 flex items-center gap-0.5 text-[10px] font-medium text-primary opacity-0 group-hover:opacity-100 [@media(hover:none)]:opacity-60 transition-transform duration-150 active:scale-[0.9]"
                             >
                               <ArrowUpRight size={12} /> This week
                             </button>
@@ -467,15 +430,9 @@ export function GoalSection({
               );
             })()}
 
-            {/* Actions */}
+            {/* Actions — no manual "log session": ships on this goal's
+                projects already count as sessions via withShipActivity. */}
             <div className="flex items-center gap-2 flex-wrap">
-              <Button
-                size="sm"
-                onClick={() => { logSession(goal.id); toast("Session logged"); }}
-                className="gap-1.5 text-xs"
-              >
-                <Check size={13} /> Log session
-              </Button>
               <DraftButton />
               {goal.status === "active" ? (
                 <button
@@ -495,7 +452,7 @@ export function GoalSection({
               <Button
                 variant="ghost"
                 size="icon-sm"
-                onClick={() => deleteGoal(goal.id)}
+                onClick={() => setConfirmDelete(true)}
                 aria-label="Delete goal"
                 title="Delete"
                 className="ml-auto text-muted-foreground/70"
@@ -506,6 +463,14 @@ export function GoalSection({
           </div>
         )}
       </div>
+
+      <ConfirmDialog
+        open={confirmDelete}
+        title="Delete goal"
+        message={`Delete "${goal.title}" and its commitments, milestones, and session history? This cannot be undone.`}
+        onConfirm={() => { deleteGoal(goal.id); setConfirmDelete(false); }}
+        onCancel={() => setConfirmDelete(false)}
+      />
 
       {/* Projects serving this goal, nested under a connecting rail */}
       {nest && (

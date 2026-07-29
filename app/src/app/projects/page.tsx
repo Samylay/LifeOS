@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   FolderKanban, Plus, Archive, MoreHorizontal, Rocket, Flag,
   ChevronDown, ChevronUp, AlertTriangle,
@@ -15,7 +15,7 @@ import { ConfirmDialog } from "@/components/confirm-dialog";
 import { CountUp } from "@/components/count-up";
 import { GoalSection, GoalEditor, GOAL_STATE_RANK } from "@/components/goal-section";
 import type { Project, ProjectStatus, AreaId, Task, ShipLogEntry, Goal } from "@/lib/types";
-import { AREAS, mondayOf, goalPlanState, commitmentsForWeek, localDayOf, withShipActivity, parseTags } from "@/lib/types";
+import { AREAS, AREA_HEX, mondayOf, goalPlanState, commitmentsForWeek, localDayOf, withShipActivity, parseTags } from "@/lib/types";
 import { TaskItem, TaskCreateForm } from "@/components/task-list";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -49,20 +49,15 @@ import {
 // --- Status metadata ---
 
 const STATUS_COLUMNS: { status: ProjectStatus; label: string; color: string }[] = [
-  { status: "planning", label: "Planning", color: "#64748B" },
-  { status: "active", label: "Active", color: "#7C9E8A" },
-  { status: "paused", label: "Paused", color: "#F59E0B" },
-  { status: "completed", label: "Completed", color: "#6366F1" },
+  { status: "planning", label: "Planning", color: "var(--muted-foreground)" },
+  { status: "active", label: "Active", color: "var(--primary)" },
+  { status: "paused", label: "Paused", color: "var(--warning)" },
+  { status: "completed", label: "Completed", color: "var(--chart-4)" },
 ];
 const statusMeta = (s: ProjectStatus) => STATUS_COLUMNS.find((c) => c.status === s);
 
-const AREA_COLORS: Record<string, string> = {
-  health: "#14B8A6",
-  career: "#6366F1",
-  finance: "#F59E0B",
-  brand: "#8B5CF6",
-  admin: "#64748B",
-};
+/** Translucent tint of a color (hex or CSS var) for chip backgrounds. */
+const tint = (color: string, pct: number) => `color-mix(in srgb, ${color} ${pct}%, transparent)`;
 
 const DAY_MS = 86_400_000;
 const daysSince = (d: Date) => Math.floor((Date.now() - new Date(d).getTime()) / DAY_MS);
@@ -79,10 +74,10 @@ function looseEnd(p: Project, projectTasks: Task[]): string | null {
 }
 
 // --- Momentum hero ---
-// The page's anchor, from the "LifeOS Mobile" design (claude.ai/design,
-// 2026-07-14): one dark sage card instead of three tiles — shipped/30d as the
+// The page's anchor: one card instead of three tiles — shipped/30d as the
 // hero number, days-since-ship with the coaching line, WIP pips. A readout,
-// not a control; deliberately the only dark element on the page.
+// not a control. Token-based (bg-card + primary accent) since the page went
+// dark-by-default; the old hardcoded dark gradient read flat.
 
 function MomentumHero({
   activeCount, shipped30, lastShip,
@@ -105,26 +100,23 @@ function MomentumHero({
     "Building is not shipping. Keep the streak.";
 
   return (
-    <div
-      className="enter hover-lift relative overflow-hidden rounded-2xl p-5"
-      style={{ background: "linear-gradient(145deg,#33403C,#212924)", color: "#fff" }}
-    >
+    <div className="enter hover-lift relative overflow-hidden rounded-2xl border border-border bg-card p-5 text-foreground">
       <div
         aria-hidden
         className="absolute -top-16 -right-12 h-52 w-52 rounded-full"
-        style={{ background: "radial-gradient(circle, rgba(124,158,138,0.4), rgba(124,158,138,0) 70%)" }}
+        style={{ background: `radial-gradient(circle, ${tint("var(--primary)", 30)}, transparent 70%)` }}
       />
       <div className="relative flex items-center gap-5 flex-wrap">
         <div className="shrink-0">
-          <p className="text-4xl font-bold leading-none tabular-nums">
+          <p className="text-4xl font-bold leading-none tabular-nums text-foreground">
             <CountUp value={shipped30} />
           </p>
-          <p className="text-xs mt-1.5" style={{ color: "#9EBAAA" }}>shipped / 30d</p>
+          <p className="text-xs mt-1.5 text-primary">shipped / 30d</p>
         </div>
-        <div aria-hidden className="w-px self-stretch" style={{ background: "rgba(255,255,255,0.15)" }} />
+        <div aria-hidden className="w-px self-stretch bg-border" />
         <div className="flex-1 min-w-[180px]">
           <p className="text-sm font-semibold">{sinceLabel}</p>
-          <p className="text-xs mt-0.5" style={{ color: cold ? "#F2B8AC" : "rgba(255,255,255,0.65)" }}>
+          <p className={cn("text-xs mt-0.5", cold ? "text-warning" : "text-muted-foreground")}>
             {coach}
           </p>
           <div className="flex items-center gap-1.5 mt-3">
@@ -134,11 +126,11 @@ function MomentumHero({
                 aria-hidden
                 className="h-1.5 w-6 rounded-full transition-colors duration-200 [transition-timing-function:var(--ease-out-custom)]"
                 style={{
-                  background: i < activeCount ? (atLimit ? "#F5C87B" : "#7C9E8A") : "rgba(255,255,255,0.14)",
+                  background: i < activeCount ? (atLimit ? "var(--warning)" : "var(--primary)") : "var(--muted)",
                 }}
               />
             ))}
-            <span className="text-[11px] ml-1 font-mono" style={{ color: atLimit ? "#F5C87B" : "rgba(255,255,255,0.55)" }}>
+            <span className={cn("text-[11px] ml-1 font-mono", atLimit ? "text-warning" : "text-muted-foreground/70")}>
               {activeCount}/{WIP_LIMIT} active{atLimit ? " · at limit" : ""}
             </span>
           </div>
@@ -150,7 +142,10 @@ function MomentumHero({
 
 // --- Loose ends (always-on staleness, replaces the Sun/Mon-only banner) ---
 
-function LooseEnds({ items }: { items: { project: Project; reason: string }[] }) {
+function LooseEnds({ items, onJump }: {
+  items: { project: Project; reason: string }[];
+  onJump: (project: Project) => void;
+}) {
   if (items.length === 0) return null;
   return (
     <div className="rounded-xl p-4 bg-warning/5 border border-warning/20">
@@ -162,10 +157,14 @@ function LooseEnds({ items }: { items: { project: Project; reason: string }[] })
       </div>
       <div className="space-y-1.5">
         {items.map(({ project, reason }) => (
-          <div key={project.id} className="flex items-center gap-2 rounded-lg bg-muted px-3 py-2">
+          <button
+            key={project.id}
+            onClick={() => onJump(project)}
+            className="w-full flex items-center gap-2 rounded-lg bg-muted px-3 py-2 text-left transition-transform duration-150 active:scale-[0.99]"
+          >
             <span className="flex-1 min-w-0 text-sm truncate text-foreground">{project.title}</span>
             <span className="text-xs shrink-0 text-right text-warning">{reason}</span>
-          </div>
+          </button>
         ))}
       </div>
     </div>
@@ -327,13 +326,16 @@ function ArchiveDialog({
 }
 
 function ProjectCard({
-  project, tasks, goals, lastShip, hero, onUpdate, onDelete, onTaskUpdate, onTaskDelete, onTaskCreate,
+  project, projectTasks, goals, lastShip, hero, registerExpand, onUpdate, onDelete, onTaskUpdate, onTaskDelete, onTaskCreate,
 }: {
   project: Project;
-  tasks: Task[];
+  /** Only this project's tasks (built once per page in tasksByProject). */
+  projectTasks: Task[];
   goals: Goal[];
   lastShip: Date | null;
   hero?: boolean;
+  /** Registers an "open me" callback so a LooseEnds jump can expand the card. */
+  registerExpand?: (id: string, fn: (() => void) | null) => void;
   onUpdate: (id: string, data: Partial<Project>) => void;
   onDelete: (id: string) => void;
   onTaskUpdate: (id: string, data: Partial<Task>) => void;
@@ -345,7 +347,12 @@ function ProjectCard({
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [showArchive, setShowArchive] = useState(false);
 
-  const projectTasks = tasks.filter((t) => t.projectId === project.id);
+  useEffect(() => {
+    if (!registerExpand) return;
+    registerExpand(project.id, () => setExpanded(true));
+    return () => registerExpand(project.id, null);
+  }, [registerExpand, project.id]);
+
   const doneTasks = projectTasks.filter((t) => t.status === "done").length;
   const totalTasks = projectTasks.length;
   const progress = totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : 0;
@@ -354,7 +361,7 @@ function ProjectCard({
   const sinceShip = lastShip ? daysSince(lastShip) : null;
 
   return (
-    <div className={cn("rounded-xl border bg-card hover-lift", hero ? "border-primary" : "border-border")}>
+    <div id={project.id} className={cn("rounded-xl border bg-card hover-lift scroll-mt-20", hero ? "border-primary" : "border-border")}>
       <div className="flex items-start gap-2 p-4">
         {/* Toggle surface — a real button, keyboard-operable */}
         <button
@@ -366,7 +373,7 @@ function ProjectCard({
             {project.area && (
               <span
                 className="text-[10px] font-semibold px-1.5 py-0.5 rounded"
-                style={{ background: `${AREA_COLORS[project.area] || "#64748B"}18`, color: AREA_COLORS[project.area] || "#64748B" }}
+                style={{ background: tint(AREA_HEX[project.area] || "#64748B", 10), color: AREA_HEX[project.area] || "#64748B" }}
               >
                 {AREAS[project.area]?.name}
               </span>
@@ -444,23 +451,23 @@ function ProjectCard({
           </div>
         </button>
 
-        {/* Right column: status + expand + menu (siblings, not nested in the button) */}
+        {/* Right column: status + menu (siblings, not nested in the button —
+            the title block itself is the expand toggle) */}
         <div className="flex items-center gap-1 shrink-0">
           <span
             className="text-[11px] px-2 py-0.5 rounded-full capitalize"
-            style={{ background: `${meta?.color || "#64748B"}20`, color: meta?.color || "#64748B" }}
+            style={{
+              background: tint(meta?.color || "var(--muted-foreground)", 13),
+              color: meta?.color || "var(--muted-foreground)",
+            }}
           >
             {project.status}
           </span>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            onClick={() => setExpanded((e) => !e)}
-            aria-label={expanded ? "Collapse" : "Expand"}
-            className="text-muted-foreground/70"
-          >
-            {expanded ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
-          </Button>
+          <ChevronDown
+            size={15}
+            aria-hidden
+            className={cn("text-muted-foreground/70 transition-transform duration-200", expanded && "rotate-180")}
+          />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon-sm" aria-label="Project actions" className="text-muted-foreground/70">
@@ -573,18 +580,21 @@ function ProjectCard({
 // --- Ship Log ---
 // One row per thing that left the machine.
 
-function ShipLogSection({ entries, projects, onLog }: {
+function ShipLogSection({ entries, projects, onLog, showForm, setShowForm }: {
   entries: ShipLogEntry[];
   projects: Project[];
   onLog: (data: Omit<ShipLogEntry, "id" | "createdAt">) => Promise<unknown>;
+  /** Lifted so the page header's "Log a ship" can open it from anywhere. */
+  showForm: boolean;
+  setShowForm: (v: boolean) => void;
 }) {
-  const [showForm, setShowForm] = useState(false);
   const [what, setWhat] = useState("");
-  const [toWhom, setToWhom] = useState("");
+  const [toWhom, setToWhom] = useState("public");
   const [tagsInput, setTagsInput] = useState("");
   const [projectId, setProjectId] = useState("");
   const [openId, setOpenId] = useState<string | null>(null);
   const [tagFilter, setTagFilter] = useState<string | null>(null);
+  const [showAll, setShowAll] = useState(false);
   const [now] = useState(() => Date.now());
 
   const shipped30 = entries.filter((e) => now - new Date(e.date).getTime() <= 30 * DAY_MS).length;
@@ -595,19 +605,20 @@ function ShipLogSection({ entries, projects, onLog }: {
   for (const e of entries) for (const t of e.tags ?? []) tagCounts.set(t, (tagCounts.get(t) ?? 0) + 1);
   const allTags = [...tagCounts.entries()].sort((a, b) => b[1] - a[1]).map(([t]) => t);
   const visible = tagFilter ? entries.filter((e) => e.tags?.includes(tagFilter)) : entries;
+  const shown = showAll ? visible : visible.slice(0, 12);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!what.trim() || !toWhom.trim()) return;
+    if (!what.trim()) return;
     const tags = parseTags(tagsInput);
     await onLog({
       date: new Date(),
       what: what.trim(),
-      toWhom: toWhom.trim(),
+      toWhom: toWhom.trim() || "public",
       tags: tags.length > 0 ? tags : undefined,
       projectId: projectId || undefined,
     });
-    setWhat(""); setToWhom(""); setTagsInput("");
+    setWhat(""); setToWhom("public"); setTagsInput("");
     setProjectId("");
     setShowForm(false);
   };
@@ -652,7 +663,7 @@ function ShipLogSection({ entries, projects, onLog }: {
             type="text"
             value={toWhom}
             onChange={(e) => setToWhom(e.target.value)}
-            placeholder="To whom? (a person, a public post, a deploy someone was told about)"
+            placeholder='To whom? (defaults to "public")'
             className="text-xs"
           />
           <Input
@@ -713,7 +724,7 @@ function ShipLogSection({ entries, projects, onLog }: {
       {/* Compact rows: dot + what + relative time; expand for the audience,
           tags, and project. */}
       <div className="rounded-xl border border-border overflow-hidden">
-        {visible.map((entry, i) => {
+        {shown.map((entry, i) => {
           const open = openId === entry.id;
           const days = daysSince(new Date(entry.date));
           return (
@@ -761,6 +772,14 @@ function ShipLogSection({ entries, projects, onLog }: {
             </div>
           );
         })}
+        {!showAll && visible.length > shown.length && (
+          <button
+            onClick={() => setShowAll(true)}
+            className="w-full px-4 py-2.5 text-xs font-medium text-primary border-t border-border transition-transform duration-150 active:scale-[0.99]"
+          >
+            Show all ({visible.length})
+          </button>
+        )}
       </div>
     </div>
   );
@@ -788,8 +807,22 @@ export default function ProjectsPage() {
   const { toast } = useToast();
   const [showForm, setShowForm] = useState(false);
   const [showGoalForm, setShowGoalForm] = useState(false);
-  const [showDone, setShowDone] = useState(false);
-  const [showDoneGoals, setShowDoneGoals] = useState(false);
+  const [showArchive, setShowArchive] = useState(false);
+  const [shipFormOpen, setShipFormOpen] = useState(false);
+  // Cards register an "open me" callback here so a LooseEnds row can expand them.
+  const expandFns = useRef(new Map<string, () => void>());
+  const registerExpand = useCallback((id: string, fn: (() => void) | null) => {
+    if (fn) expandFns.current.set(id, fn);
+    else expandFns.current.delete(id);
+  }, []);
+
+  const jumpToProject = (p: Project) => {
+    expandFns.current.get(p.id)?.();
+    // Let the card expand before scrolling so the target position is final.
+    requestAnimationFrame(() => {
+      document.getElementById(p.id)?.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+  };
 
   const handleProjectUpdate = async (id: string, data: Partial<Project>) => {
     try {
@@ -863,16 +896,25 @@ export default function ProjectsPage() {
   const weekCommits = activeGoals.flatMap((g) => commitmentsForWeek(g, week));
   const weekDone = weekCommits.filter((c) => c.done).length;
 
+  // Tasks bucketed by project once, instead of every card filtering all tasks.
+  const tasksByProject = new Map<string, Task[]>();
+  for (const t of tasks) {
+    if (!t.projectId) continue;
+    if (!tasksByProject.has(t.projectId)) tasksByProject.set(t.projectId, []);
+    tasksByProject.get(t.projectId)!.push(t);
+  }
+
   // Loose ends across in-flight projects (always on, not Sun/Mon-gated)
   const looseEnds = projects
     .map((p) => {
-      const reason = looseEnd(p, tasks.filter((t) => t.projectId === p.id));
+      const reason = looseEnd(p, tasksByProject.get(p.id) ?? []);
       return reason ? { project: p, reason } : null;
     })
     .filter((x): x is { project: Project; reason: string } => x !== null);
 
   const cardProps = (p: Project, hero = false) => ({
-    project: p, tasks, goals: activeGoals, lastShip: lastShipByProject.get(p.id) ?? null, hero,
+    project: p, projectTasks: tasksByProject.get(p.id) ?? [], goals: activeGoals,
+    lastShip: lastShipByProject.get(p.id) ?? null, hero, registerExpand,
     onUpdate: handleProjectUpdate, onDelete: deleteProject,
     onTaskUpdate: updateTask, onTaskDelete: deleteTask, onTaskCreate: createTask,
   });
@@ -913,6 +955,19 @@ export default function ProjectsPage() {
               <Plus size={15} /> New project
             </Button>
           )}
+          {/* Reachable without scrolling — on mobile the ship log lives below the flow */}
+          <Button
+            size="sm"
+            onClick={() => {
+              setShipFormOpen(true);
+              requestAnimationFrame(() => {
+                document.getElementById("ship-log")?.scrollIntoView({ behavior: "smooth", block: "start" });
+              });
+            }}
+            className="gap-1.5 text-sm"
+          >
+            <Rocket size={15} /> Log a ship
+          </Button>
         </div>
       </div>
 
@@ -927,7 +982,7 @@ export default function ProjectsPage() {
       {/* Loose ends */}
       {looseEnds.length > 0 && (
         <div className="enter" style={{ ["--enter-delay" as string]: "60ms" }}>
-          <LooseEnds items={looseEnds} />
+          <LooseEnds items={looseEnds} onJump={jumpToProject} />
         </div>
       )}
 
@@ -976,7 +1031,7 @@ export default function ProjectsPage() {
       {/* Unaligned — live projects serving no goal. Not a crime, but a question. */}
       {unaligned.length > 0 && (
         <div className="enter" style={{ ["--enter-delay" as string]: "120ms" }}>
-          <GroupHeader color="#64748B" label={activeGoals.length > 0 ? "No goal" : "Projects"} count={unaligned.length} />
+          <GroupHeader color="var(--muted-foreground)" label={activeGoals.length > 0 ? "No goal" : "Projects"} count={unaligned.length} />
           {activeGoals.length > 0 && (
             <p className="text-[11px] mb-2 -mt-1 text-muted-foreground/70">
               These serve no goal — link them (expand a card) or ask why they&apos;re in flight.
@@ -988,36 +1043,25 @@ export default function ProjectsPage() {
         </div>
       )}
 
-      {/* Completed — collapsed by default */}
-      {doneP.length > 0 && (
+      {/* Archive — completed projects + past goals, one collapsed disclosure */}
+      {(doneP.length > 0 || doneGoals.length > 0) && (
         <div>
-          <button onClick={() => setShowDone((s) => !s)}
-            className="flex items-center gap-2 mb-2 transition-transform duration-150 active:scale-[0.98]">
-            <span className="h-2 w-2 rounded-full" style={{ background: "#6366F1" }} />
-            <span className="text-xs font-bold uppercase tracking-widest" style={{ color: "#6366F1" }}>Completed</span>
-            <span className="text-xs font-mono text-muted-foreground/70">{doneP.length}</span>
-            {showDone ? <ChevronUp size={14} className="text-muted-foreground/70" /> : <ChevronDown size={14} className="text-muted-foreground/70" />}
+          <button
+            onClick={() => setShowArchive((s) => !s)}
+            aria-expanded={showArchive}
+            className="flex items-center gap-2 transition-transform duration-150 active:scale-[0.98]"
+          >
+            <GroupHeader color="var(--muted-foreground)" label="Archive" count={doneP.length + doneGoals.length} />
+            {showArchive
+              ? <ChevronUp size={14} className="mb-2 text-muted-foreground/70" />
+              : <ChevronDown size={14} className="mb-2 text-muted-foreground/70" />}
           </button>
-          {showDone && (
+          {showArchive && (
             <div className="space-y-2 enter">
               {doneP.map((p) => <ProjectCard key={p.id} {...cardProps(p)} />)}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Done/dropped goals — collapsed archive with reactivate inside */}
-      {doneGoals.length > 0 && (
-        <div>
-          <button onClick={() => setShowDoneGoals((s) => !s)}
-            className="flex items-center gap-2 mb-2 transition-transform duration-150 active:scale-[0.98]">
-            <span className="h-2 w-2 rounded-full bg-muted-foreground/70" />
-            <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Past goals</span>
-            <span className="text-xs font-mono text-muted-foreground/70">{doneGoals.length}</span>
-            {showDoneGoals ? <ChevronUp size={14} className="text-muted-foreground/70" /> : <ChevronDown size={14} className="text-muted-foreground/70" />}
-          </button>
-          {showDoneGoals && (
-            <div className="space-y-2 enter">
+              {doneGoals.length > 0 && doneP.length > 0 && (
+                <p className="text-[10px] font-bold uppercase tracking-widest pt-2 text-muted-foreground/70">Past goals</p>
+              )}
               {doneGoals.map((g) => (
                 <GoalSection key={g.id} goal={g} shipDates={shipDatesByGoal.get(g.id) ?? []} delay={0} projectCount={0} nest={false} />
               ))}
@@ -1029,8 +1073,8 @@ export default function ProjectsPage() {
       </div>
 
       {/* Scorekeeping rail on desktop; below the flow on mobile */}
-      <aside className="min-w-0 lg:sticky lg:top-6 lg:max-h-[calc(100vh-4.5rem)] lg:overflow-y-auto lg:pr-1">
-        <ShipLogSection entries={shipLog} projects={projects} onLog={logShip} />
+      <aside id="ship-log" className="min-w-0 lg:sticky lg:top-6 lg:max-h-[calc(100vh-4.5rem)] lg:overflow-y-auto lg:pr-1 scroll-mt-6">
+        <ShipLogSection entries={shipLog} projects={projects} onLog={logShip} showForm={shipFormOpen} setShowForm={setShipFormOpen} />
       </aside>
       </div>
     </div>

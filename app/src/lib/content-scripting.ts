@@ -10,7 +10,10 @@
 import type { ContentIdea, ContentPillar } from "./types";
 import { HOOK_FORMULAS, NON_NEGOTIABLES } from "./content-os";
 
-// --- Skeletons (03-hook-script-library.md, verbatim beats) -----------------
+// --- Skeletons (July-18 repositioning: "AI, from a few steps ahead") --------
+// Key → meaning: under-the-hood = Concept (90s explainer video, the channel
+// core), build-log = Built It (standalone project story, no serial),
+// workflow-win = Gotcha / quick win demo.
 
 export const SCRIPT_SKELETONS: Record<
   ContentPillar,
@@ -28,26 +31,25 @@ export const SCRIPT_SKELETONS: Record<
     ],
   },
   "build-log": {
-    label: "Build Log episode",
+    label: "Built It — project story",
     length: "30–60s, ~110–150 words total",
     beats: [
-      "[0–3s]   HOOK — episode number + tension",
-      '[3–10s]  CONTEXT — one sentence on what you\'re building ("the automation engine that turns plain English into workflows") + today\'s goal',
-      "[10–35s] WHAT HAPPENED — AI's role, the surprise or failure (✗ marker), real screen footage",
+      "[0–3s]   HOOK — the result or the tension, up front",
+      "[3–10s]  CONTEXT — one sentence on the project, fully standalone (no series lore, no episode numbering)",
+      "[10–35s] WHAT HAPPENED — the concept doing real work, the surprise or failure (✗ marker), real screen footage",
       "[35–50s] THE LESSON — transferable rule, stated as a verdict",
-      '[50–60s] SERIAL CTA — "Follow for Build Log [n+1] — next up: ___" (always tease the next episode)',
+      '[50–60s] CTA — save or send ("Send this to a builder who needs it")',
     ],
   },
   "under-the-hood": {
-    label: "Under the Hood carousel",
-    length: "5–10 slides, ≤30 words per slide",
+    label: "Concept explainer",
+    length: "60–90s vertical video, ~150–220 words total",
     beats: [
-      'Slide 1: One hard claim, huge type ("Your agent doesn\'t need more context. It needs a smaller job.")',
-      "Slide 2: The problem, one stat or scenario",
-      "Slides 3–7: The anatomy — one concept per slide, diagram > text, ≤30 words per slide",
-      "Slide 8: The mistake most people make (contrast)",
-      "Slide 9: Recap in 3 bullets",
-      'Slide 10: CTA — "Send this to a builder" + follow',
+      "[0–3s]   HOOK — one hard claim or question, keyword spoken + on screen",
+      "[3–15s]  WHY IT MATTERS — the concrete problem you hit when you don't get this",
+      "[15–60s] THE CONCEPT — what X actually is, one mental model, explained a few steps ahead; diagram or screen recording carries the structure, the voice stays narrative",
+      "[60–75s] THE MISTAKE — what most people get wrong (contrast)",
+      '[75–90s] CTA — "Send this to a builder" or save, plus a one-line tease of the next concept in the path',
     ],
   },
 };
@@ -114,7 +116,6 @@ export function buildScriptPrompt(idea: ScriptableIdea): string {
   const skeleton = SCRIPT_SKELETONS[idea.pillar];
   const hook = HOOK_FORMULAS.find((h) => h.n === idea.hookFormula);
   if (!hook) throw new Error(`unknown hook formula ${idea.hookFormula}`);
-  const isCarousel = idea.pillar === "under-the-hood";
   const isBuildLog = idea.pillar === "build-log";
 
   const lines = [
@@ -148,11 +149,6 @@ export function buildScriptPrompt(idea: ScriptableIdea): string {
     "SEO keyword inside the first 3 seconds.",
     "",
     `Idea: ${idea.title}`,
-    ...(isBuildLog && idea.episode != null
-      ? [
-          `Build Log episode number: ${idea.episode}. The serial CTA must tease Build Log ${idea.episode + 1}.`,
-        ]
-      : []),
     ...(idea.notes ? [`Notes / beats to work in: ${idea.notes}`] : []),
     "",
     "First drafts over-explain — write it, then cut 15% before answering. Word",
@@ -161,17 +157,13 @@ export function buildScriptPrompt(idea: ScriptableIdea): string {
     "Caption conventions (both platforms share one caption):",
     "- Line 1: the claim/question with the SEO keyword phrased naturally in the first 50 characters",
     "- Then 2–3 short sentences of context or key steps (keywords in prose; tool names welcome here)",
-    ...(isBuildLog
-      ? [`- Last line CTA: follow for the next episode (serial content earns follows)`]
-      : [`- Last line CTA: a save or send CTA ("Save this for your next build" / "Send this to a builder who needs it")`]),
+    `- Last line CTA: a save or send CTA ("Save this for your next build" / "Send this to a builder who needs it")`,
     "- hashtags: 3–5, one containing the keyword verbatim, plus niche/adjacent tags and buildinpublic. No broad bait tags (#fyp is dead weight). Do NOT put the hashtags in the caption text; return them separately.",
     "",
     "Respond with ONLY a JSON object, no prose, of the shape:",
     `{"hook": string, "script": string, "caption": string, "keyword": string, "hashtags": string[]}`,
     "- hook: the finished hook line (also the script's first line)",
-    isCarousel
-      ? '- script: the full carousel, one slide per line as "Slide N: <text>" (5–10 slides, ≤30 words each)'
-      : '- script: the full voiceover script, one paragraph per beat, starting with the hook line. Mark the failure beat with ✗ if one is shown.',
+    '- script: the full voiceover script, one paragraph per beat, starting with the hook line. Mark the failure beat with ✗ if one is shown.',
     "- caption: the caption text WITHOUT hashtags",
     "- keyword: the TikTok SEO keyword phrase the script targets",
     "- hashtags: 3–5 tags, without the # prefix or with, either is fine",
@@ -238,20 +230,21 @@ export async function draftScriptForIdea(
   return { script: full, caption };
 }
 
-// --- Weekly batch plan (WEEKLY_RHYTHM / PILLARS cadence + bank floor) --------
+// --- Weekly batch plan (PILLARS cadence + bank floor) ------------------------
 
-/** Unscripted-ideas floor from KILL_SCALE_RULES: "never let unscripted ideas drop below 12". */
+/** Unscripted-ideas floor (vault kill/scale rules): never let unscripted ideas drop below 12. */
 export const BANK_FLOOR = 12;
 
 /**
- * Weekly quota in KEEP priority order (02-content-strategy.md cut order:
- * "carousel first, then one Build Log. Never cut the Workflow Win.").
+ * Weekly quota in KEEP priority order. Concept explainers (under-the-hood key)
+ * are the channel core and are never cut first; the quick-win Gotcha demo is
+ * the first to go when the bank floor bites.
  */
 export const WEEKLY_SLOTS: ContentPillar[] = [
-  "workflow-win",
-  "build-log",
-  "build-log",
   "under-the-hood",
+  "under-the-hood",
+  "build-log",
+  "workflow-win",
 ];
 
 export interface BatchPlan {

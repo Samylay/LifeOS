@@ -13,6 +13,9 @@ import { Radar, ExternalLink, Check, Trophy, X, Trash2 } from "lucide-react";
 import { useLeads, LEAD_STATUSES, type Lead, type LeadStatus } from "@/lib/use-leads";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/confirm-dialog";
+import { Skeleton } from "@/components/skeleton";
 
 const STATUS_LABELS: Record<LeadStatus, string> = {
   new: "New",
@@ -23,8 +26,8 @@ const STATUS_LABELS: Record<LeadStatus, string> = {
 
 const STATUS_COLORS: Record<LeadStatus, string> = {
   new: "var(--primary)",
-  contacted: "#F59E0B",
-  won: "#10B981",
+  contacted: "var(--warning)",
+  won: "var(--success)",
   passed: "var(--muted-foreground)",
 };
 
@@ -35,10 +38,13 @@ const SOURCE_LABELS: Record<string, string> = {
   "hn-pain": "Pain (HN)",
 };
 
+/** Translucent tint of a color (hex or CSS var) for chip backgrounds. */
+const tint = (color: string, pct: number) => `color-mix(in srgb, ${color} ${pct}%, transparent)`;
+
 function budgetColor(floor: number): string {
-  if (floor >= 10000) return "#10B981";
+  if (floor >= 10000) return "var(--success)";
   if (floor >= 1000) return "var(--primary)";
-  if (floor >= 500) return "#F59E0B";
+  if (floor >= 500) return "var(--warning)";
   return "var(--muted-foreground)";
 }
 
@@ -101,9 +107,11 @@ export default function LeadsPage() {
         </div>
       )}
 
-      {/* Status filter */}
+      {/* Status filter — zero-count chips are noise, except All and New */}
       <div className="flex flex-wrap gap-2 mb-6">
-        {(["all", ...LEAD_STATUSES] as const).map((s) => {
+        {(["all", ...LEAD_STATUSES] as const)
+          .filter((s) => s === "all" || s === "new" || count(s) > 0 || filter === s)
+          .map((s) => {
           const active = filter === s;
           return (
             <button
@@ -121,7 +129,9 @@ export default function LeadsPage() {
       </div>
 
       {loading ? (
-        <p className="text-muted-foreground/70">Loading…</p>
+        <div className="space-y-3">
+          {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-32 rounded-xl" />)}
+        </div>
       ) : visible.length === 0 ? (
         <p className="text-muted-foreground/70">
           {filter === "all"
@@ -149,15 +159,23 @@ function LeadCard({
   onRemove: (id: string) => void;
 }) {
   const dimmed = lead.status === "passed";
+  const [briefOpen, setBriefOpen] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [now] = useState(() => Date.now());
+  const contactedDays =
+    lead.status === "contacted" && lead.contactedAt
+      ? Math.floor((now - new Date(lead.contactedAt).getTime()) / 86_400_000)
+      : null;
+
   return (
     <Card
-      className="p-4 gap-0 transition-opacity"
+      className="p-4 gap-0 transition-opacity enter"
       style={{ opacity: dimmed ? 0.55 : 1, transitionDuration: "var(--dur-base)", transitionTimingFunction: "var(--ease-out-custom)" }}
     >
       <div className="flex items-center gap-2 mb-1.5 flex-wrap">
         <span
-          className="text-xs font-semibold rounded-md px-2 py-0.5 text-white"
-          style={{ background: budgetColor(lead.budgetFloor) }}
+          className="text-xs font-semibold rounded-md px-2 py-0.5"
+          style={{ background: tint(budgetColor(lead.budgetFloor), 18), color: budgetColor(lead.budgetFloor) }}
         >
           {lead.budget}
         </span>
@@ -171,7 +189,10 @@ function LeadCard({
           {STATUS_LABELS[lead.status]}
         </span>
         <span className="text-xs text-muted-foreground/70">
-          {lead.source} · {timeAgo(lead.postedAt)}
+          {SOURCE_LABELS[lead.source] ?? lead.source} · {timeAgo(lead.postedAt)}
+          {contactedDays !== null && (
+            <span className="text-warning"> · contacted {contactedDays === 0 ? "today" : `${contactedDays}d ago`}</span>
+          )}
         </span>
       </div>
 
@@ -184,17 +205,24 @@ function LeadCard({
         </p>
       )}
       {lead.brief && (
-        <p
-          className="text-sm mb-3 break-words text-muted-foreground"
-          style={{
-            display: "-webkit-box",
-            WebkitLineClamp: 3,
-            WebkitBoxOrient: "vertical",
-            overflow: "hidden",
-          }}
+        <button
+          onClick={() => setBriefOpen((o) => !o)}
+          aria-expanded={briefOpen}
+          className={`text-sm mb-3 break-words text-left text-muted-foreground ${pressable}`}
+          style={
+            briefOpen
+              ? undefined
+              : {
+                  display: "-webkit-box",
+                  WebkitLineClamp: 3,
+                  WebkitBoxOrient: "vertical",
+                  overflow: "hidden",
+                }
+          }
+          title={briefOpen ? "Collapse brief" : "Show full brief"}
         >
           {lead.brief}
-        </p>
+        </button>
       )}
 
       <div className="flex items-center gap-2 flex-wrap">
@@ -204,19 +232,19 @@ function LeadCard({
           rel="noopener noreferrer"
           className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium bg-primary text-primary-foreground ${pressable}`}
         >
-          <ExternalLink size={14} /> Ouvrir
+          <ExternalLink size={14} /> Open brief
         </a>
         <StatusButton
           active={lead.status === "contacted"}
           onClick={() => onStatus(lead.id, lead.status === "contacted" ? "new" : "contacted")}
-          color="#F59E0B"
+          color="var(--warning)"
           icon={<Check size={14} />}
           label="Contacted"
         />
         <StatusButton
           active={lead.status === "won"}
           onClick={() => onStatus(lead.id, lead.status === "won" ? "new" : "won")}
-          color="#10B981"
+          color="var(--success)"
           icon={<Trophy size={14} />}
           label="Won"
         />
@@ -228,13 +256,22 @@ function LeadCard({
           label="Pass"
         />
         <button
-          onClick={() => onRemove(lead.id)}
-          className={`ml-auto p-1.5 rounded-lg text-muted-foreground/70 ${pressable}`}
+          onClick={() => setConfirmDelete(true)}
+          className={`ml-auto h-11 w-11 flex items-center justify-center rounded-lg text-muted-foreground/70 ${pressable}`}
           title="Delete"
+          aria-label="Delete lead"
         >
-          <Trash2 size={14} />
+          <Trash2 size={15} />
         </button>
       </div>
+
+      <ConfirmDialog
+        open={confirmDelete}
+        title="Delete lead"
+        message={`Delete "${lead.title}"? This cannot be undone.`}
+        onConfirm={() => { onRemove(lead.id); setConfirmDelete(false); }}
+        onCancel={() => setConfirmDelete(false)}
+      />
     </Card>
   );
 }
@@ -253,16 +290,14 @@ function StatusButton({
   label: string;
 }) {
   return (
-    <button
+    <Button
+      variant={active ? "secondary" : "outline"}
+      size="sm"
       onClick={onClick}
-      className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium border ${pressable}`}
-      style={{
-        background: active ? color : "transparent",
-        color: active ? "white" : "var(--muted-foreground)",
-        borderColor: active ? color : "var(--border)",
-      }}
+      className="gap-1.5 text-xs font-medium"
+      style={active ? { background: tint(color, 18), color, borderColor: tint(color, 40) } : undefined}
     >
       {icon} {label}
-    </button>
+    </Button>
   );
 }

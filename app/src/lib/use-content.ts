@@ -80,8 +80,8 @@ export function useContentIdeas() {
     [ideas, updateIdea]
   );
 
-  // Draft the full weekly batch (2 BL + 1 WW + 1 UH per the cadence), in bank
-  // order, never draining unscripted ideas below the 12-idea floor.
+  // Draft the full weekly batch (2 Concept + 1 Built-It + 1 Gotcha per the
+  // cadence), in bank order, never draining unscripted ideas below the floor.
   const scriptWeeklyBatch = useCallback(
     async (onProgress?: (done: number, total: number) => void): Promise<BatchResult> => {
       const plan = planWeeklyBatch(ideas);

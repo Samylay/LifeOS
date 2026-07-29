@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Plus, Check, Circle, Clock, X, Flame } from "lucide-react";
 import type { Task, TaskStatus, TaskPriority, AreaId } from "@/lib/types";
-import { AREAS } from "@/lib/types";
+import { AREAS, AREA_HEX } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,18 +37,10 @@ const STATUS_ICONS: Record<TaskStatus, typeof Circle> = {
   cancelled: X,
 };
 
-const AREA_COLOR_MAP: Record<string, string> = {
-  teal: "#14B8A6",
-  indigo: "#6366F1",
-  amber: "#F59E0B",
-  violet: "#8B5CF6",
-  slate: "#64748B",
-};
-
 export function TaskItem({ task, onUpdate, onDelete }: TaskItemProps) {
   const StatusIcon = STATUS_ICONS[task.status];
   const isDone = task.status === "done" || task.status === "cancelled";
-  const areaColor = task.area ? AREA_COLOR_MAP[AREAS[task.area]?.color ?? ""] ?? "#64748B" : undefined;
+  const areaColor = task.area ? AREA_HEX[task.area] ?? "#64748B" : undefined;
 
   const cycleStatus = () => {
     const next: Record<TaskStatus, TaskStatus> = {
@@ -114,7 +106,8 @@ export function TaskItem({ task, onUpdate, onDelete }: TaskItemProps) {
 
       <button
         onClick={() => onDelete(task.id)}
-        className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity rounded p-1 text-muted-foreground/70"
+        aria-label="Delete task"
+        className="shrink-0 opacity-0 group-hover:opacity-100 [@media(hover:none)]:opacity-60 transition-opacity rounded p-1 text-muted-foreground/70"
       >
         <X size={14} />
       </button>

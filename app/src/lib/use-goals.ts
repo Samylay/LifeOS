@@ -108,17 +108,9 @@ export function useGoals() {
     [goals, updateGoal]
   );
 
-  // --- Sessions (day-to-day layer) ---
-
-  const logSession = useCallback(
-    async (id: string, note?: string) => {
-      const goal = goals.find((g) => g.id === id);
-      if (!goal) return;
-      const date = new Date().toISOString().split("T")[0];
-      await updateGoal(id, { sessions: [...goal.sessions, { date, note }] });
-    },
-    [goals, updateGoal]
-  );
+  // Sessions are no longer logged by hand — ships on a goal's projects ARE the
+  // sessions (folded in via withShipActivity). Manual "Log session" rewarded
+  // meta-work and was cut 2026-07-29.
 
   // --- AI prefill via claude -p ---
 
@@ -176,7 +168,6 @@ export function useGoals() {
     toggleCommitment,
     removeCommitment,
     toggleMilestone,
-    logSession,
     draftPlan,
   };
 }

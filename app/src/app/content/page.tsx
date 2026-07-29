@@ -13,42 +13,46 @@ import {
   Wand2,
   FileText,
   Loader2,
+  ArrowRight,
 } from "lucide-react";
 import { useContentIdeas } from "@/lib/use-content";
+import { useShipLog } from "@/lib/use-ship-log";
 import { useToast } from "@/components/toast";
 import { ConfirmDialog } from "@/components/confirm-dialog";
+import { Skeleton } from "@/components/skeleton";
 import type { ContentIdea, ContentIdeaStatus, ContentPillar } from "@/lib/types";
-import {
-  PILLARS,
-  PILLAR_META,
-  HOOK_FORMULAS,
-  WEEKLY_RHYTHM,
-  POSTING_MAP,
-  QUALITY_BAR,
-  NON_NEGOTIABLES,
-  KILL_SCALE_RULES,
-} from "@/lib/content-os";
+import { PILLARS, PILLAR_META, HOOK_FORMULAS } from "@/lib/content-os";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 const STATUSES: { status: ContentIdeaStatus; label: string; color: string }[] = [
-  { status: "idea", label: "Idea", color: "#64748B" },
-  { status: "scripted", label: "Scripted", color: "#7C9E8A" },
-  { status: "recorded", label: "Recorded", color: "#6366F1" },
-  { status: "edited", label: "Edited", color: "#FFB454" },
-  { status: "posted", label: "Posted", color: "#334155" },
+  { status: "idea", label: "Idea", color: "var(--muted-foreground)" },
+  { status: "scripted", label: "Scripted", color: "var(--primary)" },
+  { status: "recorded", label: "Recorded", color: "var(--chart-4)" },
+  { status: "edited", label: "Edited", color: "var(--warning)" },
+  { status: "posted", label: "Posted", color: "var(--success)" },
 ];
 
 const STATUS_META = Object.fromEntries(STATUSES.map((s) => [s.status, s])) as Record<
   ContentIdeaStatus,
   (typeof STATUSES)[number]
 >;
+
+// One advance button per card: the label names the next step in the pipeline.
+const NEXT_STEP: Partial<Record<ContentIdeaStatus, { next: ContentIdeaStatus; label: string }>> = {
+  idea: { next: "scripted", label: "Script it" },
+  scripted: { next: "recorded", label: "Recorded" },
+  recorded: { next: "edited", label: "Edited" },
+  edited: { next: "posted", label: "Posted" },
+};
+
+/** Translucent tint of a color (hex or CSS var) for chip backgrounds. */
+const tint = (color: string, pct: number) => `color-mix(in srgb, ${color} ${pct}%, transparent)`;
 
 function PillarBadge({ pillar }: { pillar: ContentPillar | "" }) {
   const meta = pillar ? PILLAR_META[pillar] : undefined;
@@ -132,13 +136,32 @@ function IdeaEditor({
           <button
             key={p.pillar}
             onClick={() => set({ pillar: p.pillar })}
-            className="text-xs font-medium rounded-full px-3 py-1 transition-colors"
+            className="text-xs font-medium rounded-full px-3 py-1.5 transition-colors duration-150 active:scale-[0.95]"
             style={{
-              color: d.pillar === p.pillar ? "#fff" : "var(--muted-foreground)",
-              background: d.pillar === p.pillar ? p.color : "var(--muted)",
+              color: d.pillar === p.pillar ? p.color : "var(--muted-foreground)",
+              background: d.pillar === p.pillar ? tint(p.color, 20) : "var(--muted)",
             }}
           >
             {p.label}
+          </button>
+        ))}
+      </div>
+      {/* Full status row lives here (the card face shows one advance button) */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">
+          Status
+        </span>
+        {STATUSES.map((s) => (
+          <button
+            key={s.status}
+            onClick={() => set({ status: s.status })}
+            className="text-xs font-medium rounded-full px-3 py-1.5 transition-colors duration-150 active:scale-[0.95]"
+            style={{
+              color: d.status === s.status ? s.color : "var(--muted-foreground)",
+              background: d.status === s.status ? tint(s.color, 20) : "var(--muted)",
+            }}
+          >
+            {s.label}
           </button>
         ))}
       </div>
@@ -189,7 +212,7 @@ function IdeaEditor({
           onClick={() => d.title.trim() && onSave({ ...d, title: d.title.trim(), notes: d.notes?.trim() || undefined })}
           disabled={!d.title.trim()}
           size="sm"
-          className="gap-1.5 text-sm font-medium bg-sage-400 text-white hover:bg-sage-500 disabled:opacity-50"
+          className="gap-1.5 text-sm font-medium"
         >
           <Check size={14} /> Save
         </Button>
@@ -201,17 +224,31 @@ function IdeaEditor({
 function IdeaBank() {
   const { ideas, loading, createIdea, updateIdea, deleteIdea, seedIdeas, scriptIdea, scriptWeeklyBatch } =
     useContentIdeas();
+  const { logShip } = useShipLog();
   const { toast } = useToast();
   const [creating, setCreating] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [pillarFilter, setPillarFilter] = useState<ContentPillar | "all">("all");
-  const [hidePosted, setHidePosted] = useState(true);
+  const [hidePosted, setHidePosted] = useState(false);
   const [seeding, setSeeding] = useState(false);
   const [scriptingId, setScriptingId] = useState<string | null>(null);
   const [batchProgress, setBatchProgress] = useState<{ done: number; total: number } | null>(null);
   const [openScriptIds, setOpenScriptIds] = useState<Set<string>>(new Set());
+  const [showAll, setShowAll] = useState(false);
+  // Per-idea batch failure reasons, rendered inline on the card (not a toast storm).
+  const [failReasons, setFailReasons] = useState<Record<string, string>>({});
   const busy = scriptingId !== null || batchProgress !== null;
+
+  // Posting is a ship: the moment an idea flips to "posted", it left the
+  // machine — write it to the same ship log the projects surface keeps score in.
+  const setIdeaStatus = async (idea: ContentIdea, status: ContentIdeaStatus) => {
+    await updateIdea(idea.id, { status });
+    if (status === "posted" && idea.status !== "posted") {
+      await logShip({ date: new Date(), what: idea.title, toWhom: "public", tags: ["content"] });
+      toast("Posted — logged to the ship log");
+    }
+  };
 
   const toggleScript = (id: string) =>
     setOpenScriptIds((prev) => {
@@ -226,6 +263,11 @@ function IdeaBank() {
     try {
       await scriptIdea(id);
       setOpenScriptIds((prev) => new Set(prev).add(id));
+      setFailReasons((prev) => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
       toast("Script drafted — review, read aloud, cut 15%");
     } catch (e) {
       toast(e instanceof Error ? e.message : "Script draft failed", "error");
@@ -246,7 +288,16 @@ function IdeaBank() {
         });
         toast(`Drafted ${result.scripted.length} script${result.scripted.length === 1 ? "" : "s"} — Monday block done, review before Tuesday`);
       }
-      for (const f of result.failed) toast(`"${f.idea.title}": ${f.error}`, "error");
+      // Failures land inline on each card instead of a toast per idea.
+      setFailReasons((prev) => {
+        const next = { ...prev };
+        for (const i of result.scripted) delete next[i.id];
+        for (const f of result.failed) next[f.idea.id] = f.error;
+        return next;
+      });
+      if (result.failed.length > 0) {
+        toast(`${result.failed.length} draft${result.failed.length === 1 ? "" : "s"} failed — reasons on the cards`, "error");
+      }
       if (result.blocked.length > 0) {
         const floorBlocked = result.blocked.filter((b) => b.reason.startsWith("bank floor"));
         if (floorBlocked.length > 0) {
@@ -269,6 +320,7 @@ function IdeaBank() {
   const visible = ideas.filter(
     (i) => (pillarFilter === "all" || i.pillar === pillarFilter) && (!hidePosted || i.status !== "posted")
   );
+  const shown = showAll ? visible : visible.slice(0, 25);
   const unscripted = ideas.filter((i) => i.status === "idea").length;
 
   return (
@@ -287,17 +339,17 @@ function IdeaBank() {
             <button
               key={p.pillar}
               onClick={() => setPillarFilter(p.pillar)}
-              className="text-xs font-medium rounded-full px-3 py-1 transition-colors"
+              className="text-xs font-medium rounded-full px-3 py-1.5 transition-colors duration-150 active:scale-[0.95]"
               style={{
-                color: pillarFilter === p.pillar ? "#fff" : "var(--muted-foreground)",
-                background: pillarFilter === p.pillar ? p.color : "var(--muted)",
+                color: pillarFilter === p.pillar ? p.color : "var(--muted-foreground)",
+                background: pillarFilter === p.pillar ? tint(p.color, 20) : "var(--muted)",
               }}
             >
               {p.label} ({ideas.filter((i) => i.pillar === p.pillar).length})
             </button>
           ))}
           <label className="flex items-center gap-1.5 text-xs ml-2 text-muted-foreground/70">
-            <input type="checkbox" checked={hidePosted} onChange={(e) => setHidePosted(e.target.checked)} />
+            <Checkbox checked={hidePosted} onCheckedChange={(v) => setHidePosted(v === true)} />
             hide posted
           </label>
         </div>
@@ -306,9 +358,10 @@ function IdeaBank() {
             <Button
               onClick={runBatch}
               disabled={busy}
-              title="Monday block: draft 2 Build Log + 1 Workflow Win + 1 carousel from the bank (never drains unscripted ideas below 12)"
+              title="Monday block: draft 2 Concept + 1 Built-It + 1 Gotcha from the bank (never drains unscripted ideas below 12)"
+              variant="secondary"
               size="sm"
-              className="gap-1.5 text-sm font-medium bg-accent text-accent-foreground hover:bg-accent/80 disabled:opacity-50"
+              className="gap-1.5 text-sm font-medium"
             >
               {batchProgress ? (
                 <>
@@ -326,7 +379,7 @@ function IdeaBank() {
             <Button
               onClick={() => setCreating(true)}
               size="sm"
-              className="gap-1.5 text-sm font-medium bg-sage-400 text-white hover:bg-sage-500"
+              className="gap-1.5 text-sm font-medium"
             >
               <Plus size={15} /> New idea
             </Button>
@@ -334,11 +387,16 @@ function IdeaBank() {
         </div>
       </div>
 
-      {unscripted < 12 && ideas.length > 0 && (
-        <div className="flex items-center gap-2 rounded-xl px-4 py-3 text-sm bg-amber-500/10 text-muted-foreground border border-amber-500/25">
-          <AlertTriangle size={16} className="text-amber-500" />
-          Bank rule: {unscripted} unscripted idea{unscripted === 1 ? "" : "s"} left (floor is 12). Run a 20-min
-          brainstorm against the hook formulas.
+      {unscripted < 12 && (
+        <div className="flex items-center gap-3 flex-wrap rounded-xl px-4 py-3 text-sm bg-warning/10 text-muted-foreground border border-warning/25">
+          <AlertTriangle size={16} className="text-warning shrink-0" />
+          <span className="flex-1 min-w-0">
+            Bank rule: {unscripted} unscripted idea{unscripted === 1 ? "" : "s"} left (floor is 12). Run a 20-min
+            brainstorm against the hook formulas.
+          </span>
+          <Button size="sm" variant="secondary" onClick={() => setCreating(true)} className="gap-1.5 text-xs shrink-0">
+            <Plus size={13} /> Add idea
+          </Button>
         </div>
       )}
 
@@ -353,8 +411,14 @@ function IdeaBank() {
         />
       )}
 
+      {loading && ideas.length === 0 && (
+        <div className="space-y-2">
+          {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-24 rounded-xl" />)}
+        </div>
+      )}
+
       {ideas.length === 0 && !loading && !creating && (
-        <Card className="flex-col items-center justify-center py-16 text-center">
+        <Card className="flex-col items-center justify-center py-16 text-center enter">
           <Clapperboard size={48} className="mb-4 text-muted-foreground/70" />
           <p className="text-lg font-medium text-foreground">
             Idea bank is empty
@@ -371,7 +435,7 @@ function IdeaBank() {
             }}
             disabled={seeding}
             size="sm"
-            className="gap-1.5 text-sm font-medium bg-sage-400 text-white hover:bg-sage-500 disabled:opacity-50"
+            className="gap-1.5 text-sm font-medium"
           >
             <Download size={15} /> {seeding ? "Importing…" : "Import 60 starter ideas"}
           </Button>
@@ -379,7 +443,7 @@ function IdeaBank() {
       )}
 
       <div className="space-y-2">
-        {visible.map((idea) =>
+        {shown.map((idea) =>
           editingId === idea.id ? (
             <IdeaEditor
               key={idea.id}
@@ -391,7 +455,7 @@ function IdeaBank() {
               onCancel={() => setEditingId(null)}
             />
           ) : (
-            <Card key={idea.id} className="px-4 py-3 gap-0">
+            <Card key={idea.id} className="px-4 py-3 gap-0 enter">
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
                   <div className="flex items-center gap-1.5 flex-wrap">
@@ -412,7 +476,7 @@ function IdeaBank() {
                     </p>
                   )}
                 </div>
-                <div className="flex items-center gap-1 shrink-0">
+                <div className="flex items-center shrink-0">
                   {idea.status === "idea" && (
                     <button
                       onClick={() => runScriptIdea(idea.id)}
@@ -422,12 +486,12 @@ function IdeaBank() {
                           ? "Assign a hook formula first — a topic isn't a post"
                           : "Draft script + caption with Claude"
                       }
-                      className="p-1.5 rounded-lg disabled:opacity-40 text-primary"
+                      className="h-11 w-11 flex items-center justify-center rounded-lg disabled:opacity-40 text-primary transition-transform duration-150 active:scale-[0.9]"
                     >
                       {scriptingId === idea.id ? (
-                        <Loader2 size={14} className="animate-spin" />
+                        <Loader2 size={15} className="animate-spin" />
                       ) : (
-                        <Wand2 size={14} />
+                        <Wand2 size={15} />
                       )}
                     </button>
                   )}
@@ -435,33 +499,54 @@ function IdeaBank() {
                     <button
                       onClick={() => toggleScript(idea.id)}
                       title={openScriptIds.has(idea.id) ? "Hide script" : "Show script"}
-                      className={`p-1.5 rounded-lg ${openScriptIds.has(idea.id) ? "text-primary" : "text-muted-foreground/70"}`}
+                      className={`h-11 w-11 flex items-center justify-center rounded-lg transition-transform duration-150 active:scale-[0.9] ${openScriptIds.has(idea.id) ? "text-primary" : "text-muted-foreground/70"}`}
                     >
-                      <FileText size={14} />
+                      <FileText size={15} />
                     </button>
                   )}
-                  <button onClick={() => setEditingId(idea.id)} title="Edit" className="p-1.5 rounded-lg text-muted-foreground/70">
-                    <Pencil size={14} />
+                  <button
+                    onClick={() => setEditingId(idea.id)}
+                    title="Edit"
+                    className="h-11 w-11 flex items-center justify-center rounded-lg text-muted-foreground/70 transition-transform duration-150 active:scale-[0.9]"
+                  >
+                    <Pencil size={15} />
                   </button>
-                  <button onClick={() => setConfirmId(idea.id)} title="Delete" className="p-1.5 rounded-lg text-muted-foreground/70">
-                    <Trash2 size={14} />
+                  <button
+                    onClick={() => setConfirmId(idea.id)}
+                    title="Delete"
+                    className="h-11 w-11 flex items-center justify-center rounded-lg text-muted-foreground/70 transition-transform duration-150 active:scale-[0.9]"
+                  >
+                    <Trash2 size={15} />
                   </button>
                 </div>
               </div>
-              <div className="mt-2 flex items-center gap-1.5 flex-wrap">
-                {STATUSES.map((s) => (
-                  <button
-                    key={s.status}
-                    onClick={() => updateIdea(idea.id, { status: s.status })}
-                    className="text-[11px] font-medium rounded-full px-2.5 py-0.5 transition-colors"
-                    style={{
-                      color: idea.status === s.status ? "#fff" : "var(--muted-foreground)",
-                      background: idea.status === s.status ? s.color : "var(--muted)",
-                    }}
+              {failReasons[idea.id] && (
+                <p className="mt-2 text-xs text-destructive">
+                  Draft failed: {failReasons[idea.id]}
+                </p>
+              )}
+              {/* One advance button, labeled with the next step; the full
+                  status row lives in the editor for corrections. */}
+              <div className="mt-2 flex items-center gap-2">
+                <span
+                  className="text-[11px] font-medium rounded-full px-2.5 py-1"
+                  style={{
+                    color: STATUS_META[idea.status].color,
+                    background: tint(STATUS_META[idea.status].color, 20),
+                  }}
+                >
+                  {STATUS_META[idea.status].label}
+                </span>
+                {NEXT_STEP[idea.status] && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIdeaStatus(idea, NEXT_STEP[idea.status]!.next)}
+                    className="gap-1 text-xs"
                   >
-                    {s.label}
-                  </button>
-                ))}
+                    {NEXT_STEP[idea.status]!.label} <ArrowRight size={13} />
+                  </Button>
+                )}
               </div>
               {idea.script && openScriptIds.has(idea.id) && (
                 <div className="mt-3 space-y-3 rounded-lg p-3 bg-muted">
@@ -488,6 +573,11 @@ function IdeaBank() {
             </Card>
           )
         )}
+        {!showAll && visible.length > shown.length && (
+          <Button variant="ghost" onClick={() => setShowAll(true)} className="w-full text-xs text-primary">
+            Show more ({visible.length - shown.length})
+          </Button>
+        )}
       </div>
 
       <ConfirmDialog
@@ -504,153 +594,9 @@ function IdeaBank() {
   );
 }
 
-// --- Playbook -------------------------------------------------------------------
-
-function Playbook() {
-  const section = (title: string, children: React.ReactNode) => (
-    <Card className="p-4 gap-3">
-      <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground/70">
-        {title}
-      </h2>
-      {children}
-    </Card>
-  );
-
-  return (
-    <div className="space-y-4">
-      <p className="text-xs text-muted-foreground/70">
-        Condensed from the vault playbook (<code>01-Inbox/content-os/</code>) — the vault stays the source of truth.
-      </p>
-
-      {section(
-        "Non-negotiables",
-        <ul className="space-y-1.5">
-          {NON_NEGOTIABLES.map((r) => (
-            <li key={r} className="text-sm flex gap-2 text-muted-foreground">
-              <span className="text-primary">•</span> {r}
-            </li>
-          ))}
-        </ul>
-      )}
-
-      {section(
-        "The three pillars",
-        <div className="space-y-3">
-          {PILLARS.map((p) => (
-            <div key={p.pillar}>
-              <div className="flex items-center gap-2">
-                <PillarBadge pillar={p.pillar} />
-                <span className="text-xs font-medium text-muted-foreground/70">
-                  {p.cadence}
-                </span>
-              </div>
-              <p className="text-sm mt-1 text-muted-foreground">
-                {p.job}
-              </p>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {section(
-        "Weekly rhythm (≈8.5h)",
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="text-[11px] uppercase tracking-wider">Day</TableHead>
-              <TableHead className="text-[11px] uppercase tracking-wider">Block</TableHead>
-              <TableHead className="text-[11px] uppercase tracking-wider">Time</TableHead>
-              <TableHead className="text-[11px] uppercase tracking-wider whitespace-normal">What</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {WEEKLY_RHYTHM.map((r) => (
-              <TableRow key={r.day + r.block}>
-                <TableCell className="font-medium text-foreground">{r.day}</TableCell>
-                <TableCell className="text-muted-foreground">{r.block}</TableCell>
-                <TableCell className="text-muted-foreground">{r.time}</TableCell>
-                <TableCell className="whitespace-normal text-muted-foreground">{r.what}</TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      )}
-
-      {section(
-        "Posting map",
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="text-[11px] uppercase tracking-wider">Day</TableHead>
-              <TableHead className="text-[11px] uppercase tracking-wider">TikTok</TableHead>
-              <TableHead className="text-[11px] uppercase tracking-wider">Instagram</TableHead>
-              <TableHead className="text-[11px] uppercase tracking-wider">YT Shorts</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {POSTING_MAP.map((r) => (
-              <TableRow key={r.day}>
-                <TableCell className="font-medium text-foreground">{r.day}</TableCell>
-                <TableCell className="text-muted-foreground">{r.tiktok}</TableCell>
-                <TableCell className="text-muted-foreground">{r.instagram}</TableCell>
-                <TableCell className="text-muted-foreground">{r.youtube}</TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      )}
-
-      {section(
-        "12 hook formulas",
-        <div className="space-y-1.5">
-          {HOOK_FORMULAS.map((h) => (
-            <p key={h.n} className="text-sm text-muted-foreground">
-              <span className="font-semibold text-foreground">
-                {h.n} · {h.name}
-              </span>{" "}
-              — {h.template}
-            </p>
-          ))}
-        </div>
-      )}
-
-      {section(
-        "Quality bar (before export)",
-        <ul className="space-y-1.5">
-          {QUALITY_BAR.map((r) => (
-            <li key={r} className="text-sm flex gap-2 text-muted-foreground">
-              <span className="text-primary">☐</span> {r}
-            </li>
-          ))}
-        </ul>
-      )}
-
-      {section(
-        "Kill / scale rules",
-        <ul className="space-y-1.5">
-          {KILL_SCALE_RULES.map((r) => (
-            <li key={r} className="text-sm flex gap-2 text-muted-foreground">
-              <span className="text-primary">•</span> {r}
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  );
-}
-
 // --- Page -----------------------------------------------------------------------
 
-const TABS = [
-  { id: "ideas", label: "Idea Bank" },
-  { id: "playbook", label: "Playbook" },
-] as const;
-
-type TabId = (typeof TABS)[number]["id"];
-
 export default function ContentPage() {
-  const [tab, setTab] = useState<TabId>("ideas");
-
   return (
     <div className="space-y-6">
       <div>
@@ -658,26 +604,12 @@ export default function ContentPage() {
           <Clapperboard size={22} className="text-primary" /> Content OS
         </h1>
         <p className="text-xs mt-1 text-muted-foreground/70">
-          Build-in-public content system — idea bank and the playbook.
+          Build-in-public content system — idea bank and tracker. The playbook lives in the vault
+          (<code>01-Inbox/content-os/</code>), the source of truth.
         </p>
       </div>
 
-      <Tabs value={tab} onValueChange={(v) => setTab(v as TabId)}>
-        <TabsList className="bg-transparent p-0 gap-1.5 h-auto">
-          {TABS.map((t) => (
-            <TabsTrigger
-              key={t.id}
-              value={t.id}
-              className="text-sm font-medium rounded-lg px-3 py-1.5 data-[state=active]:bg-accent data-[state=active]:text-primary data-[state=active]:shadow-none"
-            >
-              {t.label}
-            </TabsTrigger>
-          ))}
-        </TabsList>
-      </Tabs>
-
-      {tab === "ideas" && <IdeaBank />}
-      {tab === "playbook" && <Playbook />}
+      <IdeaBank />
     </div>
   );
 }

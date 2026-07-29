@@ -66,47 +66,15 @@ export const HOOK_FORMULAS: { n: number; name: string; template: string }[] = [
   { n: 12, name: "Sender bait", template: "Send this to whoever is ___" },
 ];
 
-export const WEEKLY_RHYTHM: { day: string; block: string; time: string; what: string }[] = [
-  { day: "Mon", block: "Script", time: "1.5h", what: "Write the next few scripts (mostly Concept, ~1 Built-It or Gotcha), assign hook formulas, read aloud, cut 15%, write captions now" },
-  { day: "Tue", block: "Record", time: "1.5h", what: "All voiceovers in one sitting (stand up, 2 takes each), then the screen captures / diagram builds" },
-  { day: "Wed", block: "Edit", time: "2.5h", what: "~40 min/video in the CapCut master template. Kill-rule: fighting past 50 min → ship rough or drop" },
-  { day: "Tue–Sun", block: "Publish", time: "1h total", what: "4 posts from last week's batch, per the posting map" },
-  { day: "Daily", block: "Engage", time: "15–20 min", what: "Reply to every comment; comment on 5 niche accounts (add information, not applause)" },
-  { day: "Fri", block: "Review", time: "20 min", what: "Log metrics, best/worst by sends per reach, one-sentence diagnoses, pick next week's 4 ideas" },
-];
-
-export const POSTING_MAP: { day: string; tiktok: string; instagram: string; youtube: string }[] = [
-  // Cadence is provisional — TBD until Samy picks a posting rhythm. Same cut
-  // ships to all three platforms (60–90s works everywhere in 2026).
-  { day: "Tue", tiktok: "Concept", instagram: "same Reel", youtube: "same + Short" },
-  { day: "Thu", tiktok: "Gotcha", instagram: "same Reel", youtube: "same + Short" },
-  { day: "Sat", tiktok: "Concept / Built-It", instagram: "same Reel", youtube: "same + Short" },
-];
-
-export const QUALITY_BAR: string[] = [
-  "First frame: motion + text visible, works on mute",
-  "Keyword spoken in first 3s (TikTok SEO)",
-  "No dead air > 0.5s",
-  "Captions never cover the code being discussed",
-  "Numbers shown on screen, not just spoken",
-  "✗ marker used if a failure is shown",
-  "End: CTA matches pillar (save / send / follow-for-next-episode)",
-  "Audio: no clipping, enhanced, consistent loudness across the batch",
-];
+// Weekly rhythm, posting map, quality bar, and kill/scale rules live in the
+// vault playbook only (01-Inbox/content-os/) — the in-app Playbook tab was cut
+// 2026-07-29; the vault is the source of truth.
 
 export const NON_NEGOTIABLES: string[] = [
   "Every post passes the send test: would a dev DM this to a friend?",
   "Every video teaches one concept that stands on its own, without needing my projects to make sense",
   "Hooks never name-drop tools or model versions — those go in captions",
   "Ship before ready: the first 10 posts are calibration data, not reputation",
-];
-
-export const KILL_SCALE_RULES: string[] = [
-  "Hook scoring: log 3s retention against the hook formula; after 12 posts, retire the bottom formula",
-  "Scale: any post >2x rolling median sends/reach → v2 within a month + 2 sibling ideas to the bank",
-  "Kill: any format underperforming median across 4 attempts → drop the format, not the topic",
-  "Series check: learning-path follows-per-post down 3 episodes straight → restructure before abandoning",
-  "Bank rule: never let unscripted ideas drop below 12",
 ];
 
 type SeedIdea = Pick<ContentIdea, "title" | "pillar" | "hookFormula" | "episode">;

@@ -463,6 +463,16 @@ export const AREAS: Record<AreaId, { name: string; color: string; icon: string }
   admin: { name: "Life Admin", color: "slate", icon: "ClipboardList" },
 };
 
+// One hex per area — the single source for area accent colors across surfaces
+// (projects badges, task chips). Semantic signal, kept as raw hex per STYLE.md.
+export const AREA_HEX: Record<AreaId, string> = {
+  health: "#14B8A6", // teal
+  career: "#6366F1", // indigo
+  finance: "#F59E0B", // amber
+  brand: "#8B5CF6", // violet
+  admin: "#64748B", // slate
+};
+
 // --- Goals (quarterly objective → weekly commitments → sessions) ---
 //
 // A goal is a single quarterly objective. Each ISO week you set 1-3 concrete
