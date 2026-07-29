@@ -97,6 +97,10 @@ function pickWeighted<T extends { weight: number }>(list: T[], seed: string): T 
   return list[list.length - 1];
 }
 
+// The day doc also carries the soft timer's progress (item lives alongside the
+// acknowledgements so it survives screen sleep / page reloads).
+type PrimeDayDoc = PrimeDay & { timerElapsedSec?: number };
+
 export function usePrime() {
   const { user, isFirebaseConfigured } = useAuth();
   const uid = user?.uid;
@@ -277,13 +281,14 @@ export function usePrime() {
     [uid, dateKey]
   );
 
+  // Toggles, so a mis-tap can be undone (persistDay recomputes completedAt).
   const acknowledgeAffirmation = useCallback(
     (id: string) => {
       if (!today) return;
       persistDay({
         ...today,
         affirmations: today.affirmations.map((a) =>
-          a.id === id ? { ...a, acknowledged: true } : a
+          a.id === id ? { ...a, acknowledged: !a.acknowledged } : a
         ),
       });
     },
@@ -302,8 +307,19 @@ export function usePrime() {
       affirmations: today.affirmations.map((a) => ({ ...a, acknowledged: false })),
       promptAcknowledged: false,
       completedAt: undefined,
-    });
+      timerElapsedSec: 0,
+    } as PrimeDayDoc);
   }, [today, persistDay]);
+
+  // Soft-timer progress: written every ~10s while the timer runs so the mm:ss
+  // survives the phone screen sleeping mid-ritual.
+  const persistTimerElapsed = useCallback(
+    (sec: number) => {
+      if (!today) return;
+      persistDay({ ...today, timerElapsedSec: Math.max(0, Math.round(sec)) } as PrimeDayDoc);
+    },
+    [today, persistDay]
+  );
 
   const updateTimerFloor = useCallback(
     async (sec: number) => {
@@ -346,13 +362,6 @@ export function usePrime() {
     },
     [uid]
   );
-  const updatePrompt = useCallback(
-    async (id: string, data: Partial<PrimePrompt>) => {
-      if (!uid) return;
-      await promptsApi.update(uid, id, { ...data, updatedAt: new Date() });
-    },
-    [uid]
-  );
   const deletePrompt = useCallback(
     async (id: string) => {
       if (!uid) return;
@@ -366,13 +375,6 @@ export function usePrime() {
       if (!uid || !text.trim()) return;
       const now = new Date();
       await principlesApi.create(uid, { text: text.trim(), active: true, createdAt: now, updatedAt: now });
-    },
-    [uid]
-  );
-  const updatePrinciple = useCallback(
-    async (id: string, data: Partial<Principle>) => {
-      if (!uid) return;
-      await principlesApi.update(uid, id, { ...data, updatedAt: new Date() });
     },
     [uid]
   );
@@ -392,22 +394,22 @@ export function usePrime() {
     today,
     done,
     timerFloorSec,
+    timerElapsedSec: (today as PrimeDayDoc | null)?.timerElapsedSec ?? 0,
     affirmationBank,
     promptBank,
     principleBank,
     acknowledgeAffirmation,
     acknowledgePrompt,
     resetToday,
+    persistTimerElapsed,
     updateTimerFloor,
     // bank management
     addAffirmation,
     updateAffirmation,
     deleteAffirmation,
     addPrompt,
-    updatePrompt,
     deletePrompt,
     addPrinciple,
-    updatePrinciple,
     deletePrinciple,
   };
 }

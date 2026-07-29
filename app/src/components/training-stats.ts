@@ -22,7 +22,6 @@ export interface ActivityRow {
   kudos_count: number;
   achievement_count: number;
   gear_id: string | null;
-  polyline: string | null;
   start_lat: number | null;
   start_lng: number | null;
 }
@@ -197,60 +196,125 @@ export function weeklyTrend(
   return Array.from(buckets.values());
 }
 
-export interface RecordsResult {
-  longestRun: { row: ActivityRow; distance_m: number } | null;
-  longestRide: { row: ActivityRow; distance_m: number } | null;
-  longestSwim: { row: ActivityRow; distance_m: number } | null;
-  fastest5k: { row: ActivityRow; speed_mps: number } | null;
-  biggestClimb: { row: ActivityRow; elevation_m: number } | null;
-  longestWeek: { weekStart: string; distance_m: number } | null;
+// ---------- Streak (merged from the retired lib/training/stats.ts) ----------
+
+export function currentStreak(rows: ActivityRow[], today = new Date()): number {
+  if (rows.length === 0) return 0;
+  const days = new Set<string>();
+  for (const r of rows) {
+    days.add(activityDate(r).toISOString().slice(0, 10));
+  }
+  let streak = 0;
+  const cursor = new Date(today);
+  cursor.setUTCHours(0, 0, 0, 0);
+  // allow today to be missing — start counting from yesterday in that case
+  if (!days.has(cursor.toISOString().slice(0, 10))) {
+    cursor.setUTCDate(cursor.getUTCDate() - 1);
+  }
+  while (days.has(cursor.toISOString().slice(0, 10))) {
+    streak++;
+    cursor.setUTCDate(cursor.getUTCDate() - 1);
+  }
+  return streak;
 }
 
-/** Compute simple "best effort" records from a list of activities. */
-export function computeRecords(rows: ActivityRow[]): RecordsResult {
-  let longestRun: RecordsResult["longestRun"] = null;
-  let longestRide: RecordsResult["longestRide"] = null;
-  let longestSwim: RecordsResult["longestSwim"] = null;
-  let fastest5k: RecordsResult["fastest5k"] = null;
-  let biggestClimb: RecordsResult["biggestClimb"] = null;
+// ---------- Compare ----------
 
-  const weekDistances = new Map<string, number>();
+export type BucketKey = "distance_m" | "moving_time_s" | "total_elevation_gain_m" | "count";
 
-  for (const r of rows) {
-    const bucket = mapSport(r.sport_type);
-    const dist = r.distance_m || 0;
+export interface CompareResult {
+  aTotal: number;
+  bTotal: number;
+  deltaPct: number;
+  aWeekly: number[];
+  bWeekly: number[];
+}
 
-    if (bucket === "run" && (!longestRun || dist > longestRun.distance_m)) {
-      longestRun = { row: r, distance_m: dist };
+export function comparePeriods(
+  aRows: ActivityRow[],
+  bRows: ActivityRow[],
+  key: BucketKey
+): CompareResult {
+  const sum = (rs: ActivityRow[]) =>
+    rs.reduce((acc, r) => acc + (key === "count" ? 1 : (r[key] ?? 0)), 0);
+  const aTotal = sum(aRows);
+  const bTotal = sum(bRows);
+  const deltaPct = bTotal === 0 ? 0 : ((aTotal - bTotal) / bTotal) * 100;
+
+  const groupByWeekIdx = (rows: ActivityRow[]) => {
+    if (rows.length === 0) return [];
+    const sorted = [...rows].sort((x, y) => x.start_date.localeCompare(y.start_date));
+    const start = isoWeekStart(new Date(sorted[0].start_date));
+    const end = isoWeekStart(new Date(sorted[sorted.length - 1].start_date));
+    const weeks = Math.max(
+      1,
+      Math.round((end.getTime() - start.getTime()) / (7 * 86400 * 1000)) + 1
+    );
+    const arr = new Array(weeks).fill(0);
+    for (const r of rows) {
+      const d = isoWeekStart(new Date(r.start_date));
+      const idx = Math.round((d.getTime() - start.getTime()) / (7 * 86400 * 1000));
+      arr[idx] += key === "count" ? 1 : (r[key] ?? 0);
     }
-    if (bucket === "ride" && (!longestRide || dist > longestRide.distance_m)) {
-      longestRide = { row: r, distance_m: dist };
-    }
-    if (bucket === "swim" && (!longestSwim || dist > longestSwim.distance_m)) {
-      longestSwim = { row: r, distance_m: dist };
-    }
+    return arr;
+  };
 
-    if (bucket === "run" && dist >= 5000 && r.average_speed_mps) {
-      if (!fastest5k || r.average_speed_mps > fastest5k.speed_mps) {
-        fastest5k = { row: r, speed_mps: r.average_speed_mps };
-      }
-    }
+  return {
+    aTotal,
+    bTotal,
+    deltaPct,
+    aWeekly: groupByWeekIdx(aRows),
+    bWeekly: groupByWeekIdx(bRows),
+  };
+}
 
-    const elev = r.total_elevation_gain_m || 0;
-    if (!biggestClimb || elev > biggestClimb.elevation_m) {
-      biggestClimb = { row: r, elevation_m: elev };
-    }
+// ---------- Distributions ----------
 
-    const wk = isoWeekKey(activityDate(r));
-    weekDistances.set(wk, (weekDistances.get(wk) || 0) + dist);
+export interface HistBin {
+  label: string;
+  start: number;
+  end: number;
+  count: number;
+}
+
+export function paceHistogram(rows: ActivityRow[], sport: SportBucket, bucketSec = 15): HistBin[] {
+  const filtered = rows.filter((r) => mapSport(r.sport_type) === sport && r.average_speed_mps);
+  if (filtered.length === 0) return [];
+  const paces = filtered.map((r) => 1000 / (r.average_speed_mps as number)); // sec/km
+  const min = Math.min(...paces);
+  const max = Math.max(...paces);
+  const start = Math.floor(min / bucketSec) * bucketSec;
+  const end = Math.ceil(max / bucketSec) * bucketSec;
+  const bins: HistBin[] = [];
+  for (let s = start; s < end; s += bucketSec) {
+    bins.push({
+      label: `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`,
+      start: s,
+      end: s + bucketSec,
+      count: 0,
+    });
   }
-
-  let longestWeek: RecordsResult["longestWeek"] = null;
-  for (const [weekStart, distance_m] of weekDistances.entries()) {
-    if (!longestWeek || distance_m > longestWeek.distance_m) {
-      longestWeek = { weekStart, distance_m };
-    }
+  for (const p of paces) {
+    const idx = Math.min(Math.floor((p - start) / bucketSec), bins.length - 1);
+    if (idx >= 0) bins[idx].count++;
   }
+  return bins;
+}
 
-  return { longestRun, longestRide, longestSwim, fastest5k, biggestClimb, longestWeek };
+export function hrHistogram(rows: ActivityRow[], bucketBpm = 5): HistBin[] {
+  const hrs = rows.map((r) => r.average_heartrate).filter((h): h is number => h != null);
+  if (hrs.length === 0) return [];
+  const min = Math.min(...hrs);
+  const max = Math.max(...hrs);
+  const start = Math.floor(min / bucketBpm) * bucketBpm;
+  const end = Math.ceil(max / bucketBpm) * bucketBpm;
+  const bins: HistBin[] = [];
+  for (let s = start; s < end; s += bucketBpm) {
+    bins.push({ label: `${s}`, start: s, end: s + bucketBpm, count: 0 });
+  }
+  for (const h of hrs) {
+    const idx = Math.min(Math.floor((h - start) / bucketBpm), bins.length - 1);
+    if (idx >= 0) bins[idx].count++;
+  }
+  return bins;
 }

@@ -12,12 +12,6 @@ import {
   Footprints,
   RefreshCw,
   Loader2,
-  TrendingUp,
-  TrendingDown,
-  Minus,
-  Trophy,
-  Mountain,
-  CalendarRange,
   Heart,
   Zap,
 } from "lucide-react";
@@ -33,11 +27,10 @@ import {
   formatPaceForSport,
   totalsBySport,
   weeklyTrend,
-  computeRecords,
   isoWeekStart,
   activityDate,
 } from "./training-stats";
-import TrainingInsights from "./training-insights";
+import TrainingInsights, { DeltaBadge } from "./training-insights";
 
 const SPORT_ICONS: Record<SportBucket, React.ComponentType<{ size?: number; style?: React.CSSProperties }>> = {
   swim: Waves,
@@ -53,20 +46,6 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
     <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
       {children}
     </h2>
-  );
-}
-
-function DeltaBadge({ current, previous }: { current: number; previous: number }) {
-  if (previous === 0 && current === 0) return null;
-  const diff = current - previous;
-  const pct = previous > 0 ? (diff / previous) * 100 : current > 0 ? 100 : 0;
-  const Icon = diff > 0 ? TrendingUp : diff < 0 ? TrendingDown : Minus;
-  const color = diff > 0 ? "text-emerald-500" : diff < 0 ? "text-destructive" : "text-muted-foreground";
-  return (
-    <span className={`inline-flex items-center gap-0.5 text-[11px] font-mono ${color}`}>
-      <Icon size={11} />
-      {previous > 0 ? `${Math.abs(pct).toFixed(0)}%` : "new"}
-    </span>
   );
 }
 
@@ -156,9 +135,6 @@ export default function TrainingAnalytics() {
   // --- Recent activities (last 20) ---
   const recent = useMemo(() => rows.slice(0, 20), [rows]);
 
-  // --- Records ---
-  const records = useMemo(() => computeRecords(rows), [rows]);
-
   if (loading) {
     return (
       <div className="space-y-6">
@@ -213,7 +189,7 @@ export default function TrainingAnalytics() {
           className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-primary transition-colors hover:opacity-80"
         >
           {syncing ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
-          Sync
+          Sync Strava
         </button>
       </div>
 
@@ -399,86 +375,8 @@ export default function TrainingAnalytics() {
         </div>
       </section>
 
-      {/* 5. Records */}
-      <section>
-        <SectionLabel>Records</SectionLabel>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {records.longestRun && (
-            <RecordCard
-              icon={<Footprints size={16} style={{ color: SPORT_COLORS.run }} />}
-              label="Longest Run"
-              value={formatDistance(records.longestRun.distance_m)}
-              sub={records.longestRun.row.name}
-            />
-          )}
-          {records.longestRide && (
-            <RecordCard
-              icon={<Bike size={16} style={{ color: SPORT_COLORS.ride }} />}
-              label="Longest Ride"
-              value={formatDistance(records.longestRide.distance_m)}
-              sub={records.longestRide.row.name}
-            />
-          )}
-          {records.longestSwim && (
-            <RecordCard
-              icon={<Waves size={16} style={{ color: SPORT_COLORS.swim }} />}
-              label="Longest Swim"
-              value={formatDistance(records.longestSwim.distance_m)}
-              sub={records.longestSwim.row.name}
-            />
-          )}
-          {records.fastest5k && (
-            <RecordCard
-              icon={<Trophy size={16} style={{ color: "#D4A24E" }} />}
-              label="Fastest 5k+ Pace"
-              value={formatPaceForSport("run", records.fastest5k.speed_mps) || "--"}
-              sub={records.fastest5k.row.name}
-            />
-          )}
-          {records.biggestClimb && records.biggestClimb.elevation_m > 0 && (
-            <RecordCard
-              icon={<Mountain size={16} className="text-primary" />}
-              label="Biggest Climbing Day"
-              value={`${Math.round(records.biggestClimb.elevation_m)} m`}
-              sub={records.biggestClimb.row.name}
-            />
-          )}
-          {records.longestWeek && (
-            <RecordCard
-              icon={<CalendarRange size={16} className="text-muted-foreground" />}
-              label="Longest Week (Distance)"
-              value={formatDistance(records.longestWeek.distance_m)}
-              sub={`Week of ${new Date(records.longestWeek.weekStart).toLocaleDateString("en-US", { month: "short", day: "numeric" })}`}
-            />
-          )}
-        </div>
-      </section>
-
-      {/* 6-7. Compare + distributions (ported from strava-dashboard) */}
+      {/* 5-6. Compare + distributions (ported from strava-dashboard) */}
       <TrainingInsights rows={rows} />
     </div>
-  );
-}
-
-function RecordCard({
-  icon,
-  label,
-  value,
-  sub,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: string;
-  sub: string;
-}) {
-  return (
-    <Card className="p-4">
-      <div className="mb-1.5 flex items-center gap-2">
-        {icon}
-        <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{label}</span>
-      </div>
-      <p className="mb-0.5 font-mono text-lg font-bold">{value}</p>
-      <p className="truncate text-xs text-muted-foreground">{sub}</p>
-    </Card>
   );
 }

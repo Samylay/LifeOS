@@ -1,12 +1,11 @@
 import { describe, it, expect } from "vitest";
 import {
   currentStreak,
-  rollingAverage,
-  bestEffortsForStreams,
-  weeklyBuckets,
   comparePeriods,
+  paceHistogram,
+  hrHistogram,
   type ActivityRow,
-} from "./stats";
+} from "./training-stats";
 
 // Minimal ActivityRow factory — only the fields the pure functions read.
 function act(partial: Partial<ActivityRow>): ActivityRow {
@@ -27,9 +26,10 @@ function act(partial: Partial<ActivityRow>): ActivityRow {
     average_cadence: null,
     average_watts: null,
     kilojoules: null,
+    suffer_score: null,
     kudos_count: 0,
     achievement_count: 0,
-    polyline: null,
+    gear_id: null,
     start_lat: null,
     start_lng: null,
     ...partial,
@@ -54,42 +54,6 @@ describe("currentStreak", () => {
   });
 });
 
-describe("rollingAverage", () => {
-  it("emits null until the window is filled, then the trailing mean", () => {
-    expect(rollingAverage([1, 2, 3, 4, 5], 3)).toEqual([null, null, 2, 3, 4]);
-  });
-});
-
-describe("bestEffortsForStreams", () => {
-  it("finds the fastest window covering each target distance", () => {
-    const distance = [0, 1000, 2000, 3000, 4000, 5000];
-    const time = [0, 200, 400, 600, 800, 1000]; // steady 5 m/s
-    const efforts = bestEffortsForStreams(distance, time, [1000, 5000]);
-    expect(efforts.get(1000)).toBe(200);
-    expect(efforts.get(5000)).toBe(1000);
-  });
-
-  it("returns an empty map for streams too short to measure", () => {
-    expect(bestEffortsForStreams([0], [0], [1000]).size).toBe(0);
-  });
-});
-
-describe("weeklyBuckets", () => {
-  it("groups activities into ISO weeks starting Monday, sorted ascending", () => {
-    // 2026-06-29 is a Monday; 2026-07-01 falls in the same ISO week.
-    const rows = [
-      act({ start_date: "2026-06-29T10:00:00Z", distance_m: 1000 }),
-      act({ start_date: "2026-07-01T10:00:00Z", distance_m: 2000 }),
-      act({ start_date: "2026-07-06T10:00:00Z", distance_m: 500 }),
-    ];
-    const buckets = weeklyBuckets(rows, "distance_m");
-    expect(buckets).toEqual([
-      { weekStart: "2026-06-29", value: 3000, count: 2 },
-      { weekStart: "2026-07-06", value: 500, count: 1 },
-    ]);
-  });
-});
-
 describe("comparePeriods", () => {
   it("computes totals and the percentage delta of A relative to B", () => {
     const a = [act({ distance_m: 3000 })];
@@ -103,5 +67,36 @@ describe("comparePeriods", () => {
   it("avoids divide-by-zero when the baseline is empty", () => {
     const res = comparePeriods([act({ distance_m: 1000 })], [], "distance_m");
     expect(res.deltaPct).toBe(0);
+  });
+});
+
+describe("paceHistogram", () => {
+  it("buckets by pace for the requested sport bucket, including sub-types", () => {
+    const rows = [
+      act({ sport_type: "Run", average_speed_mps: 1000 / 300 }), // 5:00/km
+      act({ sport_type: "TrailRun", average_speed_mps: 1000 / 305 }), // same 15s bucket
+      act({ sport_type: "Ride", average_speed_mps: 10 }), // filtered out
+    ];
+    const bins = paceHistogram(rows, "run");
+    expect(bins.reduce((n, b) => n + b.count, 0)).toBe(2);
+    expect(bins[0].label).toBe("5:00");
+  });
+
+  it("returns an empty list when no activity matches the sport", () => {
+    expect(paceHistogram([act({ sport_type: "Ride", average_speed_mps: 10 })], "run")).toEqual([]);
+  });
+});
+
+describe("hrHistogram", () => {
+  it("buckets average HR in 5 bpm bins and skips rows without HR", () => {
+    const rows = [
+      act({ average_heartrate: 142 }),
+      act({ average_heartrate: 144 }),
+      act({ average_heartrate: 151 }),
+      act({ average_heartrate: null }),
+    ];
+    const bins = hrHistogram(rows);
+    expect(bins.reduce((n, b) => n + b.count, 0)).toBe(3);
+    expect(bins[0].label).toBe("140");
   });
 });

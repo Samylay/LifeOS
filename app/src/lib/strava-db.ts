@@ -53,10 +53,19 @@ export interface ActivityRow {
   kudos_count: number;
   achievement_count: number;
   gear_id: string | null;
-  polyline: string | null;
   start_lat: number | null;
   start_lng: number | null;
 }
+
+// Everything the readers need — deliberately excludes the polyline blob and
+// raw_json (nothing renders them; they stay in the table for future use).
+const READ_COLUMNS = `
+  id, name, sport_type, start_date, start_date_local,
+  distance_m, moving_time_s, elapsed_time_s, total_elevation_gain_m,
+  average_speed_mps, max_speed_mps, average_heartrate, max_heartrate,
+  average_cadence, average_watts, kilojoules, suffer_score,
+  kudos_count, achievement_count, gear_id, start_lat, start_lng
+`;
 
 function migrate(db: Database.Database) {
   db.exec(`
@@ -205,7 +214,7 @@ export function countActivities(): number {
 export function getActivitiesSince(afterIso: string, limit?: number): ActivityRow[] {
   const db = getStravaDb();
   const sql =
-    "SELECT * FROM strava_activities WHERE start_date >= ? ORDER BY start_date DESC" +
+    `SELECT ${READ_COLUMNS} FROM strava_activities WHERE start_date >= ? ORDER BY start_date DESC` +
     (typeof limit === "number" ? " LIMIT ?" : "");
   const stmt = db.prepare(sql);
   return (typeof limit === "number" ? stmt.all(afterIso, limit) : stmt.all(afterIso)) as ActivityRow[];
@@ -213,7 +222,7 @@ export function getActivitiesSince(afterIso: string, limit?: number): ActivityRo
 
 export function getActivitiesInRange(afterIso: string, beforeIso: string): ActivityRow[] {
   return getStravaDb()
-    .prepare("SELECT * FROM strava_activities WHERE start_date >= ? AND start_date < ? ORDER BY start_date DESC")
+    .prepare(`SELECT ${READ_COLUMNS} FROM strava_activities WHERE start_date >= ? AND start_date < ? ORDER BY start_date DESC`)
     .all(afterIso, beforeIso) as ActivityRow[];
 }
 

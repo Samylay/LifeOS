@@ -79,8 +79,8 @@ export const DEFAULT_FEEDS: Omit<Feed, "id" | "addedAt">[] = [
 ];
 
 export const BUCKET_LABELS: Record<Bucket, string> = {
-  tech: "🤖 Tech & AI",
-  sec: "🔐 Sécurité",
-  video: "🎥 Vidéos",
-  news: "📬 Newsletters",
+  tech: "Tech & AI",
+  sec: "Security",
+  video: "Videos",
+  news: "Newsletters",
 };

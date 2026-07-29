@@ -11,8 +11,7 @@ import {
   ChevronDown,
   ChevronUp,
   Clock,
-  Flame,
-  Beef,
+  Search,
   Snowflake,
   Link as LinkIcon,
 } from "lucide-react";
@@ -31,12 +30,20 @@ type RecipeDraft = Omit<Recipe, "id" | "createdAt" | "updatedAt">;
 
 const EMPTY_DRAFT: RecipeDraft = { name: "", ingredients: [] };
 
+// Parse a leading quantity token back out of each line ("200 g rice" →
+// { quantity: "200 g", name: "rice" }) so quantity and name survive an edit
+// round-trip through ingredientsToLines.
+const QTY_RE = /^([\d.,/]+ ?[a-zA-Z]*) (.+)$/;
+
 function linesToIngredients(text: string): RecipeIngredient[] {
   return text
     .split("\n")
     .map((l) => l.trim())
     .filter(Boolean)
-    .map((name) => ({ name }));
+    .map((line) => {
+      const m = line.match(QTY_RE);
+      return m ? { quantity: m[1], name: m[2] } : { name: line };
+    });
 }
 
 function ingredientsToLines(ingredients: RecipeIngredient[]): string {
@@ -92,6 +99,20 @@ function RecipeEditor({
     initial?.proteinPerServingG ? String(initial.proteinPerServingG) : ""
   );
   const [notes, setNotes] = useState(initial?.notes ?? "");
+  // Details start open when the recipe already carries any of the secondary fields.
+  const [showDetails, setShowDetails] = useState(
+    Boolean(
+      initial &&
+        (initial.servings != null ||
+          initial.prepMinutes != null ||
+          initial.keepsDays != null ||
+          initial.kcalPerServing != null ||
+          initial.proteinPerServingG != null ||
+          initial.tags?.length ||
+          initial.source ||
+          initial.notes)
+    )
+  );
 
   const valid = name.trim() !== "" && linesToIngredients(ingredients).length > 0;
 
@@ -152,36 +173,48 @@ function RecipeEditor({
         placeholder="Method — one step per line (optional)"
         className="w-full text-sm rounded-lg px-3 py-2 resize-none"
       />
-      <div className="flex items-center gap-3 flex-wrap">
-        {numField("Serves", servings, setServings, "w-16")}
-        {numField("Prep min", prepMinutes, setPrepMinutes, "w-16")}
-        {numField("Keeps (d)", keepsDays, setKeepsDays, "w-16")}
-        {numField("kcal/serv", kcal, setKcal)}
-        {numField("Protein g", protein, setProtein, "w-16")}
-      </div>
-      <div className="flex gap-3 flex-wrap">
-        <Input
-          type="text"
-          value={tags}
-          onChange={(e) => setTags(e.target.value)}
-          placeholder="Tags, comma-separated (meal-prep, high-protein…)"
-          className="flex-1 min-w-48 h-auto text-sm rounded-lg px-3 py-2"
-        />
-        <Input
-          type="text"
-          value={source}
-          onChange={(e) => setSource(e.target.value)}
-          placeholder="Source URL (optional)"
-          className="flex-1 min-w-48 h-auto text-sm rounded-lg px-3 py-2"
-        />
-      </div>
-      <Textarea
-        value={notes}
-        onChange={(e) => setNotes(e.target.value)}
-        rows={2}
-        placeholder="Notes — substitutions, where to buy, verdicts after cooking (optional)"
-        className="w-full text-sm rounded-lg px-3 py-2 resize-none"
-      />
+      <button
+        onClick={() => setShowDetails((v) => !v)}
+        aria-expanded={showDetails}
+        className="flex items-center gap-1.5 self-start text-xs font-semibold uppercase tracking-wider text-muted-foreground transition-transform duration-150 active:scale-[0.97]"
+      >
+        {showDetails ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+        Details
+      </button>
+      {showDetails && (
+        <div className="enter space-y-3">
+          <div className="flex items-center gap-3 flex-wrap">
+            {numField("Serves", servings, setServings, "w-16")}
+            {numField("Prep min", prepMinutes, setPrepMinutes, "w-16")}
+            {numField("Keeps (d)", keepsDays, setKeepsDays, "w-16")}
+            {numField("kcal/serv", kcal, setKcal)}
+            {numField("Protein g", protein, setProtein, "w-16")}
+          </div>
+          <div className="flex gap-3 flex-wrap">
+            <Input
+              type="text"
+              value={tags}
+              onChange={(e) => setTags(e.target.value)}
+              placeholder="Tags, comma-separated (meal-prep, high-protein…)"
+              className="flex-1 min-w-48 h-auto text-sm rounded-lg px-3 py-2"
+            />
+            <Input
+              type="text"
+              value={source}
+              onChange={(e) => setSource(e.target.value)}
+              placeholder="Source URL (optional)"
+              className="flex-1 min-w-48 h-auto text-sm rounded-lg px-3 py-2"
+            />
+          </div>
+          <Textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            rows={2}
+            placeholder="Notes — substitutions, where to buy, verdicts after cooking (optional)"
+            className="w-full text-sm rounded-lg px-3 py-2 resize-none"
+          />
+        </div>
+      )}
       <div className="flex items-center gap-2 justify-end">
         <Button onClick={onCancel} variant="secondary" size="sm" className="gap-1.5 text-xs font-medium">
           <X size={14} /> Cancel
@@ -212,16 +245,6 @@ function MetaBadges({ r }: { r: Recipe }) {
           <Clock size={10} /> {r.prepMinutes}m
         </Badge>
       )}
-      {r.kcalPerServing != null && (
-        <Badge variant="secondary" className="gap-1 text-[10px] font-medium tabular-nums">
-          <Flame size={10} /> {r.kcalPerServing} kcal
-        </Badge>
-      )}
-      {r.proteinPerServingG != null && (
-        <Badge variant="secondary" className="gap-1 text-[10px] font-medium tabular-nums">
-          <Beef size={10} /> {r.proteinPerServingG}g protein
-        </Badge>
-      )}
       {r.keepsDays != null && (
         <Badge variant="secondary" className="gap-1 text-[10px] font-medium">
           <Snowflake size={10} /> keeps {r.keepsDays}d
@@ -244,13 +267,21 @@ export default function RecipesPage() {
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [openIds, setOpenIds] = useState<Set<string>>(new Set());
   const [tagFilter, setTagFilter] = useState<string | "all">("all");
+  const [search, setSearch] = useState("");
 
   const allTags = useMemo(
     () => Array.from(new Set(recipes.flatMap((r) => r.tags ?? []))).sort(),
     [recipes]
   );
-  const visible =
-    tagFilter === "all" ? recipes : recipes.filter((r) => r.tags?.includes(tagFilter));
+  const q = search.trim().toLowerCase();
+  const visible = recipes.filter((r) => {
+    if (tagFilter !== "all" && !r.tags?.includes(tagFilter)) return false;
+    if (!q) return true;
+    return (
+      r.name.toLowerCase().includes(q) ||
+      r.ingredients.some((i) => i.name.toLowerCase().includes(q))
+    );
+  });
 
   const toggleOpen = (id: string) =>
     setOpenIds((prev) => {
@@ -267,9 +298,7 @@ export default function RecipesPage() {
           <h1 className="text-2xl font-semibold flex items-center gap-2 text-foreground">
             <CookingPot size={22} className="text-primary" /> Recipes
           </h1>
-          <p className="text-xs mt-1 text-muted-foreground/70">
-            Meal-prep book. Per-serving kcal and protein feed the training side later.
-          </p>
+          <p className="text-xs mt-1 text-muted-foreground/70">Meal-prep book.</p>
         </div>
         {!creating && (
           <Button
@@ -281,6 +310,22 @@ export default function RecipesPage() {
           </Button>
         )}
       </div>
+
+      {recipes.length > 0 && (
+        <div className="relative">
+          <Search
+            size={15}
+            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground/70"
+          />
+          <Input
+            type="search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search by name or ingredient…"
+            className="w-full h-auto text-sm rounded-lg py-2 pl-9 pr-3"
+          />
+        </div>
+      )}
 
       {allTags.length > 0 && (
         <div className="flex items-center gap-1.5 flex-wrap">
@@ -365,35 +410,45 @@ export default function RecipesPage() {
                       <ChevronDown size={14} className="shrink-0 text-muted-foreground/70" />
                     )}
                   </div>
+                  {(r.kcalPerServing != null || r.proteinPerServingG != null) && (
+                    <p className="mt-1 font-mono text-xs tabular-nums text-muted-foreground">
+                      {[
+                        r.kcalPerServing != null ? `${r.kcalPerServing} kcal` : null,
+                        r.proteinPerServingG != null ? `${r.proteinPerServingG}g protein` : null,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </p>
+                  )}
                   <div className="mt-1.5">
                     <MetaBadges r={r} />
                   </div>
                 </button>
-                <div className="flex items-center gap-1 shrink-0">
+                <div className="flex items-center shrink-0">
                   {r.source && (
                     <a
                       href={r.source}
                       target="_blank"
                       rel="noreferrer"
                       title={r.source}
-                      className="p-1.5 rounded-lg text-muted-foreground/70 hover:text-foreground"
+                      className="flex h-11 w-11 items-center justify-center rounded-lg text-muted-foreground/70 hover:text-foreground active:scale-[0.95] transition-transform duration-150"
                     >
-                      <LinkIcon size={14} />
+                      <LinkIcon size={15} />
                     </a>
                   )}
                   <button
                     onClick={() => setEditingId(r.id)}
                     title="Edit"
-                    className="p-1.5 rounded-lg text-muted-foreground/70 hover:text-foreground"
+                    className="flex h-11 w-11 items-center justify-center rounded-lg text-muted-foreground/70 hover:text-foreground active:scale-[0.95] transition-transform duration-150"
                   >
-                    <Pencil size={14} />
+                    <Pencil size={15} />
                   </button>
                   <button
                     onClick={() => setConfirmId(r.id)}
                     title="Delete"
-                    className="p-1.5 rounded-lg text-muted-foreground/70 hover:text-destructive"
+                    className="flex h-11 w-11 items-center justify-center rounded-lg text-muted-foreground/70 hover:text-destructive active:scale-[0.95] transition-transform duration-150"
                   >
-                    <Trash2 size={14} />
+                    <Trash2 size={15} />
                   </button>
                 </div>
               </div>

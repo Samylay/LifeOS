@@ -1,18 +1,19 @@
 "use client";
 
-import { Activity, Check, GraduationCap } from "lucide-react";
+import { Activity, Check, GraduationCap, Plus } from "lucide-react";
 import { useStrength } from "@/lib/use-strength";
 import { weekOfBuild, sessionsThisWeek, buildComplete, targetFreq } from "@/lib/types";
 import { Card } from "@/components/ui/card";
 import { ProgressBar } from "@/components/charts";
 
 export function StrengthCard() {
-  const { building, maintaining, queued, loading, logSession } = useStrength();
+  const { building, maintaining, queued, loading, logSession, graduate, seedDefaults } =
+    useStrength();
 
   if (loading) return null;
 
-  // Nothing set up yet — stay quiet (strength is a light-touch focus tracker).
-  if (!building && maintaining.length === 0) {
+  // Nothing set up yet — offer to seed the default build-then-maintain queue.
+  if (!building && maintaining.length === 0 && queued.length === 0) {
     return (
       <Card className="p-4 lg:p-5">
         <div className="mb-1 flex items-center gap-2">
@@ -21,7 +22,13 @@ export function StrengthCard() {
             Strength
           </h2>
         </div>
-        <p className="text-sm text-muted-foreground">No active build-then-maintain focus.</p>
+        <p className="mb-3 text-sm text-muted-foreground">No active build-then-maintain focus.</p>
+        <button
+          onClick={() => seedDefaults()}
+          className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-transform duration-150 active:scale-[0.97]"
+        >
+          <Plus size={14} /> Set up focus queue
+        </button>
       </Card>
     );
   }
@@ -57,11 +64,25 @@ export function StrengthCard() {
             </span>
           </div>
 
+          {building.exercises.length > 0 && (
+            <ul className="mt-3 space-y-0.5">
+              {building.exercises.map((ex) => (
+                <li key={ex} className="flex gap-2 text-xs text-muted-foreground">
+                  <span className="text-primary">•</span>
+                  <span>{ex}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+
           <div className="mt-3 flex items-center gap-2">
             {complete ? (
-              <span className="flex items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-xs font-medium text-accent-foreground">
-                <GraduationCap size={14} /> Ready to graduate
-              </span>
+              <button
+                onClick={() => graduate(building.id)}
+                className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-transform duration-150 active:scale-[0.97]"
+              >
+                <GraduationCap size={14} /> Graduate — start the next focus
+              </button>
             ) : (
               <button
                 onClick={() => logSession(building.id)}

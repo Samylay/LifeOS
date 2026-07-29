@@ -6,13 +6,17 @@ import { Flame, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { BarChart } from "@/components/charts";
 import {
+  type ActivityRow,
+  type BucketKey,
   currentStreak,
   comparePeriods,
   paceHistogram,
   hrHistogram,
-  type BucketKey,
-} from "@/lib/training/stats";
-import { type ActivityRow, mapSport, SPORT_COLORS, formatDuration, formatKm, activityDate } from "./training-stats";
+  SPORT_COLORS,
+  formatDuration,
+  formatKm,
+  activityDate,
+} from "./training-stats";
 
 // Sections ported from the retired ~/dashboards/strava-dashboard (compare +
 // distributions views), rendered below TrainingAnalytics' own sections.
@@ -32,13 +36,17 @@ const COMPARE_METRICS: { key: BucketKey; label: string; fmt: (n: number) => stri
   { key: "count", label: "Activities", fmt: (n) => `${n}` },
 ];
 
-function DeltaPct({ pct, hasPrev }: { pct: number; hasPrev: boolean }) {
-  const Icon = pct > 0 ? TrendingUp : pct < 0 ? TrendingDown : Minus;
-  const color = pct > 0 ? "text-emerald-500" : pct < 0 ? "text-destructive" : "text-muted-foreground";
+/** Shared current-vs-previous delta chip (also used by TrainingAnalytics). */
+export function DeltaBadge({ current, previous }: { current: number; previous: number }) {
+  if (previous === 0 && current === 0) return null;
+  const diff = current - previous;
+  const pct = previous > 0 ? (diff / previous) * 100 : current > 0 ? 100 : 0;
+  const Icon = diff > 0 ? TrendingUp : diff < 0 ? TrendingDown : Minus;
+  const color = diff > 0 ? "text-emerald-500" : diff < 0 ? "text-destructive" : "text-muted-foreground";
   return (
     <span className={`inline-flex items-center gap-0.5 text-[11px] font-mono ${color}`}>
       <Icon size={11} />
-      {hasPrev ? `${Math.abs(pct).toFixed(0)}%` : "new"}
+      {previous > 0 ? `${Math.abs(pct).toFixed(0)}%` : "new"}
     </span>
   );
 }
@@ -77,12 +85,7 @@ export default function TrainingInsights({ rows }: { rows: ActivityRow[] }) {
   }, [rows]);
 
   // Distributions: run pace histogram + all-activity HR histogram.
-  const paceBins = useMemo(() => {
-    const runRows = rows
-      .filter((r) => mapSport(r.sport_type) === "run")
-      .map((r) => ({ ...r, sport_type: "Run" }));
-    return paceHistogram(runRows, "Run");
-  }, [rows]);
+  const paceBins = useMemo(() => paceHistogram(rows, "run"), [rows]);
   const hrBins = useMemo(() => hrHistogram(rows), [rows]);
 
   return (
@@ -108,7 +111,7 @@ export default function TrainingInsights({ rows }: { rows: ActivityRow[] }) {
                 <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   {label}
                 </span>
-                <DeltaPct pct={r.deltaPct} hasPrev={r.bTotal > 0} />
+                <DeltaBadge current={r.aTotal} previous={r.bTotal} />
               </div>
               <div className="flex items-baseline gap-2">
                 <span className="font-mono text-xl font-bold">{fmt(r.aTotal)}</span>
