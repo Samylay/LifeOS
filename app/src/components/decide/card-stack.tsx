@@ -49,13 +49,18 @@ interface CardStackProps<T extends { id: string }> {
   undo?: (item: T) => Promise<void>;
   /** Re-insert an undone item at the front of the parent's list. */
   onRestore?: (item: T) => void;
+  /** Veto a verdict before it fires: return an error message to block it
+   *  (card springs back + toast), or null to let it through. */
+  guard?: (item: T, actionId: string) => string | null;
+  /** Action ids that need a second tap/swipe to commit (armed ~2s). */
+  confirmIds?: string[];
   /** Voice: interpret + apply a transcript server-side; resolves to the reply. */
   interpret?: (item: T, transcript: string) => Promise<string>;
   emptyLabel: string;
   /** Height reserved for the stack. Cards are absolutely positioned, so a card
    *  taller than this paints over the action row — decks with taller cards
    *  (Pain) raise it and cap their card to match. */
-  minHeight?: number;
+  minHeight?: number | string;
 }
 
 const TONE: Record<DeckAction["tone"], string> = {
@@ -77,7 +82,8 @@ const COMMIT_FRACTION = 0.45; // of card width (Vaul: 0.25 of dimension; conserv
 const FLICK_VELOCITY = 0.5; // px/ms (use-gesture + react-tinder-card default)
 const FLICK_MIN_PX = 60; // a flick also needs real displacement (use-gesture: 50)
 const VELOCITY_WINDOW_MS = 120; // measure velocity over recent motion only
-const UNDO_MS = 6000;
+const UNDO_MS = 4000;
+const CONFIRM_MS = 2000; // window before an armed destructive action disarms
 
 interface Gesture {
   startX: number;
@@ -88,11 +94,19 @@ interface Gesture {
 
 export function CardStack<T extends { id: string }>({
   items, renderCard, actions, swipeLeftId, swipeRightId,
-  perform, onResolved, undo, onRestore, interpret, emptyLabel, minHeight = 420,
+  perform, onResolved, undo, onRestore, guard, confirmIds, interpret, emptyLabel, minHeight = 420,
 }: CardStackProps<T>) {
   const [drag, setDrag] = useState<{ dx: number; dy: number } | null>(null);
   const [exiting, setExiting] = useState<{ item: T; dir: "left" | "right" | "none" } | null>(null);
+  const [armed, setArmed] = useState<string | null>(null); // actionId awaiting its confirm tap
   const gestureRef = useRef<Gesture | null>(null);
+  const armTimer = useRef<number | null>(null);
+  const cardWidthRef = useRef(360); // measured at drag start, drives the label ramp
+
+  useEffect(() => () => { if (armTimer.current) window.clearTimeout(armTimer.current); }, []);
+  // A new top card disarms any pending destructive confirm.
+  const topId = items[0]?.id;
+  useEffect(() => { setArmed(null); }, [topId]);
 
   const top = items[0];
 
@@ -130,18 +144,48 @@ export function CardStack<T extends { id: string }>({
   const busy = exiting !== null || voice !== "idle";
 
   const decide = (item: T, actionId: string, dir: "left" | "right" | "none") => {
+    // Deck-specific veto (e.g. a topic proposal accepted without its mission):
+    // spring back instead of firing a request that will 400.
+    const veto = guard?.(item, actionId);
+    if (veto) {
+      setDrag(null);
+      toast.error(veto);
+      return;
+    }
+    // Destructive actions (e.g. a permanent tombstone) need a second tap/swipe
+    // inside the confirm window — same pattern as the bulk-approval bar.
+    if (confirmIds?.includes(actionId) && armed !== actionId) {
+      setDrag(null);
+      setArmed(actionId);
+      if (armTimer.current) window.clearTimeout(armTimer.current);
+      armTimer.current = window.setTimeout(() => setArmed(null), CONFIRM_MS);
+      toast.info(`${actions.find((a) => a.id === actionId)?.label ?? actionId} is permanent — once more to confirm`);
+      return;
+    }
+    setArmed(null);
     setDrag(null);
     setExiting({ item, dir });
     onResolved(item); // optimistic — the next card promotes immediately
     window.setTimeout(() => setExiting(null), 280);
     perform(item, actionId)
       .then((label) => undoToast(item, label))
-      .catch((e) => toast.error(e instanceof Error ? e.message : "failed — refresh to retry"));
+      .catch((e) => {
+        // The verdict never landed server-side — put the card back.
+        onRestore?.(item);
+        toast.error(
+          (e instanceof Error ? e.message : "verdict failed") +
+            (onRestore ? " — card returned to the deck" : " — refresh to retry"),
+        );
+      });
   };
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (voice !== "idle" || busy || !top) return;
+      // Typing in a field (e.g. the proposal mission textarea) must never
+      // fire a verdict.
+      const t = e.target as HTMLElement | null;
+      if (t && t.closest("input, textarea, select, [contenteditable]")) return;
       if (e.key === "ArrowRight") decide(top, swipeRightId, "right");
       else if (e.key === "ArrowLeft") decide(top, swipeLeftId, "left");
     };
@@ -155,6 +199,7 @@ export function CardStack<T extends { id: string }>({
     // Let links/buttons inside the card work untouched.
     if ((e.target as HTMLElement).closest("a,button")) return;
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    cardWidthRef.current = (e.currentTarget as HTMLElement).offsetWidth || 360;
     gestureRef.current = {
       startX: e.clientX,
       startY: e.clientY,
@@ -277,7 +322,7 @@ export function CardStack<T extends { id: string }>({
               ? { onPointerDown, onPointerMove, onPointerUp, onPointerCancel: onPointerUp }
               : {})}
           >
-            {i === 0 && swipeTarget && Math.abs(dx) > 24 && (
+            {i === 0 && swipeTarget && Math.abs(dx) > SLOP_PX && (
               <div
                 className={cn(
                   "absolute top-4 rounded-md border-[1.5px] px-2 py-1 text-xs font-bold uppercase tracking-wider",
@@ -287,7 +332,13 @@ export function CardStack<T extends { id: string }>({
                   [dx > 0 ? "left" : "right"]: 16,
                   transform: `rotate(${dx > 0 ? -8 : 8}deg)`,
                   borderColor: TONE_FG[swipeTarget.tone],
-                  opacity: Math.min(Math.abs(dx) / 160, 1),
+                  // Visible from the slop radius, fully opaque at the commit
+                  // threshold — the label doubles as a "how far to go" meter.
+                  opacity: Math.min(
+                    Math.max(Math.abs(dx) - SLOP_PX, 0) /
+                      Math.max(cardWidthRef.current * COMMIT_FRACTION - SLOP_PX, 1),
+                    1,
+                  ),
                   zIndex: 20,
                 }}
               >
@@ -314,17 +365,20 @@ export function CardStack<T extends { id: string }>({
       <div className="flex flex-wrap items-center justify-center gap-2">
         {actions.map((a) => {
           const Icon = a.icon;
+          const isArmed = armed === a.id;
           return (
             <button
               key={a.id}
               disabled={!top || busy}
               onClick={() => top && decide(top, a.id, a.direction)}
+              aria-label={isArmed ? `Confirm: ${a.label.toLowerCase()}` : a.label}
               className={cn(
                 "flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-transform duration-150 active:scale-[0.97] disabled:opacity-40 max-lg:[min-height:44px]",
-                TONE[a.tone]
+                TONE[a.tone],
+                isArmed && "ring-1 ring-current"
               )}
             >
-              <Icon size={15} /> {a.label}
+              <Icon size={15} /> {isArmed ? `${a.label} — sure?` : a.label}
             </button>
           );
         })}

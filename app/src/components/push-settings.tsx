@@ -194,7 +194,7 @@ export function PushSettings() {
           variant={subscribedHere ? "outline" : "default"}
           size="sm"
           onClick={subscribedHere ? disable : enable}
-          disabled={busy || supported === false}
+          disabled={busy || supported !== true}
           className="text-xs active:scale-[0.97]"
         >
           {busy && <Loader2 size={12} className="animate-spin" />}
@@ -233,7 +233,9 @@ export function PushSettings() {
         <div>
           <p className="text-xs font-medium text-foreground">Push normal severity too</p>
           <p className="text-xs text-muted-foreground">
-            Off = only high-severity pages push. Quiet hours (23:00–07:00 JST) still hold normal back.
+            {pushNormal
+              ? "Right now: normal + high push · quiet hours 23:00–07:00 JST hold normal back"
+              : "Right now: high-severity only · quiet hours 23:00–07:00 JST"}
           </p>
         </div>
         <Switch checked={pushNormal} onCheckedChange={togglePushNormal} aria-label="Push normal severity too" />

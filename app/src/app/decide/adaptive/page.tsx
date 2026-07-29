@@ -13,10 +13,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowLeft, Download, ListPlus, Loader2, Send, Sparkles, Terminal, X } from "lucide-react";
 import Link from "next/link";
+import { toast as sonnerToast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/toast";
+import { categoryMeta } from "@/components/decide/category-colors";
 import type { TriageQueueItem } from "@/components/decide/triage-card";
 import { AdaptiveWorkspace } from "@/components/decide/adaptive-prototype/templates";
 import { ExpandingWorkspace } from "@/components/decide/adaptive-prototype/expanding-card";
@@ -26,14 +28,6 @@ interface Row {
   item: TriageQueueItem & { filedAs?: string };
   spec: (AdaptiveSpec & { itemId?: string }) | null;
 }
-
-const CATEGORY_META: Record<string, { label: string; color: string }> = {
-  "business-idea": { label: "💰 Business idea", color: "#F59E0B" },
-  "ai-tip": { label: "✨ AI tip", color: "#8B5CF6" },
-  "ai-project": { label: "🛠 AI project", color: "#8B5CF6" },
-  swe: { label: "⌨️ SWE", color: "var(--primary)" },
-  other: { label: "Link", color: "var(--muted-foreground)" },
-};
 
 // A post whose payload is "here's a skill" gets an install-flavored prompt
 // and CTA; everything else queues as a generic act-on-this brief.
@@ -75,6 +69,8 @@ export default function AdaptivePrototypePage() {
   const [fromRect, setFromRect] = useState<DOMRect | null>(null);
   const [queued, setQueued] = useState<Map<string, string>>(new Map()); // itemId → queue doc id
   const [dispatching, setDispatching] = useState(false);
+  const [sendArmed, setSendArmed] = useState(false);
+  const sendArmTimer = useRef<number | null>(null);
   const [queueingAll, setQueueingAll] = useState(false);
   const cardRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const { toast } = useToast();
@@ -98,7 +94,9 @@ export default function AdaptivePrototypePage() {
     setOpenId(id);
   }, []);
 
-  // Optimistic: the row leaves immediately; a failure puts it back.
+  // Optimistic: the row leaves immediately; a failure puts it back. Success
+  // gets an Undo (wired to /api/triage/restore) — a discard here is final
+  // otherwise.
   const discard = useCallback(async (row: Row) => {
     setRows((xs) => xs.filter((x) => x.item.id !== row.item.id));
     try {
@@ -108,7 +106,26 @@ export default function AdaptivePrototypePage() {
         body: JSON.stringify({ id: row.item.id, action: "discard" }),
       });
       if (!res.ok) throw new Error((await res.json()).error);
-      toast("discarded", "info");
+      sonnerToast.success("discarded", {
+        duration: 4000,
+        action: {
+          label: "Undo",
+          onClick: () => {
+            fetch("/api/triage/restore", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ id: row.item.id }),
+            })
+              .then(async (r) => {
+                if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || `HTTP ${r.status}`);
+                // restore re-opens the decision (status → proposed), so the
+                // card lands back in the Decide deck, not this list.
+                sonnerToast.success("returned to the Decide deck");
+              })
+              .catch((e) => sonnerToast.error(e instanceof Error ? e.message : "undo failed"));
+          },
+        },
+      });
     } catch (e) {
       setRows((xs) => [row, ...xs]);
       toast(e instanceof Error ? e.message : "discard failed", "error");
@@ -186,7 +203,19 @@ export default function AdaptivePrototypePage() {
     }
   }, [rows, queued, queueingAll, toast]);
 
+  useEffect(() => () => { if (sendArmTimer.current) window.clearTimeout(sendArmTimer.current); }, []);
+
+  // Two-tap: dispatch launches real agent sessions on the homelab, so the
+  // first tap only arms the button (disarms after 3.5s, like the bulk bar).
   const dispatch = useCallback(async () => {
+    if (!sendArmed) {
+      setSendArmed(true);
+      if (sendArmTimer.current) window.clearTimeout(sendArmTimer.current);
+      sendArmTimer.current = window.setTimeout(() => setSendArmed(false), 3500);
+      return;
+    }
+    setSendArmed(false);
+    if (sendArmTimer.current) window.clearTimeout(sendArmTimer.current);
     setDispatching(true);
     try {
       const res = await fetch("/api/triage/dispatch", { method: "POST" });
@@ -200,7 +229,7 @@ export default function AdaptivePrototypePage() {
     } finally {
       setDispatching(false);
     }
-  }, [toast]);
+  }, [toast, sendArmed]);
 
   const active = rows.find((r) => r.item.id === openId);
   const activeSpec: AdaptiveSpec | null = active
@@ -209,21 +238,14 @@ export default function AdaptivePrototypePage() {
 
   return (
     <div className="mx-auto max-w-lg">
-      <div className="mb-1 flex items-center gap-3">
+      <div className="mb-5 flex items-center gap-3">
         <Link href="/decide" aria-label="Back to Decide"
           className="rounded-lg bg-muted p-1.5 text-muted-foreground transition-transform duration-150 active:scale-[0.9]">
           <ArrowLeft size={18} />
         </Link>
         <Sparkles size={20} className="text-primary" />
         <h1 className="text-2xl font-semibold text-foreground">Approved</h1>
-        <Badge className="ml-auto rounded-full bg-warning/[0.13] text-[10px] font-bold uppercase tracking-wider text-warning">
-          prototype
-        </Badge>
       </div>
-      <p className="mb-5 text-sm leading-relaxed text-muted-foreground">
-        Each card you approved opens into a workspace shaped by its own suggestion —
-        tap one to try it. Queue cards to bundle them into one Claude session.
-      </p>
 
       {!loading && rows.length > 1 && rows.some((r) => !queued.has(r.item.id)) && (
         <div className="mb-3 flex items-center gap-3 rounded-xl border border-border bg-card p-3">
@@ -248,9 +270,10 @@ export default function AdaptivePrototypePage() {
             {queued.size} prompt{queued.size > 1 ? "s" : ""} queued
           </span>
           <Button onClick={dispatch} disabled={dispatching}
-            className="ml-auto gap-1.5">
+            aria-label={sendArmed ? `Confirm: send ${queued.size} prompt(s) to Claude` : "Send to Claude"}
+            className={cn("ml-auto gap-1.5", sendArmed && "ring-2 ring-warning")}>
             <Send size={14} />
-            {dispatching ? "sending…" : "Send to Claude"}
+            {dispatching ? "sending…" : sendArmed ? `Sure? Send ${queued.size}` : "Send to Claude"}
           </Button>
         </div>
       )}
@@ -269,30 +292,35 @@ export default function AdaptivePrototypePage() {
             const { item, spec } = row;
             const p = item.proposal ?? {};
             const resolved = spec ?? fallbackSpec(item);
-            const cat = CATEGORY_META[p.category ?? "other"] ?? CATEGORY_META.other;
+            const cat = categoryMeta(p.category);
+            const CatIcon = cat.icon;
             const tpl = templates[resolved.template] ?? templates.file;
             const isQueued = queued.has(item.id);
             const skill = mentionsSkill(item, resolved);
             return (
               <div key={item.id}
                 ref={(el) => { if (el) cardRefs.current.set(item.id, el); }}
-                role="button" tabIndex={0}
-                onClick={() => open(item.id)}
-                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(item.id); } }}
-                className="w-full cursor-pointer rounded-xl bg-card p-4 text-left transition-transform duration-150 active:scale-[0.98]"
+                className="w-full rounded-xl bg-card p-4 text-left"
                 style={{
                   opacity: openId === item.id ? 0.35 : 1,
-                  transition: "opacity var(--dur-base) var(--ease-out-custom), transform 150ms",
+                  transition: "opacity var(--dur-base) var(--ease-out-custom)",
                 }}>
                 <div className="mb-1 flex items-center gap-2 text-xs">
-                  <span className="font-medium" style={{ color: cat.color }}>{cat.label}</span>
+                  <span className="inline-flex items-center gap-1 font-medium" style={{ color: cat.color }}>
+                    <CatIcon size={12} aria-hidden /> {cat.label}
+                  </span>
                   <Badge variant="secondary" className="ml-auto rounded text-[10px] font-medium uppercase tracking-wide">
                     {tpl.label}
                   </Badge>
                 </div>
-                <div className="text-sm font-semibold leading-snug text-foreground">
+                {/* The headline (not the whole card) opens the workspace, so
+                    the nested Discard/Queue buttons aren't inside a button. */}
+                <button type="button"
+                  onClick={() => open(item.id)}
+                  aria-label={`Open workspace: ${resolved.headline ?? p.title ?? item.url}`}
+                  className="w-full text-left text-sm font-semibold leading-snug text-foreground transition-transform duration-150 active:scale-[0.98]">
                   {resolved.headline ?? p.title ?? item.url}
-                </div>
+                </button>
                 <div className="mt-0.5 truncate text-xs text-muted-foreground">
                   filed → {item.filedAs}{p.destination ? ` · ${p.destination}` : ""}
                 </div>

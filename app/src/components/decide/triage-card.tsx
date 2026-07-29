@@ -5,6 +5,7 @@
 // exploration for AI/SWE content), and where the study step proposes filing.
 import { ExternalLink } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { categoryMeta } from "@/components/decide/category-colors";
 import type { TriageCategory } from "@/lib/triage";
 
 export interface TriageQueueItem {
@@ -24,19 +25,18 @@ export interface TriageQueueItem {
   };
 }
 
-const CATEGORY_META: Record<string, { label: string; color: string }> = {
-  "business-idea": { label: "💰 Business idea", color: "#F59E0B" },
-  "ai-tip": { label: "✨ AI tip", color: "#8B5CF6" },
-  "ai-project": { label: "🛠 AI project", color: "#8B5CF6" },
-  swe: { label: "⌨️ SWE", color: "var(--primary)" },
-  other: { label: "Link", color: "var(--muted-foreground)" },
-};
-
 const VERDICT_COLORS: Record<string, string> = {
   pursue: "var(--success)", adopt: "var(--success)",
   maybe: "var(--warning)", try: "var(--warning)",
   skim: "var(--muted-foreground)",
   pass: "var(--destructive)", skip: "var(--destructive)",
+};
+
+// Confidence dot in the footer — a glanceable signal instead of prose.
+const CONFIDENCE_COLORS: Record<string, string> = {
+  high: "var(--success)",
+  medium: "var(--warning)",
+  low: "var(--muted-foreground)",
 };
 
 function parseDate(v: TriageQueueItem["savedAt"]): string {
@@ -58,8 +58,11 @@ function Field({ label, value }: { label: string; value?: string }) {
 export function TriageCard({ item }: { item: TriageQueueItem }) {
   const p = item.proposal ?? {};
   const a = p.assessment;
-  const cat = CATEGORY_META[p.category ?? "other"] ?? CATEGORY_META.other;
+  const cat = categoryMeta(p.category);
+  const CatIcon = cat.icon;
   const isBiz = p.category === "business-idea";
+  const confidenceColor =
+    CONFIDENCE_COLORS[(p.confidence ?? "").toLowerCase()] ?? "var(--muted-foreground)";
   const verdictColor = VERDICT_COLORS[(a?.verdict ?? "").split(/\W/)[0].toLowerCase()] ?? "var(--muted-foreground)";
 
   return (
@@ -68,7 +71,9 @@ export function TriageCard({ item }: { item: TriageQueueItem }) {
         <Badge variant="secondary" className="rounded font-medium uppercase tracking-wide">
           {item.source}
         </Badge>
-        <span className="font-medium" style={{ color: cat.color }}>{cat.label}</span>
+        <span className="inline-flex items-center gap-1 font-medium" style={{ color: cat.color }}>
+          <CatIcon size={12} aria-hidden /> {cat.label}
+        </span>
         <span className="ml-auto text-muted-foreground">{parseDate(item.savedAt)}</span>
       </div>
 
@@ -100,12 +105,17 @@ export function TriageCard({ item }: { item: TriageQueueItem }) {
 
       <Field label="Why you:" value={p.why_relevant} />
 
-      <div className="flex items-center gap-2 pt-1 text-xs text-muted-foreground">
-        <span>
-          → <span className="font-medium text-muted-foreground">{p.destination}</span>
-          {" "}({p.confidence}) — {p.rationale}
-        </span>
-      </div>
+      {p.destination && (
+        <div className="flex items-center gap-1.5 pt-1 text-xs text-muted-foreground">
+          <span>→ <span className="font-medium">{p.destination}</span></span>
+          <span
+            aria-label={p.confidence ? `confidence: ${p.confidence}` : undefined}
+            title={p.confidence ? `confidence: ${p.confidence}` : undefined}
+            className="h-1.5 w-1.5 rounded-full"
+            style={{ background: confidenceColor }}
+          />
+        </div>
+      )}
       <a href={item.url} target="_blank" rel="noreferrer"
         className="inline-flex items-center gap-1 text-xs font-medium text-primary transition-transform duration-150 active:scale-[0.97]">
         <ExternalLink size={12} /> open original

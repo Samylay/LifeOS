@@ -2,10 +2,11 @@
 
 import { useState, useEffect, useCallback, useSyncExternalStore } from "react";
 import Link from "next/link";
+import { toast as sonnerToast } from "sonner";
 import { useToast } from "@/components/toast";
 import {
   Check, Loader2, X, Activity, Eye, EyeOff, Sun, Moon, Monitor,
-  BellRing, Sunrise, RefreshCw, Gauge, Send,
+  BellRing, Sunrise, RefreshCw, Send,
 } from "lucide-react";
 import { useGarmin } from "@/lib/use-garmin";
 import { PushSettings } from "@/components/push-settings";
@@ -129,7 +130,7 @@ function StravaCard() {
         </div>
         <div className="flex items-center gap-2">
           {ok && (
-            <span className="flex items-center gap-1 text-xs font-medium text-primary">
+            <span className="flex items-center gap-1 text-xs font-medium text-success">
               <Check size={12} /> Active
             </span>
           )}
@@ -214,7 +215,7 @@ function GarminCard() {
         </div>
         {garmin.connection.connected && (
           <div className="flex items-center gap-2">
-            <span className="flex items-center gap-1 rounded px-2 py-1 text-xs font-medium" style={{ color: "#007CC3" }}>
+            <span className="flex items-center gap-1 rounded px-2 py-1 text-xs font-medium text-success">
               <Check size={12} /> Active
             </span>
             <Button
@@ -263,8 +264,7 @@ function GarminCard() {
             onClick={connect}
             disabled={garmin.loading}
             size="sm"
-            className="text-xs text-white active:scale-[0.97]"
-            style={{ background: "#007CC3" }}
+            className="text-xs active:scale-[0.97]"
           >
             {garmin.loading ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
             {garmin.loading ? "Connecting…" : "Connect to Garmin"}
@@ -272,17 +272,6 @@ function GarminCard() {
         </div>
       )}
 
-      {garmin.connection.connected && (
-        <div className="mt-3 border-t border-border pt-3">
-          <div className="flex flex-wrap gap-1.5">
-            {["Activities", "Sleep", "Heart rate", "Steps", "HRV"].map((f) => (
-              <span key={f} className="rounded border border-border bg-card px-2 py-0.5 text-xs" style={{ color: "#007CC3" }}>
-                {f}
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -327,7 +316,13 @@ export default function SettingsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text: "Test notification from Settings", title: "LifeOS test" }),
       });
-      toast(res.ok ? "Test sent — check /pager and your phone (push)" : "Send failed", res.ok ? undefined : "error");
+      if (res.ok) {
+        sonnerToast.success("Test sent — check your phone (push)", {
+          action: { label: "Open pager", onClick: () => { window.location.href = "/pager"; } },
+        });
+      } else {
+        toast("Send failed", "error");
+      }
     } catch {
       toast("Send failed", "error");
     } finally {
@@ -340,27 +335,30 @@ export default function SettingsPage() {
       <h1 className="mb-6 text-2xl font-semibold text-foreground">Settings</h1>
 
       <div className="max-w-2xl space-y-4">
-        {/* Appearance */}
-        <Section title="Appearance">
+        {/* Notifications — first: the section touched most often */}
+        <Section title="Notifications" sub="Pager inbox + web-push to your devices (tailnet-only).">
+          <div className="mb-4">
+            <PushSettings />
+          </div>
           <div className="flex flex-wrap items-center justify-between gap-4">
-            <span className="text-sm text-muted-foreground">Theme</span>
-            <div className="flex gap-1 rounded-lg bg-muted p-1">
-              {THEME_OPTIONS.map(({ id, label, Icon }) => (
-                <button
-                  key={id}
-                  onClick={() => setTheme(id)}
-                  aria-pressed={theme === id}
-                  className={cn(
-                    "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-[background,color,transform] duration-150 active:scale-[0.96]",
-                    theme === id
-                      ? "bg-card text-foreground shadow-sm"
-                      : "text-muted-foreground"
-                  )}
-                >
-                  <Icon size={13} /> {label}
-                </button>
-              ))}
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
+                <BellRing size={18} className="text-primary" />
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Send a test through the full path — pager inbox and phone push.
+              </p>
             </div>
+            <Button
+              variant="outline"
+              onClick={sendTestNotification}
+              disabled={testSending}
+              size="sm"
+              className="text-xs text-muted-foreground active:scale-[0.97]"
+            >
+              {testSending ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+              Send test
+            </Button>
           </div>
         </Section>
 
@@ -395,48 +393,28 @@ export default function SettingsPage() {
           </div>
         </Section>
 
-        {/* Notifications */}
-        <Section title="Notifications" sub="Pager inbox + web-push to your devices (tailnet-only).">
-          <div className="mb-4">
-            <PushSettings />
-          </div>
+        {/* Appearance */}
+        <Section title="Appearance">
           <div className="flex flex-wrap items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
-                <BellRing size={18} className="text-primary" />
-              </div>
-              <p className="text-sm text-muted-foreground">
-                Send a test through the full path — pager inbox and phone push.
-              </p>
+            <span className="text-sm text-muted-foreground">Theme</span>
+            <div className="flex gap-1 rounded-lg bg-muted p-1">
+              {THEME_OPTIONS.map(({ id, label, Icon }) => (
+                <button
+                  key={id}
+                  onClick={() => setTheme(id)}
+                  aria-pressed={theme === id}
+                  className={cn(
+                    "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-[background-color,color,transform] duration-150 active:scale-[0.96]",
+                    theme === id
+                      ? "bg-card text-foreground shadow-sm"
+                      : "text-muted-foreground"
+                  )}
+                >
+                  <Icon size={13} /> {label}
+                </button>
+              ))}
             </div>
-            <Button
-              variant="outline"
-              onClick={sendTestNotification}
-              disabled={testSending}
-              size="sm"
-              className="text-xs text-muted-foreground active:scale-[0.97]"
-            >
-              {testSending ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
-              Send test
-            </Button>
           </div>
-        </Section>
-
-        {/* System */}
-        <Section title="System">
-          <Link
-            href="/status"
-            className="-m-3 flex items-center gap-3 rounded-lg p-3 transition-[background,transform] duration-150 hover:bg-muted active:scale-[0.99]"
-          >
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
-              <Gauge size={18} className="text-primary" />
-            </div>
-            <div className="flex-1">
-              <p className="text-sm font-medium text-foreground">Status</p>
-              <p className="text-xs text-muted-foreground">Containers, standing goals, disk — the ops cockpit.</p>
-            </div>
-            <span className="text-muted-foreground">→</span>
-          </Link>
         </Section>
       </div>
     </div>

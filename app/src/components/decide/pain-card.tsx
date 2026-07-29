@@ -61,8 +61,11 @@ function Thread({ label, quotes }: { label: string; quotes: PainQuote[] }) {
  *
  *  It's a fixed height, not a max: cards here vary wildly (a 3400-char rant
  *  vs a two-line one) and the under-cards are absolutely positioned too, so a
- *  taller card behind a shorter one pokes out below the top card's edge. */
-export const PAIN_STACK_HEIGHT = 560;
+ *  taller card behind a shorter one pokes out below the top card's edge.
+ *
+ *  Capped at 62svh so a short phone viewport still shows the Keep/Drop row —
+ *  560px fixed used to push it below the fold. */
+export const PAIN_STACK_HEIGHT = "min(560px, 62svh)";
 
 export function PainCard({ item }: { item: PainItem }) {
   const iso = isoOf(item.saidAt);

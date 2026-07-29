@@ -74,7 +74,7 @@ export function ExpandingWorkspace({ open, fromRect, onClose, children }: Props)
           boxShadow: "0 -8px 40px rgba(0,0,0,0.25)",
         }}>
         <button onClick={onClose} aria-label="Close workspace"
-          className="absolute right-4 top-4 rounded-full bg-muted p-1.5 text-muted-foreground transition-transform duration-150 active:scale-[0.9]">
+          className="absolute right-4 top-4 flex h-11 w-11 items-center justify-center rounded-full bg-muted text-muted-foreground transition-transform duration-150 active:scale-[0.9]">
           <X size={16} />
         </button>
         <div style={{

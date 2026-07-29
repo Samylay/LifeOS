@@ -9,6 +9,7 @@
 // Workspace state (checklist ticks, self-test reveals) persists per item in
 // `users/local/adaptiveWorkspaceState` — optimistic, reverts on failed save.
 import { useCallback, useEffect, useState } from "react";
+import { toast } from "sonner";
 import {
   BookOpen, Check, Compass, ExternalLink, FlaskConical, GraduationCap,
   Inbox, Layers, Lightbulb, Search, Target, Wrench,
@@ -26,7 +27,7 @@ const VERDICT_COLORS: Record<string, string> = {
   pursue: "var(--success)", adopt: "var(--success)",
   maybe: "var(--warning)", try: "var(--warning)",
   skim: "var(--muted-foreground)",
-  pass: "#EF4444", skip: "#EF4444",
+  pass: "var(--destructive)", skip: "var(--destructive)",
 };
 
 function verdictColor(v?: string) {
@@ -278,7 +279,7 @@ function CtaBlock({ ctx }: { ctx: Ctx }) {
   if (!cta || cta.kind !== "research") return null;
   return (
     <button className="inline-flex items-center gap-1.5 rounded-lg bg-accent px-3 py-2 text-sm font-medium text-accent-foreground transition-transform duration-150 active:scale-[0.97]"
-      onClick={() => alert("Prototype stub — real version would queue a research agent run.")}>
+      onClick={() => toast.info("Prototype stub — the real version would queue a research agent run.")}>
       <Search size={14} /> {cta.label}
     </button>
   );
