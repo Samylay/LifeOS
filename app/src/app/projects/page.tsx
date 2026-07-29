@@ -387,7 +387,7 @@ function ProjectCard({
             )}
           </div>
 
-          <h3 className={cn("font-semibold truncate text-foreground", hero ? "text-base" : "text-sm")}>
+          <h3 className={cn("font-semibold line-clamp-2 text-foreground", hero ? "text-base" : "text-sm")}>
             {project.title}
           </h3>
 

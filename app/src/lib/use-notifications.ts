@@ -37,6 +37,12 @@ export interface PagerMessage {
 const COLLECTION = "notifications";
 const DELETE_COMMIT_MS = 5000; // sonner's default toast window is 4s
 
+// Pending deletes live at module scope so the undo window survives navigating
+// away from /pager — the toast (global) keeps its promise either way. The
+// timeout, not unmount, is what commits the server delete.
+const pendingDeletes = new Map<string, ReturnType<typeof setTimeout>>();
+const pendingHidden = new Set<string>();
+
 const SEVERITY_RANK: Record<PagerSeverity, number> = { page: 0, info: 1, low: 2 };
 
 function toDate(v: unknown): Date | null {
@@ -51,26 +57,40 @@ export function useNotifications() {
   const uid = (useAuth().user ?? LOCAL_USER).uid;
   const [items, setItems] = useState<PagerMessage[]>([]);
   const [loading, setLoading] = useState(true);
-  // Optimistic overlay: id -> patch to merge, or null -> hidden (pending delete).
-  const [overrides, setOverrides] = useState<Record<string, Partial<PagerMessage> | null>>({});
-  const pendingDeletes = useRef(new Map<string, ReturnType<typeof setTimeout>>());
+  // Optimistic overlay: id -> patch to merge (deletes are tracked in the
+  // module-scope pendingHidden set).
+  const [overrides, setOverrides] = useState<Record<string, Partial<PagerMessage>>>({});
 
   useEffect(() => {
     const ref = collection(db, `users/${uid}/${COLLECTION}`);
     const q = query(ref, orderBy("createdAt", "desc"), limit(100));
     return onSnapshot(q, (snap) => {
-      setItems(
-        snap.docs.map((doc) => {
-          const d = doc.data();
-          return {
-            ...d,
-            id: doc.id,
-            createdAt: toDate(d.createdAt) ?? new Date(),
-            readAt: toDate(d.readAt),
-            ackedAt: toDate(d.ackedAt),
-          } as PagerMessage;
-        })
-      );
+      const next = snap.docs.map((doc) => {
+        const d = doc.data();
+        return {
+          ...d,
+          id: doc.id,
+          createdAt: toDate(d.createdAt) ?? new Date(),
+          readAt: toDate(d.readAt),
+          ackedAt: toDate(d.ackedAt),
+        } as PagerMessage;
+      });
+      setItems(next);
+      // Prune overlay entries the server now reflects, so a stale patch can
+      // never mask a later server-side correction.
+      setOverrides((o) => {
+        const confirmed = new Map(next.map((m) => [m.id, m]));
+        const kept: typeof o = {};
+        for (const [id, p] of Object.entries(o)) {
+          const server = confirmed.get(id);
+          const reflected =
+            server &&
+            (!("readAt" in p) || Boolean(server.readAt)) &&
+            (!("ackedAt" in p) || Boolean(server.ackedAt));
+          if (!reflected) kept[id] = p;
+        }
+        return Object.keys(kept).length === Object.keys(o).length ? o : kept;
+      });
       setLoading(false);
     });
   }, [uid]);
@@ -78,7 +98,7 @@ export function useNotifications() {
   // Unread first, then severity page > info > low, then newest first.
   const messages = useMemo(() => {
     return items
-      .filter((m) => overrides[m.id] !== null)
+      .filter((m) => !pendingHidden.has(m.id))
       .map((m) => (overrides[m.id] ? { ...m, ...overrides[m.id] } : m))
       .sort((a, b) => {
         const unread = Number(Boolean(a.readAt)) - Number(Boolean(b.readAt));
@@ -112,45 +132,37 @@ export function useNotifications() {
     [markRead]
   );
 
-  // Delete = optimistically hide now, commit to the server after the undo
-  // window. undoRemove() inside that window cancels the commit and unhides.
+  // Delete = optimistically hide now, commit to the server when the undo
+  // window closes. The timer is module-scoped, so navigating away neither
+  // resurrects the message (still in pendingHidden) nor forfeits the undo
+  // the toast promised.
   const remove = useCallback(
     (id: string) => {
-      setOverrides((o) => ({ ...o, [id]: null }));
+      pendingHidden.add(id);
+      setOverrides((o) => ({ ...o })); // re-render with the id hidden
       const t = setTimeout(() => {
-        pendingDeletes.current.delete(id);
+        pendingDeletes.delete(id);
+        pendingHidden.delete(id);
         deleteDocument(uid, COLLECTION, id);
       }, DELETE_COMMIT_MS);
-      pendingDeletes.current.set(id, t);
+      pendingDeletes.set(id, t);
     },
     [uid]
   );
 
   const undoRemove = useCallback((id: string) => {
-    const t = pendingDeletes.current.get(id);
+    const t = pendingDeletes.get(id);
     if (t) {
       clearTimeout(t);
-      pendingDeletes.current.delete(id);
+      pendingDeletes.delete(id);
     }
+    pendingHidden.delete(id);
     setOverrides((o) => {
       const { [id]: _drop, ...rest } = o;
       void _drop;
       return rest;
     });
   }, []);
-
-  // Navigating away must not resurrect a deleted message: flush pending
-  // deletes immediately on unmount.
-  useEffect(() => {
-    const pending = pendingDeletes.current;
-    return () => {
-      for (const [id, t] of pending) {
-        clearTimeout(t);
-        deleteDocument(uid, COLLECTION, id);
-      }
-      pending.clear();
-    };
-  }, [uid]);
 
   return { messages, loading, markRead, markAllRead, ack, remove, undoRemove };
 }

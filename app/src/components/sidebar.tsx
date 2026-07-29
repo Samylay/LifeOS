@@ -83,6 +83,11 @@ export function Sidebar({ mobile }: { mobile?: boolean }) {
   const [moreOpen, setMoreOpen] = useState(
     () => Boolean(mobile) || MORE_ITEMS.some((i) => isActive(i.href))
   );
+  // Client-side nav into a More route must also reveal the active item.
+  const inMoreGroup = MORE_ITEMS.some((i) => isActive(i.href));
+  useEffect(() => {
+    if (inMoreGroup) setMoreOpen(true);
+  }, [inMoreGroup]);
 
   const handleNavClick = () => {
     if (mobile) setMobileSidebarOpen(false);
