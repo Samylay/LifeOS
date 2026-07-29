@@ -1,11 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Cleartext is permitted ONLY for the self-hosted ntfy instance on the
-     tailnet (it serves plain HTTP; the link is already encrypted end-to-end
-     by Tailscale/WireGuard). Everything else — including the WebView's
-     lab.samylayaida.com app URL — stays HTTPS-only via the base config. -->
+<!-- HTTPS-only everywhere, including the WebView's lab.samylayaida.com app
+     URL. (A cleartext exception for the self-hosted ntfy instance lived here
+     until ntfy was retired 2026-07-21; web-push replaced it.) -->
 <network-security-config>
     <base-config cleartextTrafficPermitted="false" />
-    <domain-config cleartextTrafficPermitted="true">
-        <domain includeSubdomains="false">100.124.149.101</domain>
-    </domain-config>
 </network-security-config>
