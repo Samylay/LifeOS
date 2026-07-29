@@ -19,6 +19,7 @@ import {
   SlidersHorizontal,
   Sparkles,
   Square,
+  X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useVoiceRecorder } from "@/lib/use-voice-recorder";
@@ -53,9 +54,11 @@ export default function VoiceCapturePage({ params }: { params: Promise<{ id: str
   const [presetsOpen, setPresetsOpen] = useState(false);
   const [draft, setDraft] = useState<string>("");
   const [draftFormat, setDraftFormat] = useState<string>("");
+  const [draftStale, setDraftStale] = useState(false);
   const [transforming, setTransforming] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [finishing, setFinishing] = useState(false);
+  const [elapsed, setElapsed] = useState(0);
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
   const load = useCallback(async () => {
@@ -95,14 +98,25 @@ export default function VoiceCapturePage({ params }: { params: Promise<{ id: str
       ]);
       setFollowUps((data.followUps as string[]) || []);
       setActionResults((data.actionResults as ActionResult[]) || []);
-      // A new utterance makes any existing draft stale — clear it so Samy
-      // re-transforms the fuller stream rather than trusting an old draft.
-      setDraft("");
-      setDraftFormat("");
+      // A new utterance makes any existing draft stale — keep it visible but
+      // dimmed (not vanished) so Samy still has it while he re-transforms.
+      if (draft) setDraftStale(true);
     },
     onTranscript: () => {},
     onError: (m) => toast(m, "error"),
   });
+
+  // Elapsed mm:ss while recording — feedback that the mic is actually live.
+  useEffect(() => {
+    if (voice.state !== "recording") {
+      setElapsed(0);
+      return;
+    }
+    const t0 = Date.now();
+    const iv = setInterval(() => setElapsed(Math.floor((Date.now() - t0) / 1000)), 500);
+    return () => clearInterval(iv);
+  }, [voice.state]);
+  const mmss = `${Math.floor(elapsed / 60)}:${String(elapsed % 60).padStart(2, "0")}`;
 
   const transform = async (preset: Preset) => {
     setTransforming(preset.id);
@@ -116,6 +130,7 @@ export default function VoiceCapturePage({ params }: { params: Promise<{ id: str
       if (!res.ok || data.error) throw new Error(data.error || `HTTP ${res.status}`);
       setDraft(data.draft);
       setDraftFormat(data.format);
+      setDraftStale(false);
     } catch (e) {
       toast(e instanceof Error ? e.message : "transform failed", "error");
     } finally {
@@ -229,7 +244,7 @@ export default function VoiceCapturePage({ params }: { params: Promise<{ id: str
                       : "bg-primary/10 text-primary"
                   )}
                 >
-                  <Check size={11} />
+                  {a.failed || a.summary.startsWith("Failed") ? <X size={11} /> : <Check size={11} />}
                   {a.summary}
                 </span>
                 {a.confirm && <RunNowChip promptId={a.confirm.promptId} title={a.confirm.title} />}
@@ -240,10 +255,20 @@ export default function VoiceCapturePage({ params }: { params: Promise<{ id: str
 
         {/* Draft output */}
         {draft && (
-          <div className="enter rounded-2xl border border-border bg-card px-4 py-3">
+          <div
+            className={cn(
+              "enter rounded-2xl border border-border bg-card px-4 py-3 transition-opacity duration-150",
+              draftStale && "opacity-50"
+            )}
+          >
             <div className="mb-2 flex items-center justify-between">
               <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 {draftFormat}
+                {draftStale && (
+                  <span className="ml-2 normal-case tracking-normal font-normal">
+                    stale — new audio since this draft, transform again
+                  </span>
+                )}
               </p>
               <button
                 onClick={copyDraft}
@@ -296,7 +321,7 @@ export default function VoiceCapturePage({ params }: { params: Promise<{ id: str
 
       {live ? (
         <>
-          <div className="flex justify-center pb-2 pt-1">
+          <div className="relative flex items-center justify-center gap-4 pb-2 pt-1">
             <button
               onClick={voice.state === "recording" ? voice.stop : voice.start}
               disabled={busy}
@@ -319,10 +344,19 @@ export default function VoiceCapturePage({ params }: { params: Promise<{ id: str
                 <Mic size={30} />
               )}
             </button>
+            {voice.state === "recording" && (
+              <button
+                onClick={voice.cancel}
+                aria-label="Discard recording"
+                className="enter absolute left-1/2 ml-14 flex h-11 w-11 items-center justify-center rounded-full border border-border bg-card text-muted-foreground transition-transform duration-150 active:scale-[0.92]"
+              >
+                <X size={18} />
+              </button>
+            )}
           </div>
           <p className="pb-1 text-center text-xs text-muted-foreground">
             {voice.state === "recording"
-              ? "tap to finish your thought"
+              ? `${mmss} · tap to finish, ✕ to discard`
               : hasContent
                 ? "keep talking, or transform above"
                 : "tap and just talk"}

@@ -114,7 +114,7 @@ export function PresetsModal({
               {presets.map((p) => (
                 <li
                   key={p.id}
-                  className="flex items-start gap-3 rounded-xl bg-muted px-3 py-2.5"
+                  className="flex items-start gap-3 rounded-xl border border-border bg-muted px-3 py-2.5"
                 >
                   <button
                     onClick={() => startEdit(p)}

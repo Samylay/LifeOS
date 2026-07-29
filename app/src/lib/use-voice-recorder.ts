@@ -23,6 +23,9 @@ export function useVoiceRecorder(opts: {
   const [state, setState] = useState<VoiceRecorderState>("idle");
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
+  // Set by cancel() before stop(): onstop discards the audio instead of
+  // uploading it.
+  const discardRef = useRef(false);
   // Keep the latest callbacks without re-creating start/stop.
   const optsRef = useRef(opts);
   optsRef.current = opts;
@@ -36,6 +39,12 @@ export function useVoiceRecorder(opts: {
       rec.ondataavailable = (ev) => ev.data.size > 0 && chunksRef.current.push(ev.data);
       rec.onstop = async () => {
         stream.getTracks().forEach((t) => t.stop());
+        if (discardRef.current) {
+          discardRef.current = false;
+          chunksRef.current = [];
+          setState("idle");
+          return;
+        }
         setState("transcribing");
         try {
           const form = new FormData();
@@ -62,6 +71,7 @@ export function useVoiceRecorder(opts: {
         }
       };
       recorderRef.current = rec;
+      discardRef.current = false;
       rec.start();
       setState("recording");
     } catch {
@@ -71,5 +81,12 @@ export function useVoiceRecorder(opts: {
 
   const stop = useCallback(() => recorderRef.current?.stop(), []);
 
-  return { state, start, stop };
+  /** Discard the in-flight recording: stops the recorder but skips the
+   * upload/transcription entirely. */
+  const cancel = useCallback(() => {
+    discardRef.current = true;
+    recorderRef.current?.stop();
+  }, []);
+
+  return { state, start, stop, cancel };
 }

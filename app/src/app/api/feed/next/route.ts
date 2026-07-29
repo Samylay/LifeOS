@@ -1,8 +1,9 @@
 // GET /api/feed/next?count=10 — plan a batch (serving constraints live in
-// feed.ts, unit-tested), mark each served card shown, and shuffle quiz
-// options at serve time with the answerIndex remapped.
+// feed.ts, unit-tested) and shuffle quiz options at serve time with the
+// answerIndex remapped. Exposure is NOT marked here — the client POSTs
+// /api/feed/shown when a card is actually seen.
 import { NextRequest, NextResponse } from "next/server";
-import { listCards, markShown, planFeedBatch, shuffleQuiz } from "@/lib/feed";
+import { listCards, planFeedBatch, shuffleQuiz } from "@/lib/feed";
 import { maybeTopUp } from "@/lib/feed-generator";
 
 export const runtime = "nodejs";
@@ -19,7 +20,6 @@ export async function GET(req: NextRequest) {
   const count = Number.isFinite(raw) ? Math.min(Math.max(Math.floor(raw), 1), 30) : 10;
   const all = listCards();
   const batch = planFeedBatch(all, Date.now(), count);
-  for (const card of batch) markShown(card.id);
   // Refill in the background before the pool runs dry (fire-and-forget;
   // locked + cooled down inside).
   maybeTopUp(all.filter((c) => c.status === "fresh").length - batch.length);

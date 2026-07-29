@@ -6,15 +6,32 @@
 // and the "Edit presets" affordance live below the fold.
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Mic, Loader2, SlidersHorizontal, FileText, CheckCircle2 } from "lucide-react";
+import { Mic, Loader2, FileText, CheckCircle2 } from "lucide-react";
 import { useToast } from "@/components/toast";
-import { PresetsModal } from "@/components/voice/presets-modal";
 
 interface Capture {
   id: string;
   title: string;
   status: "live" | "ended" | "routed";
   transformFormat?: string;
+  startedAt?: unknown;
+}
+
+function timeAgo(v: unknown): string {
+  const ms =
+    typeof v === "string"
+      ? Date.parse(v)
+      : v && typeof v === "object" && "__date" in (v as object)
+        ? Date.parse((v as { __date: string }).__date)
+        : NaN;
+  if (Number.isNaN(ms)) return "";
+  const d = Date.now() - ms;
+  const days = Math.floor(d / 86400000);
+  if (days > 0) return `${days}d ago`;
+  const hrs = Math.floor(d / 3600000);
+  if (hrs > 0) return `${hrs}h ago`;
+  const mins = Math.floor(d / 60000);
+  return mins > 0 ? `${mins}m ago` : "just now";
 }
 
 export default function VoiceHome() {
@@ -23,7 +40,6 @@ export default function VoiceHome() {
   const [captures, setCaptures] = useState<Capture[]>([]);
   const [loading, setLoading] = useState(true);
   const [starting, setStarting] = useState(false);
-  const [presetsOpen, setPresetsOpen] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -67,12 +83,6 @@ export default function VoiceHome() {
             Talk it out. It asks. You answer. Then it drafts.
           </p>
         </div>
-        <button
-          onClick={() => setPresetsOpen(true)}
-          className="flex items-center gap-1.5 rounded-lg bg-muted px-3 py-1.5 text-xs font-medium text-muted-foreground transition-transform duration-150 active:scale-[0.97]"
-        >
-          <SlidersHorizontal size={14} /> Presets
-        </button>
       </div>
 
       {/* Capture-first hero: the big mic */}
@@ -137,6 +147,7 @@ export default function VoiceHome() {
                       <span className="text-xs text-muted-foreground">
                         {c.status === "live" ? "in progress" : c.status === "routed" ? "filed to vault" : "ended"}
                         {c.transformFormat ? ` · ${c.transformFormat}` : ""}
+                        {timeAgo(c.startedAt) ? ` · ${timeAgo(c.startedAt)}` : ""}
                       </span>
                     </span>
                   </button>
@@ -146,8 +157,6 @@ export default function VoiceHome() {
           </ul>
         )}
       </div>
-
-      <PresetsModal open={presetsOpen} onClose={() => setPresetsOpen(false)} />
     </div>
   );
 }

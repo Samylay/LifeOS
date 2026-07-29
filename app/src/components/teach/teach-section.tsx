@@ -47,6 +47,7 @@ export function TeachSection() {
   const [newTopic, setNewTopic] = useState("");
   const [newMission, setNewMission] = useState("");
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [pickingId, setPickingId] = useState<string | null>(null);
   const [draftMissions, setDraftMissions] = useState<Record<string, string>>({});
 
   const load = useCallback(async () => {
@@ -90,18 +91,16 @@ export function TeachSection() {
     }
   };
 
-  const start = async (t: Topic) => {
-    // His available time is the only bound on session material (T59) — ask
-    // before starting rather than defaulting silently.
-    const raw = window.prompt("How many minutes do you have?", "20");
-    if (raw === null) return;
-    const minutesAvailable = Number(raw);
+  // His available time is the only bound on session material (T59) — the Play
+  // tap reveals inline minute chips instead of a window.prompt.
+  const start = async (t: Topic, minutesAvailable: number) => {
+    setPickingId(null);
     setBusyId(t.id);
     try {
       const { sessionId } = await post({
         action: "start",
         topicId: t.id,
-        minutesAvailable: Number.isFinite(minutesAvailable) && minutesAvailable > 0 ? minutesAvailable : undefined,
+        minutesAvailable,
       });
       router.push(`/knowledge/teach/${sessionId}`);
     } catch (e) {
@@ -226,42 +225,52 @@ export function TeachSection() {
                 </Button>
               </li>
             ) : (
-              <li
-                key={t.id}
-                className="flex items-center gap-2 rounded-lg bg-muted px-3 py-2"
-              >
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm text-foreground">{t.topic}</p>
-                  <p className="truncate text-xs text-muted-foreground/70">
-                    {t.mission || "no mission yet"}
-                  </p>
-                  <p className="truncate text-[11px] text-muted-foreground/70">
-                    {t.status === "scheduled" && t.scheduledFor ? `session ${t.scheduledFor} · ` : ""}
-                    {(() => {
-                      const r = lastRecord(t.learningRecords);
-                      return r ? `${r.date}: ${r.text}` : "never taught";
-                    })()}
-                  </p>
+              <li key={t.id} className="rounded-lg bg-muted px-3 py-2">
+                <div className="flex items-center gap-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm text-foreground">{t.topic}</p>
+                    <p className="line-clamp-2 text-xs text-muted-foreground">
+                      {t.status === "scheduled" && t.scheduledFor ? `session ${t.scheduledFor} · ` : ""}
+                      {(() => {
+                        const r = lastRecord(t.learningRecords);
+                        return r ? `${r.date}: ${r.text}` : "never taught";
+                      })()}
+                    </p>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    onClick={() => schedule(t)}
+                    aria-label={`Schedule a session on ${t.topic}`}
+                    className="text-muted-foreground"
+                  >
+                    <CalendarClock size={15} />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    onClick={() => setPickingId((v) => (v === t.id ? null : t.id))}
+                    disabled={busyId === t.id}
+                    aria-label={`Start a session on ${t.topic}`}
+                    className="text-primary"
+                  >
+                    {busyId === t.id ? <Loader2 size={15} className="animate-spin" /> : <Play size={15} />}
+                  </Button>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  onClick={() => schedule(t)}
-                  aria-label={`Schedule a session on ${t.topic}`}
-                  className="text-muted-foreground"
-                >
-                  <CalendarClock size={15} />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  onClick={() => start(t)}
-                  disabled={busyId === t.id}
-                  aria-label={`Start a session on ${t.topic}`}
-                  className="text-primary"
-                >
-                  {busyId === t.id ? <Loader2 size={15} className="animate-spin" /> : <Play size={15} />}
-                </Button>
+                {pickingId === t.id && busyId !== t.id && (
+                  <div className="enter mt-2 flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground">How long?</span>
+                    {[10, 20, 40].map((m) => (
+                      <button
+                        key={m}
+                        onClick={() => start(t, m)}
+                        className="rounded-full bg-background px-3 py-1.5 text-xs font-medium text-foreground transition-transform duration-150 active:scale-[0.95]"
+                      >
+                        {m} min
+                      </button>
+                    ))}
+                  </div>
+                )}
               </li>
             )
           )}

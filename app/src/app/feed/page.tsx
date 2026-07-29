@@ -8,8 +8,9 @@
 // enforces; this UI just never pretends otherwise).
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Bookmark, Check, ChevronUp, Flag, RotateCw, X } from "lucide-react";
+import { Bookmark, Check, ChevronUp, RotateCw, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useToast } from "@/components/toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { FeedCard } from "@/lib/feed";
 
@@ -22,18 +23,15 @@ const FORMAT_LABEL: Record<FeedCard["format"], string> = {
   misconception: "misconception",
 };
 
-function daysAgo(marker: unknown): string {
-  if (!marker || typeof marker !== "object" || !("__date" in (marker as object))) return "";
-  const ms = Date.now() - Date.parse((marker as { __date: string }).__date);
-  const d = Math.max(1, Math.round(ms / 86_400_000));
-  return `${d}d ago`;
-}
+// Exposure dedupe — once per card per page session, survives re-renders.
+const shownSent = new Set<string>();
 
 export default function FeedPage() {
+  const { toast } = useToast();
   const [cards, setCards] = useState<ServedCard[]>([]);
   const [phase, setPhase] = useState<"loading" | "ready" | "empty" | "error">("loading");
   const [generating, setGenerating] = useState(false);
-  const [genError, setGenError] = useState<string | null>(null);
+  const [exhausted, setExhausted] = useState(false);
   const [showHint, setShowHint] = useState(false);
   const fetching = useRef(false);
   const exhaustedUntil = useRef(0);
@@ -50,8 +48,14 @@ export default function FeedPage() {
         const seen = new Set(prev.map((c) => c.id));
         const fresh = data.cards.filter((c) => !seen.has(c.id));
         // All-duplicates ⇒ the pool is drained; back off so the sentinel
-        // doesn't hammer the server (each repeat serve mutates timesShown).
-        if (fresh.length === 0 && prev.length > 0) exhaustedUntil.current = Date.now() + 60_000;
+        // doesn't hammer the server, and show the terminal card instead of
+        // silently re-serving.
+        if (fresh.length === 0 && prev.length > 0) {
+          exhaustedUntil.current = Date.now() + 60_000;
+          setExhausted(true);
+        } else if (fresh.length > 0) {
+          setExhausted(false);
+        }
         const next = [...prev, ...fresh];
         setPhase(next.length === 0 ? "empty" : "ready");
         return next;
@@ -91,23 +95,22 @@ export default function FeedPage() {
     return () => obs.disconnect();
   }, [fetchMore, cards.length]);
 
-  const generateNow = async () => {
+  // Fire-and-forget: generation takes minutes, so don't hold the button
+  // hostage on the response — poll for cards instead while the page is open.
+  const generateNow = () => {
     setGenerating(true);
-    setGenError(null);
-    try {
-      const res = await fetch("/api/feed/generate", { method: "POST" });
-      if (!res.ok) {
-        const data = await res.json().catch(() => null);
-        setGenError(data?.error ?? `generation failed (HTTP ${res.status})`);
-        return; // don't silently re-spend LLM calls on blind retries
-      }
-      await fetchMore();
-    } catch {
-      setGenError("generation failed — network error");
-    } finally {
-      setGenerating(false);
-    }
+    void fetch("/api/feed/generate", { method: "POST" }).catch(() => {});
+    toast("Generating in the background — a few minutes");
   };
+
+  useEffect(() => {
+    if (!generating || cards.length > 0) return;
+    const iv = setInterval(() => {
+      exhaustedUntil.current = 0;
+      void fetchMore();
+    }, 30_000);
+    return () => clearInterval(iv);
+  }, [generating, cards.length, fetchMore]);
 
   return (
     <div className="fixed inset-0 z-50 bg-background">
@@ -145,9 +148,8 @@ export default function FeedPage() {
             className="flex h-11 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground transition-transform duration-150 active:scale-[0.97] disabled:opacity-50"
           >
             {generating && <RotateCw className="h-4 w-4 animate-spin" />}
-            {generating ? "generating (takes a few minutes)" : "Generate now"}
+            {generating ? "generating in the background…" : "Generate now"}
           </button>
-          {genError && <p className="text-sm text-destructive">{genError}</p>}
         </div>
       )}
 
@@ -156,6 +158,19 @@ export default function FeedPage() {
           {cards.map((card) => (
             <CardView key={card.id} card={card} />
           ))}
+          {exhausted && (
+            <section className="flex h-dvh w-full snap-start flex-col items-center justify-center gap-4 px-8 text-center">
+              <p className="text-base font-medium text-foreground">
+                That&apos;s everything due today.
+              </p>
+              <Link
+                href="/"
+                className="flex h-11 items-center rounded-lg bg-secondary px-4 text-sm font-medium text-secondary-foreground transition-transform duration-150 active:scale-[0.97]"
+              >
+                Close
+              </Link>
+            </section>
+          )}
           <div ref={sentinel} className="h-px" />
           {showHint && (
             <div className="pointer-events-none fixed bottom-6 left-1/2 -translate-x-1/2 text-muted-foreground motion-safe:animate-bounce">
@@ -171,10 +186,47 @@ export default function FeedPage() {
 function CardView({ card }: { card: ServedCard }) {
   const [status, setStatus] = useState(card.status);
   const [picked, setPicked] = useState<number | null>(null);
+  const sectionRef = useRef<HTMLElement>(null);
 
-  const react = (type: "keep" | "kill" | "flag") => {
+  // Exposure = the card was actually on screen (≥50% for ≥1s), marked once
+  // per session — never at serve time (the batch tail may go unseen).
+  useEffect(() => {
+    const el = sectionRef.current;
+    if (!el || shownSent.has(card.id)) return;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const obs = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          if (e.isIntersecting && e.intersectionRatio >= 0.5) {
+            if (timer === null && !shownSent.has(card.id)) {
+              timer = setTimeout(() => {
+                shownSent.add(card.id);
+                void fetch("/api/feed/shown", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ cardId: card.id }),
+                });
+                obs.disconnect();
+              }, 1000);
+            }
+          } else if (timer !== null) {
+            clearTimeout(timer);
+            timer = null;
+          }
+        }
+      },
+      { threshold: 0.5 }
+    );
+    obs.observe(el);
+    return () => {
+      if (timer !== null) clearTimeout(timer);
+      obs.disconnect();
+    };
+  }, [card.id]);
+
+  const react = (type: "keep" | "kill") => {
     // Optimistic: state flips instantly, server catches up.
-    setStatus(type === "keep" ? "kept" : type === "kill" ? "killed" : "flagged");
+    setStatus(type === "keep" ? "kept" : "killed");
     void fetch("/api/feed/react", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -196,26 +248,26 @@ function CardView({ card }: { card: ServedCard }) {
   const dimmed = status === "killed" || status === "flagged";
 
   return (
-    <section className="relative flex h-dvh w-full snap-start flex-col justify-center px-6 pb-28 pt-14">
+    <section
+      ref={sectionRef}
+      className="relative flex h-dvh w-full snap-start flex-col justify-center px-6 pb-28 pt-14"
+    >
       <div className={cn("mx-auto w-full max-w-md transition-opacity duration-150", dimmed && "opacity-30")}>
         <div className="mb-3 flex items-center gap-2 text-xs text-muted-foreground">
           {card.origin === "explore" && (
-            <span className="rounded-full bg-accent-ui/60 px-2 py-0.5 font-medium">
+            <span className="rounded-full bg-secondary px-2 py-0.5 font-medium text-secondary-foreground">
               explore · {card.domain}
             </span>
           )}
           <span className="rounded-full border border-border px-2 py-0.5">
             {FORMAT_LABEL[card.format]}
           </span>
-          <span className="truncate">{card.subConcept}</span>
-          {card.review && (
-            <span className="rounded-full bg-secondary px-2 py-0.5">
-              review · kept {daysAgo(card.review.keptAt)}
-            </span>
-          )}
         </div>
 
         <h2 className="text-lg font-semibold leading-snug">{card.hook}</h2>
+        {card.subConcept && (
+          <p className="mt-1 text-xs text-muted-foreground">{card.subConcept}</p>
+        )}
         {card.format !== "quiz" && (
           <p className="mt-3 whitespace-pre-wrap text-base leading-relaxed text-foreground/90">
             {card.body}
@@ -256,7 +308,9 @@ function CardView({ card }: { card: ServedCard }) {
         )}
       </div>
 
-      {/* Reactions — bottom-center thumb zone. Kill left, keep right, flag offset. */}
+      {/* Reactions — bottom-center thumb zone. Kill left, keep right.
+          (Flag removed from the UI: identical outcome to kill. The server
+          still accepts flag events from old data.) */}
       <div className="absolute bottom-8 left-1/2 flex -translate-x-1/2 items-center gap-6">
         <ReactionButton
           label="Kill card"
@@ -273,14 +327,6 @@ function CardView({ card }: { card: ServedCard }) {
           activeClass="text-primary"
         >
           <Bookmark className={cn("h-5 w-5", status === "kept" && "fill-current")} />
-        </ReactionButton>
-        <ReactionButton
-          label="Flag card as wrong"
-          onClick={() => react("flag")}
-          active={status === "flagged"}
-          activeClass="text-destructive"
-        >
-          <Flag className="h-4 w-4" />
         </ReactionButton>
       </div>
     </section>
