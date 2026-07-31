@@ -54,8 +54,14 @@ export default function RootLayout({
         />
       </head>
       <body className="antialiased">
-        <Providers>{children}</Providers>
+        {/* Must precede <Providers>: Sonner's <Toaster> only receives toasts
+            published after it subscribes (in an effect) and never replays
+            missed ones. Effects run in tree order, so mounted last it
+            subscribed after every page/provider mount effect — a toast fired
+            during first load was silently dropped. The outlet is
+            position:fixed, so DOM order doesn't affect layout. */}
         <ThemedToaster />
+        <Providers>{children}</Providers>
       </body>
     </html>
   );
