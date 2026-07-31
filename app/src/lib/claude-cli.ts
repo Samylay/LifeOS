@@ -6,6 +6,7 @@
 // module throws if the CLI isn't available or returns unparseable output.
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+import { ollamaGenerate, OLLAMA_MODEL } from "./ollama";
 
 const execFileP = promisify(execFile);
 
@@ -17,19 +18,69 @@ export function claudeCliEnabled(): boolean {
   return (process.env.GEN_PROVIDER ?? "") === "claude-cli";
 }
 
+/**
+ * Does this CLI failure mean the subscription can't serve us right now (usage
+ * limit / rate limit / overload), as opposed to a bad prompt or a broken
+ * install? Only the former is worth retrying on the local model.
+ * Known shapes: the subscription 5h cap prints "Claude AI usage limit
+ * reached|<epoch>"; API-side throttling surfaces 429 / rate_limit_error /
+ * "overloaded" strings in the envelope or stderr.
+ */
+export function isLimitError(text: string): boolean {
+  return /usage limit reached|rate.?limit|limit will reset|overloaded_error|"type"\s*:\s*"overloaded"|status[":\s]*429|credit balance is too low|out of extra usage/i.test(
+    text
+  );
+}
+
 /** Run one `claude -p` query and return the assistant's text output. */
 async function runClaude(prompt: string): Promise<string> {
-  const { stdout } = await execFileP(
-    CLAUDE_CLI_PATH,
-    ["-p", prompt, "--model", CLAUDE_CLI_MODEL, "--output-format", "json"],
-    { timeout: CLAUDE_CLI_TIMEOUT, maxBuffer: 10 * 1024 * 1024 }
-  );
+  let stdout: string;
+  try {
+    ({ stdout } = await execFileP(
+      CLAUDE_CLI_PATH,
+      ["-p", prompt, "--model", CLAUDE_CLI_MODEL, "--output-format", "json"],
+      { timeout: CLAUDE_CLI_TIMEOUT, maxBuffer: 10 * 1024 * 1024 }
+    ));
+  } catch (err) {
+    // Non-zero exit. The limit message can land on stdout or stderr.
+    const e = err as { stdout?: string; stderr?: string; message?: string };
+    const combined = [e.stdout, e.stderr, e.message].filter(Boolean).join("\n");
+    if (isLimitError(combined)) return ollamaFallback(prompt, combined);
+    throw err;
+  }
   // `--output-format json` wraps the run in an envelope: { result, ... }.
   try {
     const env = JSON.parse(stdout);
-    return typeof env.result === "string" ? env.result : stdout;
+    if (typeof env.result === "string") {
+      // Exit 0 but the envelope itself reports the limit (is_error runs do).
+      if (env.is_error && isLimitError(env.result)) {
+        return ollamaFallback(prompt, env.result);
+      }
+      return env.result;
+    }
+    return stdout;
   } catch {
     return stdout;
+  }
+}
+
+/**
+ * Limit-triggered fallback to the local Ollama model. On the fallback's own
+ * failure (e.g. Ollama not running) the ORIGINAL limit error is what Samy
+ * needs to see, so it's preserved in the thrown message.
+ */
+async function ollamaFallback(prompt: string, limitMsg: string): Promise<string> {
+  console.warn(
+    `[claude-cli] usage limit hit — falling back to Ollama (${OLLAMA_MODEL}): ${limitMsg.slice(0, 200)}`
+  );
+  try {
+    return await ollamaGenerate(prompt);
+  } catch (err) {
+    throw new Error(
+      `Claude usage limit reached and the Ollama fallback failed (${
+        err instanceof Error ? err.message : String(err)
+      }). Original: ${limitMsg.slice(0, 300)}`
+    );
   }
 }
 

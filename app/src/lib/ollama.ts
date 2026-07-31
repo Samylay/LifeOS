@@ -12,3 +12,14 @@ export function getOllamaClient(): OpenAI {
     baseURL: `${base.replace(/\/$/, "")}/v1`,
   });
 }
+
+/** One-shot text generation against the local Ollama model. */
+export async function ollamaGenerate(prompt: string): Promise<string> {
+  const client = getOllamaClient();
+  const res = await client.chat.completions.create({
+    model: OLLAMA_MODEL,
+    max_tokens: 4096,
+    messages: [{ role: "user", content: prompt }],
+  });
+  return res.choices[0]?.message?.content ?? "";
+}
