@@ -114,7 +114,7 @@ function CardShell({ card, children }: { card: BriefCard; children: React.ReactN
             href={card.link}
             target={card.link.startsWith("/") ? undefined : "_blank"}
             rel="noreferrer"
-            className="shrink-0 p-2 mr-2 text-muted-foreground/70 transition-transform active:scale-[0.97]"
+            className="shrink-0 p-2 mr-2 text-muted-foreground/70 pressable active:scale-[0.97]"
           >
             <ExternalLink size={13} />
           </a>
@@ -313,7 +313,7 @@ function DigestCard({ card }: { card: BriefCard }) {
           href={h.link}
           target="_blank"
           rel="noreferrer"
-          className="block text-sm text-foreground transition-transform duration-150 active:scale-[0.99]"
+          className="block text-sm text-foreground pressable active:scale-[0.99]"
         >
           <span aria-hidden>{mark(h.score)}</span> {h.title}
           <span className="ml-2 text-[10px] uppercase tracking-wide text-muted-foreground/70">

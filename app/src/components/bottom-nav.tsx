@@ -46,7 +46,7 @@ export function BottomNav() {
             key={tab.href}
             href={tab.href}
             className={cn(
-              "relative flex min-w-13 flex-col items-center justify-center gap-0.5 rounded-lg px-2 py-1 transition-transform duration-150 active:scale-[0.90]",
+              "relative flex min-w-13 flex-col items-center justify-center gap-0.5 rounded-lg px-2 py-1 pressable active:scale-[0.90]",
               active ? "text-accent-ui-foreground" : "text-muted-foreground"
             )}
           >
@@ -65,7 +65,7 @@ export function BottomNav() {
       {/* "More" — opens mobile sidebar */}
       <button
         onClick={() => setMobileSidebarOpen(true)}
-        className="flex min-w-13 flex-col items-center justify-center gap-0.5 rounded-lg px-2 py-1 text-muted-foreground transition-transform duration-150 active:scale-[0.90]"
+        className="flex min-w-13 flex-col items-center justify-center gap-0.5 rounded-lg px-2 py-1 text-muted-foreground pressable active:scale-[0.90]"
         aria-label="More"
       >
         <Menu size={22} strokeWidth={2} />

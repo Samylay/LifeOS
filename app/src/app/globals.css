@@ -295,6 +295,11 @@ body {
   box-shadow: 0 8px 24px -12px rgba(0, 0, 0, 0.25);
 }
 
+/* Press feedback for actionable elements — pairs with active:scale-* utilities. */
+.pressable {
+  transition: transform var(--dur-fast) var(--ease-out-custom);
+}
+
 /* Skeleton loading placeholders (T40) — opacity-only shimmer, killed by the
    reduced-motion block below. */
 @keyframes skeleton-pulse {

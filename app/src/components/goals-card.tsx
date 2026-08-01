@@ -66,7 +66,7 @@ export function GoalsCard() {
                         setOptimistic((o) => ({ ...o, [c.id]: !done }));
                         toggleCommitment(goal.id, c.id);
                       }}
-                      className="flex items-center gap-2 w-full text-left rounded-lg px-2 py-1.5 -mx-2 transition-colors hover:bg-muted active:scale-[0.99] duration-150"
+                      className="flex items-center gap-2 w-full text-left rounded-lg px-2 py-1.5 -mx-2 transition-colors duration-[var(--dur-fast)] ease-[var(--ease-out-custom)] hover:bg-muted active:scale-[0.99]"
                     >
                       <span className={done ? "shrink-0 text-primary" : "shrink-0 text-muted-foreground/70"}>
                         {done ? <CheckCircle2 size={15} /> : <Circle size={15} />}

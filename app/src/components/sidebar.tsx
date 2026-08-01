@@ -115,7 +115,7 @@ export function Sidebar({ mobile }: { mobile?: boolean }) {
 
   const linkClass = (active: boolean) =>
     cn(
-      "group flex items-center gap-3 rounded-lg border-l-[3px] px-3 py-1.5 text-sm font-medium transition-[color,background,transform] duration-150 active:scale-[0.97]",
+      "group flex items-center gap-3 rounded-lg border-l-[3px] px-3 py-1.5 text-sm font-medium transition-[color,background,transform] duration-[var(--dur-fast)] ease-[var(--ease-out-custom)] active:scale-[0.97]",
       active
         ? "border-l-primary bg-accent text-accent-foreground"
         : "border-l-transparent text-muted-foreground hover:bg-accent/60 hover:text-accent-foreground"
@@ -221,7 +221,7 @@ export function Sidebar({ mobile }: { mobile?: boolean }) {
             >
               <ChevronDown
                 size={18}
-                className="shrink-0 transition-transform duration-150"
+                className="shrink-0 pressable"
                 style={{ transform: moreOpen ? undefined : "rotate(-90deg)" }}
               />
               {expanded && <span>More</span>}
