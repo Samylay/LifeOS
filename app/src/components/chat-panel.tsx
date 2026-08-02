@@ -41,17 +41,39 @@ function ActionBadge({ result }: { result: ActionResult }) {
 
 export function ChatPanel() {
   const { chatPanelOpen, setChatPanelOpen } = useAppStore();
-  const { messages, loading, statusText, sendMessage, clearMessages } = useChat();
+  const { messages, loading, statusText, sendMessage, clearMessages, stop, retryLast } =
+    useChat();
   // The soft keyboard shrinks the visual viewport only, so a 100vh panel would
   // hide its composer underneath the keyboard. Track the visible area instead.
   const viewport = useVisualViewport();
   const [input, setInput] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  // Scroll anchoring: auto-scroll only sticks while the user is at the bottom
+  // (gap ≤ 60px). Scrolling up releases it; scrolling back down (or sending a
+  // new message) re-engages it.
+  const userScrolledRef = useRef(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
+  const handleScroll = () => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const gap = el.scrollHeight - el.scrollTop - el.clientHeight;
+    userScrolledRef.current = gap > 60;
+  };
+
+  // A new request starting = the user just acted; re-engage the anchor.
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, loading]);
+    if (loading) userScrolledRef.current = false;
+  }, [loading]);
+
+  useEffect(() => {
+    if (userScrolledRef.current) return;
+    const reduceMotion =
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    bottomRef.current?.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth" });
+  }, [messages, loading, statusText]);
 
   useEffect(() => {
     if (textareaRef.current) {
@@ -165,7 +187,15 @@ export function ChatPanel() {
         </div>
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto px-3 py-3">
+        <div
+          ref={scrollRef}
+          onScroll={handleScroll}
+          role="log"
+          aria-live="polite"
+          aria-atomic="false"
+          aria-label="Assistant conversation"
+          className="flex-1 overflow-y-auto px-3 py-3"
+        >
           {messages.length === 0 && !loading ? (
             <div className="flex h-full flex-col items-center justify-center gap-3 px-4">
               <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
@@ -231,6 +261,21 @@ export function ChatPanel() {
                     >
                       {msg.content}
                     </div>
+                    {msg.interrupted && (
+                      <div className="flex items-center gap-2 px-1">
+                        <span className="text-[11px] text-muted-foreground">
+                          Interrupted
+                        </span>
+                        {msg.id === messages[messages.length - 1]?.id && !loading && (
+                          <button
+                            onClick={retryLast}
+                            className="text-[11px] font-medium text-primary transition-transform duration-150 hover:underline active:scale-[0.97]"
+                          >
+                            Retry
+                          </button>
+                        )}
+                      </div>
+                    )}
                     {msg.actions && msg.actions.length > 0 && (
                       <div className="flex flex-wrap items-center gap-1">
                         {msg.actions.map((a, i) => (
@@ -247,13 +292,17 @@ export function ChatPanel() {
                 </div>
               ))}
               {loading && (
-                <div className="flex gap-2">
+                <div className="flex gap-2" aria-busy="true">
                   <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary/10">
                     <Bot size={14} className="text-primary" />
                   </div>
                   <div className="flex items-center gap-2 rounded-xl bg-muted px-3 py-2 text-xs text-muted-foreground">
-                    <Loader2 size={12} className="animate-spin text-primary" />
-                    <span aria-live="polite">{statusText ?? "Thinking..."}</span>
+                    <Loader2
+                      size={12}
+                      aria-hidden="true"
+                      className="animate-spin text-primary"
+                    />
+                    <span>{statusText ?? "Thinking..."}</span>
                   </div>
                 </div>
               )}
@@ -314,22 +363,30 @@ export function ChatPanel() {
             className="flex-1 resize-none rounded-lg bg-muted px-3 py-2 text-xs leading-normal text-foreground outline-none"
             style={{ maxHeight: 160 }}
           />
-          <Button
-            size="icon-sm"
-            onClick={handleSend}
-            disabled={!input.trim() || loading}
-            aria-label="Send message"
-            className={cn(
-              "shrink-0",
-              !(input.trim() && !loading) && "bg-muted text-muted-foreground hover:bg-muted"
-            )}
-          >
-            {loading ? (
-              <Loader2 size={14} className="animate-spin" />
-            ) : (
+          {loading ? (
+            <Button
+              size="icon-sm"
+              onClick={stop}
+              aria-label="Stop response"
+              title="Stop response"
+              className="shrink-0 active:scale-[0.97]"
+            >
+              <Square size={12} />
+            </Button>
+          ) : (
+            <Button
+              size="icon-sm"
+              onClick={handleSend}
+              disabled={!input.trim()}
+              aria-label="Send message"
+              className={cn(
+                "shrink-0",
+                !input.trim() && "bg-muted text-muted-foreground hover:bg-muted"
+              )}
+            >
               <Send size={14} />
-            )}
-          </Button>
+            </Button>
+          )}
         </div>
       </aside>
     </>

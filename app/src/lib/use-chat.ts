@@ -13,6 +13,9 @@ export interface ChatMessage {
   role: "user" | "assistant";
   content: string;
   actions?: ActionResult[];
+  // Reply never completed (user hit Stop, or the request failed): rendered
+  // with an "Interrupted" label and a Retry affordance.
+  interrupted?: boolean;
   timestamp: Date;
 }
 
@@ -203,17 +206,29 @@ export function useChat() {
   );
 
   const sendMessage = useCallback(
-    async (content: string) => {
-      if (!content.trim() || loading) return;
+    async (content: string, opts?: { retry?: boolean }) => {
+      if (loading) return;
 
-      // Add user message
-      const userMsg: ChatMessage = {
-        id: `msg-${++msgId}`,
-        role: "user",
-        content: content.trim(),
-        timestamp: new Date(),
-      };
-      setMessages((prev) => [...prev, userMsg]);
+      // Retry re-sends the last user message: drop the trailing interrupted
+      // reply instead of duplicating the user bubble.
+      let base = messages;
+      let userMsg: ChatMessage;
+      if (opts?.retry) {
+        base = messages.filter((m) => !m.interrupted);
+        const lastUser = [...base].reverse().find((m) => m.role === "user");
+        if (!lastUser) return;
+        userMsg = lastUser;
+        setMessages(base);
+      } else {
+        if (!content.trim()) return;
+        userMsg = {
+          id: `msg-${++msgId}`,
+          role: "user",
+          content: content.trim(),
+          timestamp: new Date(),
+        };
+        setMessages((prev) => [...prev, userMsg]);
+      }
       setLoading(true);
 
       try {
@@ -226,7 +241,7 @@ export function useChat() {
         };
 
         // Build message history for API (last 20 messages)
-        const history = [...messages, userMsg].slice(-20).map((m) => ({
+        const history = (opts?.retry ? base : [...base, userMsg]).slice(-20).map((m) => ({
           role: m.role,
           content: m.content,
         }));
@@ -293,7 +308,21 @@ export function useChat() {
         };
         setMessages((prev) => [...prev, assistantMsg]);
       } catch (err: unknown) {
-        if (err instanceof Error && err.name === "AbortError") return;
+        if (err instanceof Error && err.name === "AbortError") {
+          // User hit Stop mid-stream: leave a visible interrupted marker
+          // (with a Retry affordance in the panel) instead of vanishing.
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: `msg-${++msgId}`,
+              role: "assistant",
+              content: "Stopped before finishing.",
+              interrupted: true,
+              timestamp: new Date(),
+            },
+          ]);
+          return;
+        }
 
         const code =
           err != null && typeof err === "object" && "code" in err
@@ -313,6 +342,7 @@ export function useChat() {
           id: `msg-${++msgId}`,
           role: "assistant",
           content,
+          interrupted: true,
           timestamp: new Date(),
         };
         setMessages((prev) => [...prev, errorMsg]);
@@ -324,6 +354,16 @@ export function useChat() {
     },
     [loading, messages, tasks, habits, projects, executeActions]
   );
+
+  // Stop the in-flight request; the AbortError handler records the
+  // interrupted message and resets loading via `finally`.
+  const stop = useCallback(() => {
+    abortRef.current?.abort();
+  }, []);
+
+  const retryLast = useCallback(() => {
+    void sendMessage("", { retry: true });
+  }, [sendMessage]);
 
   const clearMessages = useCallback(() => {
     // Clearing = the conversation is finished: tell the server to route it to
@@ -339,5 +379,5 @@ export function useChat() {
     setMessages([]);
   }, []);
 
-  return { messages, loading, statusText, sendMessage, clearMessages };
+  return { messages, loading, statusText, sendMessage, clearMessages, stop, retryLast };
 }
