@@ -136,6 +136,31 @@ import { AreaChart } from "@/components/charts";
 <DropdownMenu>…</DropdownMenu>  // from ui/dropdown-menu
 ```
 
+## Reference layouts (minimalist + typography, bestwebsite.gallery)
+
+Pulled 2026-08-02 from the Minimalist filter
+(https://bestwebsite.gallery/sites/style/minimalist — cross-read with
+/sites/style/typography; the gallery has no combined-facet URL). What each
+one proves for a density-first tool UI:
+
+- **LoveFrom** (lovefrom.com — Center/Typography/Minimalist, GSAP): one serif
+  wordmark centered on an off-white field, nothing else above the fold. Proof
+  that a single type element can be the entire surface — the ceiling case for
+  "weight does the hierarchy, one family" (our Plus Jakarta rule).
+- **Fossheim** (fossheim.io — Center/Typography/Minimalist): centered single
+  column, headline + dated post list, zero chrome. The shape /brief and
+  /knowledge lists should degrade to when a card earns nothing extra.
+- **Good Books** (Center/Minimalist/Bright, Webflow): one centered
+  recommendation at a time, huge title, tiny meta. Proof for one-subject
+  screens (/feed quiz, /decide cards): a single centered object + type scale
+  beats any multi-panel layout.
+- **Metric Design** (metric.no — Agency/Case-studies/Minimalist, Tailwind +
+  Craft): case-study index as plain typographic rows, no thumbnails until
+  hover. Reference for list-first index pages (/projects, /content tracker).
+- **Typography Nerd** — already studied in depth in the vault: "Design
+  reference shelf — galleries and type" (type-as-imagery, one repeated link
+  affordance, persistent left rail).
+
 ## Charts (`src/components/charts/`)
 
 Tremor-style API on Recharts v3: `AreaChart`, `LineChart`, `BarChart`,
