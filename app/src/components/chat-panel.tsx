@@ -47,7 +47,6 @@ export function ChatPanel() {
   // hide its composer underneath the keyboard. Track the visible area instead.
   const viewport = useVisualViewport();
   const [input, setInput] = useState("");
-  const bottomRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   // Scroll anchoring: auto-scroll only sticks while the user is at the bottom
   // (gap ≤ 60px). Scrolling up releases it; scrolling back down (or sending a
@@ -67,12 +66,19 @@ export function ChatPanel() {
     if (loading) userScrolledRef.current = false;
   }, [loading]);
 
+  // Scroll the messages container directly, never scrollIntoView: the panel is
+  // parked off-canvas right (translateX(100%)) when closed, and scrollIntoView
+  // walks every scrollable ancestor — on mobile it panned the whole layout
+  // viewport horizontally toward the hidden panel, shifting the app left and
+  // dragging fixed elements (nav, toasts) off-screen.
   useEffect(() => {
     if (userScrolledRef.current) return;
+    const el = scrollRef.current;
+    if (!el) return;
     const reduceMotion =
       typeof window !== "undefined" &&
       window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    bottomRef.current?.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth" });
+    el.scrollTo({ top: el.scrollHeight, behavior: reduceMotion ? "auto" : "smooth" });
   }, [messages, loading, statusText]);
 
   useEffect(() => {
@@ -306,7 +312,6 @@ export function ChatPanel() {
                   </div>
                 </div>
               )}
-              <div ref={bottomRef} />
             </div>
           )}
         </div>
