@@ -29,6 +29,14 @@ component library (Radix primitives + recharts are the only runtime deps).
   Genuine multi-hue *data* palettes (area colors, priority scales, lead
   lifecycle, category chips) stay as their own hex maps — they aren't the
   success/warning semantic pair even when a shade coincides.
+- **`contrast-color()` is evaluated and shelved** (2026-07-31, prototype in
+  `~/scratch/lifeos-light-fix/contrast-color-prototype.html`). The status
+  `--*-foreground` trio looks like the textbook use case, but Level 5 returns
+  only black/white via WCAG-2 luminance math: on `--destructive` #ef4444 it
+  picks *black* (6.7:1 beats white's 3.2:1), flipping every status badge from
+  the white text the design intends. Revisit when Level 6 candidate lists
+  (`contrast-color(var(--x) vs white, ...)`) ship; until then keep hand-paired
+  foregrounds.
 - Built on the **sage/warm palette** (`--color-sage-*`, `--color-warm-*`).
   Dark mode first; light fully supported. The `.dark` class on `<html>` is
   authoritative — the layout script and theme store always resolve "system"
@@ -39,6 +47,17 @@ component library (Radix primitives + recharts are the only runtime deps).
 - Spacing: 4/8px grid (Tailwind default scale — stick to 0.5/1/1.5/2/3/4/6/8).
 - Type scale: `text-xs`/`text-sm` for UI chrome and rows, `text-base` body,
   `text-lg`+ only for page/section titles. Numbers get `tabular-nums`.
+  Outside-the-stack proof this discipline works: the Celtic Sea Salt study in
+  the vault's "Design reference shelf — galleries and type" (big display over
+  tiny body, almost nothing between; hierarchy from one hue at 3 intensities).
+- **Typeface pairing (token decision, 2026-07-31)**: `--font-sans` = Plus
+  Jakarta Sans (display AND body — one family, weight does the hierarchy),
+  `--font-mono` = JetBrains Mono (code, IDs, tabular data). Deliberately no
+  separate display face: LifeOS is a density-first tool, not a landing page.
+  Re-litigating fonts per surface is the anti-pattern; change the pairing only
+  by changing these two tokens in `globals.css`. (Checked against Typewolf's
+  checklist logic 2026-07-31: two families max ✓, distinct roles ✓,
+  tabular-nums for numbers ✓.)
 
 ## Decision cost (Hick's Law)
 
@@ -71,7 +90,10 @@ beat aesthetic ambition, every time.
 
 Design decisions are infrastructure: an agent generating UI picks from the
 closed sets below, it does not invent. When unsure, the answer is the more
-boring, already-used option.
+boring, already-used option. (Non-software proof of tokens-vs-composition:
+Girlguiding's 2026 uniform — "in uniform" = one top from a closed range +
+the group's color scheme, everything else free; see "Design Reference Shelf"
+in the vault.)
 
 **Component choice, in priority order:**
 1. An existing feature component already doing this job (grep first).
