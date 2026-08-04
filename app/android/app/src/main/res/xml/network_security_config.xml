@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!-- HTTPS-only everywhere, including the WebView's lab.samylayaida.com app
-     URL. (A cleartext exception for the self-hosted ntfy instance lived here
-     until ntfy was retired 2026-07-21; web-push replaced it.) -->
-<network-security-config>
-    <base-config cleartextTrafficPermitted="false" />
-</network-security-config>
