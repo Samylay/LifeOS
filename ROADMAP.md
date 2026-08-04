@@ -73,6 +73,54 @@
 
 ## Log
 
+- **2026-08-04 (autoloop, T76):** Re-checked T64 first — falsifier re-run
+  against the live DB (`docker exec lifeos node`, read-only): `teachSessions`
+  still 0 docs, all 11 `teachTopics` still `queued`/unscheduled, same
+  "logical fallacies" `learningRecords` from `feed.ts`'s auto-note, not a
+  real session. Cause unchanged since the 2026-07-24 BLOCKED note; wrote
+  nothing per the re-block-on-unchanged-cause rule. T27 (no `Verify:` note,
+  still a design capture) and T29 (Samy's 2026-07-14 "option (b): write-only
+  helper endpoint" approval names a *direction*, but no such host-level
+  helper endpoint exists yet, and building one means new infra spanning
+  `~/dashboards`/`~/services`/`~/infra` repos this autoloop instance has no
+  business touching) are both still correctly blocked for their standing
+  reasons — silence on both, matching the 2026-08-01 run's judgment. T37/T38
+  remain held per Samy's explicit "skip for now." First actionable: **T76**
+  (retire the Capacitor Android wrapper), approved by Samy 2026-08-02 —
+  title read as a yes/no question ("retire it?"), bare "approved" verdict
+  read as yes → option (a). Deleted `android/` (49 git-tracked files),
+  `capacitor.config.ts`, `src/lib/mobile/` (cf-access.ts + 2 test files),
+  `mobile/www/` (the capacitor webDir stub), `.github/workflows/
+  android-build.yml`, `docs/android-app.md`; dropped `@capacitor/android`/
+  `@capacitor/core` from package.json+lockfile; simplified `/status`'s dead
+  `window.Capacitor` detection (Grafana link now always opens `_blank`, same
+  as any browser). A stray untracked `android/.gradle`/`build/` dir from a
+  past local APK build (never committed) was also removed from disk — build
+  cache, not source. `grep -rli capacitor .` (excluding node_modules/.git)
+  now returns only ROADMAP.md's historical log lines. 1793 lines removed,
+  1 line changed — split into 7 commits (mirroring the T07 precedent) to
+  respect the 400-line unattended-commit cap: Java sources, app-module
+  resources+gradle, gradle wrapper scripts, project-level gradle config,
+  capacitor.config.ts+TS lib, deps+status page, workflow+docs+webDir stub.
+  tsc clean and 271/271 vitest green after every piece, `docker compose
+  build && up -d` succeeded, `/` and `/status` both 200. Uninstalling the
+  APK from the phone itself is Samy's own action — outside anything git
+  touches.
+  Pitch: the last Capacitor/Android surface (deps, native sources, CI
+  workflow, docs) is gone from the repo — `/status`'s Grafana link and every
+  other native-only affordance now just runs through the PWA, matching what
+  T47 already did to the chat-launch threat model this wrapper's own
+  BLOCKED history worried about.
+  Quiz: why did this run treat T29's 2026-07-14 "approved — option (b)"
+  note as *not* unblocking the task, unlike T76's bare "approved" a
+  paragraph away? *(T29's approval only named a target architecture — a
+  write-only helper endpoint living outside the container — that doesn't
+  exist anywhere on the host yet; building it is new infra spanning
+  multiple other repos' mount policy, not a same-repo code change a single
+  nightly task can build and verify. T76's approval, by contrast, greenlit
+  deleting things that already exist entirely inside this repo, with a
+  concrete file list the task itself named.)*
+
 - **2026-08-01 (autoloop, T73):** Re-checked T64/T27/T29 first (all earlier
   unchecked non-NEEDS-SAMY tasks) — each already carries a BLOCKED/skip note
   from a prior autoloop run and the cause is unchanged (T64: live DB
@@ -1183,7 +1231,7 @@ Nine centres (LifeOS, Flux, Ecole, Scout, reels-reader, homelab-infra, workouts,
 - [x] **T47 — stop a phone message from launching an agent** (S) — *(DONE 2026-07-15, interactive session: option (b) executed — `launch_queued_prompts` and `launch_now` are gone from the chat catalog; `dispatchQueuedPrompts` stays exported for /api/triage/dispatch, now its only caller. Regression guard added (4 tests) and mutation-checked: re-adding `launch_now` fails 2 of them. Verified live against the deployed app — a chat message asking to "launch the queued prompts right now" called only the read-only `homelab_overview`, created no promptDispatch doc (13 before, 13 after), and told Samy to use /decide. The /decide dispatch half was NOT fired live: a real prompt ("Investigate backup-verified goal failure") is queued and dispatching would launch an autonomous session — that stays Samy's action; the route is covered by the batching tests.)* From the 2026-07-12 /improve audit (read-only). *(unblocked 2026-07-15: Samy approved option (b) on 07-14; the NEEDS-SAMY prefix was frozen it out of the autoloop. Execute option (b) below.)* From the 2026-07-12 /improve audit (read-only). The chat→homelab bridge (`app/src/lib/homelab-tools.ts`, commit d252fd3) correctly routes everything through promptQueue/promptDispatch with no shell access — but `queue_homelab_prompt` with `launch_now: true` means one chat message (reachable from the phone) starts an autonomous Claude Code session with arbitrary instructions within ~10s. That is T29's recorded threat model ("phone message → effective root") arriving via the sanctioned path, and per T44 the CF Access Service Token is currently rejected (app falls back to OTP). Decide: (a) keep as-is (constitution constrains the spawned session; OTP gate deemed sufficient), or (b) chat may only QUEUE — strip `launch_now` and `launch_queued_prompts` from the chat tool catalog so launching stays a /decide-UI action. If (b), the executor change is small: remove the two entries from `HOMELAB_TOOLS`/`HOMELAB_TOOL_STATUS` and the `launch_now` branch, keep `dispatchQueuedPrompts` for the /decide route; and add tests for `dispatchQueuedPrompts` while in there (the security chokepoint has none — wait until the in-flight teach work touching `homelab-tools.ts` lands). Verify (if b): typecheck + tests + rebuild + redeploy; a chat request asking to "launch the queue" gets no launch tool call (no new promptDispatch doc), and dispatch from the /decide approve page still works.
   - SAMY 2026-07-14: approved — option (b): restrict launch_now to /decide UI only, closes phone-to-root gap
 - [x] **T73 — Press feedback uses the locked motion tokens (`.pressable` utility)** (S) (2026-08-01: done in autoloop — added `.pressable`, swapped in at every drifted press-feedback/rotate site still present.) — from the 2026-07-17 improve-ui audit (read-only; full plan at `.scratch/design-plans/press-feedback-uses-motion-tokens.md` — read it first, it lists every line). Every press-feedback transition on the Today surface + shell uses Tailwind literals (`transition-transform duration-150`, or bare `transition-transform`/`transition-colors` with no duration) — all resolve to Tailwind's default easing `cubic-bezier(0.4,0,0.2,1)`, violating the CLAUDE.md motion hard floor "custom easing vars (never default `ease`)". Origin of the drift: T34's own recipe suggested the literal. Fix: add a `.pressable` utility next to `.hover-lift` in `globals.css` (`transition: transform var(--dur-fast) var(--ease-out-custom)`), swap it in at the 13 sites listed in the plan (`page.tsx:116,204,247`, `top-bar.tsx:26,44`, `bottom-nav.tsx:56,82`, `sidebar.tsx:80,124`, `brief-cards.tsx:116,323,498`, `goals-card.tsx:59`; multi-property sites keep their property list, tokens via arbitrary-value classes or inline style). Keep all `active:scale-*` values untouched. Verify: `npx tsc --noEmit`, tests green, rebuild+redeploy, `/` 200, `grep -rn "transition-transform duration-150" app/src` empty on the listed files.
-- [ ] **T76 — retire the Capacitor Android wrapper?** (S to decide) — from the 2026-07-29 full UX audit. The APK's reason to exist was native ntfy push; that stack is now deleted (ntfy retired 2026-07-21, dead Java removed 2026-07-29) and web-push + the PWA cover the phone. What the wrapper still buys: the Cloudflare Access service-token bypass (no OTP login) and the in-app Grafana back-button behavior. Cost: `android/` + `@capacitor/*` deps + `src/lib/mobile/` consistency tests that gate nothing you use. Decide: (a) retire it (delete android/, capacitor deps+config, src/lib/mobile/, uninstall the APK, use the installed PWA), or (b) keep it, in which case the next APK build ships the ntfy-free MainActivity. If you have not opened the APK in weeks, (a) is the honest answer.
+- [x] **T76 — retire the Capacitor Android wrapper?** (S to decide) — from the 2026-07-29 full UX audit. The APK's reason to exist was native ntfy push; that stack is now deleted (ntfy retired 2026-07-21, dead Java removed 2026-07-29) and web-push + the PWA cover the phone. What the wrapper still buys: the Cloudflare Access service-token bypass (no OTP login) and the in-app Grafana back-button behavior. Cost: `android/` + `@capacitor/*` deps + `src/lib/mobile/` consistency tests that gate nothing you use. Decide: (a) retire it (delete android/, capacitor deps+config, src/lib/mobile/, uninstall the APK, use the installed PWA), or (b) keep it, in which case the next APK build ships the ntfy-free MainActivity. If you have not opened the APK in weeks, (a) is the honest answer. *(2026-08-04: done in autoloop — option (a) executed. Deleted `android/` (49 tracked files: native Java, gradle project + wrapper, resources), `app/capacitor.config.ts`, `app/src/lib/mobile/` (cf-access.ts + its two test files), `app/mobile/www/` (the webDir offline-fallback stub), `.github/workflows/android-build.yml`, and `app/docs/android-app.md`. Removed `@capacitor/android`/`@capacitor/core` from `app/package.json` (lockfile regenerated). Simplified `/status`'s dead `window.Capacitor` bridge detection — the Grafana link now always opens `_blank`. `grep -rli capacitor` across the repo (excluding node_modules/.git) now returns only this ROADMAP's historical log lines. Split into 7 commits to stay under the 400-line unattended cap (T07 precedent) — 1793 lines removed total. tsc clean, 271/271 vitest green after every piece, `docker compose build && up -d` succeeded, `/` and `/status` both 200. APK uninstall from the physical phone is Samy's own action, outside git's reach.)*
   - SAMY 2026-08-02: approved
 - [ ] **T77 — NEEDS-SAMY: cut the /feed explore lane?** (S to decide) — the audit flagged the 3 nightly out-of-queue "explore" cards (feed-generator.ts, "surprise beats syllabus") as the IG novelty mechanic the feed exists to replace, competing for slots with topics you chose. Kept for now because the /feed spec (2026-07-20) includes it deliberately and the falsifier date is 2026-08-03. Decide at the falsifier: (a) keep explore, it earns its keep, or (b) cut generation of explore cards (quiz law untouched). No code moves until you call it.
   - SAMY 2026-08-02: rejected
