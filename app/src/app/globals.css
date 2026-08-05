@@ -183,7 +183,8 @@
   --radius-xl: calc(var(--radius) + 4px);
 }
 
-/* Light theme (default) */
+/* Base tokens (dark-only app: .dark below always overrides the palette;
+   these light values are inert but keep the token layer's shape). */
 :root {
   --bg-primary: var(--color-warm-50);
   --bg-secondary: #FAF8F5;
@@ -236,13 +237,10 @@
   --shadow-glow: 0 0 20px rgba(124, 158, 138, 0.15);
 }
 
-/* Native chrome (scrollbars, form controls, overscroll gutter) follows the
-   effective theme class the pre-paint script guarantees on <html>. */
+/* Native chrome (scrollbars, form controls, overscroll gutter). Dark-only:
+   layout.tsx server-renders .dark on <html>. */
 .dark {
   color-scheme: dark;
-}
-.light {
-  color-scheme: light;
 }
 
 body {

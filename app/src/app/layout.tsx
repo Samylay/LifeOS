@@ -23,12 +23,8 @@ export const viewport: Viewport = {
   // it (Android Chrome). iOS Safari ignores this — the chat panel measures
   // `visualViewport` via useVisualViewport() to stay correct there too.
   interactiveWidget: "resizes-content",
-  // Dark is the app default; the sage accent (#7C9E8A) matched neither ground.
-  // Browser chrome follows the OS since a meta tag can't read localStorage.
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#F5F2EE" },
-    { media: "(prefers-color-scheme: dark)", color: "#0F0E0D" },
-  ],
+  // Dark-only app: browser chrome always matches the dark ground.
+  themeColor: "#0F0E0D",
 };
 
 export default function RootLayout({
@@ -37,21 +33,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" className="dark">
+      {/* Dark-only: the .dark class is server-rendered so the shadcn token
+          layer and `dark:` utilities always apply. */}
       <head>
         <link rel="apple-touch-icon" href="/icon-192.png" />
-        {/* Apply the effective theme class before first paint. Dark is the
-            default: with no stored preference we apply "dark" regardless of the
-            OS setting. Only an explicit stored "light" stays light, and the
-            explicit "system" choice resolves to the OS preference. The .dark
-            class must be present whenever dark is active so the shadcn token
-            layer and `dark:` utilities key off it. */}
-        <script
-          dangerouslySetInnerHTML={{
-            __html:
-              'try{var t=localStorage.getItem("lifeos-theme");if(t==="system")t=matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light";else if(t!=="light"&&t!=="dark")t="dark";document.documentElement.classList.add(t)}catch(e){}',
-          }}
-        />
       </head>
       <body className="antialiased">
         {/* Must precede <Providers>: Sonner's <Toaster> only receives toasts

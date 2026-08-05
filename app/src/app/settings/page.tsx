@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useEffect, useCallback, useSyncExternalStore } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { toast as sonnerToast } from "sonner";
 import { useToast } from "@/components/toast";
 import {
-  Check, Loader2, X, Activity, Eye, EyeOff, Sun, Moon, Monitor,
+  Check, Loader2, X, Activity, Eye, EyeOff,
   BellRing, Sunrise, RefreshCw, Send,
 } from "lucide-react";
 import { useGarmin } from "@/lib/use-garmin";
@@ -13,49 +13,6 @@ import { PushSettings } from "@/components/push-settings";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { cn } from "@/lib/utils";
-
-// --- Theme -------------------------------------------------------------
-// globals.css defines .light/.dark on :root; layout.tsx applies the effective
-// class before first paint. Dark is the default: no stored preference resolves
-// to dark regardless of the OS. "system" is now stored as an explicit value
-// (not the absence of a key) so it stays distinguishable from the unset
-// default — this control just keeps class + localStorage in step.
-
-type Theme = "light" | "system" | "dark";
-
-let themeListeners: (() => void)[] = [];
-const themeStore = {
-  subscribe(cb: () => void) {
-    themeListeners.push(cb);
-    return () => { themeListeners = themeListeners.filter((l) => l !== cb); };
-  },
-  get(): Theme {
-    const s = localStorage.getItem("lifeos-theme");
-    // Unset ⇒ dark default (matches the pre-paint script in layout.tsx).
-    return s === "light" || s === "dark" || s === "system" ? s : "dark";
-  },
-  set(t: Theme) {
-    const root = document.documentElement;
-    root.classList.remove("light", "dark");
-    // Store every explicit choice — including "system" — so the unset state
-    // stays reserved for the dark default.
-    localStorage.setItem("lifeos-theme", t);
-    // The effective class must always be present (shadcn tokens + `dark:`
-    // utilities key off it), so resolve "system" here too.
-    const effective =
-      t === "system"
-        ? matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"
-        : t;
-    root.classList.add(effective);
-    for (const l of themeListeners) l();
-  },
-};
-
-function useTheme(): [Theme, (t: Theme) => void] {
-  const theme = useSyncExternalStore(themeStore.subscribe, themeStore.get, () => "dark" as Theme);
-  return [theme, themeStore.set];
-}
 
 // --- Shared bits ---------------------------------------------------------
 
@@ -278,15 +235,8 @@ function GarminCard() {
 
 // --- Page --------------------------------------------------------------
 
-const THEME_OPTIONS: { id: Theme; label: string; Icon: typeof Sun }[] = [
-  { id: "light", label: "Light", Icon: Sun },
-  { id: "system", label: "System", Icon: Monitor },
-  { id: "dark", label: "Dark", Icon: Moon },
-];
-
 export default function SettingsPage() {
   const { toast } = useToast();
-  const [theme, setTheme] = useTheme();
   const [briefRunning, setBriefRunning] = useState(false);
   const [testSending, setTestSending] = useState(false);
 
@@ -390,30 +340,6 @@ export default function SettingsPage() {
               {briefRunning ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
               {briefRunning ? "Rebuilding…" : "Rebuild now"}
             </Button>
-          </div>
-        </Section>
-
-        {/* Appearance */}
-        <Section title="Appearance">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <span className="text-sm text-muted-foreground">Theme</span>
-            <div className="flex gap-1 rounded-lg bg-muted p-1">
-              {THEME_OPTIONS.map(({ id, label, Icon }) => (
-                <button
-                  key={id}
-                  onClick={() => setTheme(id)}
-                  aria-pressed={theme === id}
-                  className={cn(
-                    "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-[background-color,color,transform] duration-150 active:scale-[0.96]",
-                    theme === id
-                      ? "bg-card text-foreground shadow-sm"
-                      : "text-muted-foreground"
-                  )}
-                >
-                  <Icon size={13} /> {label}
-                </button>
-              ))}
-            </div>
           </div>
         </Section>
       </div>
