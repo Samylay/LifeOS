@@ -73,6 +73,35 @@
 
 ## Log
 
+- **2026-08-05 (autoloop, T74):** Re-checked T64/T27/T29 first — all unchanged
+  (T64: read-only `docker exec lifeos node` query against `/data/lifeos.db`
+  confirms `teachSessions` still 0 docs, all 11 `teachTopics` still
+  `queued`/unscheduled, same `feed.ts`-sourced `learningRecords`, falsifier
+  still holds; T27/T29 standing blocks unchanged) — wrote nothing on any of
+  them per the re-block-on-unchanged-cause rule. T37/T38 remain held per
+  Samy's explicit "skip for now." First actionable: **T74** (status colors
+  via semantic tokens). `grep -rn "#EF4444\|#F59E0B\|#3B82F6"
+  app/src/app/page.tsx app/src/components/brief/` was already empty — the
+  2026-07-20 `ui-overhaul` token pass (0700240) plus later T61/T73 rewrites
+  of the Today/brief surface already routed every status color through
+  `var(--color-*)`/`color-mix`, and no dead `text-primary` class survives.
+  No code change to make; verified the task's own gate instead: `npx tsc
+  --noEmit` clean, `npx vitest run` 271/271 green, `curl / ` → 200. `/brief`
+  is no longer its own route (folded into `/` by the earlier IA restructure,
+  308-redirects to `/`) — the plan's file/line references and the `/brief`
+  200 check predate that move. Ticked done with the evidence above; only
+  ROADMAP.md changed, nothing else to commit.
+  Pitch: closes out a stale improve-ui finding that later, unrelated UI
+  rewrites had already made moot — confirming that saves a future executor
+  from re-deriving the same "nothing to change" conclusion from scratch.
+  Quiz: why does this log entry cite commit `0700240` by hash instead of
+  just saying "already fixed"? *(That commit predates T74's own audit
+  writeup by three days in wall-clock terms but the audit was written
+  2026-07-17 against an older tree — 0700240 landed 2026-07-20 and is the
+  actual point where the traced hex literals disappeared from the Today/
+  brief surface, so citing it pins the claim to a verifiable diff instead of
+  an unfalsifiable "seems fine now.")*
+
 - **2026-08-04 (autoloop, T76):** Re-checked T64 first — falsifier re-run
   against the live DB (`docker exec lifeos node`, read-only): `teachSessions`
   still 0 docs, all 11 `teachTopics` still `queued`/unscheduled, same
@@ -1239,7 +1268,7 @@ Nine centres (LifeOS, Flux, Ecole, Scout, reels-reader, homelab-infra, workouts,
   - SAMY 2026-08-02: rejected
 - [ ] **T79 — drop the milestones layer from goals?** (M) — /projects currently runs quarter > milestone > week > commitment > project > task > ship, seven levels. Milestones are free text, unlinked to projects; their only affordance is copy-to-this-week. The audit's read: projects are the milestones, and the layer is planning overhead on a shipping surface. Decide: (a) keep milestones, (b) delete the layer (existing milestone text gets appended to each goal's outcome note so nothing is lost). The rest of the goal-card diet (readiness track, manual log-session) already shipped 2026-07-29 as clear-cut.
   - SAMY 2026-08-02: approved
-- [ ] **T74 — Status colors via semantic tokens, not hard-coded hex** (S) — from the 2026-07-17 improve-ui audit (full plan at `.scratch/design-plans/semantic-color-tokens-not-hex.md` — read it first). The Today surface hard-codes `#EF4444`/`#F59E0B`/`#3B82F6` (11 sites: `page.tsx:128-129,164`, `brief-cards.tsx:18,180,512,530`, `talk-card.tsx:133,146-147,194`) while `globals.css:50-54` defines `--color-danger/warning/info` with identical values — the literals detach these states from the token system. Replace opaque literals with the matching `var(--color-*)` (works in the JS color maps too — they land in inline styles); the two alpha forms (`#EF444412`, `#EF444415`) become `color-mix(in srgb, var(--color-danger) 7%|9%, transparent)`; drop the inert `text-primary` class at `page.tsx:167`. Zero visual change intended. Verify: `npx tsc --noEmit`, tests green, rebuild+redeploy, `/` and `/brief` 200, `grep -rn "#EF4444\|#F59E0B\|#3B82F6" app/src/app/page.tsx app/src/components/brief/` empty.
+- [x] **T74 — Status colors via semantic tokens, not hard-coded hex** (S) — from the 2026-07-17 improve-ui audit (full plan at `.scratch/design-plans/semantic-color-tokens-not-hex.md` — read it first). The Today surface hard-codes `#EF4444`/`#F59E0B`/`#3B82F6` (11 sites: `page.tsx:128-129,164`, `brief-cards.tsx:18,180,512,530`, `talk-card.tsx:133,146-147,194`) while `globals.css:50-54` defines `--color-danger/warning/info` with identical values — the literals detach these states from the token system. Replace opaque literals with the matching `var(--color-*)` (works in the JS color maps too — they land in inline styles); the two alpha forms (`#EF444412`, `#EF444415`) become `color-mix(in srgb, var(--color-danger) 7%|9%, transparent)`; drop the inert `text-primary` class at `page.tsx:167`. Zero visual change intended. Verify: `npx tsc --noEmit`, tests green, rebuild+redeploy, `/` and `/brief` 200, `grep -rn "#EF4444\|#F59E0B\|#3B82F6" app/src/app/page.tsx app/src/components/brief/` empty. *(2026-08-05: verified done, no code change needed — superseded by the 2026-07-20 `ui-overhaul` token pass (0700240) and later Today/brief rewrites (T61, T73). `grep -rn "#EF4444\|#F59E0B\|#3B82F6" app/src/app/page.tsx app/src/components/brief/` is already empty; the alpha forms are already `color-mix(in srgb, ...)` (`brief-cards.tsx:459`); no dead `text-primary` class remains — the current occurrences all do real work. `/brief` no longer exists as its own route (folded into `/` by the IA restructure) and 308-redirects to `/`, which the design plan's file/line references predate. tsc clean, 271/271 vitest green, `/` 200.)*
 
 ## Content OS — scripting automation (shipped 2026-07-09: feat/content-os-scripting branch; merged to master 2026-07-10 — tasks renumbered T25*→T39* on merge, T25 was already taken by the default-public pipeline task)
 
