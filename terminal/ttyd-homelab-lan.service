@@ -1,0 +1,37 @@
+# ttyd-homelab-lan — same ttyd, bound directly to the tailscale interface IP
+# instead of loopback. Exists because Samy's phone has "Use Tailscale DNS" off
+# (carrier DNS conflict), so `https://<magicdns-name>:8444` never
+# resolves there — same reason LifeOS itself is dual-bound
+# (docker-compose.yml: "<tailnet-ip>:3000:3000") and PAGER_CLICK_URL uses
+# the raw IP. This unit is the phone-reachable path; ttyd-homelab.service
+# (127.0.0.1 + tailscale serve HTTPS) stays for devices where MagicDNS works.
+# Both attach the SAME tmux session ("homelab"), so either path resumes the
+# same shell.
+#
+# Install: sudo cp ttyd-homelab-lan.service /etc/systemd/system/
+#          sudo systemctl daemon-reload && sudo systemctl enable --now ttyd-homelab-lan
+#
+# Auth: NONE (Samy's explicit call, 2026-07-25 — see ttyd-homelab.service for
+# the full tradeoff note; the tailnet boundary is the only gate here).
+[Unit]
+StartLimitIntervalSec=600
+StartLimitBurst=8
+Description=ttyd web terminal (raw tailscale-IP bind, for phones with Tailscale DNS off)
+After=network-online.target
+Wants=network-online.target
+OnFailure=notify-telegram@%n.service
+
+[Service]
+EnvironmentFile=/home/quorky/.config/homelab/secrets.env
+Type=simple
+User=quorky
+Group=quorky
+WorkingDirectory=/home/quorky
+# Bound to the tailscale interface only — never 0.0.0.0 (that would also
+# listen on the LAN/Wi-Fi interface, not just the tailnet).
+ExecStart=/home/quorky/.local/bin/ttyd -p 7681 -i ${TAILNET_IP} -W tmux new-session -A -s homelab
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

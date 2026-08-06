@@ -1,0 +1,35 @@
+# ttyd-homelab — web terminal into the homelab host, embedded in LifeOS /terminal.
+# Persistent session: attaches to (or creates) a tmux session named "homelab" so
+# reconnecting from a phone resumes state instead of a fresh shell each time.
+# Install: sudo cp ttyd-homelab.service /etc/systemd/system/
+#          sudo systemctl daemon-reload && sudo systemctl enable --now ttyd-homelab
+#
+# Auth: NONE (Samy's explicit call, 2026-07-25 — dropped ttyd's own basic
+# auth prompt for zero-friction phone access; the tailnet boundary IS the
+# auth here, same trust model as n8n/LifeOS/pager, none of which have an
+# app-level login either). Means: anyone who can reach 127.0.0.1:7681 (via
+# `tailscale serve`) or the LAN unit's tailscale-IP bind gets an
+# unauthenticated root-capable shell, no second factor. To restore a
+# password: re-add `-c "$TTYD_AUTH"` to ExecStart and TTYD_AUTH=user:pass to
+# secrets.env.
+[Unit]
+StartLimitIntervalSec=600
+StartLimitBurst=8
+Description=ttyd web terminal (homelab host access for LifeOS /terminal)
+After=network-online.target
+Wants=network-online.target
+OnFailure=notify-telegram@%n.service
+
+[Service]
+Type=simple
+User=quorky
+Group=quorky
+WorkingDirectory=/home/quorky
+# Bound to 127.0.0.1 only — reached over the tailnet exclusively via
+# `tailscale serve`, same trust boundary as every other homelab service.
+ExecStart=/home/quorky/.local/bin/ttyd -p 7681 -i 127.0.0.1 -W tmux new-session -A -s homelab
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
