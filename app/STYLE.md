@@ -59,6 +59,41 @@ component library (Radix primitives + recharts are the only runtime deps).
   checklist logic 2026-07-31: two families max ✓, distinct roles ✓,
   tabular-nums for numbers ✓.)
 
+## Modal vs page vs nonmodal (decision rule, 2026-08-06)
+
+From Vitaly Friedman's decision tree (smashingmagazine.com/2026/03/modal-separate-page-ux-decision-tree)
+plus NN/g: most overlays fire at the wrong moment and interrupt — an overlay is
+interruptive by nature, so it must earn its severity. Vocabulary: *dialog* =
+any user-system exchange; *overlay* = panel on top of the page; *modal* =
+overlay with the background disabled; *nonmodal* = background stays usable;
+*lightbox* = dimmed backdrop for focus.
+
+Ask three questions, in order:
+
+1. **Does the user need the underlying screen's context?** No → it's a page,
+   not an overlay.
+2. **Is the task short and self-contained (one decision, one small form)?**
+   No (multi-step, needs full attention, or worth a shareable/bookmarkable
+   URL) → page/route.
+3. **Must the background be locked?** Only for destructive/irreversible
+   confirmations. Otherwise prefer **nonmodal** (side panel, bottom sheet the
+   user can leave) over modal.
+
+Repeated high-frequency tasks get neither: inline edit or an expandable row.
+Never open an overlay uninvited (on load, on timer) — overlays are answers to
+a user action, not announcements.
+
+Audit against the current inventory (2026-08-06): `ConfirmDialog` call sites
+(leads, recipes, content, goals, projects, prime) and the Archive-project
+dialog are question-3 cases — correct as modals. The Assistant chat panel is
+correctly nonmodal on desktop (side panel, background live); on mobile it
+scrims — acceptable while capture stays one-shot, but if a mobile chat grows
+multi-step it wants a route. The voice Transform-presets modal is the one
+borderline case: it nests a second step (list → edit form) inside a dialog;
+if it grows a third state, promote it to a route. Nothing currently modal
+should be a page — keep it that way by running new flows through the three
+questions above.
+
 ## Decision cost (Hick's Law)
 
 Time-to-act grows with the number and complexity of competing choices. LifeOS
