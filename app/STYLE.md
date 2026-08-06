@@ -1,5 +1,31 @@
 # LifeOS UI style guide
 
+## Principles (drafted 2026-08-06 from decisions already made)
+
+Short, opinionated, arguable — they pre-settle recurring debates (per Vitaly
+Friedman's practical guide to design principles; phrasing corpus:
+https://principles.design). Each one is a decision Samy already made, not an
+aspiration. When a review or a new feature contradicts one, the principle
+wins unless Samy retires it.
+
+1. **Dark-only. We delete themes rather than maintain two.** Every surface is
+   designed against the dark tokens; there is no light mode to keep honest
+   (removed 2026-08, commit 9a197fa).
+2. **Five destinations. A new surface earns a nav slot only by displacing
+   one.** Everything else lives under More or a footer link (nav diet,
+   2026-07-29). If it can't displace anything, it isn't primary.
+3. **The Assistant is the only capture surface.** New input modes (voice,
+   share, brain-dump) route into it; we do not build a second capture UI
+   (decision 2026-07-16, re-architecting it is the anti-pattern).
+4. **The boring, already-used option wins.** LifeOS is scanned dozens of
+   times a day: familiarity and low decision cost beat aesthetic ambition,
+   and a novel pattern must earn its orientation cost (Hick's-law section
+   below is the enforcement arm).
+5. **Built to be left quickly. No engagement mechanics, ever.** No streaks,
+   no infinite feeds, no attention-holding tricks; even /feed (the IG
+   replacement) gates cards on recall quizzes instead of rewarding time
+   spent (2026-07-20 quiz-only interval law).
+
 Adopted 2026-07-19 (Samy's spec): unified **shadcn/ui + Tremor** foundation,
 copy-in only — every component lives in this repo, no installed component libs.
 
@@ -38,9 +64,10 @@ component library (Radix primitives + recharts are the only runtime deps).
   (`contrast-color(var(--x) vs white, ...)`) ship; until then keep hand-paired
   foregrounds.
 - Built on the **sage/warm palette** (`--color-sage-*`, `--color-warm-*`).
-  Dark mode first; light fully supported. The `.dark` class on `<html>` is
-  authoritative — the layout script and theme store always resolve "system"
-  to a concrete class.
+  Dark-only since 2026-08 (commit 9a197fa removed light mode — see
+  Principle 1): `.dark` is server-rendered on `<html>`, a stored
+  `lifeos-theme=light` preference is ignored, and the dark values are the
+  only values.
 - Legacy `--bg-*` / `--text-*` / `--border-*` / `--accent` vars are
   **deprecated aliases**: don't use them in new/migrated code; delete them once
   no component references them.
