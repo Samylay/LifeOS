@@ -1,0 +1,178 @@
+// Server-side Enable Banking client, offline-testable (ROADMAP T68).
+// Enable Banking replaces GoCardless Bank Account Data (see T67 — GoCardless
+// closed to individual signups). Unlike Strava/Google Calendar there is no
+// refresh-token dance: every call authenticates with a short-lived (1h) app
+// JWT, RS256-signed with our private key (`kid` = app id). Enable Banking
+// does not host the consent UI itself, so *we* drive the redirect + session
+// exchange (see T69 for where the session id gets persisted).
+import crypto from "node:crypto";
+
+const API_BASE = "https://api.enablebanking.com";
+const ISSUER = "enablebanking.com";
+const AUDIENCE = "api.enablebanking.com";
+
+export function isEnableBankingConfigured(): boolean {
+  return Boolean(process.env.ENABLE_BANKING_APP_ID && process.env.ENABLE_BANKING_PRIVATE_KEY);
+}
+
+function base64url(input: Buffer | string): string {
+  return Buffer.from(input).toString("base64url");
+}
+
+export interface EnableBankingJwtClaims {
+  iss: string;
+  aud: string;
+  iat: number;
+  exp: number;
+}
+
+/**
+ * Signs a fresh Enable Banking app JWT. Exported so tests can verify the
+ * exact header/claim shape against a throwaway keypair without touching env
+ * vars or the real .pem. `now` is injectable for deterministic exp checks.
+ */
+export function signEnableBankingJwt(appId: string, privateKeyPem: string, now: number = Date.now()): string {
+  const header = { typ: "JWT", alg: "RS256", kid: appId };
+  const iat = Math.floor(now / 1000);
+  const claims: EnableBankingJwtClaims = { iss: ISSUER, aud: AUDIENCE, iat, exp: iat + 3600 };
+  const signingInput = `${base64url(JSON.stringify(header))}.${base64url(JSON.stringify(claims))}`;
+  const signature = crypto.sign("RSA-SHA256", Buffer.from(signingInput), privateKeyPem);
+  return `${signingInput}.${base64url(signature)}`;
+}
+
+function enableBankingJwt(): string | null {
+  const appId = process.env.ENABLE_BANKING_APP_ID;
+  const privateKey = process.env.ENABLE_BANKING_PRIVATE_KEY;
+  if (!appId || !privateKey) return null;
+  return signEnableBankingJwt(appId, privateKey);
+}
+
+// Injectable so tests never hit the network — default is the real fetch.
+export type EnableBankingTransport = typeof fetch;
+
+async function call<T>(
+  transport: EnableBankingTransport,
+  path: string,
+  init: RequestInit = {}
+): Promise<T | null> {
+  const jwt = enableBankingJwt();
+  if (!jwt) return null;
+
+  let r: Response;
+  try {
+    r = await transport(`${API_BASE}${path}`, {
+      ...init,
+      headers: {
+        Authorization: `Bearer ${jwt}`,
+        "Content-Type": "application/json",
+        ...init.headers,
+      },
+      signal: AbortSignal.timeout(20_000),
+    });
+  } catch {
+    return null;
+  }
+  if (!r.ok) return null;
+  return (await r.json()) as T;
+}
+
+export interface Aspsp {
+  name: string;
+  country: string;
+  logo?: string;
+}
+
+/** (b) List banks (ASPSPs) available in a country, e.g. "FR". */
+export async function listAspsps(country: string, transport: EnableBankingTransport = fetch): Promise<Aspsp[] | null> {
+  const body = await call<{ aspsps: Aspsp[] }>(transport, `/aspsps?country=${encodeURIComponent(country)}`);
+  return body?.aspsps ?? null;
+}
+
+export interface StartAuthParams {
+  aspspName: string;
+  aspspCountry: string;
+  redirectUrl: string;
+  state: string;
+  validUntilIso: string;
+}
+
+/** (c) Start the bank-auth consent flow; returns the URL to redirect the user to. */
+export async function startAuth(
+  params: StartAuthParams,
+  transport: EnableBankingTransport = fetch
+): Promise<string | null> {
+  const body = await call<{ url: string }>(transport, "/auth", {
+    method: "POST",
+    body: JSON.stringify({
+      access: { valid_until: params.validUntilIso },
+      aspsp: { name: params.aspspName, country: params.aspspCountry },
+      state: params.state,
+      redirect_url: params.redirectUrl,
+      psu_type: "personal",
+    }),
+  });
+  return body?.url ?? null;
+}
+
+export interface BankSession {
+  sessionId: string;
+  accounts: string[];
+}
+
+/** (d) Exchange the consent-redirect `code` for a session id + account uids. */
+export async function exchangeCode(code: string, transport: EnableBankingTransport = fetch): Promise<BankSession | null> {
+  const body = await call<{ session_id: string; accounts: string[] }>(transport, "/sessions", {
+    method: "POST",
+    body: JSON.stringify({ code }),
+  });
+  if (!body) return null;
+  return { sessionId: body.session_id, accounts: body.accounts };
+}
+
+export interface BankTransaction {
+  transactionId: string;
+  bookingDate?: string;
+  valueDate?: string;
+  amount: string;
+  currency: string;
+  creditorName?: string;
+  debtorName?: string;
+  remittanceInformation?: string[];
+  raw: unknown;
+}
+
+/** (e) Transactions for one account uid. `continuationKey` pages through history. */
+export async function getTransactions(
+  accountUid: string,
+  continuationKey?: string,
+  transport: EnableBankingTransport = fetch
+): Promise<{ transactions: BankTransaction[]; continuationKey?: string } | null> {
+  const qs = continuationKey ? `?continuation_key=${encodeURIComponent(continuationKey)}` : "";
+  const body = await call<{
+    transactions: Array<{
+      transaction_id: string;
+      booking_date?: string;
+      value_date?: string;
+      transaction_amount: { amount: string; currency: string };
+      creditor?: { name?: string };
+      debtor?: { name?: string };
+      remittance_information?: string[];
+    }>;
+    continuation_key?: string;
+  }>(transport, `/accounts/${encodeURIComponent(accountUid)}/transactions${qs}`);
+  if (!body) return null;
+  return {
+    transactions: body.transactions.map((t) => ({
+      transactionId: t.transaction_id,
+      bookingDate: t.booking_date,
+      valueDate: t.value_date,
+      amount: t.transaction_amount.amount,
+      currency: t.transaction_amount.currency,
+      creditorName: t.creditor?.name,
+      debtorName: t.debtor?.name,
+      remittanceInformation: t.remittance_information,
+      raw: t,
+    })),
+    continuationKey: body.continuation_key,
+  };
+}
