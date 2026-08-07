@@ -73,6 +73,39 @@
 
 ## Log
 
+- **2026-08-08 (autoloop, T79):** Re-checked T64/T27/T29 first — all unchanged
+  (T64: falsifier still holds, `teachSessions` 0 docs; T27/T29 standing
+  design-capture blocks unchanged) — wrote nothing on any of them per the
+  re-block-on-unchanged-cause rule. T37/T38 remain held per Samy's explicit
+  "skip for now." First actionable in file order: **T79** (Samy approved
+  2026-08-02, "drop the milestones layer"). Read the approved spec: option
+  (b) is two parts, a code change (drop `milestones`/`doneMilestones` from
+  `Goal`, `useGoals`, the AI draft shape, and the milestone UI) and a data
+  migration (append each goal's existing milestone text into its outcome
+  note "so nothing is lost"). The second part writes to the live
+  `objectives` collection in `data/lifeos.db` — that's user data, a hard
+  NEVER for an unattended agent, and it can't be skipped: landing the code
+  change without it would silently delete milestone text off any goal that
+  has some, which is the exact loss the approved spec was written to avoid.
+  Left T79 unchecked with a BLOCKED note asking Samy to either run the
+  migration by hand or explicitly approve an attended pass before an
+  executor takes the code side. No code changes made; nothing else in file
+  order was actionable, so this run ends blocked rather than starting a
+  second task.
+  Pitch: catches a case the "code vs. data" split in the constitution
+  doesn't spell out explicitly — an approved decision whose two halves are
+  entangled, where doing only the safe half actively causes the harm the
+  task was written to prevent, so the correct move is to block the whole
+  thing rather than ship the partial code change.
+  Quiz: why not just ship the code change and leave the old milestone text
+  to rot unread in a field the UI no longer renders? *(Because "existing
+  milestone text gets appended to each goal's outcome note so nothing is
+  lost" was written into the approved spec as the compensating condition
+  for deleting the layer — shipping the deletion without it doesn't
+  partially satisfy the approval, it violates the specific term Samy
+  approved; a spec's stated data-preservation clause isn't optional scope,
+  it's the thing that made cutting the layer acceptable.)*
+
 - **2026-08-07 (autoloop, T68):** Re-checked T64 first — falsifier re-run
   against the live DB (`docker exec lifeos node`, read-only): `teachSessions`
   still 0 docs, all 11 `teachTopics` still `queued`/unscheduled. Cause
@@ -1297,6 +1330,7 @@ Nine centres (LifeOS, Flux, Ecole, Scout, reels-reader, homelab-infra, workouts,
   - SAMY 2026-08-02: rejected
 - [ ] **T79 — drop the milestones layer from goals?** (M) — /projects currently runs quarter > milestone > week > commitment > project > task > ship, seven levels. Milestones are free text, unlinked to projects; their only affordance is copy-to-this-week. The audit's read: projects are the milestones, and the layer is planning overhead on a shipping surface. Decide: (a) keep milestones, (b) delete the layer (existing milestone text gets appended to each goal's outcome note so nothing is lost). The rest of the goal-card diet (readiness track, manual log-session) already shipped 2026-07-29 as clear-cut.
   - SAMY 2026-08-02: approved
+  - BLOCKED (2026-08-08, autoloop): approved option (b) has two parts — (1) code-only: drop `milestones`/`doneMilestones` from `Goal` (types.ts), `useGoals` (use-goals.ts), the AI plan draft shape (claude-cli.ts), and the milestone UI in goal-section.tsx; (2) data: append each live goal's existing `milestones` text into its `outcome` note so nothing is lost. Part (2) is a write to the live `objectives` collection in `data/lifeos.db` — user data, hard NEVER for an unattended agent (constitution + this file's own NEVER list). Can't split (1) without (2): shipping the code change first would silently drop existing milestone text for any goal that has it, which is exactly what "so nothing is lost" was written to prevent. Needs Samy to either run the migration by hand (or explicitly approve one attended pass) before an executor lands the code side. Left unchecked, no code changes made.
 - [x] **T74 — Status colors via semantic tokens, not hard-coded hex** (S) — from the 2026-07-17 improve-ui audit (full plan at `.scratch/design-plans/semantic-color-tokens-not-hex.md` — read it first). The Today surface hard-codes `#EF4444`/`#F59E0B`/`#3B82F6` (11 sites: `page.tsx:128-129,164`, `brief-cards.tsx:18,180,512,530`, `talk-card.tsx:133,146-147,194`) while `globals.css:50-54` defines `--color-danger/warning/info` with identical values — the literals detach these states from the token system. Replace opaque literals with the matching `var(--color-*)` (works in the JS color maps too — they land in inline styles); the two alpha forms (`#EF444412`, `#EF444415`) become `color-mix(in srgb, var(--color-danger) 7%|9%, transparent)`; drop the inert `text-primary` class at `page.tsx:167`. Zero visual change intended. Verify: `npx tsc --noEmit`, tests green, rebuild+redeploy, `/` and `/brief` 200, `grep -rn "#EF4444\|#F59E0B\|#3B82F6" app/src/app/page.tsx app/src/components/brief/` empty. *(2026-08-05: verified done, no code change needed — superseded by the 2026-07-20 `ui-overhaul` token pass (0700240) and later Today/brief rewrites (T61, T73). `grep -rn "#EF4444\|#F59E0B\|#3B82F6" app/src/app/page.tsx app/src/components/brief/` is already empty; the alpha forms are already `color-mix(in srgb, ...)` (`brief-cards.tsx:459`); no dead `text-primary` class remains — the current occurrences all do real work. `/brief` no longer exists as its own route (folded into `/` by the IA restructure) and 308-redirects to `/`, which the design plan's file/line references predate. tsc clean, 271/271 vitest green, `/` 200.)*
 
 ## Content OS — scripting automation (shipped 2026-07-09: feat/content-os-scripting branch; merged to master 2026-07-10 — tasks renumbered T25*→T39* on merge, T25 was already taken by the default-public pipeline task)
