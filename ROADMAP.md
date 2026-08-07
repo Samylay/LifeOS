@@ -73,6 +73,35 @@
 
 ## Log
 
+- **2026-08-07 (autoloop, T68):** Re-checked T64 first — falsifier re-run
+  against the live DB (`docker exec lifeos node`, read-only): `teachSessions`
+  still 0 docs, all 11 `teachTopics` still `queued`/unscheduled. Cause
+  unchanged since 2026-07-24; wrote nothing on it per the
+  re-block-on-unchanged-cause rule (same for T27/T29's standing blocks and
+  T37/T38's explicit "skip for now"). First actionable: **T68** (Enable
+  Banking client wrapper). Built `src/lib/enable-banking.ts` following the
+  `google-calendar.ts` precedent: RS256 JWT signing via `node:crypto` (no new
+  dep), `isEnableBankingConfigured()` guard, and `listAspsps`/`startAuth`/
+  `exchangeCode`/`getTransactions` each taking an injectable transport
+  parameter so tests never touch the network. 9 new tests against a
+  throwaway keypair + redacted fixtures (JWT claims/signature, unconfigured
+  short-circuits before any transport call, per-endpoint request shape,
+  non-ok → null). `npx tsc --noEmit` clean, full suite 280/280 green,
+  `git check-ignore -v` confirms `*.pem` stays out of the repo. No live
+  credentials exist yet (T67 still open) — this task didn't need them.
+  Pitch: T68 was explicitly flagged "safe before T67" and needed no
+  judgment calls, so it was the first task in file order an unattended
+  agent could actually execute without inventing a convention or touching
+  live state.
+  Quiz: why does `call()` build the Authorization header from a freshly
+  signed JWT on every single request instead of caching it like
+  `google-calendar.ts` caches its OAuth access token? *(Enable Banking JWTs
+  are self-signed locally — signing costs one RSA-SHA256 op, no network
+  round-trip — so caching would only avoid a cheap CPU op at the risk of
+  handing out a token that's seconds from its 1h `exp` on a slow retry;
+  Google's OAuth token requires a real token-endpoint call to mint, which is
+  the thing worth caching.)*
+
 - **2026-08-05 (autoloop, T74):** Re-checked T64/T27/T29 first — all unchanged
   (T64: read-only `docker exec lifeos node` query against `/data/lifeos.db`
   confirms `teachSessions` still 0 docs, all 11 `teachTopics` still
@@ -1303,7 +1332,8 @@ credentials an unattended agent may not invent:
   - SAMY 2026-07-19: still approved, deferred to a Todoist reminder (due ~07-29) with the signup checklist condensed — this task stays NEEDS-SAMY on purpose (the signup + .pem generation are his hands only; credential wiring resumes here once they exist)
   - PREP 2026-07-21 (session, approved /decide item): everything credential-free is done — `/api/finance/callback` stub route, `ENABLE_BANKING_APP_ID` placeholder documented in `.env.local.example` + docker-compose comment (env_file already forwards it), `enable-banking.pem` uncommittable via `*.pem` in app/.gitignore AND `~/.config/git/ignore` (global, all repos). Remaining attended steps checklist: `.scratch/finance-tracker/MAP.md` § "T67 prep". Note: run `git check-ignore` from inside `app/` on the bare filename — it errors on paths outside the repo.
 
-- [ ] **T68 — Enable Banking client wrapper, offline-testable** (M→L) — `src/lib/enable-banking.ts`, server-side only. Follow the `src/lib/google-calendar.ts` precedent exactly: read creds from `process.env`, expose an `isConfigured()` guard so every call path degrades cleanly when creds are absent (they will be, until T67). **This is bigger than the GoCardless version it replaces**: Enable Banking does not host the consent dance, so *we* initiate bank auth and persist session state ourselves. Cover: (a) **JWT auth** — RS256 signed with the .pem, header `{typ:JWT, alg:RS256, kid:<app-id>}`, claims `iss:"enablebanking.com"`, `aud:"api.enablebanking.com"`, `iat`, `exp:iat+3600`; sent as `Authorization: Bearer <jwt>`; (b) `GET /aspsps?country=FR` to list banks; (c) `POST /auth` → returns the bank authorization URL to redirect Samy to; (d) the redirect returns a `code` → `POST /sessions` → session id + accounts (**session state must be persisted — T69's schema owns it**); (e) `GET /accounts/{uid}/transactions`. **No network in tests** — inject the transport, test against recorded *redacted* fixtures (rule 1: scrub account ids, IBANs, amounts, names), and use a **throwaway test keypair** for the JWT tests, never the real .pem. This task needs no live credentials and is safe before T67. Verify: `cd app && npx tsc --noEmit && npx vitest run src/lib/enable-banking.test.ts` green; a signed JWT verifies against the test public key with the exact claims above; `git check-ignore` confirms no .pem is committed.
+- [x] **T68 — Enable Banking client wrapper, offline-testable** (M→L) — `src/lib/enable-banking.ts`, server-side only. Follow the `src/lib/google-calendar.ts` precedent exactly: read creds from `process.env`, expose an `isConfigured()` guard so every call path degrades cleanly when creds are absent (they will be, until T67). **This is bigger than the GoCardless version it replaces**: Enable Banking does not host the consent dance, so *we* initiate bank auth and persist session state ourselves. Cover: (a) **JWT auth** — RS256 signed with the .pem, header `{typ:JWT, alg:RS256, kid:<app-id>}`, claims `iss:"enablebanking.com"`, `aud:"api.enablebanking.com"`, `iat`, `exp:iat+3600`; sent as `Authorization: Bearer <jwt>`; (b) `GET /aspsps?country=FR` to list banks; (c) `POST /auth` → returns the bank authorization URL to redirect Samy to; (d) the redirect returns a `code` → `POST /sessions` → session id + accounts (**session state must be persisted — T69's schema owns it**); (e) `GET /accounts/{uid}/transactions`. **No network in tests** — inject the transport, test against recorded *redacted* fixtures (rule 1: scrub account ids, IBANs, amounts, names), and use a **throwaway test keypair** for the JWT tests, never the real .pem. This task needs no live credentials and is safe before T67. Verify: `cd app && npx tsc --noEmit && npx vitest run src/lib/enable-banking.test.ts` green; a signed JWT verifies against the test public key with the exact claims above; `git check-ignore` confirms no .pem is committed.
+  *(2026-08-07: done in autoloop — `signEnableBankingJwt` (RS256 via node:crypto, no new dep) + `isEnableBankingConfigured()` guard; `listAspsps`/`startAuth`/`exchangeCode`/`getTransactions` each take an injectable `transport = fetch` param and return null on missing creds or non-ok response. 9 new tests: JWT verifies against a throwaway keypair with the exact claims, a different keypair's signature fails verification, unconfigured short-circuits before ever calling the transport, each call's Authorization header + body shape checked against redacted fixtures. `npx tsc --noEmit` clean, full suite 280/280 green, `git check-ignore -v` confirms `app/.gitignore`'s existing `*.pem` rule covers any future key file — no live credentials touched.)*
 
 - [ ] **T69 — Transactions schema + sync** (M) — additive only: new `CREATE TABLE IF NOT EXISTS` in the `src/lib/server-db.ts` style (`accounts`, `transactions`, **`bank_sessions`** — Enable Banking hands back a session id + expiry that we must persist ourselves, unlike GoCardless; T68 produces it, this task stores it, T72 watches it expire). **Do not alter or migrate any existing table** (constitution: no unattended migrations). Transactions dedup on the aggregator's transaction id — a re-sync must be idempotent, since 24 months of history gets pulled on first connect and re-pulled on every re-consent. Store the raw payload alongside normalised fields; the detector (T70) will want fields we haven't thought of yet. Sync is **manual-trigger only** in this task (an API route), not scheduled — scheduling waits until the shape is proven. Verify: `npx tsc --noEmit`; vitest covers a sync against fixtures run **twice**, asserting the second run inserts 0 rows and mutates nothing.
 
