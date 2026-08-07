@@ -42,6 +42,7 @@ services:
       # Morning brief — built in-app (src/lib/brief, daily 06:00 BRIEF_TZ).
       # Todoist token + n8n webhook in .env.
       BRIEF_TZ: "Europe/Paris"
+      FEED_RETIRED: "1"
       BRIEF_OUT: "/data/brief.json"
       OBJECTIVES_DIR: "/objectives"
       WHISPER_URL: "http://host.docker.internal:8091"

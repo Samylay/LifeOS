@@ -59,6 +59,12 @@ function scheduleNext() {
 }
 
 export function startFeedScheduler() {
+  // Feed retired 2026-08-08 (falsifier: <5 opens/week by 2026-08-03). The
+  // surface stays readable; generation stops. Unset FEED_RETIRED to revive.
+  if (process.env.FEED_RETIRED) {
+    log("feed retired (FEED_RETIRED set) — scheduler not started");
+    return;
+  }
   if (globalThis.__feedSchedulerStarted) return;
   globalThis.__feedSchedulerStarted = true;
 
