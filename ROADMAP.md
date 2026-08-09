@@ -73,6 +73,36 @@
 
 ## Log
 
+- **2026-08-10 (autoloop, T73):** Re-checked T64/T27/T29 first — all unchanged
+  (T64: falsifier still holds, no `teachSessions` docs; T27/T29 standing
+  design-capture/infra blocks unchanged) — wrote nothing on any of them per
+  the re-block-on-unchanged-cause rule. T37/T38 remain held per Samy's
+  explicit "skip for now." T69–T72 stay gated on T67 (still NEEDS-SAMY,
+  credentials not yet wired) — self-evident from T67's own unchecked status,
+  no separate note needed. First actionable in file order: **T73**. Checked
+  both halves against the live system: part (1), the `/api/notify` deep-link
+  gateway, is already active — a test POST with `path:"/prime"` round-tripped
+  through `GET /api/notify?limit=1` with the path intact, so an earlier
+  redeploy already shipped it, no action needed tonight. Part (2), deleting
+  the seed line "I trace problems upstream to their source before acting."
+  from the live `affirmationBank` row, is a live user-data write — read-only
+  query confirmed the row still carries it, but writing to it is the
+  constitution's hard NEVER for an unattended agent, same restriction the
+  2026-07-21 session itself hit. The task's Verify note requires both halves,
+  so it cannot pass tonight. Left unchecked with a BLOCKED note; only
+  ROADMAP.md changed.
+  Pitch: separates a task's two sub-acts by actual reversibility instead of
+  blocking the whole thing on sight — the deep-link half turned out to
+  already be live (worth confirming, not re-doing), and only the live-DB
+  half is the real, still-open blocker.
+  Quiz: why does a `curl POST` to this app's own `/api/notify` endpoint not
+  count as the same "live user-data write" that blocks part (2)? *(It writes
+  a fresh row to the app's own notification log, generated data with no
+  meaning as user history — nothing pre-existing is read, mutated, or lost.
+  The `affirmationBank` row is different: it is a specific, pre-existing,
+  Samy-authored document, and deleting it destroys data he created rather
+  than adding new operational output.)*
+
 - **2026-08-08 (autoloop, T79):** Re-checked T64/T27/T29 first — all unchanged
   (T64: falsifier still holds, `teachSessions` 0 docs; T27/T29 standing
   design-capture blocks unchanged) — wrote nothing on any of them per the
@@ -1381,6 +1411,7 @@ credentials an unattended agent may not invent:
 
 - [ ] **T73 — activate deep-link notifications + finish the prime-line removal** (S) — two hands-on acts left over from the 2026-07-21 /decide session (code committed + pushed, image built, tsc + 320 vitest green; the session's permission mode denied live-state writes): (1) `cd ~/apps/lifeos/app && docker compose up -d` — activates the `/api/notify` deep-link gateway (per-message `path` → pager Open link, ntfy Click, web-push url; morning attention push already sends `--path=/decide`); (2) delete "I trace problems upstream to their source before acting." in the /prime bank manager — the seed line is gone from code but the LIVE bank row (`users/local/affirmationBank/5a0156d1-6044-4880-a8eb-fe8500bfe6fe`) and today's composed primeDay still carry it, and live-DB writes stayed off-limits. Native Android taps additionally need an APK rebuild whenever convenient — until then the phone still opens /pager (web-push + pager rows deep-link as soon as (1) runs). Verify: `curl -s -X POST 127.0.0.1:3000/api/notify -H 'Content-Type: application/json' -d '{"text":"deep-link smoke","path":"/prime","severity":"low"}'` then `curl -s '127.0.0.1:3000/api/notify?limit=1'` shows `"path":"/prime"`; /prime no longer lists the traced-upstream line.
   - SAMY 2026-07-21: approved
+  BLOCKED (2026-08-10, autoloop): part (1) is already live — `curl -X POST 127.0.0.1:3000/api/notify -d '{"text":"...","path":"/prime",...}'` then `GET /api/notify?limit=1` confirms the stored message carries `"path":"/prime"`, so the deep-link gateway has been active since some earlier redeploy (no action needed). Part (2) is still open: read-only query against the live DB (`docker exec lifeos node`, `SELECT data FROM docs WHERE path='users/local/affirmationBank' AND id='5a0156d1-6044-4880-a8eb-fe8500bfe6fe'`) confirms the row still carries `"I trace problems upstream to their source before acting."`. Deleting that row is a live user-data write — a hard NEVER for an unattended agent — so the task's Verify note (which requires /prime to no longer list the line) cannot pass tonight. Left unchecked; needs Samy (or an attended session with live-state permission) to delete that one affirmation-bank row, at which point this task is verify-only.
 
 ## Homelab-optimised — delivery consolidation (wayfinder step 2 tail, added 2026-07-21)
 
