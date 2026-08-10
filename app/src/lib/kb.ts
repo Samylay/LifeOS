@@ -6,6 +6,7 @@
 // `## Hermes` summary/tags on the next file-watch pass.
 import fs from "node:fs";
 import path from "node:path";
+import { syncFtsIndex, searchFts, type IndexableFile } from "@/lib/kb-search";
 
 const KB_PATH = process.env.KB_PATH || "";
 // Container runs as root but the vault is owned by the host user; chown
@@ -90,18 +91,84 @@ function walk(dir: string, acc: string[]): void {
   }
 }
 
+function readNoteMeta(root: string, rel: string): NoteMeta | null {
+  const full = path.join(root, rel);
+  let content: string;
+  let mtime: number;
+  try {
+    content = fs.readFileSync(full, "utf-8");
+    mtime = fs.statSync(full).mtimeMs;
+  } catch {
+    return null;
+  }
+  const { summary, tags } = parseHermes(content);
+  return {
+    path: rel,
+    title: deriveTitle(content, full),
+    folder: rel.split(path.sep)[0] || "",
+    mtime,
+    summary,
+    tags,
+  };
+}
+
 /**
- * List notes, newest first. When `q` is given, filter by case-insensitive
- * match against the title, path, or file contents.
+ * List notes, newest first (no query — byte-identical to the original
+ * full-vault listing). When `q` is given, tokenizes it and AND-matches every
+ * term (order-independent) against title/content/tags via the FTS5 index in
+ * kb-search.ts, with a one-typo-tolerant fallback when the exact match is
+ * empty — see searchNotes() for the fallback/suggestions signal.
  */
 export function listNotes(q?: string, limit = 200): NoteMeta[] {
   if (!kbEnabled()) return [];
   const root = path.resolve(KB_PATH);
+  const query = q?.trim();
+
+  if (!query) {
+    const files: string[] = [];
+    walk(root, files);
+    const out: NoteMeta[] = [];
+    for (const file of files) {
+      let content: string;
+      let mtime: number;
+      try {
+        content = fs.readFileSync(file, "utf-8");
+        mtime = fs.statSync(file).mtimeMs;
+      } catch {
+        continue;
+      }
+      const rel = path.relative(root, file);
+      const { summary, tags } = parseHermes(content);
+      out.push({
+        path: rel,
+        title: deriveTitle(content, file),
+        folder: rel.split(path.sep)[0] || "",
+        mtime,
+        summary,
+        tags,
+      });
+    }
+    out.sort((a, b) => b.mtime - a.mtime);
+    return out.slice(0, limit);
+  }
+
+  return searchNotes(query, limit).notes;
+}
+
+export interface SearchResult {
+  notes: NoteMeta[];
+  usedFallback: boolean;
+  suggestions?: NoteMeta[];
+}
+
+/** Query-path search: syncs the FTS index against the current vault, then searches it. */
+export function searchNotes(query: string, limit = 200): SearchResult {
+  if (!kbEnabled()) return { notes: [], usedFallback: false };
+  const root = path.resolve(KB_PATH);
   const files: string[] = [];
   walk(root, files);
 
-  const query = q?.trim().toLowerCase();
-  const out: NoteMeta[] = [];
+  const indexable: IndexableFile[] = [];
   for (const file of files) {
     let content: string;
     let mtime: number;
@@ -112,22 +179,27 @@ export function listNotes(q?: string, limit = 200): NoteMeta[] {
       continue;
     }
     const rel = path.relative(root, file);
-    if (query) {
-      const hay = (rel + "\n" + content).toLowerCase();
-      if (!hay.includes(query)) continue;
-    }
-    const { summary, tags } = parseHermes(content);
-    out.push({
-      path: rel,
-      title: deriveTitle(content, file),
-      folder: rel.split(path.sep)[0] || "",
-      mtime,
-      summary,
-      tags,
-    });
+    const { tags } = parseHermes(content);
+    indexable.push({ relpath: rel, mtime, title: deriveTitle(content, file), content, tags: tags || [] });
   }
-  out.sort((a, b) => b.mtime - a.mtime);
-  return out.slice(0, limit);
+  syncFtsIndex(indexable);
+
+  const { relpaths, usedFallback } = searchFts(query, limit);
+  const notes = relpaths
+    .map((rel) => readNoteMeta(root, rel))
+    .filter((n): n is NoteMeta => n !== null);
+
+  if (notes.length === 0) {
+    const suggestions = indexable
+      .slice()
+      .sort((a, b) => b.mtime - a.mtime)
+      .slice(0, 5)
+      .map((f) => readNoteMeta(root, f.relpath))
+      .filter((n): n is NoteMeta => n !== null);
+    return { notes: [], usedFallback: false, suggestions };
+  }
+
+  return { notes, usedFallback };
 }
 
 export function readNote(relPath: string): Note | null {

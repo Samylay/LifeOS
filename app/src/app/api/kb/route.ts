@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { kbEnabled, listNotes, createNote } from "@/lib/kb";
+import { kbEnabled, listNotes, searchNotes, createNote } from "@/lib/kb";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -9,7 +9,18 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ enabled: false, notes: [] });
   }
   const q = req.nextUrl.searchParams.get("q") || undefined;
-  const notes = listNotes(q);
+  if (!q) {
+    return NextResponse.json({ enabled: true, notes: listNotes() });
+  }
+  const { notes, suggestions } = searchNotes(q);
+  if (notes.length === 0) {
+    return NextResponse.json({
+      enabled: true,
+      notes,
+      suggestions,
+      message: "No notes match — try fewer words.",
+    });
+  }
   return NextResponse.json({ enabled: true, notes });
 }
 
