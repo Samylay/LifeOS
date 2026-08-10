@@ -73,6 +73,42 @@
 
 ## Log
 
+- **2026-08-11 (autoloop, T80):** Re-checked T64/T27/T29/T37/T38/T79/T73 first —
+  all unchanged for the same reasons as the prior night's checks (T64
+  falsifier still holds, live DB re-queried read-only: `teachSessions` 0 docs,
+  `teachTopics` still 11/11 `queued`; T27/T29 standing design/infra blocks;
+  T37/T38 held per Samy's explicit skip; T79 still needs Samy to run the
+  live-data milestone migration; T73 still needs Samy to delete the live
+  affirmation-bank row). T69–T72 stay self-evidently gated on T67 (still
+  NEEDS-SAMY). Wrote nothing on any of them per the re-block rule. First
+  actionable, never-attempted task in file order: **T80**. Built `kb-search.ts`
+  (new additive `kb_fts`/`kb_fts_meta` tables in the existing lifeos.db,
+  FTS5, synced from vault file mtimes — same "new virtual table, no migration"
+  pattern already shipped for `strava_activities`), wired tokenized AND
+  matching into `kb.ts`'s query path (no-query path left byte-identical), a
+  one-typo-tolerant fallback (fts5vocab + edit distance, dropped the porter
+  stemmer after it broke exact typo-distance matching), and zero-result
+  suggestions (top 5 recent notes + a message) surfaced through `/api/kb` and
+  rendered on `/knowledge` instead of the old bare "No notes match." 5 new
+  tests in `kb.test.ts` (no-query shape, out-of-order match, AND-exclusion,
+  typo fallback, suggestions-on-zero-match) — full suite 285/285 green, tsc
+  clean. Rebuilt + redeployed; `/` and `/knowledge` both 200; live smoke
+  against the real vault: `?q=offline%20Wikipedia` (words reversed from the
+  source note's own phrasing) returned "Session Log.md", and a nonsense query
+  returned 0 notes + 5 suggestions + the try-fewer-words message. Split into
+  3 commits (index module / kb.ts wiring + tests / client UI) to stay under
+  the 400-line unattended cap.
+  Pitch: closes the exact-substring/dead-end search gap the 2026-08-06 audit
+  flagged, using the same additive-table pattern already proven safe for
+  Strava — no schema risk, no migration, and the no-query path is provably
+  unchanged.
+  Quiz: what happens to a `/knowledge` search when the query has a typo but
+  no exact match exists anywhere in the vault? — kb-search.ts's fallback
+  looks up the nearest indexed word within edit-distance 1 (skipping the
+  stemmer so distance still means something) and re-runs the same AND query
+  with the corrected term; if that still misses, the API returns the top 5
+  most-recently-modified notes as suggestions instead of an empty dead end.
+
 - **2026-08-10 (autoloop, T73):** Re-checked T64/T27/T29 first — all unchanged
   (T64: falsifier still holds, no `teachSessions` docs; T27/T29 standing
   design-capture/infra blocks unchanged) — wrote nothing on any of them per
@@ -1420,7 +1456,7 @@ credentials an unattended agent may not invent:
 
 ## Search UX — approved /decide item 2026-08-06 (source: Smashing "site-search paradox", smashingmagazine.com/2026/03/site-search-paradox-why-big-box-always-wins)
 
-- [ ] **T80 — /knowledge search: tokenized matching + FTS5 index + live zero-results state** (M) — confirmed diagnosis (2026-08-06 attended session): `app/src/lib/kb.ts` `listNotes()` search is a case-insensitive **exact-substring** `includes()` over `path + content`, evaluated by re-reading every vault .md file on each debounced keystroke (`use-kb.ts` refresh → `/api/kb?q=`). That is the article's exact failure mode: whole-phrase-only ("teach queue" matches, "queue teach" doesn't), typo-intolerant, and the zero-results state (`knowledge/page.tsx` "No notes match.") is a dead end. Scope: **/knowledge only** (the /recipes client-side filter is small-corpus and out of scope). Fix, in order of value: (1) tokenize the query and AND-match terms independently against title/path/tags/content so word order stops mattering — pure kb.ts change, no schema; (2) build an FTS5 index (better-sqlite3 ships FTS5) in a **new** `CREATE TABLE IF NOT EXISTS ... USING fts5` virtual table synced from file mtimes — additive only, no existing-table migration (constitution), and it also kills the read-every-file-per-keystroke cost; rank with bm25, prefix-match the last token; (3) zero-results must offer something: nearest-match suggestions (FTS5 `spellfix`/trigram fallback or cheapest: top recent notes + "try fewer words"), never a bare dead end. Keep `listNotes()`'s no-query path byte-identical. Verify: `npx tsc --noEmit` + vitest covering: multi-word query out of order finds a known note; a one-typo query still surfaces it via the fallback; empty-result response carries suggestions; rebuild + redeploy, `/knowledge` 200 and a search for an out-of-order pair of words from a real vault note returns it.
+- [x] **T80 — /knowledge search: tokenized matching + FTS5 index + live zero-results state** (M) (2026-08-11: done in autoloop — new `kb-search.ts` FTS5 index (additive `kb_fts`/`kb_fts_meta` tables in the existing lifeos.db, synced from vault mtimes), tokenized AND-match wired into `kb.ts`'s query path (no-query path untouched), one-typo fallback via fts5vocab + edit distance, `/api/kb` returns suggestions+message on zero results, `/knowledge` renders "Recent notes" instead of a dead end. See Log.) — confirmed diagnosis (2026-08-06 attended session): `app/src/lib/kb.ts` `listNotes()` search is a case-insensitive **exact-substring** `includes()` over `path + content`, evaluated by re-reading every vault .md file on each debounced keystroke (`use-kb.ts` refresh → `/api/kb?q=`). That is the article's exact failure mode: whole-phrase-only ("teach queue" matches, "queue teach" doesn't), typo-intolerant, and the zero-results state (`knowledge/page.tsx` "No notes match.") is a dead end. Scope: **/knowledge only** (the /recipes client-side filter is small-corpus and out of scope). Fix, in order of value: (1) tokenize the query and AND-match terms independently against title/path/tags/content so word order stops mattering — pure kb.ts change, no schema; (2) build an FTS5 index (better-sqlite3 ships FTS5) in a **new** `CREATE TABLE IF NOT EXISTS ... USING fts5` virtual table synced from file mtimes — additive only, no existing-table migration (constitution), and it also kills the read-every-file-per-keystroke cost; rank with bm25, prefix-match the last token; (3) zero-results must offer something: nearest-match suggestions (FTS5 `spellfix`/trigram fallback or cheapest: top recent notes + "try fewer words"), never a bare dead end. Keep `listNotes()`'s no-query path byte-identical. Verify: `npx tsc --noEmit` + vitest covering: multi-word query out of order finds a known note; a one-typo query still surfaces it via the fallback; empty-result response carries suggestions; rebuild + redeploy, `/knowledge` 200 and a search for an out-of-order pair of words from a real vault note returns it.
 
 ## Timezone correctness — approved /decide item 2026-08-06 (source: Smashing "moving from Moment to Temporal", smashingmagazine.com/2026/03/moving-from-moment-to-temporal-api)
 
