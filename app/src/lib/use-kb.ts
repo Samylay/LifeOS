@@ -17,6 +17,8 @@ export interface Note extends NoteMeta {
 
 export function useKnowledge() {
   const [notes, setNotes] = useState<NoteMeta[]>([]);
+  const [suggestions, setSuggestions] = useState<NoteMeta[]>([]);
+  const [message, setMessage] = useState<string | null>(null);
   const [enabled, setEnabled] = useState(true);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
@@ -28,9 +30,13 @@ export function useKnowledge() {
       const data = await res.json();
       setEnabled(data.enabled !== false);
       setNotes(data.notes || []);
+      setSuggestions(data.suggestions || []);
+      setMessage(data.message || null);
     } catch {
       setEnabled(false);
       setNotes([]);
+      setSuggestions([]);
+      setMessage(null);
     } finally {
       setLoading(false);
     }
@@ -71,5 +77,16 @@ export function useKnowledge() {
     [refresh, query]
   );
 
-  return { notes, enabled, loading, query, setQuery, refresh, readNote, createNote };
+  return {
+    notes,
+    suggestions,
+    message,
+    enabled,
+    loading,
+    query,
+    setQuery,
+    refresh,
+    readNote,
+    createNote,
+  };
 }

@@ -12,7 +12,7 @@ import {
   Sparkles,
   Tag,
 } from "lucide-react";
-import { useKnowledge, type Note } from "@/lib/use-kb";
+import { useKnowledge, type Note, type NoteMeta } from "@/lib/use-kb";
 import { useToast } from "@/components/toast";
 import { TeachSection } from "@/components/teach/teach-section";
 import { Button } from "@/components/ui/button";
@@ -119,10 +119,61 @@ function NoteReader({ note, onBack }: { note: Note; onBack: () => void }) {
   );
 }
 
+// --- Note row ---
+
+function NoteRow({
+  note: n,
+  readNote,
+  openNote,
+  toast,
+}: {
+  note: NoteMeta;
+  readNote: (path: string) => Promise<Note | null>;
+  openNote: (note: Note) => void;
+  toast: (msg: string) => void;
+}) {
+  return (
+    <button
+      onClick={async () => {
+        const full = await readNote(n.path);
+        if (full) openNote(full);
+        else toast("Could not open note");
+      }}
+      className="w-full text-left rounded-xl border border-border bg-card p-4 transition-colors hover:bg-muted active:scale-[0.99] duration-150"
+    >
+      <div className="flex items-start gap-3">
+        <div className="shrink-0 flex h-9 w-9 items-center justify-center rounded-lg bg-muted">
+          <FileText size={16} className="text-primary" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2 flex-wrap">
+            <p className="text-sm font-medium truncate text-foreground">{n.title}</p>
+            <Badge variant="secondary" className="rounded-md text-[10px] font-normal">
+              {n.folder}
+            </Badge>
+            <span className="text-xs ml-auto shrink-0 text-muted-foreground/70">{timeAgo(n.mtime)}</span>
+          </div>
+          {n.summary && <p className="text-xs mt-1 line-clamp-2 text-muted-foreground">{n.summary}</p>}
+          {n.tags && n.tags.length > 0 && (
+            <div className="flex flex-wrap gap-1 mt-1.5">
+              {n.tags.slice(0, 5).map((t) => (
+                <span key={t} className="text-[10px] px-1.5 py-0.5 rounded-md bg-primary/10 text-primary">
+                  {t}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </button>
+  );
+}
+
 // --- Page ---
 
 export default function KnowledgePage() {
-  const { notes, enabled, loading, query, setQuery, readNote, createNote } = useKnowledge();
+  const { notes, suggestions, message, enabled, loading, query, setQuery, readNote, createNote } =
+    useKnowledge();
   const { toast } = useToast();
   const [capturing, setCapturing] = useState(false);
   const [active, setActive] = useState<Note | null>(null);
@@ -224,53 +275,23 @@ export default function KnowledgePage() {
         <div className="space-y-2">
           {loading && notes.length === 0 ? (
             <p className="text-sm text-muted-foreground/70">Loading…</p>
+          ) : notes.length === 0 && query ? (
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground/70">{message || "No notes match."}</p>
+              {suggestions.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-xs font-medium text-muted-foreground/70">Recent notes</p>
+                  {suggestions.map((n) => (
+                    <NoteRow key={n.path} note={n} readNote={readNote} openNote={openNote} toast={toast} />
+                  ))}
+                </div>
+              )}
+            </div>
           ) : notes.length === 0 ? (
-            <p className="text-sm text-muted-foreground/70">
-              {query ? "No notes match." : "No notes yet."}
-            </p>
+            <p className="text-sm text-muted-foreground/70">No notes yet.</p>
           ) : (
             (showAllNotes || query ? notes : notes.slice(0, 5)).map((n) => (
-              <button
-                key={n.path}
-                onClick={async () => {
-                  const full = await readNote(n.path);
-                  if (full) openNote(full);
-                  else toast("Could not open note");
-                }}
-                className="w-full text-left rounded-xl border border-border bg-card p-4 transition-colors hover:bg-muted active:scale-[0.99] duration-150"
-              >
-                <div className="flex items-start gap-3">
-                  <div className="shrink-0 flex h-9 w-9 items-center justify-center rounded-lg bg-muted">
-                    <FileText size={16} className="text-primary" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <p className="text-sm font-medium truncate text-foreground">{n.title}</p>
-                      <Badge variant="secondary" className="rounded-md text-[10px] font-normal">
-                        {n.folder}
-                      </Badge>
-                      <span className="text-xs ml-auto shrink-0 text-muted-foreground/70">
-                        {timeAgo(n.mtime)}
-                      </span>
-                    </div>
-                    {n.summary && (
-                      <p className="text-xs mt-1 line-clamp-2 text-muted-foreground">{n.summary}</p>
-                    )}
-                    {n.tags && n.tags.length > 0 && (
-                      <div className="flex flex-wrap gap-1 mt-1.5">
-                        {n.tags.slice(0, 5).map((t) => (
-                          <span
-                            key={t}
-                            className="text-[10px] px-1.5 py-0.5 rounded-md bg-primary/10 text-primary"
-                          >
-                            {t}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </button>
+              <NoteRow key={n.path} note={n} readNote={readNote} openNote={openNote} toast={toast} />
             ))
           )}
           {!query && !showAllNotes && notes.length > 5 && (
