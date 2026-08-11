@@ -222,6 +222,12 @@ one proves for a density-first tool UI:
 - **Typography Nerd** — already studied in depth in the vault: "Design
   reference shelf — galleries and type" (type-as-imagery, one repeated link
   affordance, persistent left rail).
+- **House of Honey** (houseofhoney.com, studied 2026-08-11 in the vault
+  "Design references" note): nameplate masthead (identity spent in one band,
+  never repeated as decoration) + a two-register type ladder with no middle
+  sizes. Proof that hierarchy can come entirely from the jump between one
+  display register and one label register — the discipline to check /brief
+  and /knowledge headers against before adding an intermediate size.
 
 ## Charts (`src/components/charts/`)
 
