@@ -73,6 +73,58 @@
 
 ## Log
 
+- **2026-08-13 (autoloop, T81):** Re-checked T64/T79/T73 first (T27/T29/T37/38
+  are static design/infra/skip decisions, unchanged by construction) — all
+  unchanged for the same reasons as prior nights: T64 falsifier re-run
+  read-only against the live DB (`teachSessions` still 0 docs, all 11
+  `teachTopics` still `queued`, no `scheduledFor`); T79's live `objectives`
+  still show 3 goals carrying non-empty `milestones` (migration hasn't run);
+  T73's live `affirmationBank` row `5a0156d1-...` still carries the seed
+  line. Wrote nothing on any of them per the re-block rule. T77/T78/T67/T82
+  stay NEEDS-SAMY (T82 explicitly SAMY-rejected 2026-08-08); T69–T72 stay
+  gated on T67. First actionable: **T81**. Built all five fixes: (1)
+  `training-stats.ts`'s `currentStreak` cursor switched from
+  `setUTCHours`/UTC-date-key to local getters via a new `civilDayKey`
+  helper, matching `activityDate`'s pretend-UTC local keys; (2)
+  `use-reminders.ts`'s `isOverdue`/`isDueToday` now share one exported
+  `localDateKey` helper instead of one flooring local midnight and the other
+  comparing UTC ISO date strings; (3)+(4) added `calendarDaysBetween` next
+  to the existing `localDayOf` in `types.ts`, rewired `lastSessionDaysAgo`
+  and the six elapsed-24h "days ago"/"Shipped today" call sites
+  (`projects/page.tsx`, `page.tsx`, `knowledge/page.tsx`, `voice/page.tsx`,
+  `leads/page.tsx`, `bookmark-backfill.ts`) through it; (5)
+  `strava/summary/route.ts`'s `startOfWeekInTz` now converts the civil
+  Monday to the true UTC instant via `tz.ts`'s already-exported
+  `localTimeToUtcIso` instead of a naive `Date.UTC(y,m,d)` label — exported
+  it + gave it an optional `now` param for testability, left `tz.ts` and the
+  hardcoded `Europe/Paris` untouched with a comment per the task's own
+  scope fence. 9 new tests across 4 files, all using `process.env.TZ =
+  "Asia/Tokyo"` (confirmed Node honors env TZ changes live, no restart
+  needed) plus `vi.setSystemTime` where a real clock read was involved —
+  covering every case the Verify note named: a JST-today workout counting
+  toward the streak, a reminder due-today-not-overdue despite differing UTC
+  dates, a session/ship 1-day-ago-not-0 before 24h elapsed, and the Monday
+  00:30-local activity landing inside the strava week window (proved against
+  the true 2026-08-09T22:00:00Z Paris-Monday instant, not the old naive
+  2026-08-10T00:00:00Z). `npx tsc --noEmit` clean, full suite 294/294 green
+  (was 285), `docker compose build && up -d` succeeded, `/` `/projects`
+  `/knowledge` `/voice` `/leads` `/workouts` `/api/strava/summary` all 200.
+  One commit, 14 files, 206/33 +/-, under the 400-line cap.
+  Pitch: closes the pure-logic half of the day-boundary audit — no stored
+  format changed and no dependency added, so every fix here is safe under
+  any BRIEF_TZ decision T82 eventually lands (T82 was already SAMY-rejected
+  2026-08-08 for the dependency/migration half, which this task explicitly
+  did not touch).
+  Quiz: why does `currentStreak`'s fix use the machine's local Date getters
+  instead of an explicit IANA zone parameter like `tz.ts`'s functions take?
+  *(`start_date_local` itself carries no zone — Strava formats it with a
+  literal `Z` while the digits are already the athlete's wall clock, so the
+  only way to land in the same "pretend-local" key space is to read `today`
+  with the browser's own local getters too; this runs client-side, so the
+  browser's zone is the athlete's zone by construction, unlike the
+  server-side brief scheduler that has no such guarantee and needs an
+  explicit `tz` argument.)*
+
 - **2026-08-11 (autoloop, T80):** Re-checked T64/T27/T29/T37/T38/T79/T73 first —
   all unchanged for the same reasons as the prior night's checks (T64
   falsifier still holds, live DB re-queried read-only: `teachSessions` 0 docs,
@@ -1462,7 +1514,7 @@ credentials an unattended agent may not invent:
 
 > **Read `.scratch/temporal-tz-audit.md` before starting either task.** It is the full audit (every date computation in `app/src`, tiered by blast radius) and it lists the code that is ALREADY CORRECT and must not be "fixed" — notably `lib/brief/fetchers/work.ts:24-27`, `lib/google-calendar.ts:75`, `lib/brief/tz.ts:16-23` and `:50-55`, `components/goal-section.tsx:144-152`, and `lib/brief/builder.ts:41`. Samy is JST (UTC+9), so a UTC "today" is wrong for the first nine hours of every day.
 
-- [ ] **T81 — zone-correct the day-boundary logic that needs no dependency and no migration** (M) — the subset of the audit that is pure read-side logic: no stored format changes, no new dependency, no data migration. Five fixes, each independently verifiable. (1) `components/training-stats.ts:201-218` — `currentStreak`'s cursor is floored with `setUTCHours(0,0,0,0)` while the activity keys it compares against are athlete-local (`start_date_local`), so at 07:00 JST it starts on yesterday and the "allow today to be missing" fallback then steps back a second day; compute the cursor as a civil date in the same zone the keys are in. (2) `lib/use-reminders.ts:7-39` — `isOverdue` floors to local midnight, `isDueToday` compares UTC date strings; make both go through ONE local-date helper so a reminder cannot be overdue and not-due-today at once. (3) `lib/types.ts:579-598` — `lastSessionDaysAgo` divides by a fixed `86_400_000`, measuring elapsed 24h periods rather than calendar days, so the `STALE_AFTER_DAYS = 10` cliff flips at an arbitrary time of day; diff civil dates instead. (4) the same elapsed-24h pattern rendered as calendar-day prose at `app/projects/page.tsx:62-63,90-100` ("Shipped today" for a ship logged at 23:00 yesterday), `app/page.tsx:44-46`, `app/knowledge/page.tsx:26`, `app/voice/page.tsx:29`, `app/leads/page.tsx:167`, `lib/bookmark-backfill.ts:60` — route them all through one shared `calendarDaysBetween` helper rather than fixing six copies. (5) `app/api/strava/summary/route.ts:9,31-33,43-44` — the `formatToParts` prelude is correct and then line 32 discards it by handing `Date.UTC(civil y/m/d)` to `getActivitiesSince`, which compares against the real-UTC `start_date` column; convert the civil midnight to the true instant. Leave the hardcoded `Europe/Paris` on line 9 ALONE and add a comment noting it disagrees with BRIEF_TZ — which zone owns "the user's week" is Samy's call in T82, and changing it here would silently move his week by 9 hours. **Out of scope, do not touch:** anything that changes a stored key format (habits — that is T82), `lib/brief/tz.ts` (T82), and the Tier B vault-filename writes. Verify: `npx tsc --noEmit`; vitest with an injected fake "now" at 07:00 JST covering — a workout logged today counts toward the streak; a reminder due today is due-today and not overdue; a session logged yesterday at 20:00 reads as 1 day ago at 10:00 today, not 0; a ship at 23:00 yesterday does not render "Shipped today"; the strava week window includes a Monday 00:30 local activity. Then `docker compose build && docker compose up -d` and `/`, `/projects`, `/knowledge` 200.
+- [x] **T81 — zone-correct the day-boundary logic that needs no dependency and no migration** (2026-08-13: done in autoloop — see Log.) (M) — the subset of the audit that is pure read-side logic: no stored format changes, no new dependency, no data migration. Five fixes, each independently verifiable. (1) `components/training-stats.ts:201-218` — `currentStreak`'s cursor is floored with `setUTCHours(0,0,0,0)` while the activity keys it compares against are athlete-local (`start_date_local`), so at 07:00 JST it starts on yesterday and the "allow today to be missing" fallback then steps back a second day; compute the cursor as a civil date in the same zone the keys are in. (2) `lib/use-reminders.ts:7-39` — `isOverdue` floors to local midnight, `isDueToday` compares UTC date strings; make both go through ONE local-date helper so a reminder cannot be overdue and not-due-today at once. (3) `lib/types.ts:579-598` — `lastSessionDaysAgo` divides by a fixed `86_400_000`, measuring elapsed 24h periods rather than calendar days, so the `STALE_AFTER_DAYS = 10` cliff flips at an arbitrary time of day; diff civil dates instead. (4) the same elapsed-24h pattern rendered as calendar-day prose at `app/projects/page.tsx:62-63,90-100` ("Shipped today" for a ship logged at 23:00 yesterday), `app/page.tsx:44-46`, `app/knowledge/page.tsx:26`, `app/voice/page.tsx:29`, `app/leads/page.tsx:167`, `lib/bookmark-backfill.ts:60` — route them all through one shared `calendarDaysBetween` helper rather than fixing six copies. (5) `app/api/strava/summary/route.ts:9,31-33,43-44` — the `formatToParts` prelude is correct and then line 32 discards it by handing `Date.UTC(civil y/m/d)` to `getActivitiesSince`, which compares against the real-UTC `start_date` column; convert the civil midnight to the true instant. Leave the hardcoded `Europe/Paris` on line 9 ALONE and add a comment noting it disagrees with BRIEF_TZ — which zone owns "the user's week" is Samy's call in T82, and changing it here would silently move his week by 9 hours. **Out of scope, do not touch:** anything that changes a stored key format (habits — that is T82), `lib/brief/tz.ts` (T82), and the Tier B vault-filename writes. Verify: `npx tsc --noEmit`; vitest with an injected fake "now" at 07:00 JST covering — a workout logged today counts toward the streak; a reminder due today is due-today and not overdue; a session logged yesterday at 20:00 reads as 1 day ago at 10:00 today, not 0; a ship at 23:00 yesterday does not render "Shipped today"; the strava week window includes a Monday 00:30 local activity. Then `docker compose build && docker compose up -d` and `/`, `/projects`, `/knowledge` 200.
 
 - [ ] **T82 — NEEDS-SAMY: whose timezone is a "day", the temporal-polyfill dep, and the habit-key migration** (M) — three coupled decisions an unattended agent must not take. **(a) The zone question.** The app has no client-side notion of the user's zone; BRIEF_TZ is server-only, and every remaining fix needs an answer. Recommendation: plumb BRIEF_TZ to the client as the single source of truth, rather than using the browser's zone — otherwise the day boundary moves whenever the browser's zone changes, and streaks silently re-key. This also settles the `Europe/Paris` vs `Asia/Tokyo` split left in place by T81. **(b) The dependency.** `temporal-polyfill` (or `@js-temporal/polyfill`, 44.1 kB gzipped) is needed for client-side Temporal — Firefox 139+ ships it natively, Chromium does not yet. Constitution forbids unattended dependency adds. Worth noting the honest tradeoff: most of T81 was fixable with `Intl.DateTimeFormat` and no dep at all, so Temporal buys correctness-by-construction (`Temporal.Instant` *refuses* `add({days})`; `PlainDate` arithmetic is DST-immune) rather than new capability. The strongest case for it is not the streaks, it is `lib/brief/tz.ts:36-47` — `msUntilNextRun` steps candidate days by a fixed 86,400,000 (on a spring-forward day, stepping from 23:30 local lands on date+2, skipping a candidate and delaying the brief a full day) and resolves the zone offset at the naive UTC instant rather than the true target instant. Both are dormant under `Asia/Tokyo` and go live the moment BRIEF_TZ is `Europe/Paris`; `ZonedDateTime` with explicit `disambiguation` is the textbook fix. **(c) The migration.** `lib/use-habits.ts:36` stores history keys as UTC dates from a client component, so a habit ticked at 07:00 JST files under yesterday; the real fix re-keys existing history in the live `lifeos-data` volume. That is user data — a hard NEVER unattended, and it needs Samy's call on whether to re-key historical rows or only write new keys going forward. If the dep is approved, the audit's recommended first rewrite is `lib/use-habits.ts` `toggleToday` (smallest blast radius, three files, and the streak loop there is unambiguously wrong in every zone east of UTC — its seed is `d.setHours(0,0,0,0)` then `.toISOString()`, which is always yesterday's key, so today is never counted). Do quarters (`lib/types.ts:515-527`) second: higher leverage but currently latent, since all callers happen to be client-side and therefore accidentally JST-correct. Also queued here rather than in T81 because it is a judgement call: `app/api/chat/route.ts:92` injects `Today's date: ${new Date().toISOString()...}` into the system prompt, so the assistant is told it is yesterday for nine hours a day and every "schedule that for tomorrow" is off by one — trivial to fix, but it changes assistant behaviour, so it should ship with the zone decision rather than ahead of it.
   - SAMY 2026-08-08: rejected
