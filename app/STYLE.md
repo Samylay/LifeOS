@@ -228,6 +228,13 @@ one proves for a density-first tool UI:
   sizes. Proof that hierarchy can come entirely from the jump between one
   display register and one label register — the discipline to check /brief
   and /knowledge headers against before adding an intermediate size.
+- **Iceberg** (icebergdoc.org, studied 2026-08-12 in the vault "Design
+  references" note): the dark counterpart to this set. Persistent 1px column
+  rules as the only chrome (nav labels sit atop columns, content scrolls
+  through the grid), viewport-scale display type over full-bleed photography
+  with margin-numbered statements, and a single yellow side rail as the one
+  hue on the page. Reference for spending color once as an affordance and for
+  wayfinding via a fixed rule structure instead of a header.
 
 ## Charts (`src/components/charts/`)
 
