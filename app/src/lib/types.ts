@@ -580,8 +580,8 @@ export function milestoneProgress(goal: Goal): { done: number; total: number } {
 export function lastSessionDaysAgo(goal: Goal, now: Date = new Date()): number | null {
   if (goal.sessions.length === 0) return null;
   const latest = goal.sessions.map((s) => s.date).sort().at(-1)!;
-  const then = new Date(`${latest}T00:00:00`).getTime();
-  return Math.max(0, Math.floor((now.getTime() - then) / 86_400_000));
+  const then = new Date(`${latest}T00:00:00`);
+  return Math.max(0, calendarDaysBetween(then, now));
 }
 
 const STALE_AFTER_DAYS = 10;
@@ -600,6 +600,17 @@ export function goalPlanState(goal: Goal, weekOf: string, now: Date = new Date()
 /** Local YYYY-MM-DD for a date (session keys are local-day strings). */
 export function localDayOf(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+/**
+ * Calendar-day difference (b - a) using each Date's local civil day, not
+ * elapsed 24h periods — a ship at 23:00 yesterday is 1 calendar day ago at
+ * any time today, not 0 until a full 24h has passed.
+ */
+export function calendarDaysBetween(a: Date, b: Date): number {
+  const [ay, am, ad] = localDayOf(a).split("-").map(Number);
+  const [by, bm, bd] = localDayOf(b).split("-").map(Number);
+  return Math.round((Date.UTC(by, bm - 1, bd) - Date.UTC(ay, am - 1, ad)) / 86_400_000);
 }
 
 /**

@@ -8,6 +8,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Mic, Loader2, FileText, CheckCircle2 } from "lucide-react";
 import { useToast } from "@/components/toast";
+import { calendarDaysBetween } from "@/lib/types";
 
 interface Capture {
   id: string;
@@ -25,9 +26,9 @@ function timeAgo(v: unknown): string {
         ? Date.parse((v as { __date: string }).__date)
         : NaN;
   if (Number.isNaN(ms)) return "";
-  const d = Date.now() - ms;
-  const days = Math.floor(d / 86400000);
+  const days = calendarDaysBetween(new Date(ms), new Date());
   if (days > 0) return `${days}d ago`;
+  const d = Date.now() - ms;
   const hrs = Math.floor(d / 3600000);
   if (hrs > 0) return `${hrs}h ago`;
   const mins = Math.floor(d / 60000);

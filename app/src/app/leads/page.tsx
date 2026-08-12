@@ -16,6 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Skeleton } from "@/components/skeleton";
+import { calendarDaysBetween } from "@/lib/types";
 
 const STATUS_LABELS: Record<LeadStatus, string> = {
   new: "New",
@@ -164,7 +165,7 @@ function LeadCard({
   const [now] = useState(() => Date.now());
   const contactedDays =
     lead.status === "contacted" && lead.contactedAt
-      ? Math.floor((now - new Date(lead.contactedAt).getTime()) / 86_400_000)
+      ? calendarDaysBetween(new Date(lead.contactedAt), new Date(now))
       : null;
 
   return (

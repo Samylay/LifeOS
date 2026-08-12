@@ -17,6 +17,8 @@
 //
 // This collection is disposable. When the deck is empty the backfill is done.
 
+import { calendarDaysBetween } from "@/lib/types";
+
 export const BACKFILL_COLLECTION = "users/local/bookmarkBackfill";
 
 export type BackfillStatus = "pending" | "dropped" | "kept";
@@ -57,7 +59,7 @@ export function ageLabel(savedAt: string | Date, now: Date = new Date()): string
   const then = typeof savedAt === "string" ? new Date(savedAt) : savedAt;
   const ms = now.getTime() - then.getTime();
   if (!Number.isFinite(ms) || ms < 0) return "";
-  const days = Math.floor(ms / 86_400_000);
+  const days = calendarDaysBetween(then, now);
   if (days < 1) return "today";
   if (days < 30) return `${days}d`;
   const months = Math.floor(days / 30);

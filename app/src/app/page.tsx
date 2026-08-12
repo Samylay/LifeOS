@@ -27,6 +27,7 @@ import { Skeleton } from "@/components/skeleton";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import type { Brief } from "@/lib/brief-types";
+import { calendarDaysBetween } from "@/lib/types";
 
 interface BriefResponse {
   source: "live" | "fixture";
@@ -42,7 +43,7 @@ function greeting() {
 }
 
 function daysSince(date: Date): number {
-  return Math.floor((Date.now() - date.getTime()) / 86400000);
+  return calendarDaysBetween(date, new Date());
 }
 
 export default function Today() {

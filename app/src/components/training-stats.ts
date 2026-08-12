@@ -198,6 +198,15 @@ export function weeklyTrend(
 
 // ---------- Streak (merged from the retired lib/training/stats.ts) ----------
 
+// activityDate() parses Strava's start_date_local, which is formatted with a
+// trailing "Z" but actually carries the athlete's local wall-clock time — so
+// its UTC getters (toISOString) already give the athlete's civil day. `today`
+// is a real instant, so it needs the SAME civil-day extraction, via local
+// (not UTC) getters, to land on the same key space.
+function civilDayKey(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 export function currentStreak(rows: ActivityRow[], today = new Date()): number {
   if (rows.length === 0) return 0;
   const days = new Set<string>();
@@ -205,15 +214,14 @@ export function currentStreak(rows: ActivityRow[], today = new Date()): number {
     days.add(activityDate(r).toISOString().slice(0, 10));
   }
   let streak = 0;
-  const cursor = new Date(today);
-  cursor.setUTCHours(0, 0, 0, 0);
+  const cursor = new Date(today.getFullYear(), today.getMonth(), today.getDate());
   // allow today to be missing — start counting from yesterday in that case
-  if (!days.has(cursor.toISOString().slice(0, 10))) {
-    cursor.setUTCDate(cursor.getUTCDate() - 1);
+  if (!days.has(civilDayKey(cursor))) {
+    cursor.setDate(cursor.getDate() - 1);
   }
-  while (days.has(cursor.toISOString().slice(0, 10))) {
+  while (days.has(civilDayKey(cursor))) {
     streak++;
-    cursor.setUTCDate(cursor.getUTCDate() - 1);
+    cursor.setDate(cursor.getDate() - 1);
   }
   return streak;
 }

@@ -52,6 +52,23 @@ describe("currentStreak", () => {
     const rows = [onDay("2026-06-30"), onDay("2026-06-29")];
     expect(currentStreak(rows, new Date("2026-07-01T12:00:00Z"))).toBe(2);
   });
+
+  it("counts a workout logged 'today' in the athlete's local zone (JST)", () => {
+    const originalTz = process.env.TZ;
+    process.env.TZ = "Asia/Tokyo";
+    try {
+      // start_date_local pretends to be UTC but is actually JST wall-clock —
+      // a workout at JST 2026-08-13 08:00 is stored with that literal Z stamp.
+      const rows = [act({ start_date_local: "2026-08-13T08:00:00Z" })];
+      // "now" is the real instant 2026-08-13 07:00 JST, which is
+      // 2026-08-12 22:00 UTC — a naive UTC-day cursor would land on Aug 12
+      // and miss the Aug 13 activity entirely.
+      const now = new Date("2026-08-12T22:00:00Z");
+      expect(currentStreak(rows, now)).toBe(1);
+    } finally {
+      process.env.TZ = originalTz;
+    }
+  });
 });
 
 describe("comparePeriods", () => {

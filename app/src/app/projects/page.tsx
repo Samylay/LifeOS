@@ -15,7 +15,7 @@ import { ConfirmDialog } from "@/components/confirm-dialog";
 import { CountUp } from "@/components/count-up";
 import { GoalSection, GoalEditor, GOAL_STATE_RANK } from "@/components/goal-section";
 import type { Project, ProjectStatus, AreaId, Task, ShipLogEntry, Goal } from "@/lib/types";
-import { AREAS, AREA_HEX, mondayOf, goalPlanState, commitmentsForWeek, localDayOf, withShipActivity, parseTags } from "@/lib/types";
+import { AREAS, AREA_HEX, mondayOf, goalPlanState, commitmentsForWeek, localDayOf, calendarDaysBetween, withShipActivity, parseTags } from "@/lib/types";
 import { TaskItem, TaskCreateForm } from "@/components/task-list";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -60,7 +60,9 @@ const statusMeta = (s: ProjectStatus) => STATUS_COLUMNS.find((c) => c.status ===
 const tint = (color: string, pct: number) => `color-mix(in srgb, ${color} ${pct}%, transparent)`;
 
 const DAY_MS = 86_400_000;
-const daysSince = (d: Date) => Math.floor((Date.now() - new Date(d).getTime()) / DAY_MS);
+// Calendar-day count for prose ("Shipped today") — not the same as the
+// rolling 30-day window below, which stays elapsed-ms on purpose.
+const daysSince = (d: Date) => calendarDaysBetween(new Date(d), new Date());
 
 // A project that's meant to be in flight but hasn't named its exit point (or
 // has run its task list dry) is drifting — the thing exit-velocity guards

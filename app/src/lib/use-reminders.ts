@@ -4,19 +4,18 @@ import { useCallback } from "react";
 import { useCollection } from "./use-collection";
 import type { Reminder, ReminderFrequency } from "./types";
 
-function isOverdue(reminder: Reminder): boolean {
-  if (reminder.completed) return false;
-  const now = new Date();
-  now.setHours(0, 0, 0, 0);
-  const due = new Date(reminder.dueDate);
-  due.setHours(0, 0, 0, 0);
-  return due < now;
+/** Local YYYY-MM-DD, so overdue/due-today agree on the same civil day. */
+function localDateKey(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-function isDueToday(reminder: Reminder): boolean {
-  const today = new Date().toISOString().split("T")[0];
-  const dueDate = new Date(reminder.dueDate).toISOString().split("T")[0];
-  return dueDate === today;
+export function isOverdue(reminder: Reminder): boolean {
+  if (reminder.completed) return false;
+  return localDateKey(new Date(reminder.dueDate)) < localDateKey(new Date());
+}
+
+export function isDueToday(reminder: Reminder): boolean {
+  return localDateKey(new Date(reminder.dueDate)) === localDateKey(new Date());
 }
 
 function getNextDueDate(current: Date, frequency: ReminderFrequency): Date {

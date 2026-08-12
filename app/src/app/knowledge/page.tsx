@@ -13,6 +13,7 @@ import {
   Tag,
 } from "lucide-react";
 import { useKnowledge, type Note, type NoteMeta } from "@/lib/use-kb";
+import { calendarDaysBetween } from "@/lib/types";
 import { useToast } from "@/components/toast";
 import { TeachSection } from "@/components/teach/teach-section";
 import { Button } from "@/components/ui/button";
@@ -22,9 +23,9 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
 function timeAgo(ms: number): string {
-  const d = Date.now() - ms;
-  const days = Math.floor(d / 86400000);
+  const days = calendarDaysBetween(new Date(ms), new Date());
   if (days > 0) return `${days}d ago`;
+  const d = Date.now() - ms;
   const hrs = Math.floor(d / 3600000);
   if (hrs > 0) return `${hrs}h ago`;
   const mins = Math.floor(d / 60000);
