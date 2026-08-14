@@ -211,7 +211,13 @@ export function currentStreak(rows: ActivityRow[], today = new Date()): number {
   if (rows.length === 0) return 0;
   const days = new Set<string>();
   for (const r of rows) {
-    days.add(activityDate(r).toISOString().slice(0, 10));
+    // start_date_local's fake-Z encoding wants UTC getters; a bare start_date
+    // is a real instant, so extract its civil day with local getters instead.
+    days.add(
+      r.start_date_local
+        ? activityDate(r).toISOString().slice(0, 10)
+        : civilDayKey(new Date(r.start_date)),
+    );
   }
   let streak = 0;
   const cursor = new Date(today.getFullYear(), today.getMonth(), today.getDate());
