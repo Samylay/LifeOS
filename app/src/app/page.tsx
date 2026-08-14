@@ -99,7 +99,8 @@ export default function Today() {
   const pagerUnread = messages.filter((m) => !m.readAt).length;
 
   // Ship momentum
-  const shipped30d = ships.filter((s) => s.date && daysSince(new Date(s.date)) <= 30).length;
+  // rolling 30×24h window (elapsed time), unlike the calendar-day prose below
+  const shipped30d = ships.filter((s) => s.date && now.getTime() - new Date(s.date).getTime() <= 30 * 86400_000).length;
   const lastShip = ships
     .map((s) => (s.date ? new Date(s.date) : null))
     .filter((d): d is Date => d !== null)
