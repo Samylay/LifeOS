@@ -71,6 +71,8 @@
 - [x] **T12 — Training: sport breakdown + calendar heatmap** (M) — port `sportBreakdown` and the activity-days heatmap (`components/heatmap.tsx` — reimplement with CSS grid, do NOT add react-calendar-heatmap). Verify: typecheck, test, rebuild, redeploy, /workouts 200. *(2026-07-07, session: sport breakdown already covered (This Year table); heatmap DROPPED per Samy)*
 - [x] ~~**T13 — per-activity detail (map + streams)**~~ *(2026-07-07: DROPPED per Samy — no leaflet, no stream sync)*
 
+- [ ] **T82 — Weigh-in + daily-block tracker on /workouts** (M) — added 2026-08-15. `BodyMeasurement` exists in `src/lib/types.ts:349` and is referenced by **zero** other files (verified by grep, 2026-08-15): there is no UI to record a weigh-in, so the nutrition side of /workouts has no feedback loop. Build: (a) a `bodyMeasurements` collection through the generic docs API using the existing `BodyMeasurement` type — weight field only, leave the other measurements unused; (b) a weigh-in row on /workouts: one number input, one save button, the last 8 entries, and a trend line against a target value read from settings (do not hard-code a target in the source); (c) a per-day habit-style counter for 4 daily blocks (`dailyBlocks` collection keyed by date) on the same surface. Do NOT build a calorie logger or a food diary — the tracked-number count is deliberately capped at three, and a fourth logging surface is the failure mode this is written to avoid. Related surface: `/recipes` already carries per-serving kcal/protein. Verify: typecheck, tests, rebuild, redeploy, /workouts 200, POST a weigh-in through `/api/data/users/local/bodyMeasurements` and confirm it renders.
+
 ## Log
 
 - **2026-08-13 (autoloop, T81):** Re-checked T64/T79/T73 first (T27/T29/T37/38
