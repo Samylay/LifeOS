@@ -9,10 +9,25 @@ import path from "node:path";
 
 const loginSpy = vi.fn();
 const loadTokenByFileSpy = vi.fn();
-const exportTokenToFileSpy = vi.fn();
 let exportedToken: { oauth2: { expires_at: number } } = {
   oauth2: { expires_at: 4_000_000_000 },
 };
+
+// Mirrors garmin-connect's real exportTokenToFile, whose mkdir is NOT
+// recursive. A spy that just recorded the call let the first-login crash
+// (`ENOENT ... mkdir '/data/garmin/local'`) reach Samy's screen, so the mock
+// reproduces the library's actual filesystem behaviour instead.
+const exportTokenToFileSpy = vi.fn((dirPath: string) => {
+  if (!fs.existsSync(dirPath)) fs.mkdirSync(dirPath); // non-recursive, on purpose
+  fs.writeFileSync(
+    path.join(dirPath, "oauth1_token.json"),
+    JSON.stringify({ oauth_token: "t" })
+  );
+  fs.writeFileSync(
+    path.join(dirPath, "oauth2_token.json"),
+    JSON.stringify({ access_token: "a", ...exportedToken.oauth2 })
+  );
+});
 
 vi.mock("garmin-connect", () => ({
   GarminConnect: class {
@@ -90,6 +105,19 @@ describe("garmin session persistence", () => {
       connected: false,
       displayName: null,
     });
+  });
+
+  // Regression: the data volume starts with no `garmin/` directory at all, so
+  // the very first login has to create two levels, not one.
+  it("creates the token directory chain on a first-ever login", async () => {
+    const svc = await loadService();
+    expect(fs.existsSync(path.join(tmpDir, "garmin"))).toBe(false);
+
+    const result = await svc.connectGarmin("local", "samy@example.com", "pw");
+
+    expect(result.error).toBeUndefined();
+    expect(result.success).toBe(true);
+    expect(fs.existsSync(path.join(tmpDir, "garmin", "local"))).toBe(true);
   });
 
   it("writes tokens and a session file on a successful connect", async () => {

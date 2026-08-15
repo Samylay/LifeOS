@@ -43,6 +43,19 @@ function tokenDir(userId: string): string {
   return path.join(dataDir(), "garmin", encodeURIComponent(userId));
 }
 
+/**
+ * The library's own `exportTokenToFile` creates its target with a plain
+ * `fs.mkdirSync(dir)` — no `recursive` — so it can only ever create the leaf.
+ * Our path is two levels deep (`<dataDir>/garmin/<userId>`), which made the
+ * very first login fail with `ENOENT ... mkdir '/data/garmin/local'`. Create
+ * the whole chain before handing the path over.
+ */
+function ensureTokenDir(userId: string): string {
+  const dir = tokenDir(userId);
+  fs.mkdirSync(dir, { recursive: true });
+  return dir;
+}
+
 function sessionFile(userId: string): string {
   return path.join(tokenDir(userId), "session.json");
 }
@@ -69,7 +82,7 @@ function readPersistedSession(userId: string): PersistedSession | null {
 }
 
 function writePersistedSession(userId: string, s: PersistedSession): void {
-  fs.mkdirSync(tokenDir(userId), { recursive: true });
+  ensureTokenDir(userId);
   const tmp = `${sessionFile(userId)}.tmp`;
   fs.writeFileSync(tmp, JSON.stringify(s, null, 2));
   fs.renameSync(tmp, sessionFile(userId));
@@ -96,7 +109,7 @@ function persistIfRefreshed(userId: string, client: GarminConnect): void {
   try {
     const live = client.exportToken();
     if (live.oauth2?.expires_at === persistedOauth2Expiry(userId)) return;
-    client.exportTokenToFile(tokenDir(userId));
+    client.exportTokenToFile(ensureTokenDir(userId));
   } catch {
     // Token not ready (never logged in) — nothing to persist.
   }
@@ -124,7 +137,7 @@ export async function connectGarmin(
     sessions.set(userId, { client, displayName, profileId });
 
     // Persist so the next restart restores instead of prompting.
-    client.exportTokenToFile(tokenDir(userId));
+    client.exportTokenToFile(ensureTokenDir(userId));
     writePersistedSession(userId, { username: email, displayName, profileId });
 
     return { success: true, displayName: displayName ?? undefined };
