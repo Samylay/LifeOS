@@ -5,6 +5,7 @@ import { Dumbbell } from "lucide-react";
 import { useGarmin } from "@/lib/use-garmin";
 import TrainingAnalytics from "@/components/training-analytics";
 import { StrengthCard } from "@/components/strength-card";
+import { NutritionCard } from "@/components/nutrition-card";
 
 export default function TrainingPage() {
   const garmin = useGarmin();
@@ -31,13 +32,18 @@ export default function TrainingPage() {
         </div>
       )}
 
-      {/* Analytics (Strava) */}
+      {/* Calories in (MyFitnessPal → Garmin) and the day's weigh-in */}
       <div className="enter" style={{ ["--enter-delay" as string]: "30ms" }}>
+        <NutritionCard />
+      </div>
+
+      {/* Analytics (Strava) */}
+      <div className="enter" style={{ ["--enter-delay" as string]: "60ms" }}>
         <TrainingAnalytics />
       </div>
 
       {/* Strength focus (folded in from the retired /strength route) */}
-      <div className="enter" style={{ ["--enter-delay" as string]: "60ms" }}>
+      <div className="enter" style={{ ["--enter-delay" as string]: "90ms" }}>
         <StrengthCard />
       </div>
     </div>

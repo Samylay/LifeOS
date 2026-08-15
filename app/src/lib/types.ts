@@ -448,6 +448,26 @@ export interface GarminDailySummary {
   sleep: GarminSleepData | null;
 }
 
+/**
+ * Calories in and out for one day. `consumedKcal` originates in MyFitnessPal
+ * and reaches Garmin through MFP's own sync, so it is null on days nothing was
+ * logged — null means "not logged", never "ate nothing".
+ */
+export interface GarminDailyNutrition {
+  calendarDate: string;
+  consumedKcal: number | null;
+  burnedKcal: number | null;
+  activeKcal: number | null;
+  bmrKcal: number | null;
+  netKcal: number | null;
+  loggedInMfp: boolean;
+}
+
+export interface GarminWeighIn {
+  calendarDate: string;
+  weightKg: number;
+}
+
 export interface GarminConnectionState {
   connected: boolean;
   displayName: string | null;

@@ -192,8 +192,9 @@ function GarminCard() {
       {!garmin.connection.connected && (
         <div className="mt-3 space-y-3 border-t border-border pt-3">
           <p className="text-xs text-muted-foreground">
-            Credentials go straight to Garmin and are never stored — the session lives in app
-            memory, so you&apos;ll need to reconnect after a restart or redeploy.
+            Your password goes straight to Garmin and is never stored. The access token it
+            returns is saved to the data volume, so this login survives restarts and
+            redeploys. Disconnect deletes it.
           </p>
           <div className="space-y-2">
             <Input

@@ -5,13 +5,7 @@
 // STRAVA_REFRESH_TOKEN if no file exists yet.
 import path from "node:path";
 import fs from "node:fs";
-
-function dataDir(): string {
-  const dbPath = process.env.LIFEOS_DB_PATH || path.join(process.cwd(), "data", "lifeos.db");
-  const dir = path.dirname(dbPath);
-  fs.mkdirSync(dir, { recursive: true });
-  return dir;
-}
+import { dataDir } from "./data-dir";
 
 function tokenFile(): string {
   return path.join(dataDir(), "strava-token.json");

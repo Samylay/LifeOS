@@ -2,13 +2,15 @@
 
 // Garmin Connect client hook for the single-user self-hosted build. The
 // server routes (/api/garmin/*) treat every request as the local user
-// (verify-auth), so no tokens are involved. The Garmin session lives in
-// server memory only — credentials are never persisted, which also means the
-// connection drops on every app restart and needs a fresh login.
+// (verify-auth), so no tokens are involved client-side. Server-side the OAuth
+// tokens are persisted under the data volume, so the connection now survives
+// an app restart and one login lasts until Garmin expires the token.
 import { useState, useCallback, useEffect } from "react";
 import type {
   GarminActivity,
   GarminDailySummary,
+  GarminDailyNutrition,
+  GarminWeighIn,
   GarminConnectionState,
 } from "./types";
 
@@ -20,6 +22,8 @@ export function useGarmin() {
   });
   const [activities, setActivities] = useState<GarminActivity[]>([]);
   const [dailySummary, setDailySummary] = useState<GarminDailySummary | null>(null);
+  const [nutrition, setNutrition] = useState<GarminDailyNutrition | null>(null);
+  const [weighIn, setWeighIn] = useState<GarminWeighIn | null>(null);
   const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -77,6 +81,8 @@ export function useGarmin() {
     setConnection({ connected: false, displayName: null, lastSyncedAt: null });
     setActivities([]);
     setDailySummary(null);
+    setNutrition(null);
+    setWeighIn(null);
     setError(null);
   }, []);
 
@@ -89,7 +95,8 @@ export function useGarmin() {
         const res = await fetch(`/api/garmin/activities?start=${start}&limit=${limit}`);
         const data = await res.json();
         if (!res.ok) {
-          // 401 = the in-memory Garmin session is gone (e.g. app restarted).
+          // 401 = the persisted Garmin token was rejected (revoked or expired
+          // past what OAuth1 can refresh), so a real re-login is needed.
           if (res.status === 401) setConnection((prev) => ({ ...prev, connected: false }));
           setError(data.error || "Failed to fetch activities");
           return;
@@ -129,17 +136,49 @@ export function useGarmin() {
     [connection.connected]
   );
 
+  // Calories in (logged in MyFitnessPal, synced to Garmin) plus the day's
+  // weigh-in. Both stay null when nothing was logged, which is a normal day
+  // rather than an error — the UI must not render that as a zero.
+  const syncNutrition = useCallback(
+    async (date?: string) => {
+      if (!connection.connected) return;
+      setSyncing(true);
+      setError(null);
+      try {
+        const res = await fetch(
+          date ? `/api/garmin/nutrition?date=${date}` : "/api/garmin/nutrition"
+        );
+        const data = await res.json();
+        if (!res.ok) {
+          if (res.status === 401) setConnection((prev) => ({ ...prev, connected: false }));
+          setError(data.error || "Failed to fetch nutrition");
+          return;
+        }
+        setNutrition(data.nutrition ?? null);
+        setWeighIn(data.weighIn ?? null);
+        setConnection((prev) => ({ ...prev, lastSyncedAt: new Date().toISOString() }));
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : "Failed to fetch nutrition");
+      } finally {
+        setSyncing(false);
+      }
+    },
+    [connection.connected]
+  );
+
   const syncAll = useCallback(
     async (date?: string) => {
-      await Promise.all([syncActivities(0, 10), syncHealth(date)]);
+      await Promise.all([syncActivities(0, 10), syncHealth(date), syncNutrition(date)]);
     },
-    [syncActivities, syncHealth]
+    [syncActivities, syncHealth, syncNutrition]
   );
 
   return {
     connection,
     activities,
     dailySummary,
+    nutrition,
+    weighIn,
     loading,
     syncing,
     error,
@@ -147,6 +186,7 @@ export function useGarmin() {
     disconnect,
     syncActivities,
     syncHealth,
+    syncNutrition,
     syncAll,
   };
 }
