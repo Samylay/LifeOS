@@ -1,6 +1,8 @@
 // Pure helper functions for the Workouts > Training analytics page.
 // No React, no DB access — operates on ActivityRow[] from /api/strava/activities.
 
+import { localDayOf } from "@/lib/types";
+
 export interface ActivityRow {
   id: number;
   name: string;
@@ -202,10 +204,8 @@ export function weeklyTrend(
 // trailing "Z" but actually carries the athlete's local wall-clock time — so
 // its UTC getters (toISOString) already give the athlete's civil day. `today`
 // is a real instant, so it needs the SAME civil-day extraction, via local
-// (not UTC) getters, to land on the same key space.
-function civilDayKey(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
+// (not UTC) getters, to land on the same key space. `localDayOf` is that
+// extraction, shared with habits, reminders and the goal sparkline.
 
 export function currentStreak(rows: ActivityRow[], today = new Date()): number {
   if (rows.length === 0) return 0;
@@ -216,16 +216,16 @@ export function currentStreak(rows: ActivityRow[], today = new Date()): number {
     days.add(
       r.start_date_local
         ? activityDate(r).toISOString().slice(0, 10)
-        : civilDayKey(new Date(r.start_date)),
+        : localDayOf(new Date(r.start_date)),
     );
   }
   let streak = 0;
   const cursor = new Date(today.getFullYear(), today.getMonth(), today.getDate());
   // allow today to be missing — start counting from yesterday in that case
-  if (!days.has(civilDayKey(cursor))) {
+  if (!days.has(localDayOf(cursor))) {
     cursor.setDate(cursor.getDate() - 1);
   }
-  while (days.has(civilDayKey(cursor))) {
+  while (days.has(localDayOf(cursor))) {
     streak++;
     cursor.setDate(cursor.getDate() - 1);
   }

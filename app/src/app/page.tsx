@@ -27,7 +27,7 @@ import { Skeleton } from "@/components/skeleton";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import type { Brief } from "@/lib/brief-types";
-import { calendarDaysBetween } from "@/lib/types";
+import { calendarDaysBetween, localDayOf } from "@/lib/types";
 
 interface BriefResponse {
   source: "live" | "fixture";
@@ -79,7 +79,10 @@ export default function Today() {
     loadBrief();
   }, [loadBrief]);
 
-  const todayStr = new Date().toISOString().split("T")[0];
+  // Same civil-day key `toggledHabitState` writes with. Both used UTC before,
+  // so they agreed with each other but both pointed at yesterday between
+  // midnight and 02:00 Paris time.
+  const todayStr = localDayOf(new Date());
   // Local-date YYYY-MM-DD for the stale-brief check (the brief is written in
   // local time; UTC would flag it stale every evening).
   const todayLocal = new Date().toLocaleDateString("en-CA");

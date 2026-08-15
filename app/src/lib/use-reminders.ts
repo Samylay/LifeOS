@@ -2,20 +2,16 @@
 
 import { useCallback } from "react";
 import { useCollection } from "./use-collection";
+import { localDayOf } from "./types";
 import type { Reminder, ReminderFrequency } from "./types";
-
-/** Local YYYY-MM-DD, so overdue/due-today agree on the same civil day. */
-function localDateKey(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
 
 export function isOverdue(reminder: Reminder): boolean {
   if (reminder.completed) return false;
-  return localDateKey(new Date(reminder.dueDate)) < localDateKey(new Date());
+  return localDayOf(new Date(reminder.dueDate)) < localDayOf(new Date());
 }
 
 export function isDueToday(reminder: Reminder): boolean {
-  return localDateKey(new Date(reminder.dueDate)) === localDateKey(new Date());
+  return localDayOf(new Date(reminder.dueDate)) === localDayOf(new Date());
 }
 
 function getNextDueDate(current: Date, frequency: ReminderFrequency): Date {
@@ -57,7 +53,9 @@ export function useReminders() {
       const reminder = reminders.find((r) => r.id === id);
       if (!reminder) return;
 
-      const today = new Date().toISOString().split("T")[0];
+      // Civil day, matching isOverdue/isDueToday above — a UTC key would stamp
+      // a reminder completed after midnight with yesterday's date.
+      const today = localDayOf(new Date());
 
       if (reminder.frequency === "once") {
         // One-time: just mark completed
