@@ -11,8 +11,21 @@ const API_BASE = "https://api.enablebanking.com";
 const ISSUER = "enablebanking.com";
 const AUDIENCE = "api.enablebanking.com";
 
+/**
+ * The private key reaches the container as base64 in `app/.env`, because
+ * `env_file:` carries strings and the key is a file (MAP Q5, option (a) —
+ * chosen 2026-08-15 so no docker-compose change and no infra commit was
+ * needed). `ENABLE_BANKING_PRIVATE_KEY` stays supported for a raw PEM.
+ */
+function privateKeyPem(): string | undefined {
+  const raw = process.env.ENABLE_BANKING_PRIVATE_KEY;
+  if (raw) return raw;
+  const b64 = process.env.ENABLE_BANKING_PRIVATE_KEY_B64;
+  return b64 ? Buffer.from(b64, "base64").toString("utf8") : undefined;
+}
+
 export function isEnableBankingConfigured(): boolean {
-  return Boolean(process.env.ENABLE_BANKING_APP_ID && process.env.ENABLE_BANKING_PRIVATE_KEY);
+  return Boolean(process.env.ENABLE_BANKING_APP_ID && privateKeyPem());
 }
 
 function base64url(input: Buffer | string): string {
@@ -42,7 +55,7 @@ export function signEnableBankingJwt(appId: string, privateKeyPem: string, now: 
 
 function enableBankingJwt(): string | null {
   const appId = process.env.ENABLE_BANKING_APP_ID;
-  const privateKey = process.env.ENABLE_BANKING_PRIVATE_KEY;
+  const privateKey = privateKeyPem();
   if (!appId || !privateKey) return null;
   return signEnableBankingJwt(appId, privateKey);
 }
