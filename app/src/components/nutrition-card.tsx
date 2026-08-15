@@ -11,8 +11,11 @@ import { ProgressBar } from "@/components/charts";
 // and MFP syncs into Garmin, so this card is read-only by design. Adding a
 // logging surface here would just be a third place to type the same numbers.
 
-const KCAL_TARGET = 2250;
-const WEIGHT_TARGET_KG = 78;
+// Set by the Aug–Dec 2026 block: a ~300 kcal deficit, not 400, because the
+// governing constraint is "sessions frequent, never tired". Do not tighten
+// these without Samy saying so. T82 moves them into settings.
+const KCAL_TARGET = 2450;
+const WEIGHT_TARGET_KG = 79;
 
 export function NutritionCard() {
   const { connection, nutrition, weighIn, syncNutrition } = useGarmin();
