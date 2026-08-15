@@ -24,6 +24,7 @@ import {
   GalleryVerticalEnd,
   CookingPot,
   SquareTerminal,
+  Wallet,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -50,6 +51,7 @@ const MORE_ITEMS = [
   { href: "/news", label: "News", icon: Newspaper },
   { href: "/workouts", label: "Training", icon: Dumbbell },
   { href: "/recipes", label: "Recipes", icon: CookingPot },
+  { href: "/finance", label: "Finance", icon: Wallet },
   { href: "/leads", label: "Leads", icon: Radar },
 ];
 
