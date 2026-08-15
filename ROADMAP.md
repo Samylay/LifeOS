@@ -75,6 +75,25 @@
 
 ## Log
 
+- **2026-08-15 (attended session, day-boundary decision):** Samy's call, verbatim:
+  **"france is the timezone"** — `Europe/Paris` owns a "day" for every date key
+  in the app. `BRIEF_TZ` was already `Europe/Paris` in `docker-compose.yml`, so
+  the server half needed nothing. Closed the client half T81 left open in
+  `23baa4f`: the habit-streak cursor seeded on local midnight and then read
+  `toISOString()`, which in any zone ahead of UTC resolves to the previous date,
+  so today's key never matched and the streak read one short every day.
+  `toggledHabitState` is now pure and tested; the two duplicate day-key helpers
+  (`localDateKey`, `civilDayKey`) collapsed into `localDayOf`; the home page's
+  `todayStr` and the reminder `lastCompletedDate` now use it too. No dependency
+  and no migration — UTC and Paris keys only ever differed for ticks made
+  between midnight and 02:00, so stored history stays valid. 336/336 green,
+  tsc + eslint clean. **Not deployed** — rebuild is Samy's call, and it should
+  ride along with the two commits already waiting (`c6ae31e`, `b01a544`).
+  Note for readers of older entries: the "T82 = timezone, SAMY-rejected
+  2026-08-08" line refers to the *dependency + migration* half (temporal-polyfill,
+  habit-key rewrite). That stays rejected and is now unnecessary. **T82 has since
+  been renumbered onto a different task** (weight history on /workouts).
+
 - **2026-08-15 (attended session, T83 — finance, manual-first):** Samy asked for
   finance tracking that works *now*, from his rentrées/sorties list. Found the
   section had been gated on T67 (Enable Banking signup) since 2026-07-15: a
