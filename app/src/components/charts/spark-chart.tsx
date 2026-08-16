@@ -1,6 +1,6 @@
 "use client";
 
-import { Area, AreaChart, Line, LineChart, ResponsiveContainer } from "recharts";
+import { Area, AreaChart, Line, LineChart, ReferenceLine, ResponsiveContainer } from "recharts";
 
 import { cn } from "@/lib/utils";
 
@@ -11,6 +11,8 @@ export interface SparkChartProps<T extends object = Record<string, string | numb
   color?: string;
   type?: "area" | "line";
   className?: string;
+  /** Optional dashed horizontal target line, e.g. a weight goal. */
+  referenceValue?: number;
 }
 
 /** Tiny inline chart for table rows/dense contexts — no axes, no tooltip, fixed h-8. */
@@ -21,6 +23,7 @@ export function SparkChart<T extends object>({
   color = "var(--chart-1)",
   type = "area",
   className,
+  referenceValue,
 }: SparkChartProps<T>) {
   return (
     <div className={cn("h-8 w-full min-w-16", className)}>
@@ -33,6 +36,9 @@ export function SparkChart<T extends object>({
                 <stop offset="95%" stopColor={color} stopOpacity={0} />
               </linearGradient>
             </defs>
+            {referenceValue != null && (
+              <ReferenceLine y={referenceValue} stroke="var(--muted-foreground)" strokeDasharray="3 3" />
+            )}
             <Area
               type="monotone"
               dataKey={category}
@@ -45,6 +51,9 @@ export function SparkChart<T extends object>({
           </AreaChart>
         ) : (
           <LineChart data={data} margin={{ top: 2, right: 0, left: 0, bottom: 0 }}>
+            {referenceValue != null && (
+              <ReferenceLine y={referenceValue} stroke="var(--muted-foreground)" strokeDasharray="3 3" />
+            )}
             <Line
               type="monotone"
               dataKey={category}
