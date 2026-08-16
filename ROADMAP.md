@@ -71,7 +71,83 @@
 - [x] **T12 — Training: sport breakdown + calendar heatmap** (M) — port `sportBreakdown` and the activity-days heatmap (`components/heatmap.tsx` — reimplement with CSS grid, do NOT add react-calendar-heatmap). Verify: typecheck, test, rebuild, redeploy, /workouts 200. *(2026-07-07, session: sport breakdown already covered (This Year table); heatmap DROPPED per Samy)*
 - [x] ~~**T13 — per-activity detail (map + streams)**~~ *(2026-07-07: DROPPED per Samy — no leaflet, no stream sync)*
 
-- [ ] **T82 — Weight history + daily-block counter on /workouts** (M) — added 2026-08-15, **rescoped the same day** after `d31c69b` shipped the Garmin half. Live already: the persisted Garmin session, `/api/garmin/nutrition` (calories consumed, sourced from MyFitnessPal's own sync into Garmin, plus that day's weigh-in), and the read-only `NutritionCard` on /workouts. What is still missing is **history**: the card shows today only, so there is no trend and no way to run the plan's one adjustment rule (compare the last 2 weigh-ins against the 2 before). Build: (a) a nightly job that stores each day's Garmin weigh-in and consumed-kcal into a `bodyMeasurements` collection via the generic docs API, reusing the dormant `BodyMeasurement` type in `src/lib/types.ts:349` (weight field only) — idempotent per calendar date, and it must skip rather than write a zero when Garmin returns null; (b) an 8-week weight sparkline on the NutritionCard with the target as a reference line; (c) a per-day counter for 4 daily blocks (`dailyBlocks` collection keyed by date). Move the two constants currently hard-coded at the top of `src/components/nutrition-card.tsx` into settings while you are there. Do NOT build a calorie logger or a food diary — food is logged in MyFitnessPal and weight is recorded on the Garmin scale; a third place to type the same numbers is the failure mode this is written to avoid. Verify: typecheck, tests, rebuild, redeploy, /workouts 200, and prove the backfill is idempotent by running it twice against one date.
+- [x] **T82 — Weight history + daily-block counter on /workouts** (M) — added 2026-08-15, **rescoped the same day** after `d31c69b` shipped the Garmin half. Live already: the persisted Garmin session, `/api/garmin/nutrition` (calories consumed, sourced from MyFitnessPal's own sync into Garmin, plus that day's weigh-in), and the read-only `NutritionCard` on /workouts. What is still missing is **history**: the card shows today only, so there is no trend and no way to run the plan's one adjustment rule (compare the last 2 weigh-ins against the 2 before). Build: (a) a nightly job that stores each day's Garmin weigh-in and consumed-kcal into a `bodyMeasurements` collection via the generic docs API, reusing the dormant `BodyMeasurement` type in `src/lib/types.ts:349` (weight field only) — idempotent per calendar date, and it must skip rather than write a zero when Garmin returns null; (b) an 8-week weight sparkline on the NutritionCard with the target as a reference line; (c) a per-day counter for 4 daily blocks (`dailyBlocks` collection keyed by date). Move the two constants currently hard-coded at the top of `src/components/nutrition-card.tsx` into settings while you are there. Do NOT build a calorie logger or a food diary — food is logged in MyFitnessPal and weight is recorded on the Garmin scale; a third place to type the same numbers is the failure mode this is written to avoid. Verify: typecheck, tests, rebuild, redeploy, /workouts 200, and prove the backfill is idempotent by running it twice against one date.
+  (2026-08-17: done in autoloop — see Log.)
+
+## Log
+
+- **2026-08-17 (autoloop, T82 — weight history + daily blocks):** Re-checked
+  T64 first — falsifier re-run read-only against the live DB
+  (`docker exec lifeos node`): `teachSessions` still 0 docs, all 11
+  `teachTopics` still `queued`/unscheduled. Cause unchanged since the
+  2026-07-24 BLOCKED note; wrote nothing on it per the
+  re-block-on-unchanged-cause rule. First actionable in file order: **T82**.
+  Built all three parts: (a) `src/lib/body-measurements.ts` —
+  `syncBodyMeasurementForDate()` calls `fetchDailyNutrition`/`fetchWeight`
+  directly (server-side, `uid: "local"`) and `setDoc`s a `users/local/
+  bodyMeasurements` doc keyed by the calendar-date string (idempotent by
+  construction — same date always overwrites the same doc id), skipping
+  entirely when both weight and kcal come back null, and preserving whichever
+  field a partial sync doesn't have new data for; wired into a 22:00 BRIEF_TZ
+  scheduler (`body-measurements-scheduler.ts`, same catch-up-on-boot pattern
+  as `ships-vault-scheduler.ts`) registered in `instrumentation.ts`. One
+  deviation from the task text: it stores a flat `{date, weightKg,
+  consumedKcal}` doc rather than the full `BodyMeasurement` interface at
+  `types.ts:349` — that type's `date: Date` field needs the doc-store's
+  `{__date}` marker machinery built for client-authored docs, and a plain
+  `YYYY-MM-DD` string doc-id is what makes the idempotency guarantee direct
+  or exact-string-match provable in a unit test rather than a Date-range
+  fuzzy match; the "weight field only" instruction is honored, the exact type
+  is not. (b) `SparkChart` (`components/charts/spark-chart.tsx`) gained an
+  optional `referenceValue` prop rendering a dashed Recharts `ReferenceLine`
+  (no new dependency, first use of `ReferenceLine` in this codebase) —
+  `NutritionCard` now renders an 8-week weight trend against the target once
+  2+ history points exist. (c) `dailyBlocks` collection + `/api/daily-blocks`
+  GET/POST, rendered as 4 tap targets on the card. **The "4 daily blocks"
+  concept has no existing schema, UI, or vault reference anywhere in this
+  codebase or the task's own text beyond "a per-day counter"** — built as a
+  plain manual 0-4 tap counter (no auto-detection, no time-of-day logic); if
+  that's not what Samy meant by "block," the counter mechanics are cheap to
+  change but flagging the guess here. The two hard-coded constants
+  (`KCAL_TARGET`, `WEIGHT_TARGET_KG`) moved to `users/local/settings/
+  nutrition` via `nutrition-settings.ts` (same one-doc-per-feature pattern as
+  `notify-gateway.ts`'s settings), read through a new `/api/nutrition-settings`
+  GET route — no settings UI to edit them yet, just the plumbing the task
+  asked for. Split `NutritionCard`'s target-only exports into a small
+  `nutrition-constants.ts` (no `server-db` import) after the first Docker
+  build failed: `nutrition-card.tsx` is a client component, and importing
+  `DEFAULT_NUTRITION_SETTINGS`/`BLOCKS_PER_DAY` as *values* from the
+  server-only settings/daily-blocks modules pulled `better-sqlite3` into the
+  browser bundle (Turbopack: `Module not found: Can't resolve 'fs'`) — moving
+  the shared constants to a leaf file with no server imports fixed it.
+  16 new tests (idempotency, null-skip, partial-field preservation, clamp,
+  settings fallback/round-trip) — full suite 347/347 green, `tsc --noEmit`
+  clean, eslint clean on every touched file, `docker compose build && up -d`
+  succeeded, `/` and `/workouts` both 200, `/api/nutrition-settings`
+  `/api/body-measurements?weeks=8` `/api/daily-blocks` all 200. Split into
+  two commits (backend/plumbing 393 lines, UI 116 lines) to stay under the
+  400-line unattended cap. **Not verified live:** Garmin isn't connected in
+  this deployment (`/api/garmin/status` → `connected: false`, no persisted
+  token dir under `/data/garmin/`), so `NutritionCard` renders nothing here
+  and the sparkline/counter were never seen live — the idempotency proof
+  (`syncBodyMeasurementForDate` called twice against one date, asserting one
+  row) is the unit test, not a live Garmin round-trip, since triggering a
+  real sync would be the first-ever write into a brand-new
+  `bodyMeasurements` collection on the live DB with no way to visually
+  confirm it worked. Connecting Garmin + a phone/browser check of the new
+  card sections is Samy's when convenient.
+  Pitch: closes the trend/adjustment-rule gap the 2026-08-15 rescope flagged
+  — the plan's "compare the last 2 weigh-ins against the 2 before" rule now
+  has data to run against once a few days accumulate, without adding a
+  logging surface that competes with MyFitnessPal/the Garmin scale.
+  Quiz: why does the nightly sync call `fetchDailyNutrition`/`fetchWeight`
+  directly from `garmin-service.ts` instead of hitting `/api/garmin/
+  nutrition` over HTTP like the client hook does? *(The scheduler runs
+  outside any request context — there's no `NextRequest` to build a URL or
+  session against — and `verifyAuth` always resolves `{uid: "local"}` in
+  this single-user build regardless of how it's called, so a same-process
+  function call gets the identical data with one fewer network hop and no
+  need to fake a request object.)*
 
 ## Log
 
