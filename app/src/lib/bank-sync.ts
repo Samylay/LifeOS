@@ -1,8 +1,14 @@
 // Pulls transactions from Enable Banking into the local SQLite store (T69).
 // Manual-trigger only (an API route) — no scheduler yet, per the roadmap:
 // the shape needs to prove itself against Samy's real accounts first.
-import { isEnableBankingConfigured, getTransactions, type EnableBankingTransport } from "./enable-banking";
-import { listBankAccounts, upsertBankTransactions, countBankTransactions, setBankSyncState } from "./bank-db";
+import { isEnableBankingConfigured, getTransactions, getBalances, type EnableBankingTransport } from "./enable-banking";
+import {
+  listBankAccounts,
+  upsertBankTransactions,
+  countBankTransactions,
+  setBankSyncState,
+  saveAccountBalance,
+} from "./bank-db";
 
 const MAX_PAGES_PER_ACCOUNT = 20;
 
@@ -58,6 +64,15 @@ export async function syncBankTransactions(
       } while (continuationKey && page < MAX_PAGES_PER_ACCOUNT);
     } catch {
       // Best-effort per account — one account's failure shouldn't drop the rest.
+    }
+    try {
+      // Balance is a separate endpoint (T71) and best-effort too — a balance
+      // fetch failing should never roll back transactions already inserted.
+      const balances = await getBalances(account.accountUid, transport);
+      const primary = balances?.[0];
+      if (primary) saveAccountBalance(account.accountUid, primary.balanceAmount, primary.balanceCurrency);
+    } catch {
+      // Balance is a nice-to-have on the connected-accounts panel, not load-bearing.
     }
     results.push({ accountUid: account.accountUid, fetched, inserted });
     totalInserted += inserted;

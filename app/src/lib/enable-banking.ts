@@ -142,6 +142,28 @@ export async function exchangeCode(code: string, transport: EnableBankingTranspo
   return { sessionId: body.session_id, accounts: body.accounts };
 }
 
+export interface BankBalance {
+  balanceAmount: string;
+  balanceCurrency: string;
+  balanceType?: string;
+}
+
+/** Current balance(s) for one account uid — used by the connected-accounts panel (T71). */
+export async function getBalances(
+  accountUid: string,
+  transport: EnableBankingTransport = fetch
+): Promise<BankBalance[] | null> {
+  const body = await call<{
+    balances: Array<{ balance_amount: { amount: string; currency: string }; balance_type?: string }>;
+  }>(transport, `/accounts/${encodeURIComponent(accountUid)}/balances`);
+  if (!body) return null;
+  return body.balances.map((b) => ({
+    balanceAmount: b.balance_amount.amount,
+    balanceCurrency: b.balance_amount.currency,
+    balanceType: b.balance_type,
+  }));
+}
+
 export interface BankTransaction {
   transactionId: string;
   bookingDate?: string;

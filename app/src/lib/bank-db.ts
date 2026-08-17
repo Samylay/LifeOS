@@ -47,6 +47,20 @@ function migrate(db: Database.Database) {
       value TEXT
     );
   `);
+
+  // bank_accounts predates balance tracking (T69), so an existing live DB
+  // needs these columns added rather than assumed — CREATE TABLE IF NOT
+  // EXISTS is a no-op once the table already exists (T71).
+  ensureColumn(db, "bank_accounts", "balance_amount", "TEXT");
+  ensureColumn(db, "bank_accounts", "balance_currency", "TEXT");
+  ensureColumn(db, "bank_accounts", "balance_synced_at", "TEXT");
+}
+
+function ensureColumn(db: Database.Database, table: string, column: string, type: string) {
+  const cols = db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
+  if (!cols.some((c) => c.name === column)) {
+    db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`);
+  }
 }
 
 export function getBankDb(): Database.Database {
@@ -143,6 +157,107 @@ export function listBankAccounts(): BankAccountRow[] {
     session_id: string;
   }[];
   return rows.map((r) => ({ accountUid: r.account_uid, sessionId: r.session_id }));
+}
+
+/** Persists the latest known balance for one account (T71 — from `getBalances`). */
+export function saveAccountBalance(accountUid: string, amount: string, currency: string, now?: string): void {
+  getBankDb()
+    .prepare(
+      `UPDATE bank_accounts SET balance_amount = ?, balance_currency = ?, balance_synced_at = ? WHERE account_uid = ?`
+    )
+    .run(amount, currency, now ?? new Date().toISOString(), accountUid);
+}
+
+export interface ConnectedAccountRow {
+  accountUid: string;
+  sessionId: string;
+  aspspName: string | null;
+  aspspCountry: string | null;
+  validUntil: string | null;
+  balanceAmount: string | null;
+  balanceCurrency: string | null;
+  balanceSyncedAt: string | null;
+}
+
+/**
+ * One row per linked account, joined with its session (bank name, consent
+ * expiry) and its latest known balance — the read the connected-accounts
+ * panel (T71) renders. Empty array is a legitimate, expected state: no
+ * Enable Banking consent has actually been completed against this repo yet.
+ */
+export function listConnectedAccounts(): ConnectedAccountRow[] {
+  const rows = getBankDb()
+    .prepare(
+      `SELECT a.account_uid, a.session_id, s.aspsp_name, s.aspsp_country, s.valid_until,
+              a.balance_amount, a.balance_currency, a.balance_synced_at
+       FROM bank_accounts a
+       LEFT JOIN bank_sessions s ON s.session_id = a.session_id
+       ORDER BY a.account_uid`
+    )
+    .all() as {
+    account_uid: string;
+    session_id: string;
+    aspsp_name: string | null;
+    aspsp_country: string | null;
+    valid_until: string | null;
+    balance_amount: string | null;
+    balance_currency: string | null;
+    balance_synced_at: string | null;
+  }[];
+  return rows.map((r) => ({
+    accountUid: r.account_uid,
+    sessionId: r.session_id,
+    aspspName: r.aspsp_name,
+    aspspCountry: r.aspsp_country,
+    validUntil: r.valid_until,
+    balanceAmount: r.balance_amount,
+    balanceCurrency: r.balance_currency,
+    balanceSyncedAt: r.balance_synced_at,
+  }));
+}
+
+export interface RecentBankTransactionRow {
+  transactionId: string;
+  accountUid: string;
+  bookingDate: string | null;
+  amount: string;
+  currency: string;
+  creditorName: string | null;
+  debtorName: string | null;
+}
+
+/**
+ * Most recent synced transactions across every account, newest first — feeds
+ * the "recent bank activity" list that keeps sync-produced rows visibly
+ * separate from Samy's hand-kept `financeFlows` (T83's D4 boundary; this UI
+ * never merges the two).
+ */
+export function listRecentBankTransactions(limit = 10): RecentBankTransactionRow[] {
+  const rows = getBankDb()
+    .prepare(
+      `SELECT transaction_id, account_uid, booking_date, amount, currency, creditor_name, debtor_name
+       FROM bank_transactions
+       ORDER BY COALESCE(booking_date, '') DESC, synced_at DESC
+       LIMIT ?`
+    )
+    .all(limit) as {
+    transaction_id: string;
+    account_uid: string;
+    booking_date: string | null;
+    amount: string;
+    currency: string;
+    creditor_name: string | null;
+    debtor_name: string | null;
+  }[];
+  return rows.map((r) => ({
+    transactionId: r.transaction_id,
+    accountUid: r.account_uid,
+    bookingDate: r.booking_date,
+    amount: r.amount,
+    currency: r.currency,
+    creditorName: r.creditor_name,
+    debtorName: r.debtor_name,
+  }));
 }
 
 export interface BankTransactionInput {
