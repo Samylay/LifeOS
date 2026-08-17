@@ -7,6 +7,7 @@ import {
   startAuth,
   exchangeCode,
   getTransactions,
+  getBalances,
 } from "./enable-banking";
 
 // Throwaway keypair generated for this test run only — never the real .pem.
@@ -195,6 +196,24 @@ describe("client calls (offline, injected transport)", () => {
       ],
       continuationKey: "REDACTED_PAGE_2",
     });
+  });
+
+  it("getBalances normalises the fixture shape (T71)", async () => {
+    const transport = vi.fn(async (url: string) => {
+      expect(url).toBe("https://api.enablebanking.com/accounts/REDACTED_ACCT_1/balances");
+      return new Response(
+        JSON.stringify({
+          balances: [
+            { balance_amount: { amount: "1234.56", currency: "EUR" }, balance_type: "interimAvailable" },
+          ],
+        }),
+        { status: 200 }
+      );
+    });
+    const result = await getBalances("REDACTED_ACCT_1", transport as unknown as typeof fetch);
+    expect(result).toEqual([
+      { balanceAmount: "1234.56", balanceCurrency: "EUR", balanceType: "interimAvailable" },
+    ]);
   });
 
   it("returns null on a non-ok response instead of throwing", async () => {

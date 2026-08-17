@@ -82,7 +82,10 @@ describe("syncBankTransactions", () => {
     expect(result.ok).toBe(true);
     const acct = result.accounts.find((a) => a.accountUid === "acct-1")!;
     expect(acct.fetched).toBe(2);
-    expect(transport).toHaveBeenCalledTimes(2);
+    // 2 transaction pages + 1 balance fetch (T71). The mock's third response
+    // isn't balance-shaped, so getBalances' body.balances.map throws inside
+    // its own try/catch and is swallowed — balance sync is best-effort.
+    expect(transport).toHaveBeenCalledTimes(3);
   });
 
   it("re-running the same sync a second time inserts 0 new rows and mutates nothing (idempotent)", async () => {

@@ -17,6 +17,9 @@ const {
   countBankTransactions,
   getBankSyncState,
   setBankSyncState,
+  saveAccountBalance,
+  listConnectedAccounts,
+  listRecentBankTransactions,
 } = await import("./bank-db");
 
 afterAll(() => {
@@ -107,5 +110,40 @@ describe("bank sync state", () => {
     expect(getBankSyncState("last_sync_at")).toBeNull();
     setBankSyncState("last_sync_at", "12345");
     expect(getBankSyncState("last_sync_at")).toBe("12345");
+  });
+});
+
+describe("connected accounts + balances (T71)", () => {
+  it("listConnectedAccounts starts with balance fields null before any sync", () => {
+    const accounts = listConnectedAccounts();
+    const acct1 = accounts.find((a) => a.accountUid === "acct-1")!;
+    expect(acct1.aspspName).toBe("REDACTED_BANK");
+    expect(acct1.balanceAmount).toBeNull();
+    expect(acct1.balanceCurrency).toBeNull();
+    expect(acct1.balanceSyncedAt).toBeNull();
+  });
+
+  it("saveAccountBalance persists an amount + currency and joins session info", () => {
+    saveAccountBalance("acct-1", "1234.56", "EUR", "2026-08-17T00:00:00Z");
+    const acct1 = listConnectedAccounts().find((a) => a.accountUid === "acct-1")!;
+    expect(acct1.balanceAmount).toBe("1234.56");
+    expect(acct1.balanceCurrency).toBe("EUR");
+    expect(acct1.balanceSyncedAt).toBe("2026-08-17T00:00:00Z");
+    expect(acct1.sessionId).toBe("sess-1");
+    // acct-2 was never given a balance — it must stay untouched, not inherit acct-1's.
+    const acct2 = listConnectedAccounts().find((a) => a.accountUid === "acct-2")!;
+    expect(acct2.balanceAmount).toBeNull();
+  });
+});
+
+describe("listRecentBankTransactions (T71)", () => {
+  it("returns synced transactions newest-first, capped at the given limit", () => {
+    const recent = listRecentBankTransactions(1);
+    expect(recent).toHaveLength(1);
+    expect(recent[0].transactionId).toBe("txn-2");
+    expect(recent[0].amount).toBe("-9.99");
+
+    const all = listRecentBankTransactions(10);
+    expect(all.map((t) => t.transactionId).sort()).toEqual(["txn-1", "txn-2"]);
   });
 });
