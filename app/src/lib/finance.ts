@@ -222,7 +222,13 @@ export interface ParsedLine {
   error?: string;
 }
 
-function inferKind(label: string, direction: FlowDirection, cadence: FlowCadence): FlowKind {
+/**
+ * Kind inference by keyword. Exported so the bank-side detector (ROADMAP T70)
+ * classifies a merchant-derived label with the exact same vocabulary as a
+ * hand-typed line — a detected subscription and a pasted one should never
+ * disagree about what counts as "sub" vs "fixed" vs "variable".
+ */
+export function inferKind(label: string, direction: FlowDirection, cadence: FlowCadence): FlowKind {
   if (direction === "in") return "fixed";
   if (FIXED_WORDS.test(label)) return "fixed";
   if (SUB_WORDS.test(label)) return "sub";
