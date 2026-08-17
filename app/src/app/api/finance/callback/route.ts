@@ -1,29 +1,42 @@
-// Enable Banking redirect target — STUB (T67 prep; real wiring lands in T68/T69).
+// Enable Banking redirect target (T69 — wired; was a stub through T67 prep).
 //
 // The two URLs whitelisted at app registration (.scratch/finance-tracker/MAP.md Q4)
 // point here:
 //   https://homelab.tail069527.ts.net/api/finance/callback
 //   http://127.0.0.1:3000/api/finance/callback
 // The bank 302s Samy's BROWSER to this route with ?code=… after he authorizes
-// account access; nothing fetches it server-side, so it only needs to exist so
-// the whitelist doesn't point at a 404.
+// account access; nothing fetches it server-side.
 //
-// T68 replaces this body: exchange the code via POST /sessions (through the
-// src/lib/enable-banking.ts wrapper), persist the session in T69's
-// bank_sessions table, then redirect to /finance. Until then the code is
-// deliberately NOT consumed or logged — auth codes are single-use credentials.
+// Exchanges the code via POST /sessions (src/lib/enable-banking.ts), persists
+// the session + linked accounts (src/lib/bank-db.ts), then redirects to
+// /finance. The code is single-use — never logged, consumed exactly once.
 import { NextRequest, NextResponse } from "next/server";
+import { exchangeCode, isEnableBankingConfigured } from "@/lib/enable-banking";
+import { saveBankSession } from "@/lib/bank-db";
 
 export async function GET(req: NextRequest) {
-  const hasCode = req.nextUrl.searchParams.has("code");
-  return NextResponse.json(
-    {
-      ok: false,
-      stub: true,
-      message: hasCode
-        ? "Bank authorization callback received, but the session exchange is not wired yet (T68/T69). The code was not consumed — re-run the flow once T68 lands."
-        : "Enable Banking callback stub — nothing to do without a ?code parameter.",
-    },
-    { status: 501 }
-  );
+  const code = req.nextUrl.searchParams.get("code");
+  if (!code) {
+    return NextResponse.json(
+      { ok: false, message: "Enable Banking callback — nothing to do without a ?code parameter." },
+      { status: 400 }
+    );
+  }
+  if (!isEnableBankingConfigured()) {
+    return NextResponse.json(
+      { ok: false, message: "Enable Banking is not configured (missing app id / private key)." },
+      { status: 501 }
+    );
+  }
+
+  const session = await exchangeCode(code);
+  if (!session) {
+    return NextResponse.json(
+      { ok: false, message: "Session exchange failed — the code may be expired or already used." },
+      { status: 502 }
+    );
+  }
+
+  saveBankSession({ sessionId: session.sessionId, accounts: session.accounts });
+  return NextResponse.redirect(new URL("/finance?connected=1", req.url));
 }
