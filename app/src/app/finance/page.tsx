@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { useFinance } from "@/lib/use-finance";
 import { useBankAccounts } from "@/lib/use-bank-accounts";
+import { isConsentExpired } from "@/lib/bank-consent-tripwire";
 import { useToast } from "@/components/toast";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import {
@@ -343,12 +344,23 @@ function ConnectedAccountsPanel() {
               className="flex items-center justify-between gap-3 border-b border-border/60 py-2 last:border-b-0"
             >
               <div className="min-w-0">
-                <p className="truncate text-sm font-medium text-foreground">
-                  {a.aspspName ?? "Linked account"}
-                  {a.aspspCountry && <span className="text-muted-foreground"> · {a.aspspCountry}</span>}
+                <p className="flex items-center gap-1.5 truncate text-sm font-medium text-foreground">
+                  <span className="truncate">
+                    {a.aspspName ?? "Linked account"}
+                    {a.aspspCountry && <span className="text-muted-foreground"> · {a.aspspCountry}</span>}
+                  </span>
+                  {isConsentExpired(a.validUntil) && (
+                    <Badge variant="destructive" className="shrink-0 text-[10px] font-medium">
+                      stale
+                    </Badge>
+                  )}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  {a.balanceSyncedAt ? `Synced ${new Date(a.balanceSyncedAt).toLocaleDateString("fr-FR")}` : "Not synced yet"}
+                  {isConsentExpired(a.validUntil)
+                    ? "Consent expired — reconnect at your bank to resume syncing."
+                    : a.balanceSyncedAt
+                      ? `Synced ${new Date(a.balanceSyncedAt).toLocaleDateString("fr-FR")}`
+                      : "Not synced yet"}
                 </p>
               </div>
               <span className="shrink-0 tabular-nums text-sm text-foreground">

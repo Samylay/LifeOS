@@ -4,11 +4,13 @@
 import { isEnableBankingConfigured, getTransactions, getBalances, type EnableBankingTransport } from "./enable-banking";
 import {
   listBankAccounts,
+  listBankSessions,
   upsertBankTransactions,
   countBankTransactions,
   setBankSyncState,
   saveAccountBalance,
 } from "./bank-db";
+import { checkAndNotifyConsentExpiry } from "./bank-consent-notify";
 
 const MAX_PAGES_PER_ACCOUNT = 20;
 
@@ -79,5 +81,15 @@ export async function syncBankTransactions(
   }
 
   setBankSyncState("last_sync_at", String(Date.now()));
+
+  // Consent-expiry tripwire (T72) — wired into the manual sync rather than a
+  // scheduler, per T69's deliberate manual-trigger-only scope. Best-effort:
+  // a pager failure must never mark the sync itself as failed.
+  try {
+    await checkAndNotifyConsentExpiry(listBankSessions(), transport);
+  } catch {
+    // See doc comment — never let this fail the sync.
+  }
+
   return { ok: true, accounts: results, totalInserted, total: countBankTransactions() };
 }
