@@ -76,6 +76,28 @@
 
 ## Log
 
+- **2026-08-17 (attended, T71 + T72 — the bank-fed half of /finance):** Samy
+  asked to finish the Enable Banking work same-day rather than wait for the
+  scheduled Tuesday cron build (cancelled). T67–T70 were already done from
+  earlier in the day. Found an in-progress, uncommitted T71
+  (ConnectedAccountsPanel + getBalances) left from before a `/model` switch —
+  verified it independently (tsc, eslint, 45/45 vitest, rebuild+redeploy,
+  live row counts unchanged) and committed it as-is. Then dispatched a sonnet
+  agent for T72 (consent-expiry tripwire): it built the pager tripwire and a
+  stale badge, got interrupted before its own commit step, and I re-verified
+  everything it left on disk from scratch before committing — same gate,
+  independently: tsc clean, eslint clean, 60/60 vitest, rebuild+redeploy,
+  `bank_sessions`/`bank_accounts`/`financeFlows` all 0/0/0 before and after.
+  T72 deliberately did NOT enroll the `~/infra/goals` standing goal — the
+  task says not to until a real sync has run, and `bank_sessions` is still
+  empty (Samy linked accounts in the Enable Banking control panel but the
+  code→session exchange through `/api/finance/callback` hasn't happened
+  yet). Wrote it as a draft at
+  `.scratch/finance-tracker/pending-goal-finance-sync-fresh.md` instead, with
+  the exact promotion trigger recorded. **T67–T72 are all now done.** What
+  remains is not code: Samy completing the actual bank consent (his browser,
+  on the tailnet) — everything downstream of that is built and waiting.
+
 - **2026-08-17 (autoloop, T82 — weight history + daily blocks):** Re-checked
   T64 first — falsifier re-run read-only against the live DB
   (`docker exec lifeos node`): `teachSessions` still 0 docs, all 11
@@ -1622,7 +1644,7 @@ credentials an unattended agent may not invent:
 - [x] **T71 — `/finance` surface: the bank-fed half** (S, was M) (2026-08-17: done attended — `ConnectedAccountsPanel` on `/finance`, `getBalances` on the Enable Banking wrapper, additive `bank_accounts` balance columns via `ensureColumn`, `/api/finance/accounts` read-only route. Synced rows carry a `synced` badge, kept out of `financeFlows` per the T83/D4 boundary. No live consent completed yet, so the shipped state is the honest empty one. 45/45 vitest, tsc/eslint clean, rebuild+redeploy verified, live financeFlows row count unchanged.) — **the section itself now exists (T83, 2026-08-15)**: route, nav entry, net position, subscriptions list with the dormant affordance, spending breakdown, all rendering from hand-kept flows. What is left here is only what needs T69's data: a connected-accounts panel, real balances beside the hand-kept run-rate, and a visible marker on rows the sync produced so his own entries stay distinguishable from imported ones. Do not rebuild the layout. Original brief kept below for the shape.
   - a LifeOS section, Finary-shaped: net position, subscriptions list, spending breakdown. Follow the house motion doctrine (interaction-craft skill, per CLAUDE.md). The subscription list is the point — each row wants a "still worth it?" affordance; wiring that into a `/decide` deck is a **separate follow-up task, not this one**. Verify: `npx tsc --noEmit && docker compose build && docker compose up -d`, then `curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3000/finance` returns 200, and a headless-chromium screenshot shows real rows (see the headless-chromium UI-verify recipe: screenshots under `~`, not `/tmp`).
 
-- [x] **T72 — Consent-expiry tripwire (180d)** (S) (2026-08-17: done attended, by Samy directly, commit `b4b49a6`) — the failure this pipeline is *designed* to have (rule 3). Store each bank session's consent expiry at sync time (Enable Banking sessions run **up to 180 days**, matching the EEA cycle — so this task's premise survived the provider change unchanged); when < 10 days remain, fire the pager (`POST http://127.0.0.1:3000/api/notify`) with the re-consent link, and mark the data visibly stale in `/finance` once expired. Then enroll a standing goal in `~/infra/goals/goals/finance-sync-fresh.md` with a machine-checkable `predicate:` (newest transaction younger than N days), matching the format of the existing goals in that dir. **Do not enroll the goal until T69's sync has actually run against live data** — a goal that has never passed is a broken sentinel, not a safety net. Verify: goal file's `predicate:` line exits 0 against live data; `~/infra/goals/verify-goals.sh` reports it passing.
+- [x] **T72 — Consent-expiry tripwire (180d)** (S) (2026-08-17: done attended by a sonnet agent, verified independently and committed `b4b49a6` — see Log. Standing goal deliberately NOT enrolled yet; draft at `.scratch/finance-tracker/pending-goal-finance-sync-fresh.md`, promotes once a real sync populates `bank_sessions`.) — the failure this pipeline is *designed* to have (rule 3). Store each bank session's consent expiry at sync time (Enable Banking sessions run **up to 180 days**, matching the EEA cycle — so this task's premise survived the provider change unchanged); when < 10 days remain, fire the pager (`POST http://127.0.0.1:3000/api/notify`) with the re-consent link, and mark the data visibly stale in `/finance` once expired. Then enroll a standing goal in `~/infra/goals/goals/finance-sync-fresh.md` with a machine-checkable `predicate:` (newest transaction younger than N days), matching the format of the existing goals in that dir. **Do not enroll the goal until T69's sync has actually run against live data** — a goal that has never passed is a broken sentinel, not a safety net. Verify: goal file's `predicate:` line exits 0 against live data; `~/infra/goals/verify-goals.sh` reports it passing.
   - **DONE 2026-08-17:** `bank-consent-tripwire.ts` (pure, client-safe: sessions <10 days from `valid_until`, plus `isConsentExpired` for the UI) split from `bank-consent-notify.ts` (server-only: pages once per session per calendar day via `bank_sync_state` dedup, best-effort — a pager failure never blocks/rolls back a sync) after a first pass pulled `bank-db`'s server-only `better-sqlite3`/`fs` imports into `finance/page.tsx` and broke the Docker client bundle. Wired into the existing `syncBankTransactions()`, no new scheduler. `ConnectedAccountsPanel` shows a "stale" badge once `valid_until` has actually passed. **Standing goal deliberately NOT enrolled** — `bank_sessions` has 0 live rows (accounts linked in the Enable Banking panel, but the code→session exchange hasn't run yet), so the goal is a draft at `.scratch/finance-tracker/pending-goal-finance-sync-fresh.md` (gitignored) with the promotion trigger recorded, per the task's own instruction not to enroll a goal that's never passed. Verified independently: tsc/eslint clean, 60/60 vitest across the full finance suite (12 new), rebuild+redeploy, `/` and `/finance` both 200, `bank_sessions`/`bank_accounts`/`financeFlows` row counts unchanged (0/0/0).
 
 ## Deep-link notifications — committed 2026-07-21 (approved /decide items, session-queued)
