@@ -135,7 +135,7 @@ export const HOMELAB_TOOLS = [
   {
     name: "homelab_overview",
     description:
-      "Snapshot of everything pending across the decide system: prompts queued for a Claude session (the 'approve page' queue), pending triage cards, pending NEEDS-SAMY approvals, and standing-goal health. Use this first when the user asks what's queued or pending.",
+      "Snapshot of everything pending across the decide system: prompts queued for a Claude session (the 'approve page' queue), pending triage cards, pending NEEDS-USER approvals, and standing-goal health. Use this first when the user asks what's queued or pending.",
     parameters: { type: "object", properties: {}, required: [] },
   },
   // NOTE (T47, Samy 2026-07-14 option b): chat may QUEUE but never LAUNCH.
@@ -183,7 +183,7 @@ export const HOMELAB_TOOLS = [
   {
     name: "list_pending_approvals",
     description:
-      "Pending NEEDS-SAMY approval cards with their context briefs (what's asked, why blocked, consequences, recommendation).",
+      "Pending NEEDS-USER approval cards with their context briefs (what's asked, why blocked, consequences, recommendation).",
     parameters: {
       type: "object",
       properties: {
@@ -195,7 +195,7 @@ export const HOMELAB_TOOLS = [
   {
     name: "record_approval_verdict",
     description:
-      "Record the user's ruling on one pending NEEDS-SAMY approval card (does NOT execute the action — the verdict is written back to the ROADMAP by the nightly pass). Identify the card by id (from list_pending_approvals) or a distinctive title fragment.",
+      "Record the user's ruling on one pending NEEDS-USER approval card (does NOT execute the action — the verdict is written back to the ROADMAP by the nightly pass). Identify the card by id (from list_pending_approvals) or a distinctive title fragment.",
     parameters: {
       type: "object",
       properties: {

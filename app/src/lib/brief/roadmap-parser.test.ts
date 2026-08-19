@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { parseRoadmap } from "./roadmap-parser";
 
 describe("parseRoadmap", () => {
-  it("finds the first unchecked non-NEEDS-SAMY task and skips checked ones", () => {
+  it("finds the first unchecked non-NEEDS-USER task and skips checked ones", () => {
     const fixture = `
 ## Tasks
 
@@ -11,32 +11,32 @@ describe("parseRoadmap", () => {
 - [ ] **T03 — Later** (S) — this one waits.
 `;
     const result = parseRoadmap(fixture);
-    expect(result.nextTask).toEqual({ title: "T02 — Next up", needsSamy: false });
-    expect(result.needsSamyTasks).toEqual([]);
+    expect(result.nextTask).toEqual({ title: "T02 — Next up", needsUser: false });
+    expect(result.needsUserTasks).toEqual([]);
   });
 
-  it("collects all unchecked NEEDS-SAMY tasks separately from nextTask", () => {
+  it("collects all unchecked NEEDS-USER tasks separately from nextTask", () => {
     const fixture = `
-- [ ] **T01 — NEEDS-SAMY: pick a color** (S) — asks a question.
+- [ ] **T01 — NEEDS-USER: pick a color** (S) — asks a question.
 - [ ] **T02 — Regular task** (M) — do the work.
-- [ ] **T03 — NEEDS-SAMY: pick another color** (S) — asks another question.
+- [ ] **T03 — NEEDS-USER: pick another color** (S) — asks another question.
 `;
     const result = parseRoadmap(fixture);
-    expect(result.needsSamyTasks).toEqual([
-      { title: "T01 — NEEDS-SAMY: pick a color", needsSamy: true },
-      { title: "T03 — NEEDS-SAMY: pick another color", needsSamy: true },
+    expect(result.needsUserTasks).toEqual([
+      { title: "T01 — NEEDS-USER: pick a color", needsUser: true },
+      { title: "T03 — NEEDS-USER: pick another color", needsUser: true },
     ]);
-    expect(result.nextTask).toEqual({ title: "T02 — Regular task", needsSamy: false });
+    expect(result.nextTask).toEqual({ title: "T02 — Regular task", needsUser: false });
   });
 
-  it("returns null nextTask and empty needsSamyTasks when every task is checked", () => {
+  it("returns null nextTask and empty needsUserTasks when every task is checked", () => {
     const fixture = `
 - [x] **T01 — Done** (S) — finished.
-- [x] **T02 — NEEDS-SAMY: also done** (S) — decided already.
+- [x] **T02 — NEEDS-USER: also done** (S) — decided already.
 `;
     const result = parseRoadmap(fixture);
     expect(result.nextTask).toBeNull();
-    expect(result.needsSamyTasks).toEqual([]);
+    expect(result.needsUserTasks).toEqual([]);
   });
 
   it("ignores non-task lines (log entries, headers, prose)", () => {
@@ -52,7 +52,7 @@ Some prose here. Not a task.
 - [ ] **T01 — Real task** (S) — the only one.
 `;
     const result = parseRoadmap(fixture);
-    expect(result.nextTask).toEqual({ title: "T01 — Real task", needsSamy: false });
+    expect(result.nextTask).toEqual({ title: "T01 — Real task", needsUser: false });
   });
 
   it("handles a dropped (strikethrough) task without crashing", () => {
@@ -61,6 +61,6 @@ Some prose here. Not a task.
 - [ ] **T02 — Still active** (S) — pick this one.
 `;
     const result = parseRoadmap(fixture);
-    expect(result.nextTask).toEqual({ title: "T02 — Still active", needsSamy: false });
+    expect(result.nextTask).toEqual({ title: "T02 — Still active", needsUser: false });
   });
 });

@@ -1,4 +1,4 @@
-// Voice ruling on one NEEDS-SAMY card: transcript in (client already ran
+// Voice ruling on one NEEDS-USER card: transcript in (client already ran
 // /api/voice), claude maps it to a verdict + extracts the nuance as the note
 // that decisions.py will write into the ROADMAP annotation.
 import { NextRequest, NextResponse } from "next/server";

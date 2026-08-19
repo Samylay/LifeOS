@@ -1,6 +1,6 @@
 "use client";
 
-// One NEEDS-SAMY card: the claude-written context brief (what's asked, the
+// One NEEDS-USER card: the claude-written context brief (what's asked, the
 // real blocker, approve-vs-ignore consequences, the concrete command, a
 // recommendation) so Samy can rule without opening the repo.
 import { useState } from "react";

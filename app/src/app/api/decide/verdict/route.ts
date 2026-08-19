@@ -1,4 +1,4 @@
-// Record Samy's ruling on one NEEDS-SAMY card. This only flips the DB item to
+// Record Samy's ruling on one NEEDS-USER card. This only flips the DB item to
 // "decided" — the durable ROADMAP annotation + commit happens host-side in
 // decisions.py `apply` (the container's ~/apps//~/infra mounts are read-only).
 // Execution of the approved action itself always goes through the normal

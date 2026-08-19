@@ -2,12 +2,12 @@
 // ~/loop-me/workflows/daily-planning.md "Tracked-centre aggregator" section.
 //
 // LifeOS/Flux/Ecole/Scout/reels-reader each get their ROADMAP.md's open
-// NEEDS-SAMY items plus the next unchecked non-NEEDS-SAMY task (the same
+// NEEDS-USER items plus the next unchecked non-NEEDS-USER task (the same
 // "first unchecked task" rule the nightly executor itself follows).
 // homelab-infra is different: a currently-failing standing goal
 // (~/infra/goals/state/<name>.status == FAIL) always outranks everything
 // else, so only violations are reported when any exist; otherwise it falls
-// back to the first NEEDS-SAMY task found across ~/infra/*/ROADMAP.md.
+// back to the first NEEDS-USER task found across ~/infra/*/ROADMAP.md.
 //
 // Not wired into the brief builder/registry yet (same as T21's
 // todoist-centres.ts) — a later checkpoint task consumes this output.
@@ -15,7 +15,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { parseRoadmap } from "../roadmap-parser";
 
-export type Urgency = "violation" | "needs-samy" | "next-task";
+export type Urgency = "violation" | "needs-user" | "next-task";
 
 export interface CentreItem {
   centre: string;
@@ -61,10 +61,10 @@ function roadmapItems(centre: string, roadmapPath: string): CentreItem[] {
   if (contents === null) return [];
 
   const parsed = parseRoadmap(contents);
-  const items: CentreItem[] = parsed.needsSamyTasks.map((t) => ({
+  const items: CentreItem[] = parsed.needsUserTasks.map((t) => ({
     centre,
     title: t.title,
-    urgency: "needs-samy" as const,
+    urgency: "needs-user" as const,
   }));
   if (parsed.nextTask) {
     items.push({ centre, title: parsed.nextTask.title, urgency: "next-task" });
@@ -114,13 +114,13 @@ function discoverInfraRoadmaps(infraDir: string): string[] {
     .filter((p) => fs.existsSync(p));
 }
 
-function nextInfraNeedsSamy(infraDir: string): CentreItem | null {
+function nextInfraNeedsUser(infraDir: string): CentreItem | null {
   for (const roadmapPath of discoverInfraRoadmaps(infraDir)) {
     const contents = readFile(roadmapPath);
     if (contents === null) continue;
     const parsed = parseRoadmap(contents);
-    if (parsed.needsSamyTasks.length > 0) {
-      return { centre: "homelab-infra", title: parsed.needsSamyTasks[0].title, urgency: "needs-samy" };
+    if (parsed.needsUserTasks.length > 0) {
+      return { centre: "homelab-infra", title: parsed.needsUserTasks[0].title, urgency: "needs-user" };
     }
   }
   return null;
@@ -130,8 +130,8 @@ export function homelabInfraItems(paths: InfraPaths = DEFAULT_INFRA_PATHS): Cent
   const violations = goalViolations(paths.goalsDir);
   if (violations.length > 0) return violations;
 
-  const nextSamy = nextInfraNeedsSamy(paths.infraDir);
-  return nextSamy ? [nextSamy] : [];
+  const nextUser = nextInfraNeedsUser(paths.infraDir);
+  return nextUser ? [nextUser] : [];
 }
 
 export function aggregateTrackedCentres(opts?: {

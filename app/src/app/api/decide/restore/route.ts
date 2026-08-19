@@ -1,4 +1,4 @@
-// Undo one NEEDS-SAMY ruling: flip a decided item back to pending. Only works
+// Undo one NEEDS-USER ruling: flip a decided item back to pending. Only works
 // before the host-side nightly `decisions.py apply` writes it into the
 // ROADMAP (status "applied" is durable — undoing that means editing the
 // ROADMAP, which stays a human/git operation).

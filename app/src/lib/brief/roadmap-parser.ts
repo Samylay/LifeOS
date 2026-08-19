@@ -6,12 +6,12 @@
 
 export interface RoadmapTask {
   title: string;
-  needsSamy: boolean;
+  needsUser: boolean;
 }
 
 export interface ParsedRoadmap {
-  needsSamyTasks: RoadmapTask[];
-  // First unchecked task whose title doesn't contain NEEDS-SAMY, in file
+  needsUserTasks: RoadmapTask[];
+  // First unchecked task whose title doesn't contain NEEDS-USER, in file
   // order — same "first match wins" rule the nightly executor itself uses.
   nextTask: RoadmapTask | null;
 }
@@ -19,7 +19,7 @@ export interface ParsedRoadmap {
 const TASK_LINE = /^-\s\[( |x)\]\s+(?:~~)?\*\*([^*]+)\*\*/;
 
 export function parseRoadmap(contents: string): ParsedRoadmap {
-  const needsSamyTasks: RoadmapTask[] = [];
+  const needsUserTasks: RoadmapTask[] = [];
   let nextTask: RoadmapTask | null = null;
 
   for (const line of contents.split("\n")) {
@@ -29,14 +29,14 @@ export function parseRoadmap(contents: string): ParsedRoadmap {
     if (checked) continue;
 
     const title = match[2].trim();
-    const needsSamy = title.includes("NEEDS-SAMY");
+    const needsUser = title.includes("NEEDS-USER");
 
-    if (needsSamy) {
-      needsSamyTasks.push({ title, needsSamy: true });
+    if (needsUser) {
+      needsUserTasks.push({ title, needsUser: true });
     } else if (!nextTask) {
-      nextTask = { title, needsSamy: false };
+      nextTask = { title, needsUser: false };
     }
   }
 
-  return { needsSamyTasks, nextTask };
+  return { needsUserTasks, nextTask };
 }

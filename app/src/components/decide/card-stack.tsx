@@ -1,7 +1,7 @@
 "use client";
 
 // Tinder-style decision stack shared by the /decide decks (saved-content
-// triage + NEEDS-SAMY approvals). Gesture-driven: the top card tracks the
+// triage + NEEDS-USER approvals). Gesture-driven: the top card tracks the
 // pointer 1:1 while dragging (no transition — direct manipulation), then
 // either flies out (past the commit thresholds) or springs back. Cards
 // beneath promote via a CSS transform transition. Buttons reuse the same

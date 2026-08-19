@@ -1,4 +1,4 @@
-// Record one verdict across many NEEDS-SAMY cards in a single call — the
+// Record one verdict across many NEEDS-USER cards in a single call — the
 // server side of the /decide "Apply to all" bulk action. Same semantics as the
 // single-card verdict route (flip pending items to "decided"; the durable
 // ROADMAP write-back + execution still happen host-side in decisions.py), just

@@ -4,7 +4,7 @@
 // T24 is the checkpoint task that folds this into the Morning Brief.
 //
 // Dynamic-priority items are T22's tracked-centre aggregator only (ranked
-// violation > needs-samy > next-task) for this pass. T21's Todoist tasks are
+// violation > needs-user > next-task) for this pass. T21's Todoist tasks are
 // deliberately excluded from auto-placement: the spec requires a task have a
 // scheduled date to be auto-blocked, and today's Todoist fetcher doesn't
 // carry due dates — so treating all Todoist tasks as "unscheduled" is the
@@ -15,24 +15,24 @@ import { listEventsForDay, insertTentativeEvent, isGoogleCalendarConfigured } fr
 import { computeTentativeBlocks, type DynamicItem } from "../tentative-blocks";
 import { aggregateTrackedCentres, type Urgency } from "./tracked-centres";
 
-const URGENCY_RANK: Record<Urgency, number> = { violation: 0, "needs-samy": 1, "next-task": 2 };
+const URGENCY_RANK: Record<Urgency, number> = { violation: 0, "needs-user": 1, "next-task": 2 };
 
-// NEEDS-SAMY tasks are decisions, not time-boxable work, and every open one
+// NEEDS-USER tasks are decisions, not time-boxable work, and every open one
 // across all roadmaps otherwise lands on the calendar each morning (the clog
 // Samy hit 2026-07-13). Cap them to the top few; violations and next-task
 // blocks are unbounded (that's the actual daily plan). Decisions still surface
 // in full via the /decide deck and the morning attention push.
-const NEEDS_SAMY_CAP = 4;
+const NEEDS_USER_CAP = 4;
 
 function rankedDynamicItems(): DynamicItem[] {
-  let needsSamySeen = 0;
+  let needsUserSeen = 0;
   return aggregateTrackedCentres()
     .slice()
     .sort((a, b) => URGENCY_RANK[a.urgency] - URGENCY_RANK[b.urgency])
     .filter((i) => {
-      if (i.urgency !== "needs-samy") return true;
-      needsSamySeen += 1;
-      return needsSamySeen <= NEEDS_SAMY_CAP;
+      if (i.urgency !== "needs-user") return true;
+      needsUserSeen += 1;
+      return needsUserSeen <= NEEDS_USER_CAP;
     })
     .map((i) => ({ centre: i.centre, title: `${i.centre}: ${i.title}` }));
 }

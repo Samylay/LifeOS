@@ -2,7 +2,7 @@
 
 // /decide — the decision deck. Four stacks of swipeable cards sharing one
 // gesture component: "Saved" (bookmark/save triage with category-specific
-// assessments), "Approvals" (NEEDS-SAMY asks aggregated from every
+// assessments), "Approvals" (NEEDS-USER asks aggregated from every
 // ROADMAP.md), "Shelf" (the one-off Firefox bookmark backfill — every
 // card is a proposed drop, so right = rescue), and "Pain" (the one-off
 // read-through of pulled pain points). Swipe right = approve/keep, left =
@@ -327,7 +327,7 @@ function DecideInner() {
             const d = await post("/api/decide/interpret", { id: item.id, transcript });
             return d.reply || d.result;
           }}
-          emptyLabel="Nothing needs your call — NEEDS-SAMY asks land here on the nightly scan."
+          emptyLabel="Nothing needs your call — NEEDS-USER asks land here on the nightly scan."
           />
         </div>
       )}

@@ -1,4 +1,4 @@
-// Pending NEEDS-SAMY decision cards for the /decide deck. Items are scanned/
+// Pending NEEDS-USER decision cards for the /decide deck. Items are scanned/
 // enriched host-side by ~/services/triage/decisions.py (the container only
 // sees ~/apps and ~/infra read-only) and land in this collection via
 // /api/data; verdicts recorded here are written back into the ROADMAPs by the

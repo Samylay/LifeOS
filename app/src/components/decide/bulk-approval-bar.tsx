@@ -1,7 +1,7 @@
 "use client";
 
 // Bulk action bar for the /decide approvals deck: pick one verdict, apply it to
-// every pending NEEDS-SAMY card at once instead of swiping them one by one.
+// every pending NEEDS-USER card at once instead of swiping them one by one.
 // A clearly-labelled control (not a bare icon) with a two-tap confirm so a
 // full deck can't be cleared on a stray click, an Undo toast like the single-
 // card path, and client-side batching — the id list is chunked into several

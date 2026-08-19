@@ -1,4 +1,4 @@
-// NEEDS-SAMY decision cards — shared types for the /decide deck. Items are
+// NEEDS-USER decision cards — shared types for the /decide deck. Items are
 // produced host-side by ~/services/triage/decisions.py and stored in
 // users/local/decisionQueue; the ROADMAP write-back also happens host-side.
 

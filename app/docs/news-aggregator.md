@@ -96,7 +96,7 @@ Worker deploy Samy must provision (external secret — not inventable by an agen
 - The Cloudflare Email Worker script + routing rule (committed to `infra/`,
   deployed with Samy's `wrangler`/token).
 
-### NEEDS-SAMY (external, not inventable)
+### NEEDS-USER (external, not inventable)
 
 - Cloudflare **Email Routing** enabled on the `samylayaida.com` zone + the
   `news@` rule pointing at the worker.

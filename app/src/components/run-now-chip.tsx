@@ -1,6 +1,6 @@
 "use client";
 
-// The per-action NEEDS-SAMY bypass confirm. When Samy explicitly told the
+// The per-action NEEDS-USER bypass confirm. When Samy explicitly told the
 // agent "run it now", queue_homelab_prompt marks the queued doc and the
 // result carries confirm:{promptId} — this chip is the ONLY thing that turns
 // that request into a launch (POST /api/triage/dispatch {promptId}). The tap
