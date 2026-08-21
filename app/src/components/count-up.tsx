@@ -9,11 +9,15 @@ import { useEffect, useRef, useState } from "react";
 export function CountUp({
   value,
   duration = 700,
+  easePow = 3,
   className,
   suffix = "",
 }: {
   value: number;
   duration?: number;
+  // Ease-out power (Codrops "Animated Testimonial Hero" GSAP counter,
+  // 2026-08-18: e = 1 - (1-p)^easePow). Higher = harder settle at the end.
+  easePow?: number;
   className?: string;
   suffix?: string;
 }) {
@@ -35,8 +39,8 @@ export function CountUp({
     const from = 0;
     const tick = (now: number) => {
       const t = Math.min(1, (now - start) / duration);
-      // ease-out cubic — matches --ease-out-custom's deceleration feel.
-      const eased = 1 - Math.pow(1 - t, 3);
+      // ease-out(power) — matches --ease-out-custom's deceleration feel.
+      const eased = 1 - Math.pow(1 - t, easePow);
       setDisplay(Math.round(from + (value - from) * eased));
       if (t < 1) rafRef.current = requestAnimationFrame(tick);
     };
@@ -44,7 +48,7 @@ export function CountUp({
     return () => {
       if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
     };
-  }, [value, duration]);
+  }, [value, duration, easePow]);
 
   return (
     <span className={className} style={{ fontVariantNumeric: "tabular-nums" }}>

@@ -222,6 +222,13 @@ one proves for a density-first tool UI:
 - **Typography Nerd** — already studied in depth in the vault: "Design
   reference shelf — galleries and type" (type-as-imagery, one repeated link
   affordance, persistent left rail).
+
+Motif-derived consistency (vault: "Barbican homeware — motif-derived
+consistency", 2026-08-21): the Barbican × Made.com homeware line reads as one
+system because every piece derives from the same architectural motif, not
+because pieces share a palette. Argument for deriving a token *set* from a
+shared rule (a proportion, an angle) rather than matching one-off screens by
+eye.
 - **House of Honey** (houseofhoney.com, studied 2026-08-11 in the vault
   "Design references" note): nameplate masthead (identity spent in one band,
   never repeated as decoration) + a two-register type ladder with no middle
