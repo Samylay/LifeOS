@@ -40,12 +40,35 @@ export function useGoals() {
         doneMilestones: data.doneMilestones || [],
         commitments: data.commitments || [],
         sessions: data.sessions || [],
+        needsGrilling: data.needsGrilling,
         createdAt: now,
         updatedAt: now,
       };
-      return await create(goal);
+      const id = await create(goal);
+      // T27: a newly created goal flagged needsGrilling gets its ONE grilling
+      // todo enqueued immediately, guarded by the same optimistic
+      // grillingQueuedAt stamp. Fail soft — the goal stands either way.
+      if (data.needsGrilling) {
+        void (async () => {
+          try {
+            await update(id, { grillingQueuedAt: new Date().toISOString() });
+          } catch {
+            /* guard stamp is best-effort */
+          }
+          try {
+            await fetch("/api/goals/grilling", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ id, title: goal.title }),
+            });
+          } catch {
+            /* fail soft — pending reminder remains visible in the goals UI */
+          }
+        })();
+      }
+      return id;
     },
-    [create]
+    [create, update]
   );
 
   const updateGoal = useCallback(
@@ -53,6 +76,37 @@ export function useGoals() {
       await update(id, { ...data, updatedAt: new Date() });
     },
     [update]
+  );
+
+  // T27: flag a goal as needing a grilling session and enqueue the ONE
+  // Todoist task via the server route (token lives server-side). The local
+  // `grillingQueuedAt` stamp lands first — optimistic duplicate guard — and
+  // a failed enqueue never blocks or reverts the goal write (fail soft; the
+  // pending reminder just stays pending and the route can be re-hit).
+  const toggleGrilling = useCallback(
+    async (id: string) => {
+      const goal = goals.find((g) => g.id === id);
+      if (!goal) return;
+      const nextNeeds = !goal.needsGrilling;
+      if (nextNeeds && !goal.grillingQueuedAt) {
+        await updateGoal(id, {
+          needsGrilling: true,
+          grillingQueuedAt: new Date().toISOString(),
+        });
+        try {
+          await fetch("/api/goals/grilling", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id: goal.id, title: goal.title }),
+          });
+        } catch {
+          // fail soft — pending reminder remains visible in the goals UI
+        }
+      } else {
+        await updateGoal(id, { needsGrilling: nextNeeds });
+      }
+    },
+    [goals, updateGoal]
   );
 
   const deleteGoal = useCallback(async (id: string) => remove(id), [remove]);
@@ -164,6 +218,7 @@ export function useGoals() {
     createGoal,
     updateGoal,
     deleteGoal,
+    toggleGrilling,
     addCommitment,
     toggleCommitment,
     removeCommitment,

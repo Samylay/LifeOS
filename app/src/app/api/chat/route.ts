@@ -3,8 +3,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { getOllamaClient, OLLAMA_MODEL } from "@/lib/ollama";
 import { claudeCliEnabled } from "@/lib/claude-cli";
 import { APP_TOOLS, runAgentTurn, type AgentAction } from "@/lib/agent-engine";
-import { executeAppActions } from "@/lib/app-actions";
+import { executeAppActions, type AppActionResult } from "@/lib/app-actions";
 import { logChatMessage } from "@/lib/chat-log";
+// T29: queue-only dev-request tool. Chat can WRITE a request doc — nothing
+// more. No shell/file/code access is added by this tool (security boundary).
+import { addDevRequest, validateDevRequestInput } from "@/lib/dev-requests";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -17,6 +20,8 @@ You are ALSO a homelab surface. Through homelab tools (executed server-side, res
 
 Guidelines:
 - Route by INTENT first. Raw thinking-out-loud (a brain dump, an idea he is still turning over, a ramble with no discrete action) goes to capture_braindump, which puts it in the vault where Hermes enriches it — this is what the separate voice surface was built for, and it is the right home for it even when he types it here. A discrete fact or reference worth filing goes to create_note. Actionable work goes to tasks/reminders. Homelab and feature requests go to the homelab tools. One input can be several of these at once: a dump that contains two clear actions gets captured AND creates the tasks — never drop the raw dump just because you extracted actions from it.
+- For "build/fix/change something in the app"-type requests about LifeOS itself, use queue_dev_request({project?, title, description}) to queue a dev request for later implementation instead of pretending you can change the app. It only records the request — it cannot execute anything, and that's by design.
+
 - Extract clear, actionable tasks from unstructured text
 - Infer priority from context (words like "urgent", "ASAP", "this week" → high/urgent; general items → medium; "someday", "maybe" → low)
 - Infer the area when possible: "health" for fitness/wellness, "career" for work/learning, "finance" for money, "brand" for personal brand/content, "admin" for logistics/bureaucracy

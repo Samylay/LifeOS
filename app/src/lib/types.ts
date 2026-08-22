@@ -528,6 +528,11 @@ export interface Goal {
   doneMilestones: string[];
   commitments: GoalCommitment[];
   sessions: GoalSession[];
+  // T27 goals→grilling pipeline. All optional + tolerant-read: an absent field
+  // means false/never — legacy goals need no migration.
+  needsGrilling?: boolean;
+  grillingQueuedAt?: string;
+  grilledAt?: string;
   createdAt: Date;
   updatedAt: Date;
 }

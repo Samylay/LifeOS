@@ -72,13 +72,22 @@ export function GoalEditor({
   onSave,
   onCancel,
 }: {
-  onSave: (data: { title: string; quarter: string; why?: string; outcome?: string }) => void;
+  onSave: (
+    data: {
+      title: string;
+      quarter: string;
+      why?: string;
+      outcome?: string;
+      needsGrilling?: boolean;
+    }
+  ) => void;
   onCancel: () => void;
 }) {
   const [title, setTitle] = useState("");
   const [quarter, setQuarter] = useState(quarterOf());
   const [why, setWhy] = useState("");
   const [outcome, setOutcome] = useState("");
+  const [needsGrilling, setNeedsGrilling] = useState(false);
 
   return (
     <div className="rounded-xl border border-primary bg-card p-4 space-y-3 enter">
