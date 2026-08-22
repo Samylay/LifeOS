@@ -1,30 +1,33 @@
-# Stride — Routes
+# LifeOS — Routes
 
-## Route Map
+Every route below exists on disk under `src/app/` (verified 2026-08-22). No phantom routes.
 
 | Route | Page | Status | Description |
 |-------|------|--------|-------------|
-| `/` | Dashboard | **Live** | Command Center with morning/evening views |
-| `/focus` | Focus Timer | **Live** | Pomodoro timer with progress ring, area linking, session logging |
-| `/focus/blocks` | Focus Blocks | Scaffold | Schedule time blocks for deep work |
-| `/focus/analytics` | Focus Analytics | Scaffold | Charts and stats for focus sessions |
-| `/capture` | Quick Capture | Scaffold | Full capture interface (top bar capture already works) |
-| `/areas` | Areas Overview | Scaffold | Grid of all 5 life area modules |
-| `/areas/health` | Health & Training | Scaffold | Training log, bodyweight skills, wellbeing |
-| `/areas/career` | Career & Learning | Scaffold | Skill tree, JECT tracker, learning queue |
-| `/areas/finance` | Finance | Scaffold | Monthly snapshot, budget, subscriptions |
-| `/areas/brand` | Personal Brand | Scaffold | Content calendar, publishing log, ideas |
-| `/areas/admin` | Life Admin | Scaffold | Recurring tasks, admin inbox, documents |
-| `/projects` | Project Tracker | Scaffold | Kanban board with project cards |
-| `/quests` | Quests | Scaffold | 90-day quest tracker with progress |
-| `/journeys` | Hero Journeys | Scaffold | Long-term mastery progression |
-| `/goals` | Annual Goals | Scaffold | Year view with quarterly breakdown |
-| `/calendar` | Calendar | Scaffold | Weekly calendar with events + focus blocks |
-| `/review` | Weekly Review | Scaffold | LLM-generated review summaries |
-| `/settings` | Settings | Scaffold | Profile, integrations list |
-| `/settings/focus` | Focus Settings | Scaffold | Timer defaults, Focus Shield config |
+| `/` | Dashboard | **Live** | Command center: morning/evening brief, attention surface, stats |
+| `/content` | Content | **Live** | Content pipeline / publishing management |
+| `/decide` | Decide | **Live** | Decision decks: pain inbox, triage, proposals queue |
+| `/decide/adaptive` | Adaptive Deck | **Live** | Adaptive decision deck view |
+| `/diagrams` | Diagrams | **Live** | Diagram viewer/gallery |
+| `/feed` | Feed | **Live** | IG-replacement feed; cards gated behind recall quizzes |
+| `/finance` | Finance | **Live** | Finances with bank sync, budgets, transactions |
+| `/knowledge` | Knowledge | **Live** | Knowledge base + capture |
+| `/knowledge/teach/[id]` | Teach Topic | **Live** | Teach-back session for a knowledge topic |
+| `/leads` | Leads | **Live** | Lead lifecycle tracking |
+| `/news` | News | **Live** | News aggregator digest |
+| `/news/feeds` | Feed Manager | **Live** | Manage news feed sources |
+| `/pager` | Pager | **Live** | Notify/pager messages and actions |
+| `/prime` | Prime | **Live** | Daily affirmations / priming |
+| `/prime/manage` | Prime Manager | **Live** | Create and manage affirmations |
+| `/projects` | Projects | **Live** | Projects and shipped work |
+| `/recipes` | Recipes | **Live** | Recipe collection and planning |
+| `/settings` | Settings | **Live** | Integrations, LLM toggle, app settings |
+| `/status` | Status | **Live** | Life-status dashboard with headline stat tiles |
+| `/terminal` | Terminal | **Live** | In-app terminal surface |
+| `/voice` | Voice | **Live** | VoicePal voice notes list |
+| `/voice/[id]` | Voice Note | **Live** | Voice note detail/transcript |
+| `/workouts` | Workouts | **Live** | Training log synced from Strava |
 
 ### Status Legend
 
-- **Live**: Fully functional with data hooks wired up
-- **Scaffold**: Page exists with layout and empty states, awaiting feature build in later phases
+- **Live**: Functional page wired to the local DB / real data.
