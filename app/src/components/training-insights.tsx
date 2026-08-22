@@ -105,8 +105,12 @@ export default function TrainingInsights({ rows }: { rows: ActivityRow[] }) {
           )}
         </div>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          {compare.map(({ key, label, fmt, r }) => (
-            <Card key={key} className="p-4">
+          {compare.map(({ key, label, fmt, r }, i) => (
+            <Card
+              key={key}
+              className="enter p-4"
+              style={{ ["--enter-delay" as string]: `${i * 40}ms` } as React.CSSProperties}
+            >
               <div className="mb-2 flex items-center justify-between">
                 <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   {label}
@@ -128,13 +132,19 @@ export default function TrainingInsights({ rows }: { rows: ActivityRow[] }) {
           <SectionLabel>Distributions</SectionLabel>
           <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
             {paceBins.length > 0 && (
-              <Card className="p-4">
+              <Card
+                className="enter p-4"
+                style={{ ["--enter-delay" as string]: "80ms" } as React.CSSProperties}
+              >
                 <p className="mb-2 text-xs font-medium text-muted-foreground">Run pace (min/km)</p>
                 <Histogram bins={paceBins} color={SPORT_COLORS.run} unit="pace bucket" />
               </Card>
             )}
             {hrBins.length > 0 && (
-              <Card className="p-4">
+              <Card
+                className="enter p-4"
+                style={{ ["--enter-delay" as string]: "120ms" } as React.CSSProperties}
+              >
                 <p className="mb-2 text-xs font-medium text-muted-foreground">Avg heart rate (bpm)</p>
                 <Histogram bins={hrBins} color="var(--destructive)" unit="HR bucket" />
               </Card>

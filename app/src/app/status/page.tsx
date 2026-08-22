@@ -5,6 +5,7 @@ import { Activity, Cpu, MemoryStick, HardDrive, Boxes, ExternalLink, RefreshCw }
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card } from "@/components/ui/card";
 import { ProgressBar } from "@/components/charts";
+import { CountUp } from "@/components/count-up";
 
 // Grafana for deep dives — rendered only when a base URL is configured.
 // Links straight to the provisioned Homelab dashboard rather than the Grafana home.
@@ -61,7 +62,8 @@ function Vital({
         {icon}
         <span className="text-xs font-bold uppercase tracking-widest">{label}</span>
         <span className="ml-auto font-mono text-sm" style={{ color: barColor(pct) }}>
-          {pct === null ? "–" : `${pct.toFixed(0)}%`}
+          {/* T38: headline stat counts up on mount (reduced-motion skips). */}
+          {pct === null ? "–" : <CountUp value={Math.round(pct)} suffix="%" />}
         </span>
       </div>
       <ProgressBar value={pct ?? 0} max={100} color={barColor(pct)} />

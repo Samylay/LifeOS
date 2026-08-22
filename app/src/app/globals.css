@@ -184,23 +184,10 @@
 }
 
 /* Base tokens (dark-only app: .dark below always overrides the palette;
-   these light values are inert but keep the token layer's shape). */
+   these light values are inert but keep the token layer's shape).
+   Legacy --bg-*/--text-*/--border-*/--accent aliases were deleted (R-F,
+   2026-08): no component referenced them — use the semantic layer instead. */
 :root {
-  --bg-primary: var(--color-warm-50);
-  --bg-secondary: #FAF8F5;
-  --bg-tertiary: var(--color-warm-100);
-  --bg-elevated: #FAF8F5;
-  --text-primary: var(--color-warm-900);
-  /* Bumped one step darker than the dark-theme equivalents: on the light warm
-     ground warm-500/400 fell below AA (see --muted-foreground note above). */
-  --text-secondary: var(--color-warm-600);
-  --text-tertiary: var(--color-warm-500);
-  --border-primary: var(--color-warm-200);
-  --border-secondary: var(--color-warm-100);
-  --accent: var(--color-sage-400);
-  --accent-hover: var(--color-sage-500);
-  --accent-bg: var(--color-sage-50);
-  --focus-ring: rgba(124, 158, 138, 0.5);
   --shadow-sm: none;
   --shadow-md: none;
   --shadow-lg: none;
@@ -218,19 +205,6 @@
 
 /* Dark theme */
 .dark {
-  --bg-primary: var(--color-warm-950);
-  --bg-secondary: var(--color-warm-800);
-  --bg-tertiary: var(--color-warm-700);
-  --bg-elevated: var(--color-warm-800);
-  --text-primary: var(--color-warm-100);
-  --text-secondary: var(--color-warm-400);
-  --text-tertiary: var(--color-warm-500);
-  --border-primary: var(--color-warm-700);
-  --border-secondary: var(--color-warm-800);
-  --accent: var(--color-sage-400);
-  --accent-hover: var(--color-sage-300);
-  --accent-bg: rgba(124, 158, 138, 0.1);
-  --focus-ring: rgba(124, 158, 138, 0.5);
   --shadow-sm: none;
   --shadow-md: none;
   --shadow-lg: none;
@@ -254,9 +228,9 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
-/* Focus ring utility */
+/* Focus ring utility (R-F: --focus-ring alias deleted; --ring is the token) */
 *:focus-visible {
-  outline: 2px solid var(--focus-ring);
+  outline: 2px solid var(--ring);
   outline-offset: 2px;
 }
 
@@ -271,6 +245,23 @@ body {
 .enter {
   animation: enter-fade-up var(--dur-base) var(--ease-out-custom) both;
   animation-delay: var(--enter-delay, 0ms);
+}
+
+/* Celebration (T38) — rare events only: goal shipped, prime complete.
+   Springy scale + fade, ≤400ms, transform/opacity only; the global
+   prefers-reduced-motion block above collapses it to nothing. */
+@keyframes celebrate-pop {
+  from { opacity: 0; transform: scale(0.5); }
+  60%  { opacity: 1; transform: scale(1.08); }
+  to   { opacity: 1; transform: scale(1); }
+}
+@keyframes celebrate-fade {
+  from { opacity: 1; }
+  to   { opacity: 0; transform: scale(1.05); }
+}
+.celebrate-pop {
+  animation: celebrate-pop 400ms var(--ease-out-custom) both,
+             celebrate-fade 100ms linear 400ms both;
 }
 
 /* Origin-aware dropdown/popover scale-in (grows from its trigger). */

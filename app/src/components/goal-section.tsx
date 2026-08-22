@@ -34,6 +34,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { ConfirmDialog } from "@/components/confirm-dialog";
+import { Celebration } from "@/components/celebration";
 
 // --- Plan-state vocabulary ------------------------------------------------
 // One label per goal that makes the gap between a vague wish and a decided,
@@ -207,6 +208,12 @@ export function GoalSection({
   const [newCommit, setNewCommit] = useState("");
   const [drafting, setDrafting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  // T38: celebrate the rare "goal shipped" moment (either close path).
+  const [celebrating, setCelebrating] = useState(false);
+  const shipGoal = () => {
+    setCelebrating(true);
+    updateGoal(goal.id, { status: "done" });
+  };
 
   // All readouts below see ships as sessions.
   const goal = withShipActivity(rawGoal, shipDates);
@@ -249,6 +256,7 @@ export function GoalSection({
 
   return (
     <section className="enter" style={{ ["--enter-delay" as string]: `${delay}ms` }}>
+      {celebrating && <Celebration onDone={() => setCelebrating(false)} />}
       <div className="rounded-xl border border-border border-l-[3px] border-l-primary bg-card p-4">
         <div className="flex items-start gap-3">
           <button
@@ -293,7 +301,7 @@ export function GoalSection({
               <ArrowRight size={12} /> Carry into {thisQuarter}
             </button>
             <button
-              onClick={() => { updateGoal(goal.id, { status: "done" }); toast("Goal closed"); }}
+              onClick={() => { shipGoal(); toast("Goal closed"); }}
               className="text-[11px] font-medium text-muted-foreground/70 transition-transform duration-150 active:scale-[0.95]"
             >
               Close it
@@ -445,7 +453,7 @@ export function GoalSection({
               <DraftButton />
               {goal.status === "active" ? (
                 <button
-                  onClick={() => updateGoal(goal.id, { status: "done" })}
+                  onClick={() => shipGoal()}
                   className="text-xs font-medium text-muted-foreground/70 transition-transform duration-150 active:scale-[0.97]"
                 >
                   Mark done

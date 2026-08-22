@@ -14,6 +14,7 @@ import {
 import { usePrime } from "@/lib/use-prime";
 import { useToast } from "@/components/toast";
 import { ConfirmDialog } from "@/components/confirm-dialog";
+import { Celebration } from "@/components/celebration";
 import { type AffirmationType } from "@/lib/types";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -166,8 +167,17 @@ export default function PrimePage() {
   const step1Done = Boolean(today && today.affirmations.every((a) => a.acknowledged));
   const step2Done = Boolean(today?.promptAcknowledged);
 
+  // T38: celebrate the moment prime flips to complete (not on page load).
+  const [celebrating, setCelebrating] = useState(false);
+  const prevDone = useRef(done);
+  useEffect(() => {
+    if (done && !prevDone.current) setCelebrating(true);
+    prevDone.current = done;
+  }, [done]);
+
   return (
     <div className="space-y-6 max-w-2xl">
+      {celebrating && <Celebration onDone={() => setCelebrating(false)} />}
       {/* Header */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>

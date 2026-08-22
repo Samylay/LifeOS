@@ -12,6 +12,7 @@ export function CountUp({
   easePow = 3,
   className,
   suffix = "",
+  format,
 }: {
   value: number;
   duration?: number;
@@ -20,11 +21,19 @@ export function CountUp({
   easePow?: number;
   className?: string;
   suffix?: string;
+  // Optional formatter applied to each frame (e.g. formatDuration for
+  // "3h 12m" tiles). Without it the value renders as a rounded integer.
+  format?: (n: number) => string;
 }) {
   // Start at 0 on both server and client so the animation counts up cleanly
   // from mount with no flash of the final value (and no hydration mismatch).
   const [display, setDisplay] = useState(0);
   const rafRef = useRef<number | null>(null);
+  // Track the last shown value: first mount counts up from 0, but later
+  // value changes (e.g. polling refreshes) animate from the current number
+  // instead of restarting at 0.
+  const displayRef = useRef(0);
+  const firstRef = useRef(true);
 
   useEffect(() => {
     const reduce =
@@ -32,16 +41,21 @@ export function CountUp({
       window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (reduce || value === 0) {
       setDisplay(value);
+      displayRef.current = value;
+      firstRef.current = false;
       return;
     }
 
     const start = performance.now();
-    const from = 0;
+    const from = firstRef.current ? 0 : displayRef.current;
+    firstRef.current = false;
     const tick = (now: number) => {
       const t = Math.min(1, (now - start) / duration);
       // ease-out(power) — matches --ease-out-custom's deceleration feel.
       const eased = 1 - Math.pow(1 - t, easePow);
-      setDisplay(Math.round(from + (value - from) * eased));
+      const next = Math.round(from + (value - from) * eased);
+      displayRef.current = next;
+      setDisplay(next);
       if (t < 1) rafRef.current = requestAnimationFrame(tick);
     };
     rafRef.current = requestAnimationFrame(tick);
@@ -52,7 +66,7 @@ export function CountUp({
 
   return (
     <span className={className} style={{ fontVariantNumeric: "tabular-nums" }}>
-      {display}
+      {format ? format(display) : display}
       {suffix}
     </span>
   );

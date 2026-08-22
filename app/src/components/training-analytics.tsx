@@ -3,6 +3,7 @@
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card } from "@/components/ui/card";
 import { BarChart } from "@/components/charts";
+import { CountUp } from "@/components/count-up";
 
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -201,12 +202,16 @@ export default function TrainingAnalytics() {
       <section>
         <SectionLabel>This Week</SectionLabel>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          {SPORT_ORDER.filter((s) => s !== "other" || thisWeekTotals.other.count > 0 || lastWeekTotals.other.count > 0).map((sport) => {
+          {SPORT_ORDER.filter((s) => s !== "other" || thisWeekTotals.other.count > 0 || lastWeekTotals.other.count > 0).map((sport, i) => {
             const Icon = SPORT_ICONS[sport];
             const cur = thisWeekTotals[sport];
             const prev = lastWeekTotals[sport];
             return (
-              <Card key={sport} className="p-4">
+              <Card
+                key={sport}
+                className="enter p-4"
+                style={{ ["--enter-delay" as string]: `${i * 40}ms` } as React.CSSProperties}
+              >
                 <div className="mb-2 flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Icon size={16} style={{ color: SPORT_COLORS[sport] }} />
@@ -220,9 +225,12 @@ export default function TrainingAnalytics() {
                   <p className="text-sm text-muted-foreground">No activity</p>
                 ) : (
                   <div className="flex items-baseline gap-3">
-                    <span className="font-mono text-xl font-bold">
-                      {sport === "other" ? formatDuration(cur.moving_time_s) : formatDistance(cur.distance_m)}
-                    </span>
+                    {/* T38: headline stat counts up on mount. */}
+                    <CountUp
+                      className="font-mono text-xl font-bold"
+                      value={sport === "other" ? cur.moving_time_s : cur.distance_m}
+                      format={sport === "other" ? formatDuration : formatDistance}
+                    />
                     <span className="font-mono text-xs text-muted-foreground/90">
                       {formatDuration(cur.moving_time_s)}
                     </span>
@@ -255,7 +263,10 @@ export default function TrainingAnalytics() {
             ))}
           </div>
         </div>
-        <Card className="p-4">
+        <Card
+          className="enter p-4"
+          style={{ ["--enter-delay" as string]: "40ms" } as React.CSSProperties}
+        >
           <BarChart
             data={trendData}
             index="label"
@@ -273,7 +284,10 @@ export default function TrainingAnalytics() {
       {/* 3. Sport breakdown (this year) */}
       <section>
         <SectionLabel>This Year</SectionLabel>
-        <Card className="overflow-hidden p-0">
+          <Card
+            className="enter overflow-hidden p-0"
+            style={{ ["--enter-delay" as string]: "80ms" } as React.CSSProperties}
+          >
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border">
@@ -329,7 +343,10 @@ export default function TrainingAnalytics() {
       {/* 4. Recent activities */}
       <section>
         <SectionLabel>Recent Activities</SectionLabel>
-        <div className="space-y-2">
+        <div
+          className="enter space-y-2"
+          style={{ ["--enter-delay" as string]: "120ms" } as React.CSSProperties}
+        >
           {recent.map((r) => {
             const sport = mapSport(r.sport_type);
             const Icon = SPORT_ICONS[sport];
