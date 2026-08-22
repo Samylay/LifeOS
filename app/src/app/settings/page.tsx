@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { useGarmin } from "@/lib/use-garmin";
 import { PushSettings } from "@/components/push-settings";
+import { DevRequestsCard } from "@/components/dev-requests-card";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -311,6 +312,11 @@ export default function SettingsPage() {
               Send test
             </Button>
           </div>
+        </Section>
+
+        {/* Dev requests (T29) */}
+        <Section title="Dev requests" sub="Build/fix/change asks queued from the Assistant chat.">
+          <DevRequestsCard />
         </Section>
 
         {/* Integrations */}

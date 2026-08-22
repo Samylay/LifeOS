@@ -220,6 +220,20 @@ export const HOMELAB_TOOLS = [
       required: ["topic"],
     },
   },
+  {
+    name: "queue_dev_request",
+    description:
+      "Queue a dev request for later implementation when Samy asks to build/fix/change something in LifeOS itself. It ONLY records the request — it cannot execute anything, by design. Use instead of claiming you can change the app.",
+    parameters: {
+      type: "object",
+      properties: {
+        project: { type: "string", description: "Optional project/area label" },
+        title: { type: "string", description: "Short request title" },
+        description: { type: "string", description: "What to build/fix/change, with any context he gave" },
+      },
+      required: ["title", "description"],
+    },
+  },
 ] as const;
 
 export const HOMELAB_TOOL_NAMES = new Set<string>(HOMELAB_TOOLS.map((t) => t.name));
@@ -233,6 +247,7 @@ export const HOMELAB_TOOL_STATUS: Record<string, string> = {
   list_pending_approvals: "Fetching pending approvals…",
   record_approval_verdict: "Recording your verdict…",
   add_learning_topic: "Adding it to your learning queue…",
+  queue_dev_request: "Queueing the dev request…",
 };
 
 // ── executors ────────────────────────────────────────────────────────────────
@@ -419,6 +434,21 @@ export async function executeHomelabTool(
         tool,
         summary: `Queued "${topic.slice(0, 60)}" for teaching`,
         data: { id, note: "Visible in the Teach me section on /knowledge; schedule or start a session from there." },
+      };
+    }
+    case "queue_dev_request": {
+      const { validateDevRequestInput, addDevRequest } = await import("./dev-requests");
+      const err = validateDevRequestInput(input);
+      if (err) return { tool, summary: `Failed: ${err}`, data: { error: err }, failed: true };
+      const doc = addDevRequest({
+        project: typeof input.project === "string" && input.project.trim() ? input.project.trim() : undefined,
+        title: String(input.title).trim(),
+        description: String(input.description).trim(),
+      });
+      return {
+        tool,
+        summary: `Queued "${doc.title.slice(0, 60)}" for later implementation`,
+        data: { id: doc.id, note: "Recorded in the dev-request queue; nothing executes from chat." },
       };
     }
     default:
