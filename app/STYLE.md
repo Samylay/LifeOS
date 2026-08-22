@@ -17,10 +17,12 @@ wins unless Samy retires it.
 3. **The Assistant is the only capture surface.** New input modes (voice,
    share, brain-dump) route into it; we do not build a second capture UI
    (decision 2026-07-16, re-architecting it is the anti-pattern).
-4. **The boring, already-used option wins.** LifeOS is scanned dozens of
-   times a day: familiarity and low decision cost beat aesthetic ambition,
-   and a novel pattern must earn its orientation cost (Hick's-law section
-   below is the enforcement arm).
+4. **The boring, already-used option wins** *(amended 2026-08-22 by Samy)*.
+   LifeOS is scanned dozens of times a day: familiarity and low decision cost
+   beat aesthetic ambition, and a novel pattern must earn its orientation cost
+   (Hick's-law section below is the enforcement arm).
+   **Amendment (2026-08-22):** modern and impeccable beats boring-familiar;
+   novelty still must not cost orientation.
 5. **Built to be left quickly. No engagement mechanics, ever.** No streaks,
    no infinite feeds, no attention-holding tricks; even /feed (the IG
    replacement) gates cards on recall quizzes instead of rewarding time
@@ -28,6 +30,34 @@ wins unless Samy retires it.
 
 Adopted 2026-07-19 (Samy's spec): unified **shadcn/ui + Tremor** foundation,
 copy-in only — every component lives in this repo, no installed component libs.
+
+## Modern surface system (2026-08-22)
+
+Depth comes from layered elevation on a stepped surface ladder, not hard
+borders ("quiet modern" — Linear/Vercel/Raycast school). Tokens live in
+`src/app/globals.css`.
+
+- **Surface ladder** — `--surface-1` (page ground, darkest), `--surface-2`
+  (cards), `--surface-3` (popovers/dialogs/drawers, the raised tier). In dark,
+  the page (`#101210`, slightly blue-shifted near-black) is *darker* than
+  cards (warm-900 family) so cards read as raised without a border.
+  Consume via Tailwind utilities `bg-surface-2` / `bg-surface-3`.
+- **Shadow scales** — `--shadow-card` (1px inner top highlight + soft ambient:
+  `inset 0 1px 0 rgba(255,255,255,0.04), 0 1px 2px rgba(0,0,0,0.3),
+  0 4px 16px rgba(0,0,0,0.2)` in dark) and `--shadow-pop` (deeper, for
+  popover/dropdown/dialog/sheet tiers). Utilities `shadow-card`/`shadow-pop`.
+  Shadows are allowed motion properties for elevation transitions only
+  (≤300ms custom easing).
+- **Alpha borders** — borders are derived, not painted:
+  `color-mix(in srgb, var(--foreground) 8%, transparent)` as `--border` in
+  dark. Never reach for warm-800-style opaque borders; a hairline at low alpha
+  stays for definition where a shadow alone isn't enough.
+- **Radii** — `--radius-card: 0.875rem` for card-tier surfaces (utility
+  `rounded-card`); inputs/buttons keep 10px (`rounded-md` off `--radius`).
+- **`.section-label`** — one utility class for section headers:
+  `text-[11px] font-semibold uppercase tracking-[0.08em]
+  text-muted-foreground`. Use it instead of hand-rolling label styles.
+
 
 ## Stack & when to use what
 

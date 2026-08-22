@@ -88,6 +88,13 @@
    remained — see the note near their former definitions. */
 :root {
   --radius: 0.625rem;
+  /* Modern surface ladder (UI-MODERN-SPEC M1/M3, 2026-08-22):
+     --surface-1 page ground < --surface-2 cards < --surface-3 raised
+     (popover/dialog/drawer). Dark values below make the page darker than
+     cards so elevation reads without hard borders. */
+  --surface-1: #ffffff;
+  --surface-2: #faf8f5;
+  --surface-3: #ffffff;
   --background: var(--color-warm-50);
   --foreground: var(--color-warm-900);
   --card: #faf8f5;
@@ -123,11 +130,13 @@
 }
 
 .dark {
-  --background: var(--color-warm-950);
-  --foreground: var(--color-warm-100);
+  --background: #101210;
+  --surface-1: #101210;
+  --surface-2: var(--color-warm-900);
+  --surface-3: #232120;
   --card: var(--color-warm-900);
   --card-foreground: var(--color-warm-100);
-  --popover: var(--color-warm-900);
+  --popover: var(--surface-3);
   --popover-foreground: var(--color-warm-100);
   --primary: var(--color-sage-400);
   --primary-foreground: var(--color-sage-950);
@@ -143,7 +152,9 @@
   --success-foreground: #ffffff;
   --warning: #f59e0b;
   --warning-foreground: #ffffff;
-  --border: var(--color-warm-800);
+  /* Alpha-based border recipe (M3): derived from foreground instead of an
+     opaque warm-800 step. */
+  --border: color-mix(in srgb, var(--foreground) 8%, transparent);
   --input: var(--color-warm-700);
   --ring: var(--color-sage-400);
 }
@@ -177,10 +188,28 @@
   --color-chart-3: var(--chart-3);
   --color-chart-4: var(--chart-4);
   --color-chart-5: var(--chart-5);
+  --color-surface-1: var(--surface-1);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+  /* Card-tier radius (M2): cards/popovers get 0.875rem via `rounded-card`;
+     inputs/buttons keep 10px (`rounded-md`). */
+  --radius-card: 0.875rem;
+}
+
+/* Elevation scales (M1) — declared in a non-inline @theme block so utilities
+   (`shadow-card`/`shadow-pop`) emit var() references and the `.dark`
+   overrides below take effect. */
+@theme {
+  --shadow-card:
+    inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 1px 2px rgba(0, 0, 0, 0.05),
+    0 4px 16px rgba(0, 0, 0, 0.06);
+  --shadow-pop:
+    inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 4px 8px rgba(0, 0, 0, 0.08),
+    0 12px 32px rgba(0, 0, 0, 0.12);
 }
 
 /* Base tokens (dark-only app: .dark below always overrides the palette;
@@ -209,6 +238,13 @@
   --shadow-md: none;
   --shadow-lg: none;
   --shadow-glow: 0 0 20px rgba(124, 158, 138, 0.15);
+  /* Layered elevation: inner top highlight + ambient + soft spread (M1). */
+  --shadow-card:
+    inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 1px 2px rgba(0, 0, 0, 0.3),
+    0 4px 16px rgba(0, 0, 0, 0.2);
+  --shadow-pop:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 4px 8px rgba(0, 0, 0, 0.35),
+    0 12px 32px rgba(0, 0, 0, 0.35);
 }
 
 /* Native chrome (scrollbars, form controls, overscroll gutter). Dark-only:
@@ -297,6 +333,41 @@ body {
 }
 .skeleton-pulse {
   animation: skeleton-pulse 1.4s var(--ease-in-out-custom) infinite;
+}
+
+/* Shimmer sweep for skeletons (UI-MODERN-SPEC M5/U6, 2026-08-22):
+   translateX-only sweep with an opacity gradient — transform/opacity only,
+   collapsed by the reduced-motion block below. Usage: add `.shimmer` to the
+   skeleton element (see ui/skeleton.tsx). */
+@keyframes shimmer-sweep {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(100%); }
+}
+.shimmer {
+  position: relative;
+  overflow: hidden;
+}
+.shimmer::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.06) 50%,
+    transparent
+  );
+  animation: shimmer-sweep 1.5s var(--ease-in-out-custom) infinite;
+}
+
+/* Section labels (M4) — one utility instead of hand-rolled label styles. */
+.section-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted-foreground);
 }
 
 /* Reduced motion */
