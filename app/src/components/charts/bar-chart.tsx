@@ -13,7 +13,10 @@ import {
 
 import { cn } from "@/lib/utils";
 import { ChartTooltip } from "./chart-tooltip";
-import { AXIS_TICK_STYLE, defaultValueFormatter, getColor, type ChartValueFormatter } from "./utils";
+import { AXIS_TICK_STYLE,
+  GRID_STROKE,
+  defaultValueFormatter,
+  getColor, type ChartValueFormatter } from "./utils";
 
 export interface BarChartProps<T extends object = Record<string, string | number>> {
   data: T[];
@@ -52,7 +55,7 @@ export function BarChart<T extends object>({
       <ResponsiveContainer width="100%" height="100%">
         <RechartsBarChart data={data} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
           {showGrid && (
-            <CartesianGrid stroke="var(--color-border)" strokeDasharray="3 3" vertical={false} />
+            <CartesianGrid stroke={GRID_STROKE} vertical={false} />
           )}
           {showXAxis && (
             <XAxis dataKey={index} tick={AXIS_TICK_STYLE} axisLine={false} tickLine={false} />
@@ -69,7 +72,7 @@ export function BarChart<T extends object>({
             const color = getColor(colors, i);
             const isLast = i === categories.length - 1;
             const radius: [number, number, number, number] =
-              stacked && !isLast ? [0, 0, 0, 0] : [2, 2, 0, 0];
+              stacked && !isLast ? [0, 0, 0, 0] : [6, 6, 0, 0];
             return (
               <Bar
                 key={category}

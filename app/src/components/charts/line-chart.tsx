@@ -13,7 +13,10 @@ import {
 
 import { cn } from "@/lib/utils";
 import { ChartTooltip } from "./chart-tooltip";
-import { AXIS_TICK_STYLE, defaultValueFormatter, getColor, type ChartValueFormatter } from "./utils";
+import { AXIS_TICK_STYLE,
+  GRID_STROKE,
+  defaultValueFormatter,
+  getColor, type ChartValueFormatter } from "./utils";
 
 export interface LineChartProps<T extends object = Record<string, string | number>> {
   data: T[];
@@ -46,7 +49,7 @@ export function LineChart<T extends object>({
       <ResponsiveContainer width="100%" height="100%">
         <RechartsLineChart data={data} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
           {showGrid && (
-            <CartesianGrid stroke="var(--color-border)" strokeDasharray="3 3" vertical={false} />
+            <CartesianGrid stroke={GRID_STROKE} vertical={false} />
           )}
           {showXAxis && (
             <XAxis dataKey={index} tick={AXIS_TICK_STYLE} axisLine={false} tickLine={false} />
@@ -67,7 +70,7 @@ export function LineChart<T extends object>({
                 type="monotone"
                 dataKey={category}
                 stroke={color}
-                strokeWidth={2}
+                strokeWidth={1.75}
                 isAnimationActive={false}
                 dot={false}
                 activeDot={{ r: 3 }}

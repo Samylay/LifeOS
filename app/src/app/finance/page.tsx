@@ -373,7 +373,7 @@ function ConnectedAccountsPanel() {
 
       {recentTransactions.length > 0 && (
         <Card className="enter gap-2 px-4 py-4">
-          <p className="text-sm font-medium text-foreground">Recent bank activity</p>
+          <p className="section-label">Recent bank activity</p>
           <div>
             {recentTransactions.map((t) => {
               const amount = Number(t.amount);
@@ -516,7 +516,7 @@ export default function FinancePage() {
           {/* Habits: behaviour, not a ledger. */}
           {habits.length > 0 && (
             <Card className="gap-2 px-4 py-4">
-              <p className="text-sm font-medium text-foreground">Where it goes</p>
+              <p className="section-label">Where it goes</p>
               {spend.length > 0 && (
                 <CategoryBar
                   data={spend.map((s) => ({ label: s.label, value: s.monthly }))}
@@ -537,7 +537,7 @@ export default function FinancePage() {
           {/* Subscriptions: the list he is meant to prune. */}
           <Card className="gap-2 px-4 py-4">
             <div className="flex items-baseline justify-between gap-2">
-              <p className="text-sm font-medium text-foreground">Subscriptions</p>
+              <p className="section-label">Subscriptions</p>
               <p className="text-xs tabular-nums text-muted-foreground">
                 {formatEuro(totals.monthlySubs)} a month · {formatEuro(subsYearly, { decimals: false })} a year
               </p>
@@ -566,7 +566,7 @@ export default function FinancePage() {
           {/* The raw list, last — it is reference, not the point. */}
           <div className="grid gap-3 md:grid-cols-2">
             <Card className="gap-2 px-4 py-4">
-              <p className="text-sm font-medium text-foreground">Rentrées</p>
+              <p className="section-label">Rentrées</p>
               {income.length === 0 ? (
                 <p className="text-sm text-muted-foreground">Nothing coming in is tracked.</p>
               ) : (

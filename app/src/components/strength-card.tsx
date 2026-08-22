@@ -5,6 +5,7 @@ import { useStrength } from "@/lib/use-strength";
 import { weekOfBuild, sessionsThisWeek, buildComplete, targetFreq } from "@/lib/types";
 import { Card } from "@/components/ui/card";
 import { ProgressBar } from "@/components/charts";
+import { EmptyState } from "@/components/empty-state";
 
 export function StrengthCard() {
   const { building, maintaining, queued, loading, logSession, graduate, seedDefaults } =
@@ -18,17 +19,23 @@ export function StrengthCard() {
       <Card className="p-4 lg:p-5">
         <div className="mb-1 flex items-center gap-2">
           <Activity size={16} className="text-primary" />
-          <h2 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+          <h2 className="section-label">
             Strength
           </h2>
         </div>
-        <p className="mb-3 text-sm text-muted-foreground">No active build-then-maintain focus.</p>
-        <button
-          onClick={() => seedDefaults()}
-          className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-transform duration-150 active:scale-[0.97]"
-        >
-          <Plus size={14} /> Set up focus queue
-        </button>
+        <EmptyState
+          compact
+          icon={Activity}
+          hint="No active build-then-maintain focus."
+          action={
+            <button
+              onClick={() => seedDefaults()}
+              className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-transform duration-150 active:scale-[0.97]"
+            >
+              <Plus size={14} /> Set up focus queue
+            </button>
+          }
+        />
       </Card>
     );
   }
@@ -42,7 +49,7 @@ export function StrengthCard() {
       <div className="mb-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Activity size={16} className="text-primary" />
-          <h2 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+          <h2 className="section-label">
             Strength
           </h2>
         </div>

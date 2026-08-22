@@ -121,7 +121,7 @@ export default function Today() {
       {/* Header */}
       <div className="flex items-start justify-between gap-4 flex-wrap enter">
         <div>
-          <h1 className="text-xl lg:text-2xl font-semibold flex items-center gap-2 text-foreground">
+          <h1 className="text-2xl tracking-tight font-semibold flex items-center gap-2 text-foreground">
             {now.getHours() < 18 ? <Sun size={20} className="text-primary" /> : <Moon size={20} className="text-primary" />}
             {greeting()}, Samy
           </h1>
@@ -162,7 +162,7 @@ export default function Today() {
       <div className="enter lg:col-start-1 lg:row-start-1 min-w-0" style={{ ["--enter-delay" as string]: "120ms" }}>
         <div className="flex items-center justify-between mb-3">
           <div className="flex flex-wrap items-center gap-2 min-w-0">
-            <h2 className="text-xs font-bold uppercase tracking-widest flex items-center gap-2 text-muted-foreground">
+            <h2 className="section-label flex items-center gap-2">
               <Flag size={14} className="text-primary" /> Morning brief
             </h2>
             {brief && brief.source !== "live" && (
@@ -251,7 +251,7 @@ export default function Today() {
       {todayHabits.length > 0 && (
         <Card className="p-4 lg:p-5 gap-3 enter" style={{ ["--enter-delay" as string]: "90ms" }}>
           <div className="flex items-center justify-between">
-            <h2 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+            <h2 className="section-label">
               Habits
             </h2>
             <span className="text-xs font-mono text-primary">

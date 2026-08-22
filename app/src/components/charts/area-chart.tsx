@@ -13,7 +13,10 @@ import {
 
 import { cn } from "@/lib/utils";
 import { ChartTooltip } from "./chart-tooltip";
-import { AXIS_TICK_STYLE, defaultValueFormatter, getColor, type ChartValueFormatter } from "./utils";
+import { AXIS_TICK_STYLE,
+  GRID_STROKE,
+  defaultValueFormatter,
+  getColor, type ChartValueFormatter } from "./utils";
 
 export interface AreaChartProps<T extends object = Record<string, string | number>> {
   data: T[];
@@ -59,7 +62,7 @@ export function AreaChart<T extends object>({
             })}
           </defs>
           {showGrid && (
-            <CartesianGrid stroke="var(--color-border)" strokeDasharray="3 3" vertical={false} />
+            <CartesianGrid stroke={GRID_STROKE} vertical={false} />
           )}
           {showXAxis && (
             <XAxis
@@ -86,7 +89,7 @@ export function AreaChart<T extends object>({
                 dataKey={category}
                 stroke={color}
                 fill={`url(#${gradientId}-${i})`}
-                strokeWidth={2}
+                strokeWidth={1.75}
                 isAnimationActive={false}
                 dot={false}
               />

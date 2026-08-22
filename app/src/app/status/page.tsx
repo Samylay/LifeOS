@@ -60,7 +60,7 @@ function Vital({
     <Card className="p-4 enter">
       <div className="mb-2 flex items-center gap-2 text-muted-foreground">
         {icon}
-        <span className="text-xs font-bold uppercase tracking-widest">{label}</span>
+        <span className="section-label">{label}</span>
         <span className="ml-auto font-mono text-sm" style={{ color: barColor(pct) }}>
           {/* T38: headline stat counts up on mount (reduced-motion skips). */}
           {pct === null ? "–" : <CountUp value={Math.round(pct)} suffix="%" />}
@@ -201,7 +201,7 @@ export default function StatusPage() {
       <div>
         <div className="mb-2 flex items-center gap-2">
           <Boxes size={16} className="text-primary" />
-          <h2 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Containers</h2>
+          <h2 className="section-label">Containers</h2>
         </div>
         {!data && !err ? (
           <div className="space-y-1.5">

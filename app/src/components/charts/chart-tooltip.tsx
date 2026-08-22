@@ -4,7 +4,7 @@ import type { TooltipContentProps } from "recharts";
 import type { NameType, ValueType } from "recharts/types/component/DefaultTooltipContent";
 
 import { cn } from "@/lib/utils";
-import { type ChartValueFormatter, defaultValueFormatter } from "./utils";
+import { defaultValueFormatter, tooltipPopoverStyle, type ChartValueFormatter } from "./utils";
 
 export interface ChartTooltipProps extends TooltipContentProps<ValueType, NameType> {
   valueFormatter?: ChartValueFormatter;
@@ -24,9 +24,10 @@ export function ChartTooltip({
   return (
     <div
       className={cn(
-        "min-w-32 rounded-md border border-border bg-popover px-2.5 py-1.5 text-xs text-popover-foreground shadow-md",
+        "min-w-32 rounded-xl border border-border px-2.5 py-1.5 text-xs text-popover-foreground",
         className
       )}
+      style={tooltipPopoverStyle()}
     >
       {label !== undefined && label !== null && label !== "" && (
         <div className="mb-1 font-medium">{String(label)}</div>

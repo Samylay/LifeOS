@@ -7,7 +7,11 @@ function Card({ className, ...props }: React.ComponentProps<"div">) {
     <div
       data-slot="card"
       className={cn(
-        "flex flex-col gap-6 rounded-xl border bg-card py-6 text-card-foreground shadow-sm",
+        /* M1: layered elevation replaces the hard border as the primary
+           separator — --shadow-card carries the inner top highlight + ambient
+           depth; a hairline ring at low alpha keeps definition on busy
+           surfaces. Card-tier radius via `rounded-card` (--radius-card). */
+        "flex flex-col gap-6 rounded-card bg-card py-6 text-card-foreground shadow-card ring-1 ring-foreground/[0.04]",
         className
       )}
       {...props}

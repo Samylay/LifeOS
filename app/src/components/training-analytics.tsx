@@ -4,6 +4,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Card } from "@/components/ui/card";
 import { BarChart } from "@/components/charts";
 import { CountUp } from "@/components/count-up";
+import { EmptyState } from "@/components/empty-state";
 
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -44,7 +45,7 @@ const SPORT_ORDER: SportBucket[] = ["run", "ride", "swim", "other"];
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+    <h2 className="section-label mb-3">
       {children}
     </h2>
   );
@@ -153,29 +154,34 @@ export default function TrainingAnalytics() {
 
   if (unconfigured) {
     return (
-      <Card className="p-8 text-center">
-        <Activity size={32} className="mx-auto mb-3 text-muted-foreground" />
-        <p className="mb-1 text-sm font-medium">Strava isn&apos;t connected yet</p>
-        <p className="text-xs text-muted-foreground">
-          Connect Strava in Settings to see your training analytics here.
-        </p>
+      <Card className="p-4 lg:p-5">
+        <EmptyState
+          icon={Activity}
+          title="Strava isn't connected yet"
+          hint="Connect Strava in Settings to see your training analytics here."
+        />
       </Card>
     );
   }
 
   if (rows.length === 0) {
     return (
-      <Card className="p-8 text-center">
-        <Activity size={32} className="mx-auto mb-3 text-muted-foreground" />
-        <p className="mb-2 text-sm font-medium">No activities synced yet</p>
-        <button
-          onClick={handleSync}
-          disabled={syncing}
-          className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-        >
-          {syncing ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
-          Sync Strava
-        </button>
+      <Card className="p-4 lg:p-5">
+        <EmptyState
+          icon={Activity}
+          title="No activities synced yet"
+          hint="Pull your recent Strava activities to build the analytics."
+          action={
+            <button
+              onClick={handleSync}
+              disabled={syncing}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground transition-transform duration-150 hover:bg-primary/90 active:scale-[0.97]"
+            >
+              {syncing ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+              Sync Strava
+            </button>
+          }
+        />
       </Card>
     );
   }

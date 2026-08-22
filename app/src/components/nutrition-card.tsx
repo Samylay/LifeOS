@@ -68,7 +68,7 @@ export function NutritionCard() {
     <Card className="p-4 lg:p-5">
       <div className="mb-3 flex items-center gap-2">
         <Flame size={16} className="text-primary" />
-        <h2 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+        <h2 className="section-label">
           Today
         </h2>
       </div>
@@ -115,7 +115,7 @@ export function NutritionCard() {
         <div className="mt-4 border-t border-border pt-3">
           <div className="mb-2 flex items-center gap-2">
             <TrendingUp size={14} className="text-muted-foreground" />
-            <span className="text-[11px] uppercase tracking-widest text-muted-foreground">
+            <span className="section-label">
               8 weeks
             </span>
           </div>
@@ -130,7 +130,7 @@ export function NutritionCard() {
 
       <div className="mt-4 border-t border-border pt-3">
         <div className="mb-2 flex items-center justify-between">
-          <span className="text-[11px] uppercase tracking-widest text-muted-foreground">
+          <span className="section-label">
             Daily blocks
           </span>
           <span className="font-mono text-[11px] text-muted-foreground tabular-nums">

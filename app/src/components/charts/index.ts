@@ -8,4 +8,10 @@ export { KpiCard, type KpiCardProps, type KpiCardDelta } from "./kpi-card";
 export { ProgressBar, type ProgressBarProps } from "./progress-bar";
 export { CategoryBar, type CategoryBarProps, type CategoryBarSegment } from "./category-bar";
 export { Tracker, type TrackerProps, type TrackerDatum } from "./tracker";
-export { DEFAULT_CHART_COLORS, getColor, type ChartValueFormatter } from "./utils";
+export {
+  DEFAULT_CHART_COLORS,
+  GRID_STROKE,
+  getColor,
+  tooltipPopoverStyle,
+  type ChartValueFormatter,
+} from "./utils";

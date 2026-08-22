@@ -21,7 +21,7 @@ function Section({ title, sub, children }: { title: string; sub?: string; childr
   return (
     <Card className="gap-4 py-4">
       <CardHeader className="px-4">
-        <CardTitle className="text-base">{title}</CardTitle>
+        <CardTitle className="section-label">{title}</CardTitle>
         {sub && <CardDescription className="text-xs">{sub}</CardDescription>}
       </CardHeader>
       <CardContent className="px-4">{children}</CardContent>
