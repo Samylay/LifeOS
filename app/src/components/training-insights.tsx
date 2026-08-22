@@ -5,6 +5,7 @@ import { Flame, TrendingUp, TrendingDown, Minus } from "lucide-react";
 
 import { Card } from "@/components/ui/card";
 import { BarChart } from "@/components/charts";
+import { CountUp } from "@/components/count-up";
 import {
   type ActivityRow,
   type BucketKey,
@@ -118,7 +119,9 @@ export default function TrainingInsights({ rows }: { rows: ActivityRow[] }) {
                 <DeltaBadge current={r.aTotal} previous={r.bTotal} />
               </div>
               <div className="flex items-baseline gap-2">
-                <span className="font-mono text-xl font-bold">{fmt(r.aTotal)}</span>
+                <span className="font-mono text-xl font-bold">
+                  <CountUp value={r.aTotal} format={fmt} />
+                </span>
                 <span className="font-mono text-xs text-muted-foreground">vs {fmt(r.bTotal)}</span>
               </div>
             </Card>

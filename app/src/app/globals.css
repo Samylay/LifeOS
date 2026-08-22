@@ -84,8 +84,8 @@
 /* ── shadcn/ui semantic tokens (UI overhaul 2026-07-19) ─────────────────────
    Semantic layer over the sage/warm palette. Components consume these via the
    Tailwind mappings in the @theme inline block below. Legacy --bg-… and
-   --text-… vars further down are aliases kept until every surface is
-   migrated. */
+   --text-… aliases were deleted (R-F, 2026-08) once zero references
+   remained — see the note near their former definitions. */
 :root {
   --radius: 0.625rem;
   --background: var(--color-warm-50);
@@ -260,8 +260,8 @@ body {
   to   { opacity: 0; transform: scale(1.05); }
 }
 .celebrate-pop {
-  animation: celebrate-pop 400ms var(--ease-out-custom) both,
-             celebrate-fade 100ms linear 400ms both;
+  animation: celebrate-pop 300ms var(--ease-out-custom) both,
+             celebrate-fade 100ms linear 300ms both;
 }
 
 /* Origin-aware dropdown/popover scale-in (grows from its trigger). */

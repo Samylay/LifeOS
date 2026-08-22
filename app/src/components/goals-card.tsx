@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { Flag, Circle, CheckCircle2 } from "lucide-react";
 import { useGoals } from "@/lib/use-goals";
+import { grillingTodosFor } from "@/lib/grilling";
 import { mondayOf, commitmentsForWeek, quarterOf } from "@/lib/types";
 import { Card } from "@/components/ui/card";
 
@@ -24,6 +25,11 @@ export function GoalsCard() {
     active.find((g) => g.quarter === quarter && commitmentsForWeek(g, week).length > 0) ||
     active.find((g) => g.quarter === quarter) ||
     active[0];
+
+  // T27: pending grilling sessions surface here (LifeOS-sourced), labelled,
+  // never guilt-styled — they wait, they don't nag. decisions-needed.md stays
+  // the separate source of truth until cutover; this list is additive.
+  const grillingPending = grillingTodosFor(active);
 
   return (
     <Card className="gap-0 rounded-xl p-4 lg:p-5">
@@ -83,6 +89,24 @@ export function GoalsCard() {
             );
           })()}
         </>
+      )}
+
+      {grillingPending.length > 0 && (
+        <div className="mt-3 border-t border-border pt-3">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70 mb-1.5">
+            Grilling session pending
+          </p>
+          <ul className="space-y-1">
+            {grillingPending.slice(0, 3).map((g) => (
+              <li key={g.id} className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Circle size={13} className="shrink-0 text-primary/60" />
+                <Link href="/projects" className="truncate hover:text-foreground transition-colors duration-[var(--dur-fast)] ease-[var(--ease-out-custom)]">
+                  {g.title}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
     </Card>
   );
