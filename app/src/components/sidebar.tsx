@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   LayoutDashboard,
   FolderKanban,
@@ -30,6 +30,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/lib/store";
 import { useNotifications } from "@/lib/use-notifications";
+import { NavIndicator } from "@/components/nav-indicator";
 
 // Nav diet (ux overhaul 2026-07-29): the sidebar had regrown to 16 flat rows
 // against the documented 6+3 budget. Primary = the surfaces that answer
@@ -79,6 +80,12 @@ export function Sidebar({ mobile }: { mobile?: boolean }) {
     if (href === "/") return pathname === "/";
     return pathname.startsWith(href);
   };
+
+  // U5: sliding active pill across the primary items (transform only).
+  // -1 when the active route lives outside the primary group — the indicator
+  // is simply not rendered then.
+  const primaryListRef = useRef<HTMLDivElement>(null);
+  const primaryActiveIndex = NAV_ITEMS.findIndex((i) => isActive(i.href));
 
   // "More" starts open on mobile (the bottom nav's More button exists to reach
   // these) and whenever the active route lives inside the group.
@@ -176,7 +183,7 @@ export function Sidebar({ mobile }: { mobile?: boolean }) {
           className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-2 py-6"
           style={{ overscrollBehavior: "contain", touchAction: "pan-y", WebkitOverflowScrolling: "touch" }}
         >
-          <div className="space-y-1">
+          <div ref={primaryListRef} className="relative space-y-1">
             {NAV_ITEMS.map((item) => {
               const Icon = item.icon;
               const active = isActive(item.href);
@@ -198,6 +205,17 @@ export function Sidebar({ mobile }: { mobile?: boolean }) {
                 </Link>
               );
             })}
+            {/* U5 sliding pill — rendered after the items so it doesn't shift
+                the container.children indices the indicator measures; -z-10
+                keeps it behind the link content. */}
+            {primaryActiveIndex >= 0 && (
+              <NavIndicator
+                containerRef={primaryListRef}
+                activeIndex={primaryActiveIndex}
+                orientation="vertical"
+                className="-z-10"
+              />
+            )}
           </div>
 
           {/* Assistant button — opens chat panel */}

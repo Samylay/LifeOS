@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useRef } from "react";
 import {
   LayoutDashboard,
   BellRing,
@@ -13,6 +14,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/lib/store";
 import { useNotifications } from "@/lib/use-notifications";
+import { NavIndicator } from "@/components/nav-indicator";
 
 // /decide added 2026-07-11 (ux-audit H1): the decision deck is built for the
 // phone — it can't live two taps deep behind "More". 6 items still fit 360px.
@@ -35,8 +37,16 @@ export function BottomNav() {
     return pathname.startsWith(href);
   };
 
+  // U5: sliding active pill across the tabs (transform only). -1 when the
+  // active route isn't a tab — the indicator is simply not rendered then.
+  const tabListRef = useRef<HTMLElement>(null);
+  const activeIndex = TABS.findIndex((t) => isActive(t.href));
+
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-40 flex h-16 items-center justify-around border-t border-border bg-card pb-[env(safe-area-inset-bottom,0px)] lg:hidden">
+    <nav
+      ref={tabListRef}
+      className="fixed bottom-0 left-0 right-0 z-40 flex h-16 items-center justify-around border-t border-border bg-card pb-[env(safe-area-inset-bottom,0px)] lg:hidden"
+    >
       {TABS.map((tab) => {
         const Icon = tab.icon;
         const active = isActive(tab.href);
@@ -71,6 +81,17 @@ export function BottomNav() {
         <Menu size={22} strokeWidth={2} />
         <span className="text-xs font-medium">More</span>
       </button>
+      {/* U5 sliding pill — rendered after the tabs so it doesn't shift the
+          container.children indices the indicator measures; -z-10 keeps it
+          behind the tab content. */}
+      {activeIndex >= 0 && (
+        <NavIndicator
+          containerRef={tabListRef}
+          activeIndex={activeIndex}
+          orientation="horizontal"
+          className="-z-10"
+        />
+      )}
     </nav>
   );
 }
