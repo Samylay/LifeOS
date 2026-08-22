@@ -88,7 +88,7 @@ export function GoalEditor({
   const [quarter, setQuarter] = useState(quarterOf());
   const [why, setWhy] = useState("");
   const [outcome, setOutcome] = useState("");
-  const [needsGrilling, setNeedsGrilling] = useState(false);
+  const [needsGrilling] = useState(false);
 
   return (
     <div className="rounded-xl border border-primary bg-card p-4 space-y-3 enter">
