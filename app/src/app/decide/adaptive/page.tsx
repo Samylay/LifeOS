@@ -244,7 +244,7 @@ export default function AdaptivePrototypePage() {
           <ArrowLeft size={18} />
         </Link>
         <Sparkles size={20} className="text-primary" />
-        <h1 className="text-2xl font-semibold text-foreground">Approved</h1>
+        <h1 className="text-foreground">Approved</h1>
       </div>
 
       {!loading && rows.length > 1 && rows.some((r) => !queued.has(r.item.id)) && (

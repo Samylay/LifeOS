@@ -180,7 +180,7 @@ function DecideInner() {
           overflowing the viewport horizontally. */}
       <div className="mb-3 flex flex-wrap items-center gap-3">
         <Layers size={24} className="text-primary" />
-        <h1 className="text-2xl font-semibold text-foreground">Decide</h1>
+        <h1 className="text-foreground">Decide</h1>
         {/* overflow-x-auto: at 390px five tabs exceed the row — scroll the
             switcher instead of overflowing the viewport (scrollbar hidden). */}
         <div

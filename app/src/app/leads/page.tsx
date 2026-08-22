@@ -76,7 +76,7 @@ export default function LeadsPage() {
     <div className="max-w-2xl mx-auto">
       <div className="flex items-center gap-3 mb-6">
         <Radar size={24} className="text-primary" />
-        <h1 className="text-2xl font-semibold text-foreground">
+        <h1 className="text-foreground">
           Leads
         </h1>
         {count("new") > 0 && (

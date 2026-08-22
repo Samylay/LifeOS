@@ -106,7 +106,7 @@ export default function DiagramsPage() {
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-4 p-4">
       <div>
-        <h1 className="flex items-center gap-2 text-2xl font-semibold">
+        <h1 className="flex items-center gap-2">
           <Workflow size={22} className="text-primary" /> Diagrams
         </h1>
         <p className="text-xs text-muted-foreground">

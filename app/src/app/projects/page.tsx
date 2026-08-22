@@ -517,7 +517,7 @@ function ProjectCard({
           {/* Goal link — which direction this project serves; ships roll up there */}
           <div className="flex items-center gap-2 mt-3">
             <Flag size={12} className="text-muted-foreground/70" />
-            <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70">Goal</span>
+            <span className="section-label">Goal</span>
             <Select
               value={project.goalId ?? "__none"}
               onValueChange={(v) => onUpdate(project.id, { goalId: v === "__none" ? undefined : v } as Partial<Project>)}
@@ -532,7 +532,7 @@ function ProjectCard({
             </Select>
           </div>
           <div className="flex items-center justify-between mt-3 mb-2">
-            <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70">
+            <span className="section-label">
               Linked tasks ({totalTasks})
             </span>
             <Button size="sm" onClick={() => setShowTaskForm(true)} className="h-7 gap-1 text-xs">
@@ -929,7 +929,7 @@ export default function ProjectsPage() {
       {/* Header */}
       <div className="flex items-center justify-between gap-4 flex-wrap enter">
         <div>
-          <h1 className="text-2xl font-semibold flex items-center gap-2 text-foreground">
+          <h1 className="flex items-center gap-2 text-foreground">
             <FolderKanban size={22} className="text-primary" /> Projects
           </h1>
           <p className="text-xs mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-muted-foreground/70">
@@ -1062,7 +1062,7 @@ export default function ProjectsPage() {
             <div className="space-y-2 enter">
               {doneP.map((p) => <ProjectCard key={p.id} {...cardProps(p)} />)}
               {doneGoals.length > 0 && doneP.length > 0 && (
-                <p className="text-[10px] font-bold uppercase tracking-widest pt-2 text-muted-foreground/70">Past goals</p>
+                <p className="section-label pt-2 text-muted-foreground/70">Past goals</p>
               )}
               {doneGoals.map((g) => (
                 <GoalSection key={g.id} goal={g} shipDates={shipDatesByGoal.get(g.id) ?? []} delay={0} projectCount={0} nest={false} />

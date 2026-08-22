@@ -84,7 +84,7 @@ export function TaskItem({ task, onUpdate, onDelete }: TaskItemProps) {
             </span>
           )}
           {task.energy && (
-            <span className="flex items-center gap-0.5 text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-muted text-muted-foreground border border-border">
+            <span className="flex items-center gap-0.5 section-label px-1.5 py-0.5 rounded bg-muted text-muted-foreground border border-border">
               <Flame size={8} className={task.energy >= 1 ? "text-amber-500" : ""} fill={task.energy >= 1 ? "currentColor" : "none"} />
               <Flame size={8} className={task.energy >= 2 ? "text-amber-500" : ""} fill={task.energy >= 2 ? "currentColor" : "none"} />
               <Flame size={8} className={task.energy >= 3 ? "text-amber-500" : ""} fill={task.energy >= 3 ? "currentColor" : "none"} />

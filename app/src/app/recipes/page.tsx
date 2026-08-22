@@ -251,7 +251,7 @@ function MetaBadges({ r }: { r: Recipe }) {
         </Badge>
       )}
       {r.tags?.map((t) => (
-        <Badge key={t} className="bg-primary/15 text-primary text-[10px] font-bold uppercase tracking-widest">
+        <Badge key={t} className="bg-primary/15 text-primary section-label">
           {t}
         </Badge>
       ))}
@@ -295,7 +295,7 @@ export default function RecipesPage() {
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
-          <h1 className="text-2xl font-semibold flex items-center gap-2 text-foreground">
+          <h1 className="flex items-center gap-2 text-foreground">
             <CookingPot size={22} className="text-primary" /> Recipes
           </h1>
           <p className="text-xs mt-1 text-muted-foreground/70">Meal-prep book.</p>
@@ -456,7 +456,7 @@ export default function RecipesPage() {
               {openIds.has(r.id) && (
                 <div className="mt-3 grid gap-4 sm:grid-cols-2">
                   <div>
-                    <p className="text-[10px] font-bold uppercase tracking-widest mb-1.5 text-muted-foreground/70">
+                    <p className="section-label">
                       Ingredients
                     </p>
                     <ul className="space-y-1">
@@ -471,7 +471,7 @@ export default function RecipesPage() {
                   <div className="space-y-3">
                     {r.steps && r.steps.length > 0 && (
                       <div>
-                        <p className="text-[10px] font-bold uppercase tracking-widest mb-1.5 text-muted-foreground/70">
+                        <p className="section-label">
                           Method
                         </p>
                         <ol className="space-y-1">
@@ -486,7 +486,7 @@ export default function RecipesPage() {
                     )}
                     {r.notes && (
                       <div>
-                        <p className="text-[10px] font-bold uppercase tracking-widest mb-1.5 text-muted-foreground/70">
+                        <p className="section-label">
                           Notes
                         </p>
                         <p className="text-sm whitespace-pre-wrap text-muted-foreground">{r.notes}</p>

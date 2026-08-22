@@ -70,7 +70,7 @@ export default function NewsFeedsPage() {
           </Link>
         </Button>
         <div>
-          <h1 className="text-2xl font-semibold">Manage feeds</h1>
+          <h1 className="">Manage feeds</h1>
           <p className="text-sm text-muted-foreground/70">
             {feeds.length} feed{feeds.length === 1 ? "" : "s"} in the daily edition
           </p>

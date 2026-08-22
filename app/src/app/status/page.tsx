@@ -129,7 +129,7 @@ function Header({
   return (
     <div className="flex flex-wrap items-center justify-between gap-4">
       <div>
-        <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight">
+        <h1 className="flex items-center gap-2">
           <Activity size={22} className="text-primary" /> Status
           <span className="section-label">{VARIANTS.find((v) => v.id === variant)?.name}</span>
         </h1>

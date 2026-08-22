@@ -121,7 +121,7 @@ export default function Today() {
       {/* Header */}
       <div className="flex items-start justify-between gap-4 flex-wrap enter">
         <div>
-          <h1 className="text-2xl tracking-tight font-semibold flex items-center gap-2 text-foreground">
+          <h1 className="flex items-center gap-2 text-foreground">
             {now.getHours() < 18 ? <Sun size={20} className="text-primary" /> : <Moon size={20} className="text-primary" />}
             {greeting()}, Samy
           </h1>

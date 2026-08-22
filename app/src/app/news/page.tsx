@@ -154,7 +154,7 @@ export default function NewsPage() {
     <div className="mx-auto max-w-3xl px-4 py-6 text-foreground">
       <header className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold">News</h1>
+          <h1 className="">News</h1>
           <p className="text-sm text-muted-foreground/70">
             {edition
               ? `${edition.items.length} article${edition.items.length === 1 ? "" : "s"} · ${edition.date}`

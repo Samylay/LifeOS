@@ -23,7 +23,7 @@ export default function TrainingPage() {
     <div className="mx-auto max-w-4xl space-y-6">
       <div className="enter flex items-center gap-3">
         <Dumbbell size={24} className="text-primary" />
-        <h1 className="text-2xl font-semibold">Training</h1>
+        <h1>Training</h1>
       </div>
 
       {garmin.error && (

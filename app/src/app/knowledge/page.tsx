@@ -88,7 +88,7 @@ function NoteReader({ note, onBack }: { note: Note; onBack: () => void }) {
       </button>
 
       <div className="flex items-center gap-2 flex-wrap">
-        <h1 className="text-xl font-semibold text-foreground">{note.title}</h1>
+        <h1 className="text-foreground">{note.title}</h1>
         <span className="text-xs font-mono text-muted-foreground/70">{note.path}</span>
       </div>
 
@@ -96,7 +96,7 @@ function NoteReader({ note, onBack }: { note: Note; onBack: () => void }) {
         <Card className="gap-0 rounded-xl border-border bg-primary/10 p-3">
           <div className="flex items-center gap-1.5 mb-1">
             <Sparkles size={13} className="text-primary" />
-            <span className="text-[10px] font-bold uppercase tracking-widest text-primary">
+            <span className="section-label">
               Hermes
             </span>
           </div>
@@ -211,7 +211,7 @@ export default function KnowledgePage() {
       {/* Header */}
       <div className="flex items-center justify-between gap-4 flex-wrap enter">
         <div>
-          <h1 className="text-2xl font-semibold flex items-center gap-2 text-foreground">
+          <h1 className="flex items-center gap-2 text-foreground">
             <Brain size={22} className="text-primary" /> Knowledge
           </h1>
           <p className="text-xs mt-1 text-muted-foreground/70">

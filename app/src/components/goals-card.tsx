@@ -40,7 +40,7 @@ export function GoalsCard() {
             This week
           </h2>
         </div>
-        <Link href="/projects" className="text-[10px] font-bold uppercase tracking-wider text-primary">
+        <Link href="/projects" className="section-label">
           Goals
         </Link>
       </div>
@@ -93,7 +93,7 @@ export function GoalsCard() {
 
       {grillingPending.length > 0 && (
         <div className="mt-3 border-t border-border pt-3">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70 mb-1.5">
+          <p className="section-label mb-1.5">
             Grilling session pending
           </p>
           <ul className="space-y-1">

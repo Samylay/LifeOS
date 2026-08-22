@@ -50,7 +50,7 @@ export default function PrimeManagePage() {
           </Link>
         </Button>
         <div>
-          <h1 className="text-2xl font-semibold text-foreground">Prime banks</h1>
+          <h1 className="text-foreground">Prime banks</h1>
           <p className="text-xs mt-1 text-muted-foreground/70">
             Affirmations, prompts, principles and the soft-timer floor.
           </p>
@@ -99,7 +99,7 @@ export default function PrimeManagePage() {
                 <button
                   onClick={() => updateAffirmation(a.id, { type: cycleType(a.type) })}
                   title="Click to change type"
-                  className="shrink-0 text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-muted text-muted-foreground/70"
+                  className="shrink-0 section-label px-1.5 py-0.5 rounded bg-muted text-muted-foreground/70"
                   style={{ width: 78 }}
                 >
                   {TYPE_LABEL[a.type]}
@@ -116,7 +116,7 @@ export default function PrimeManagePage() {
           <div className="flex items-center gap-2">
             <button
               onClick={() => setNewAffType(cycleType(newAffType))}
-              className="shrink-0 text-[10px] font-bold uppercase tracking-wider px-1.5 py-1 rounded bg-muted text-muted-foreground/70"
+              className="shrink-0 section-label px-1.5 py-1 rounded bg-muted text-muted-foreground/70"
               style={{ width: 78 }}
             >
               {TYPE_LABEL[newAffType]}
@@ -152,7 +152,7 @@ export default function PrimeManagePage() {
           <div className="space-y-1.5 mb-2">
             {promptBank.map((p) => (
               <div key={p.id} className="flex items-center gap-2 text-sm">
-                <span className="shrink-0 text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-muted text-muted-foreground/70">
+                <span className="shrink-0 section-label px-1.5 py-0.5 rounded bg-muted text-muted-foreground/70">
                   {p.category}
                 </span>
                 <span className="flex-1 text-muted-foreground">{p.text}</span>

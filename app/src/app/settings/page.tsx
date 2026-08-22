@@ -284,7 +284,7 @@ export default function SettingsPage() {
 
   return (
     <div>
-      <h1 className="mb-6 text-2xl font-semibold text-foreground">Settings</h1>
+      <h1 className="mb-6 text-foreground">Settings</h1>
 
       <div className="max-w-2xl space-y-4">
         {/* Notifications — first: the section touched most often */}

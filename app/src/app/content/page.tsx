@@ -60,7 +60,7 @@ function PillarBadge({ pillar }: { pillar: ContentPillar | "" }) {
     return (
       <Badge
         variant="secondary"
-        className="text-[10px] font-bold uppercase tracking-widest"
+        className="section-label"
         title="No pillar assigned — sort this idea into a pillar"
       >
         unsorted
@@ -69,7 +69,7 @@ function PillarBadge({ pillar }: { pillar: ContentPillar | "" }) {
   }
   return (
     <Badge
-      className="text-[10px] font-bold uppercase tracking-widest"
+      className="section-label"
       style={{ background: `${meta.color}20`, color: meta.color }}
     >
       {meta.label}
@@ -551,7 +551,7 @@ function IdeaBank() {
               {idea.script && openScriptIds.has(idea.id) && (
                 <div className="mt-3 space-y-3 rounded-lg p-3 bg-muted">
                   <div>
-                    <p className="text-[10px] font-bold uppercase tracking-widest mb-1 text-muted-foreground/70">
+                    <p className="section-label">
                       Script — read aloud once, cut 15%
                     </p>
                     <p className="text-sm whitespace-pre-wrap text-muted-foreground">
@@ -560,7 +560,7 @@ function IdeaBank() {
                   </div>
                   {idea.caption && (
                     <div>
-                      <p className="text-[10px] font-bold uppercase tracking-widest mb-1 text-muted-foreground/70">
+                      <p className="section-label">
                         Caption
                       </p>
                       <p className="text-sm whitespace-pre-wrap text-muted-foreground">
@@ -600,7 +600,7 @@ export default function ContentPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold flex items-center gap-2 text-foreground">
+        <h1 className="flex items-center gap-2 text-foreground">
           <Clapperboard size={22} className="text-primary" /> Content OS
         </h1>
         <p className="text-xs mt-1 text-muted-foreground/70">

@@ -59,7 +59,7 @@ function PlanBadge({ state }: { state: GoalPlanState }) {
   const { label, color } = PLAN_STATE[state];
   return (
     <span
-      className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-md"
+      className="section-label px-1.5 py-0.5 rounded-md"
       style={{ background: `color-mix(in srgb, ${color} 14%, transparent)`, color }}
     >
       {label}
@@ -265,7 +265,7 @@ export function GoalSection({
             className="flex-1 text-left min-w-0 rounded-lg -m-1 p-1 transition-transform duration-150 active:scale-[0.99]"
           >
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-[10px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded-md bg-muted text-muted-foreground/70">
+              <span className="section-label px-1.5 py-0.5 rounded-md bg-muted text-muted-foreground/70">
                 {goal.quarter}
               </span>
               <PlanBadge state={state} />
@@ -357,7 +357,7 @@ export function GoalSection({
 
             {/* This week */}
             <div>
-              <p className="text-[10px] font-bold uppercase tracking-widest mb-1.5 text-muted-foreground/70">This week</p>
+              <p className="section-label">This week</p>
               <div className="space-y-1">
                 {weekCommits.map((c) => (
                   <div key={c.id} className="flex items-center gap-2 group">
@@ -410,7 +410,7 @@ export function GoalSection({
               const done = goal.doneMilestones ?? [];
               return (
                 <div>
-                  <p className="text-[10px] font-bold uppercase tracking-widest mb-1.5 flex items-center gap-2 text-muted-foreground/70">
+                  <p className="section-label flex items-center gap-2 text-muted-foreground/70">
                     Milestones
                     <span className={cn("font-mono", mp.done === mp.total ? "text-primary" : "text-muted-foreground/70")}>{mp.done}/{mp.total}</span>
                   </p>
