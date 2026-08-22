@@ -185,8 +185,8 @@
 
 /* Base tokens (dark-only app: .dark below always overrides the palette;
    these light values are inert but keep the token layer's shape).
-   Legacy --bg-*/--text-*/--border-*/--accent aliases were deleted (R-F,
-   2026-08): no component referenced them — use the semantic layer instead. */
+   Legacy bg/text/border/accent aliases were deleted (R-F, 2026-08):
+   no component referenced them — use the semantic layer instead. */
 :root {
   --shadow-sm: none;
   --shadow-md: none;
