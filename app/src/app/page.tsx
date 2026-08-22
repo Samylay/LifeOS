@@ -95,6 +95,9 @@ export default function Today() {
 
   const handleToggle = (id: string, currentlyDone: boolean) => {
     setOptimistic((o) => ({ ...o, [id]: !currentlyDone }));
+    // T37 haptics: a short buzz only on completion (not un-ticks), fired here
+    // in the UI layer so the hook's data logic stays pure.
+    if (!currentlyDone) navigator.vibrate?.(10);
     toggleToday(id);
   };
 
