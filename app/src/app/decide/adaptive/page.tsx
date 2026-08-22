@@ -279,7 +279,7 @@ export default function AdaptivePrototypePage() {
       )}
 
       {loading ? (
-        <div className="animate-pulse rounded-xl bg-card p-10 text-center text-sm text-muted-foreground">
+        <div className="shimmer rounded-xl bg-card p-10 text-center text-sm text-muted-foreground">
           loading approved cards…
         </div>
       ) : rows.length === 0 ? (

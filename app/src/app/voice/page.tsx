@@ -118,7 +118,7 @@ export default function VoiceHome() {
         {loading ? (
           <div className="space-y-2">
             {[0, 1, 2].map((i) => (
-              <div key={i} className="skeleton-pulse h-14 rounded-xl bg-card" />
+              <div key={i} className="shimmer h-14 rounded-xl bg-card" />
             ))}
           </div>
         ) : captures.length === 0 ? (

@@ -122,12 +122,14 @@ export function Sidebar({ mobile }: { mobile?: boolean }) {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [mobile, mobileSidebarOpen, setMobileSidebarOpen]);
 
+  // U5: the sliding NavIndicator owns the active treatment — links keep only
+  // hover/press feedback so the pill doesn't stack with a per-item highlight.
   const linkClass = (active: boolean) =>
     cn(
-      "group flex items-center gap-3 rounded-lg border-l-[3px] px-3 py-1.5 text-sm font-medium transition-[color,background,transform] duration-[var(--dur-fast)] ease-[var(--ease-out-custom)] active:scale-[0.97]",
+      "group flex items-center gap-3 rounded-lg px-3 py-1.5 text-sm font-medium transition-[color,background,transform] duration-[var(--dur-fast)] ease-[var(--ease-out-custom)] active:scale-[0.97]",
       active
-        ? "border-l-primary bg-accent text-accent-foreground"
-        : "border-l-transparent text-muted-foreground hover:bg-accent/60 hover:text-accent-foreground"
+        ? "text-accent-foreground"
+        : "text-muted-foreground hover:bg-accent/60 hover:text-accent-foreground"
     );
 
   return (

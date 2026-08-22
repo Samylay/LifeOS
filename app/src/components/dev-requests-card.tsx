@@ -64,7 +64,7 @@ export function DevRequestsCard() {
       {requests === null ? (
         <div className="space-y-2">
           {[0, 1].map((i) => (
-            <div key={i} className="h-10 rounded-md bg-muted animate-pulse" />
+            <div key={i} className="h-10 rounded-md bg-muted shimmer" />
           ))}
         </div>
       ) : queued.length === 0 ? (

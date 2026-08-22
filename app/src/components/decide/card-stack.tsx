@@ -313,7 +313,7 @@ export function CardStack<T extends { id: string }>({
         {items.slice(0, 3).map((item, i) => (
           <div
             key={item.id}
-            className="absolute inset-x-0 top-0 select-none rounded-xl border border-border bg-card"
+            className="hover-lift absolute inset-x-0 top-0 select-none rounded-xl border border-border bg-card"
             style={{
               zIndex: 10 - i,
               ...cardStyle(i),

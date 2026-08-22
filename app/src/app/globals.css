@@ -92,8 +92,10 @@
      --surface-1 page ground < --surface-2 cards < --surface-3 raised
      (popover/dialog/drawer). Dark values below make the page darker than
      cards so elevation reads without hard borders. */
-  --surface-1: #ffffff;
-  --surface-2: #faf8f5;
+  /* Light trio is inert (dark-only app) but keeps the ladder SHAPE:
+     page ground < cards < raised, matching the .dark relationships. */
+  --surface-1: #f4f2ee;
+  --surface-2: #ffffff;
   --surface-3: #ffffff;
   --background: var(--color-warm-50);
   --foreground: var(--color-warm-900);

@@ -19,7 +19,7 @@ export function ThemedToaster() {
       toastOptions={{
         style: {
           transition:
-            "transform 350ms var(--ease-out-custom), opacity 350ms var(--ease-out-custom)",
+            "transform 250ms var(--ease-out-custom), opacity 250ms var(--ease-out-custom)",
         },
       }}
     />
