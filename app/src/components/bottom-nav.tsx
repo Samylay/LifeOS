@@ -45,7 +45,7 @@ export function BottomNav() {
   return (
     <nav
       ref={tabListRef}
-      className="fixed bottom-0 left-0 right-0 z-40 flex h-16 items-center justify-around border-t border-border bg-card pb-[env(safe-area-inset-bottom,0px)] lg:hidden"
+      className="fixed bottom-0 left-0 right-0 z-40 flex h-16 items-center justify-around border-t border-border bg-card backdrop-blur-2xl backdrop-saturate-[1.4] bg-card/70 pb-[env(safe-area-inset-bottom,0px)] lg:hidden"
     >
       {TABS.map((tab) => {
         const Icon = tab.icon;

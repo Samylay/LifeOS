@@ -9,7 +9,7 @@ export function TopBar() {
 
   return (
     <header
-      className="sticky top-0 z-(--z-header) flex h-14 items-center gap-2 border-b border-border bg-card px-3 lg:gap-4 lg:px-6"
+      className="sticky top-0 z-(--z-header) flex h-14 items-center gap-2 border-b border-border bg-card backdrop-blur-2xl backdrop-saturate-[1.4] bg-card/70 px-3 lg:gap-4 lg:px-6"
     >
       <style>{`
         @media (min-width: 1024px) {

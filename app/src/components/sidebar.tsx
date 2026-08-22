@@ -145,7 +145,7 @@ export function Sidebar({ mobile }: { mobile?: boolean }) {
       )}
 
       <aside
-        className="fixed left-0 top-0 z-40 flex flex-col overflow-hidden border-r border-border bg-card"
+        className="fixed left-0 top-0 z-40 flex flex-col overflow-hidden border-r border-border bg-card backdrop-blur-2xl backdrop-saturate-[1.4] bg-card/70"
         style={{
           height: "100dvh",
           width: mobile ? 280 : sidebarExpanded ? 256 : 64,

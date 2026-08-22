@@ -131,34 +131,37 @@
   --chart-5: #14b8a6;
 }
 
+/* GLASS identity (2026-08-22 owner decision): frosted translucent panels over
+   a deep green-tinted ground, sage glow accents. --card/--popover/--surface-2/3
+   are semi-transparent; .glass-panel adds the backdrop blur. */
 .dark {
-  --background: #101210;
-  --surface-1: #101210;
-  --surface-2: var(--color-warm-900);
-  --surface-3: #232120;
-  --card: var(--color-warm-900);
-  --card-foreground: var(--color-warm-100);
-  --popover: var(--surface-3);
-  --popover-foreground: var(--color-warm-100);
-  --primary: var(--color-sage-400);
-  --primary-foreground: var(--color-sage-950);
-  --secondary: var(--color-warm-800);
-  --secondary-foreground: var(--color-warm-100);
-  --muted: var(--color-warm-800);
-  --muted-foreground: var(--color-warm-400);
-  --accent-ui: var(--color-warm-800);
-  --accent-ui-foreground: var(--color-warm-100);
-  --destructive: #ef4444;
+  --background: #0a0d0b;
+  --surface-1: #0a0d0b;
+  --surface-2: rgba(22, 29, 25, 0.55);
+  --surface-3: rgba(28, 37, 32, 0.72);
+  --card: rgba(22, 29, 25, 0.55);
+  --card-foreground: #e8ede9;
+  --popover: rgba(24, 32, 27, 0.82);
+  --popover-foreground: #e8ede9;
+  --primary: #8fd4a8;
+  --primary-foreground: #07110b;
+  --secondary: rgba(143, 212, 168, 0.09);
+  --secondary-foreground: #cfe5d7;
+  --muted: rgba(232, 237, 233, 0.06);
+  --muted-foreground: #94a49b;
+  --accent-ui: rgba(143, 212, 168, 0.12);
+  --accent-ui-foreground: #bce4cb;
+  --destructive: #ff5c5c;
   --destructive-foreground: #ffffff;
-  --success: #22c55e;
-  --success-foreground: #ffffff;
-  --warning: #f59e0b;
-  --warning-foreground: #ffffff;
+  --success: #4ade80;
+  --success-foreground: #05200f;
+  --warning: #fbbf24;
+  --warning-foreground: #221500;
   /* Alpha-based border recipe (M3): derived from foreground instead of an
      opaque warm-800 step. */
-  --border: color-mix(in srgb, var(--foreground) 8%, transparent);
-  --input: var(--color-warm-700);
-  --ring: var(--color-sage-400);
+  --border: color-mix(in srgb, #e8ede9 10%, transparent);
+  --input: rgba(232, 237, 233, 0.08);
+  --ring: var(--primary);
 }
 
 @theme inline {
@@ -234,19 +237,21 @@
   --dur-slow: 300ms;
 }
 
-/* Dark theme */
+/* Dark theme — GLASS shadows: stronger ambient for float over the tinted
+   ground, sage-tinted glow instead of neutral. */
 .dark {
-  --shadow-sm: none;
-  --shadow-md: none;
-  --shadow-lg: none;
-  --shadow-glow: 0 0 20px rgba(124, 158, 138, 0.15);
-  /* Layered elevation: inner top highlight + ambient + soft spread (M1). */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.45);
+  --shadow-glow: 0 0 24px rgba(143, 212, 168, 0.22);
+  /* Layered glass elevation: top sheen + ambient + soft spread + faint sage
+     under-glow so panels read as lit glass on the dark ground. */
   --shadow-card:
-    inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 1px 2px rgba(0, 0, 0, 0.3),
-    0 4px 16px rgba(0, 0, 0, 0.2);
+    inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 1px 3px rgba(0, 0, 0, 0.4),
+    0 8px 24px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(143, 212, 168, 0.03);
   --shadow-pop:
-    inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 4px 8px rgba(0, 0, 0, 0.35),
-    0 12px 32px rgba(0, 0, 0, 0.35);
+    inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 4px 8px rgba(0, 0, 0, 0.4),
+    0 16px 48px rgba(0, 0, 0, 0.5), 0 0 32px rgba(143, 212, 168, 0.06);
 }
 
 /* Native chrome (scrollbars, form controls, overscroll gutter). Dark-only:
@@ -259,6 +264,28 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans);
+}
+
+/* GLASS ambient ground (dark-only identity): two soft radial sage glows
+   bleeding from the corners behind the frosted panels. Fixed so it doesn't
+   scroll; pointer-events none via body::before stacking under content. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background:
+    radial-gradient(60rem 40rem at 85% -10%, rgba(143, 212, 168, 0.09), transparent 60%),
+    radial-gradient(50rem 36rem at -10% 110%, rgba(94, 148, 168, 0.07), transparent 60%);
+  pointer-events: none;
+}
+
+/* Frosted panel utility — apply where --card/--surface-2/3 are used.
+   backdrop-blur is what makes the translucency read as glass. */
+.glass-panel {
+  background: var(--card);
+  backdrop-filter: blur(16px) saturate(1.3);
+  -webkit-backdrop-filter: blur(16px) saturate(1.3);
 }
 
 /* Tabular numbers for stats/timers */

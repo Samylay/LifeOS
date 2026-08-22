@@ -7,11 +7,10 @@ function Card({ className, ...props }: React.ComponentProps<"div">) {
     <div
       data-slot="card"
       className={cn(
-        /* M1: layered elevation replaces the hard border as the primary
-           separator — --shadow-card carries the inner top highlight + ambient
-           depth; a hairline ring at low alpha keeps definition on busy
-           surfaces. Card-tier radius via `rounded-card` (--radius-card). */
-        "flex flex-col gap-6 rounded-card bg-card py-6 text-card-foreground shadow-card ring-1 ring-foreground/[0.04]",
+        /* GLASS: translucent card base + backdrop blur (see .glass-panel in
+           globals.css). Layered --shadow-card carries sheen + ambient + sage
+           under-glow; hairline ring keeps definition. */
+        "glass-panel flex flex-col gap-6 rounded-card bg-card py-6 text-card-foreground shadow-card ring-1 ring-white/[0.06]",
         className
       )}
       {...props}

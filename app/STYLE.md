@@ -71,6 +71,15 @@ Rules: prefer shadcn primitives first; reach for the chart kit only for
 charts/metrics; Origin only when neither covers it. Never `npm install` a
 component library (Radix primitives + recharts are the only runtime deps).
 
+## Identity: dark glass (2026-08-22, owner decision)
+
+The app's visual identity is **dark glass**: frosted translucent panels over a
+deep green-tinted ground with sage glow accents. Cards/popovers/sheets use
+semi-transparent `--card`/`--popover` + `backdrop-blur`; `body::before` paints
+fixed radial sage glows; shadows carry a faint sage under-glow
+(`--shadow-card`/`--shadow-pop`). Primary is a brighter mint (`#8fd4a8`).
+`.glass-panel` is the utility when building outside the primitives.
+
 ## Tokens (`src/app/globals.css`)
 
 - **Semantic layer** — `--background`, `--foreground`, `--card`, `--primary`
