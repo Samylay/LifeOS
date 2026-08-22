@@ -171,7 +171,11 @@ export default function PrimePage() {
   const [celebrating, setCelebrating] = useState(false);
   const prevDone = useRef(done);
   useEffect(() => {
-    if (done && !prevDone.current) setCelebrating(true);
+    if (done && !prevDone.current) {
+      const t = setTimeout(() => setCelebrating(true), 0);
+      prevDone.current = done;
+      return () => clearTimeout(t);
+    }
     prevDone.current = done;
   }, [done]);
 
