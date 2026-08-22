@@ -14,6 +14,7 @@ import {
   Coffee,
   Inbox,
   Moon,
+  MoreHorizontal,
   Settings,
   Siren,
   Trash2,
@@ -27,6 +28,14 @@ import {
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Drawer,
+  DrawerContent,
+  DrawerDescription,
+  DrawerHeader,
+  DrawerTitle,
+} from "@/components/ui/drawer";
+import { useIsMobile } from "@/hooks/use-is-mobile";
 
 const STREAM_META: Record<PagerStream, { label: string; icon: React.ReactNode }> = {
   alerts: { label: "Alerts", icon: <Siren size={12} /> },
@@ -74,6 +83,12 @@ function PagerInner() {
       action: { label: "Undo", onClick: () => undoRemove(id) },
     });
   };
+
+  // T37: on mobile the per-message actions (Ack / mark read / delete) live in
+  // a Vaul bottom drawer instead of inline icon buttons; desktop keeps the
+  // existing buttons pixel-identical.
+  const isMobile = useIsMobile();
+  const [actionsFor, setActionsFor] = useState<PagerMessage | null>(null);
 
   return (
     <div className="max-w-2xl mx-auto">
@@ -189,6 +204,7 @@ function PagerInner() {
                   </p>
                 ) : (
                   !m.readAt &&
+                  !isMobile &&
                   (m.actions?.length ?? 0) > 0 && (
                     <div className="mt-2">
                       <Button
@@ -203,6 +219,16 @@ function PagerInner() {
                 )}
               </div>
               <div className="flex items-center shrink-0 -my-2 -mr-2">
+                {isMobile ? (
+                  <button
+                    onClick={() => setActionsFor(m)}
+                    className="grid h-11 w-11 place-items-center rounded-lg text-muted-foreground/70 transition-transform duration-150 active:scale-[0.97]"
+                    title="Message actions"
+                  >
+                    <MoreHorizontal size={16} />
+                  </button>
+                ) : (
+                  <>
                 {!m.readAt && (
                   <button
                     onClick={() => markRead(m.id)}
@@ -219,11 +245,66 @@ function PagerInner() {
                 >
                   <Trash2 size={16} />
                 </button>
+                  </>
+                )}
               </div>
             </Card>
           ))}
         </div>
       )}
+
+      {/* T37 mobile: per-message actions drawer (vaul defaults — iOS curve +
+          velocity dismissal). Motion inside is transform/opacity only. */}
+      <Drawer open={actionsFor !== null} onOpenChange={(o) => !o && setActionsFor(null)}>
+        <DrawerContent>
+          <DrawerHeader>
+            <DrawerTitle className="truncate text-left">
+              {actionsFor?.title || actionsFor?.body}
+            </DrawerTitle>
+            <DrawerDescription className="text-left">
+              {actionsFor ? STREAM_META[actionsFor.stream]?.label : ""}
+            </DrawerDescription>
+          </DrawerHeader>
+          <div className="flex flex-col gap-1 px-4 pb-6">
+            {actionsFor && !actionsFor.ackedAt && !actionsFor.readAt && (actionsFor.actions?.length ?? 0) > 0 && (
+              <Button
+                onClick={() => {
+                  ack(actionsFor);
+                  setActionsFor(null);
+                }}
+                variant="outline"
+                className="justify-start active:scale-[0.97] transition-transform duration-150"
+              >
+                <Check size={14} /> Acknowledge
+              </Button>
+            )}
+            {actionsFor && !actionsFor.readAt && (
+              <Button
+                onClick={() => {
+                  markRead(actionsFor.id);
+                  setActionsFor(null);
+                }}
+                variant="outline"
+                className="justify-start active:scale-[0.97] transition-transform duration-150"
+              >
+                <CheckCheck size={14} /> Mark read
+              </Button>
+            )}
+            {actionsFor && (
+              <Button
+                onClick={() => {
+                  handleDelete(actionsFor.id);
+                  setActionsFor(null);
+                }}
+                variant="outline"
+                className="justify-start text-destructive active:scale-[0.97] transition-transform duration-150"
+              >
+                <Trash2 size={14} /> Delete
+              </Button>
+            )}
+          </div>
+        </DrawerContent>
+      </Drawer>
     </div>
   );
 }
