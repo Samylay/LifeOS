@@ -10,6 +10,14 @@ import { useToast } from "@/components/toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
+import {
+  Drawer,
+  DrawerContent,
+  DrawerDescription,
+  DrawerHeader,
+  DrawerTitle,
+} from "@/components/ui/drawer";
+import { useIsMobile } from "@/hooks/use-is-mobile";
 
 interface Topic {
   id: string;
@@ -49,6 +57,9 @@ export function TeachSection() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [pickingId, setPickingId] = useState<string | null>(null);
   const [draftMissions, setDraftMissions] = useState<Record<string, string>>({});
+  // T37: on mobile the capture form opens in a Vaul bottom drawer (iOS curve +
+  // velocity dismissal defaults); desktop keeps the inline form pixel-identical.
+  const isMobile = useIsMobile();
 
   const load = useCallback(async () => {
     const res = await fetch("/api/teach");
@@ -169,7 +180,7 @@ export function TeachSection() {
         </button>
       )}
 
-      {adding && (
+      {adding && !isMobile && (
         <div className="mb-3 space-y-2">
           <Input
             value={newTopic}
@@ -198,6 +209,47 @@ export function TeachSection() {
           </Button>
         </div>
       )}
+
+      {/* Mobile: same capture form in a Vaul bottom drawer — vaul's defaults
+          give the iOS curve + velocity dismissal; motion inside is
+          transform/opacity only. */}
+      <Drawer open={isMobile && adding} onOpenChange={setAdding}>
+        <DrawerContent>
+          <DrawerHeader>
+            <DrawerTitle>Add a learning topic</DrawerTitle>
+            <DrawerDescription>What do you want to learn?</DrawerDescription>
+          </DrawerHeader>
+          <div className="space-y-2 px-4 pb-6">
+            <Input
+              value={newTopic}
+              onChange={(e) => setNewTopic(e.target.value)}
+              placeholder="What do you want to learn?"
+              aria-label="Topic"
+              className="text-sm bg-muted"
+            />
+            <Input
+              value={newMission}
+              onChange={(e) => setNewMission(e.target.value)}
+              placeholder="Why? (grounds every lesson)"
+              aria-label="Mission"
+              className="text-sm bg-muted"
+            />
+            {newTopic.trim() && !newMission.trim() && (
+              <p className="text-xs text-destructive">
+                A mission is required — say why this matters before adding it.
+              </p>
+            )}
+            <Button
+              size="sm"
+              onClick={add}
+              disabled={!newTopic.trim() || !newMission.trim()}
+              className="w-full text-xs active:scale-[0.97] transition-transform duration-150"
+            >
+              Add to queue
+            </Button>
+          </div>
+        </DrawerContent>
+      </Drawer>
 
       <ul className="space-y-2">
         {topics
