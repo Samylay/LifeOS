@@ -71,14 +71,16 @@ Rules: prefer shadcn primitives first; reach for the chart kit only for
 charts/metrics; Origin only when neither covers it. Never `npm install` a
 component library (Radix primitives + recharts are the only runtime deps).
 
-## Identity: dark glass (2026-08-22, owner decision)
+## Identity: AURORA (2026-08-22, owner decision — replaces dark glass)
 
-The app's visual identity is **dark glass**: frosted translucent panels over a
-deep green-tinted ground with sage glow accents. Cards/popovers/sheets use
-semi-transparent `--card`/`--popover` + `backdrop-blur`; `body::before` paints
-fixed radial sage glows; shadows carry a faint sage under-glow
-(`--shadow-card`/`--shadow-pop`). Primary is a brighter mint (`#8fd4a8`).
-`.glass-panel` is the utility when building outside the primitives.
+The app's visual identity is **Aurora on charcoal**: deep space ground
+(#08090f) with a drifting violet-cyan-emerald mesh glow, charcoal-violet glass
+panels (rgba white-tint + blur-xl + 1px white edge), ONE electric cyan accent
+(--primary #22d3ee) used only for interactive/focus/live states, Space Grotesk
+display type on headings with Inter body, JetBrains Mono numerals, cyan-violet
+chart duotone. `.glass-panel` is the canonical panel recipe. Researched from
+2026 SaaS design trend sources (Linear/Vercel/Raycast restraint pattern,
+dark-glassmorphism recipes, mesh gradient guides).
 
 ## Tokens (`src/app/globals.css`)
 
