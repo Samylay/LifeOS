@@ -96,10 +96,11 @@ function MomentumHero({
     sinceShip === null ? "Nothing shipped yet" :
     sinceShip === 0 ? "Shipped today" :
     `${sinceShip} day${sinceShip === 1 ? "" : "s"} since last ship`;
+  // Purely informational — this is a readout, not a nudge (no guilt styling).
   const coach =
     sinceShip === 0 ? "That's the job. Again tomorrow." :
-    cold ? "Nothing out the door this week — building is not shipping." :
-    "Building is not shipping. Keep the streak.";
+    cold ? "No ships logged in the last week." :
+    "Shipped within the last week.";
 
   return (
     <div className="enter hover-lift relative overflow-hidden rounded-2xl border border-border bg-card p-5 text-foreground">
@@ -118,9 +119,7 @@ function MomentumHero({
         <div aria-hidden className="w-px self-stretch bg-border" />
         <div className="flex-1 min-w-[180px]">
           <p className="text-sm font-semibold">{sinceLabel}</p>
-          <p className={cn("text-xs mt-0.5", cold ? "text-warning" : "text-muted-foreground")}>
-            {coach}
-          </p>
+          <p className="text-xs mt-0.5 text-muted-foreground">{coach}</p>
           <div className="flex items-center gap-1.5 mt-3">
             {Array.from({ length: WIP_LIMIT }).map((_, i) => (
               <span
@@ -327,6 +326,52 @@ function ArchiveDialog({
   );
 }
 
+// One inline-editable field: renders as quiet text; click to edit; commits on
+// blur or Enter, reverts on Escape. For fixing typos without delete/recreate.
+function InlineEditField({
+  label, value, placeholder, onSave, multiline,
+}: {
+  label: string;
+  value: string;
+  placeholder: string;
+  onSave: (v: string) => void;
+  multiline?: boolean;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value);
+
+  const commit = () => {
+    setEditing(false);
+    if (draft.trim() !== value) onSave(draft.trim());
+  };
+
+  if (!editing) {
+    return (
+      <button
+        onClick={() => { setDraft(value); setEditing(true); }}
+        className="group flex w-full items-baseline gap-2 rounded-lg px-1 py-0.5 text-left transition-colors duration-150 hover:bg-muted"
+      >
+        <span className="section-label shrink-0 pt-0.5">{label}</span>
+        <span className={cn("min-w-0 flex-1", value ? "text-sm text-foreground" : "text-sm text-muted-foreground/50")}>
+          {value || placeholder}
+        </span>
+      </button>
+    );
+  }
+  const shared = {
+    autoFocus: true,
+    value: draft,
+    onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setDraft(e.target.value),
+    onBlur: commit,
+    onKeyDown: (e: React.KeyboardEvent) => {
+      if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); commit(); }
+      if (e.key === "Escape") { setDraft(value); setEditing(false); }
+    },
+    className: "text-sm",
+  };
+  return multiline ? <Textarea rows={2} {...shared} className="text-sm resize-none" /> : <Input {...shared} />;
+}
+
 function ProjectCard({
   project, projectTasks, goals, lastShip, hero, registerExpand, onUpdate, onDelete, onTaskUpdate, onTaskDelete, onTaskCreate,
 }: {
@@ -384,7 +429,7 @@ function ProjectCard({
               <span
                 className="flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-warning/10 text-warning"
               >
-                <AlertTriangle size={9} /> needs a call
+                <AlertTriangle size={9} /> loose end
               </span>
             )}
           </div>
@@ -514,6 +559,35 @@ function ProjectCard({
 
       {expanded && (
         <div className="px-4 pb-4 border-t border-border enter">
+          {/* Core fields — inline-editable so fixes don't mean delete + recreate */}
+          <div className="space-y-0.5 mb-3">
+            <InlineEditField
+              label="Title" value={project.title} placeholder="Project title"
+              onSave={(v) => v && onUpdate(project.id, { title: v })}
+            />
+            <InlineEditField
+              label="Next action" value={project.nextAction ?? ""} placeholder="What's the next physical action?"
+              onSave={(v) => onUpdate(project.id, { nextAction: v || undefined })}
+            />
+            {(project.status === "active" || project.status === "planning") && (
+              <InlineEditField
+                label="Ships" value={project.shippingEvent ?? ""} placeholder="What leaves the machine, to whom?"
+                onSave={(v) => onUpdate(project.id, { shippingEvent: v || undefined })}
+              />
+            )}
+            <div className="flex items-center gap-2 px-1 pt-1">
+              <span className="section-label shrink-0">Target</span>
+              <Input
+                type="date"
+                value={project.targetDate ? new Date(project.targetDate).toISOString().slice(0, 10) : ""}
+                onChange={(e) =>
+                  onUpdate(project.id, { targetDate: e.target.value ? new Date(e.target.value) : undefined })
+                }
+                className="h-7 w-auto bg-muted text-xs"
+              />
+            </div>
+          </div>
+
           {/* Goal link — which direction this project serves; ships roll up there */}
           <div className="flex items-center gap-2 mt-3">
             <Flag size={12} className="text-muted-foreground/70" />

@@ -81,7 +81,7 @@ export function NutritionCard() {
             </p>
             <span
               className={`shrink-0 font-mono text-[11px] ${
-                overBy != null && overBy > 0 ? "text-amber-500" : "text-muted-foreground"
+                overBy != null && overBy > 0 ? "text-warning" : "text-muted-foreground"
               }`}
             >
               {overBy != null && overBy > 0 ? `+${overBy}` : `${overBy} to go`}

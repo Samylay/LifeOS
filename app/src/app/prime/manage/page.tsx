@@ -36,6 +36,9 @@ export default function PrimeManagePage() {
   const [newAff, setNewAff] = useState("");
   const [newAffType, setNewAffType] = useState<AffirmationType>("rotating");
   const [newPrompt, setNewPrompt] = useState("");
+  const [newPromptCategory, setNewPromptCategory] = useState<"concrete" | "abstract">("concrete");
+  const [editingAffId, setEditingAffId] = useState<string | null>(null);
+  const [affDraft, setAffDraft] = useState("");
   const [newPrinciple, setNewPrinciple] = useState("");
 
   const cycleType = (t: AffirmationType): AffirmationType =>
@@ -60,7 +63,7 @@ export default function PrimeManagePage() {
       <Card className="p-5 gap-6">
         {/* Timer floor */}
         <div>
-          <p className="text-xs font-bold uppercase tracking-widest mb-2 text-muted-foreground">
+          <p className="section-label mb-2">
             Soft-timer floor
           </p>
           <div className="flex items-center gap-2">
@@ -83,7 +86,7 @@ export default function PrimeManagePage() {
 
         {/* Affirmations */}
         <div>
-          <p className="text-xs font-bold uppercase tracking-widest mb-2 text-muted-foreground">
+          <p className="section-label mb-2">
             Affirmation bank
           </p>
           <div className="space-y-1.5 mb-2">
@@ -104,9 +107,30 @@ export default function PrimeManagePage() {
                 >
                   {TYPE_LABEL[a.type]}
                 </button>
-                <span className={`flex-1 ${a.active ? "text-muted-foreground" : "text-muted-foreground/70"}`}>
-                  {a.text}
-                </span>
+                {editingAffId === a.id ? (
+                  <Input
+                    autoFocus
+                    value={affDraft}
+                    onChange={(e) => setAffDraft(e.target.value)}
+                    onBlur={() => {
+                      if (affDraft.trim() && affDraft.trim() !== a.text) updateAffirmation(a.id, { text: affDraft.trim() });
+                      setEditingAffId(null);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+                      if (e.key === "Escape") setEditingAffId(null);
+                    }}
+                    className="flex-1 h-auto text-sm rounded-lg px-2 py-1"
+                  />
+                ) : (
+                  <button
+                    onClick={() => { setAffDraft(a.text); setEditingAffId(a.id); }}
+                    title="Click to edit text"
+                    className={`min-w-0 flex-1 truncate text-left transition-colors duration-150 hover:text-foreground ${a.active ? "text-muted-foreground" : "text-muted-foreground/70"}`}
+                  >
+                    {a.text}
+                  </button>
+              )}
                 <button onClick={() => deleteAffirmation(a.id)} className="shrink-0 p-1 text-muted-foreground/70">
                   <Trash2 size={13} />
                 </button>
@@ -146,7 +170,7 @@ export default function PrimeManagePage() {
 
         {/* Prompts */}
         <div>
-          <p className="text-xs font-bold uppercase tracking-widest mb-2 text-muted-foreground">
+          <p className="section-label mb-2">
             Prompt bank
           </p>
           <div className="space-y-1.5 mb-2">
@@ -163,20 +187,28 @@ export default function PrimeManagePage() {
             ))}
           </div>
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => setNewPromptCategory(newPromptCategory === "concrete" ? "abstract" : "concrete")}
+              title="Click to change category (abstract prompts are mixed in less often)"
+              className="shrink-0 section-label px-1.5 py-1 rounded bg-muted text-muted-foreground/70"
+              style={{ width: 78 }}
+            >
+              {newPromptCategory === "concrete" ? "Concrete" : "Abstract"}
+            </button>
             <Input
               value={newPrompt}
               onChange={(e) => setNewPrompt(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter" && newPrompt.trim()) {
-                  addPrompt(newPrompt, "concrete");
+                  addPrompt(newPrompt, newPromptCategory);
                   setNewPrompt("");
                 }
               }}
-              placeholder="Add a concrete prompt…"
+              placeholder="Add a prompt…"
               className="flex-1 h-auto text-sm rounded-lg px-3 py-1.5"
             />
             <Button
-              onClick={() => { if (newPrompt.trim()) { addPrompt(newPrompt, "concrete"); setNewPrompt(""); } }}
+              onClick={() => { if (newPrompt.trim()) { addPrompt(newPrompt, newPromptCategory); setNewPrompt(""); } }}
               variant="ghost"
               size="icon-sm"
               className="shrink-0 text-primary"
@@ -188,7 +220,7 @@ export default function PrimeManagePage() {
 
         {/* Principles */}
         <div>
-          <p className="text-xs font-bold uppercase tracking-widest mb-2 text-muted-foreground">
+          <p className="section-label mb-2">
             Principle slot
           </p>
           <div className="space-y-1.5 mb-2">

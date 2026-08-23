@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import Link from "next/link";
 import { Dumbbell } from "lucide-react";
 import { useGarmin } from "@/lib/use-garmin";
 import TrainingAnalytics from "@/components/training-analytics";
@@ -28,7 +29,11 @@ export default function TrainingPage() {
 
       {garmin.error && (
         <div className="enter rounded-lg bg-muted p-3 text-xs text-muted-foreground">
-          Garmin session expired — reconnect in Settings.
+          Garmin session expired —{" "}
+          <Link href="/settings" className="text-primary underline underline-offset-2">
+            reconnect in Settings
+          </Link>
+          .
         </div>
       )}
 
