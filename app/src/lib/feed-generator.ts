@@ -351,7 +351,7 @@ const EXPLORE_CARDS_PER_RUN = 3;
 // Interest anchors from Samy's profile (persona.txt isn't mounted in the
 // container; sourced from the 2026-07-14 interest audit — edit freely).
 const INTEREST_ANCHORS =
-  "game design & interactive narrative (not engines), solarpunk & sustainable tech, CS theory, Rust, typography & UI craft, self-hosting, learning science";
+  "game design & interactive narrative (not engines), solarpunk & sustainable tech, CS theory, Rust, typography & UI craft, self-hosting, learning science, biochemistry & nutrition science";
 
 async function generateExploreCards(): Promise<number> {
   const cards = listCards();
