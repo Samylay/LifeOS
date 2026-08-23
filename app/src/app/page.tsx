@@ -227,7 +227,7 @@ export default function Today() {
         <Link href="/projects" className="block">
           <Card className="flex-row items-center gap-3 p-4 hover-lift">
             <div className="flex h-9 w-9 items-center justify-center rounded-lg shrink-0 bg-accent">
-              <Rocket size={18} className={shipped30d === 0 ? "text-destructive" : "text-accent-foreground"} />
+              <Rocket size={18} className="text-accent-foreground" />
             </div>
             <div className="min-w-0">
               <p className="text-foreground">
@@ -235,7 +235,7 @@ export default function Today() {
                 <span className="text-sm font-normal ml-1 text-muted-foreground/70">shipped / 30d</span>
               </p>
               <p className="text-xs mt-1 text-muted-foreground/70">
-                {daysSinceShip === null ? "Nothing logged yet" : `${daysSinceShip}d since last ship`}
+                {daysSinceShip === null ? "No ships logged yet" : `Last ship ${daysSinceShip}d ago`}
               </p>
             </div>
           </Card>

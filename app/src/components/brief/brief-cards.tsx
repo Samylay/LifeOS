@@ -502,9 +502,9 @@ function ShipsCard({ card }: { card: BriefCard }) {
   return (
     <div className="space-y-2">
       {b.tripwire && (
-        <p className="text-xs rounded-lg p-3 bg-destructive/10 text-destructive">
-          Nothing has left the machine in 30 days. Building is not shipping —
-          what&apos;s the smallest thing that can ship this week?
+        <p className="text-xs rounded-lg p-3 bg-warning/10 text-warning">
+          No ships logged in the last 30 days — if something left the machine,
+          log it and this clears.
         </p>
       )}
       {b.projects.length === 0 ? (
@@ -516,11 +516,11 @@ function ShipsCard({ card }: { card: BriefCard }) {
               <div className="min-w-0">
                 <span className="text-foreground">{p.title}</span>
                 {!p.shipping_event && (
-                  <span className="ml-2 text-xs text-warning">no shipping event</span>
+                  <span className="ml-2 text-xs text-muted-foreground/70">no ship logged</span>
                 )}
               </div>
-              <span className={`text-xs font-mono shrink-0 ${p.days > 14 ? "text-destructive" : p.days > 7 ? "text-warning" : "text-muted-foreground/70"}`}>
-                {p.never_shipped ? `never shipped · ${p.days}d old` : `${p.days}d since ship`}
+              <span className="text-xs font-mono shrink-0 text-muted-foreground/70">
+                {p.never_shipped ? `${p.days}d old` : `last ship ${p.days}d ago`}
               </span>
             </div>
           ))}

@@ -5,7 +5,7 @@ import { useCollection } from "./use-collection";
 import type { ShipLogEntry } from "./types";
 
 export function useShipLog() {
-  const { items: entries, loading, create } = useCollection<ShipLogEntry>(
+  const { items: entries, loading, create, remove } = useCollection<ShipLogEntry>(
     "shipLog",
     { orderByField: "date", orderDir: "desc", fallbackDates: ["createdAt", "date"] }
   );
@@ -17,5 +17,7 @@ export function useShipLog() {
     [create]
   );
 
-  return { entries, loading, logShip };
+  const deleteEntry = useCallback(async (id: string) => remove(id), [remove]);
+
+  return { entries, loading, logShip, deleteEntry };
 }

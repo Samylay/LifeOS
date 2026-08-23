@@ -12,6 +12,7 @@ import {
   AlertTriangle,
   Wand2,
   FileText,
+  Copy,
   Loader2,
   ArrowRight,
 } from "lucide-react";
@@ -53,6 +54,30 @@ const NEXT_STEP: Partial<Record<ContentIdeaStatus, { next: ContentIdeaStatus; la
 
 /** Translucent tint of a color (hex or CSS var) for chip backgrounds. */
 const tint = (color: string, pct: number) => `color-mix(in srgb, ${color} ${pct}%, transparent)`;
+
+/** Copy-to-clipboard for script/caption — you record from a script, usually
+    on the phone, so getting the text out in one tap is the whole point. */
+function CopyButton({ text, label }: { text: string; label: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      onClick={async () => {
+        try {
+          await navigator.clipboard.writeText(text);
+          setCopied(true);
+          setTimeout(() => setCopied(false), 1500);
+        } catch {
+          // Clipboard blocked (non-secure context) — select-all is the fallback.
+        }
+      }}
+      title={`Copy ${label}`}
+      className="flex items-center gap-1 text-xs text-muted-foreground/70 hover:text-foreground transition-colors duration-150 active:scale-[0.95]"
+    >
+      {copied ? <Check size={12} className="text-success" /> : <Copy size={12} />}
+      {copied ? "Copied" : label}
+    </button>
+  );
+}
 
 function PillarBadge({ pillar }: { pillar: ContentPillar | "" }) {
   const meta = pillar ? PILLAR_META[pillar] : undefined;
@@ -527,7 +552,7 @@ function IdeaBank() {
               )}
               {/* One advance button, labeled with the next step; the full
                   status row lives in the editor for corrections. */}
-              <div className="mt-2 flex items-center gap-2">
+              <div className="mt-2 flex items-center gap-2 flex-wrap">
                 <span
                   className="text-[11px] font-medium rounded-full px-2.5 py-1"
                   style={{
@@ -547,22 +572,37 @@ function IdeaBank() {
                     {NEXT_STEP[idea.status]!.label} <ArrowRight size={13} />
                   </Button>
                 )}
+                {idea.status === "idea" && !idea.hookFormula && (
+                  <button
+                    onClick={() => setEditingId(idea.id)}
+                    className="text-xs text-muted-foreground/70 hover:text-foreground transition-colors duration-150"
+                    title="The draft button stays disabled until the idea has a hook formula"
+                  >
+                    pick a hook formula to enable drafting →
+                  </button>
+                )}
               </div>
               {idea.script && openScriptIds.has(idea.id) && (
                 <div className="mt-3 space-y-3 rounded-lg p-3 bg-muted">
                   <div>
-                    <p className="section-label">
-                      Script — read aloud once, cut 15%
-                    </p>
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="section-label">
+                        Script — read aloud once, cut 15%
+                      </p>
+                      <CopyButton text={idea.script} label="Copy" />
+                    </div>
                     <p className="text-sm whitespace-pre-wrap text-muted-foreground">
                       {idea.script}
                     </p>
                   </div>
                   {idea.caption && (
                     <div>
-                      <p className="section-label">
-                        Caption
-                      </p>
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="section-label">
+                          Caption
+                        </p>
+                        <CopyButton text={idea.caption} label="Copy" />
+                      </div>
                       <p className="text-sm whitespace-pre-wrap text-muted-foreground">
                         {idea.caption}
                       </p>
