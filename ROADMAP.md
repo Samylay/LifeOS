@@ -76,6 +76,37 @@
 
 ## Log
 
+- **2026-08-25 (autoloop, T73 — deep-link notifications + prime-line removal):**
+  Re-checked T64 first — falsifier re-run read-only against the live DB
+  (`docker exec lifeos node`): `teachSessions` still 0 docs, all 11
+  `teachTopics` still `queued`/unscheduled, identical to the 2026-08-17 check.
+  Wrote nothing on it per the re-block-on-unchanged-cause rule. Walked the
+  rest of the unchecked, non-NEEDS-USER tasks in file order (T27, T29 —
+  design-capture/infra blocks, unchanged; T37/T38 — held per Samy's explicit
+  "skip for now"; T79 — re-checked read-only, live `objectives` still show 3
+  goals carrying non-empty `milestones`, migration hasn't run, unchanged) and
+  found **T73** had quietly cleared: read-only checks show the live
+  `users/local/affirmationBank/5a0156d1-...` row is gone (deleted, presumably
+  by Samy directly — a live-data write an unattended agent still cannot make)
+  and a smoke POST/GET round-trip against `/api/notify` confirms the
+  deep-link gateway is active (`path:"/prime"` round-trips). Both Verify-note
+  checks now pass: `curl -X POST .../api/notify -d
+  '{"text":"...","path":"/prime",...}'` then `curl
+  '.../api/notify?limit=1'` shows `"path":"/prime"`; `curl .../prime` no
+  longer contains the traced-upstream line. No code change was made or
+  needed — this task's code half shipped back in the 2026-07-21 session, and
+  the live-state half is now independently confirmed done. Only ROADMAP.md
+  changed, ticking the box.
+  Pitch: closes out the last of the 2026-07-21 /decide session's
+  live-state-only blockers — the deep-link path from pager/ntfy/web-push
+  notifications back into the app, and the affirmation bank no longer
+  surfacing a line that was already dead in code.
+  Quiz: why does deleting `users/local/affirmationBank/5a0156d1-...` not
+  count as something this autoloop run could have done itself? *(It's a
+  specific, pre-existing, Samy-authored document — deleting it destroys
+  data he created, the same "pre-existing user data" distinction T73's own
+  2026-08-10 BLOCKED note drew, not a fresh row this run generated.)*
+
 - **2026-08-17 (attended, T71 + T72 — the bank-fed half of /finance):** Samy
   asked to finish the Enable Banking work same-day rather than wait for the
   scheduled Tuesday cron build (cancelled). T67–T70 were already done from
@@ -1649,7 +1680,7 @@ credentials an unattended agent may not invent:
 
 ## Deep-link notifications — committed 2026-07-21 (approved /decide items, session-queued)
 
-- [ ] **T73 — activate deep-link notifications + finish the prime-line removal** (S) — two hands-on acts left over from the 2026-07-21 /decide session (code committed + pushed, image built, tsc + 320 vitest green; the session's permission mode denied live-state writes): (1) `cd ~/apps/lifeos/app && docker compose up -d` — activates the `/api/notify` deep-link gateway (per-message `path` → pager Open link, ntfy Click, web-push url; morning attention push already sends `--path=/decide`); (2) delete "I trace problems upstream to their source before acting." in the /prime bank manager — the seed line is gone from code but the LIVE bank row (`users/local/affirmationBank/5a0156d1-6044-4880-a8eb-fe8500bfe6fe`) and today's composed primeDay still carry it, and live-DB writes stayed off-limits. Native Android taps additionally need an APK rebuild whenever convenient — until then the phone still opens /pager (web-push + pager rows deep-link as soon as (1) runs). Verify: `curl -s -X POST 127.0.0.1:3000/api/notify -H 'Content-Type: application/json' -d '{"text":"deep-link smoke","path":"/prime","severity":"low"}'` then `curl -s '127.0.0.1:3000/api/notify?limit=1'` shows `"path":"/prime"`; /prime no longer lists the traced-upstream line.
+- [x] **T73 — activate deep-link notifications + finish the prime-line removal** (S) (2026-08-25: both halves confirmed live — see Log.) — two hands-on acts left over from the 2026-07-21 /decide session (code committed + pushed, image built, tsc + 320 vitest green; the session's permission mode denied live-state writes): (1) `cd ~/apps/lifeos/app && docker compose up -d` — activates the `/api/notify` deep-link gateway (per-message `path` → pager Open link, ntfy Click, web-push url; morning attention push already sends `--path=/decide`); (2) delete "I trace problems upstream to their source before acting." in the /prime bank manager — the seed line is gone from code but the LIVE bank row (`users/local/affirmationBank/5a0156d1-6044-4880-a8eb-fe8500bfe6fe`) and today's composed primeDay still carry it, and live-DB writes stayed off-limits. Native Android taps additionally need an APK rebuild whenever convenient — until then the phone still opens /pager (web-push + pager rows deep-link as soon as (1) runs). Verify: `curl -s -X POST 127.0.0.1:3000/api/notify -H 'Content-Type: application/json' -d '{"text":"deep-link smoke","path":"/prime","severity":"low"}'` then `curl -s '127.0.0.1:3000/api/notify?limit=1'` shows `"path":"/prime"`; /prime no longer lists the traced-upstream line.
   - SAMY 2026-07-21: approved
   BLOCKED (2026-08-10, autoloop): part (1) is already live — `curl -X POST 127.0.0.1:3000/api/notify -d '{"text":"...","path":"/prime",...}'` then `GET /api/notify?limit=1` confirms the stored message carries `"path":"/prime"`, so the deep-link gateway has been active since some earlier redeploy (no action needed). Part (2) is still open: read-only query against the live DB (`docker exec lifeos node`, `SELECT data FROM docs WHERE path='users/local/affirmationBank' AND id='5a0156d1-6044-4880-a8eb-fe8500bfe6fe'`) confirms the row still carries `"I trace problems upstream to their source before acting."`. Deleting that row is a live user-data write — a hard NEVER for an unattended agent — so the task's Verify note (which requires /prime to no longer list the line) cannot pass tonight. Left unchecked; needs Samy (or an attended session with live-state permission) to delete that one affirmation-bank row, at which point this task is verify-only.
 
