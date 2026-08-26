@@ -40,10 +40,26 @@ function lastRecord(records: string[] | undefined): { date: string; text: string
   }
   return null;
 }
+
+function tomorrowIsoDate(): string {
+  return new Date(Date.now() + 86_400_000).toISOString().slice(0, 10);
+}
+
 interface SessionRow {
   id: string;
   topic: string;
   status: string;
+}
+
+interface TeachResponse {
+  topics: Topic[];
+  sessions: SessionRow[];
+}
+
+async function fetchTeachData(): Promise<TeachResponse | null> {
+  const res = await fetch("/api/teach");
+  if (!res.ok) return null;
+  return (await res.json()) as TeachResponse;
 }
 
 export function TeachSection() {
@@ -62,16 +78,24 @@ export function TeachSection() {
   const isMobile = useIsMobile();
 
   const load = useCallback(async () => {
-    const res = await fetch("/api/teach");
-    if (!res.ok) return;
-    const data = await res.json();
+    const data = await fetchTeachData();
+    if (!data) return;
     setTopics(data.topics);
     setSessions(data.sessions);
   }, []);
 
   useEffect(() => {
-    load();
-  }, [load]);
+    let cancelled = false;
+    void fetchTeachData().then((data) => {
+      if (!cancelled && data) {
+        setTopics(data.topics);
+        setSessions(data.sessions);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const post = async (body: Record<string, unknown>) => {
     const res = await fetch("/api/teach", {
@@ -141,7 +165,7 @@ export function TeachSection() {
   };
 
   const schedule = async (t: Topic) => {
-    const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+    const tomorrow = tomorrowIsoDate();
     try {
       await post({ action: "schedule", topicId: t.id, date: tomorrow });
       toast(`Scheduled for ${tomorrow} — it'll be in your morning push`, "success");
@@ -259,7 +283,7 @@ export function TeachSection() {
               <li key={t.id} className="space-y-2 rounded-lg bg-muted px-3 py-2">
                 <p className="truncate text-sm text-foreground">{t.topic}</p>
                 <p className="text-xs text-muted-foreground/70">
-                  queued from chat — needs a why before it's active
+                  queued from chat — needs a why before it&apos;s active
                 </p>
                 <Input
                   value={draftMissions[t.id] || ""}

@@ -4,9 +4,7 @@ import { useEffect, useState } from "react";
 import {
   Brain,
   Search,
-  Plus,
   X,
-  Check,
   FileText,
   ArrowLeft,
   Sparkles,
@@ -14,13 +12,13 @@ import {
 } from "lucide-react";
 import { useKnowledge, type Note, type NoteMeta } from "@/lib/use-kb";
 import { calendarDaysBetween } from "@/lib/types";
+import { useAppStore } from "@/lib/store";
 import { useToast } from "@/components/toast";
 import { TeachSection } from "@/components/teach/teach-section";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Page, PageHeader } from "@/components/ui/page";
 
 function timeAgo(ms: number): string {
   const days = calendarDaysBetween(new Date(ms), new Date());
@@ -30,52 +28,6 @@ function timeAgo(ms: number): string {
   if (hrs > 0) return `${hrs}h ago`;
   const mins = Math.floor(d / 60000);
   return mins > 0 ? `${mins}m ago` : "just now";
-}
-
-// --- Capture form ---
-
-function CaptureForm({
-  onSave,
-  onCancel,
-}: {
-  onSave: (data: { title: string; content: string; folder: string }) => void;
-  onCancel: () => void;
-}) {
-  const [title, setTitle] = useState("");
-  const [content, setContent] = useState("");
-
-  return (
-    <Card className="gap-3 rounded-xl p-4">
-      <Input
-        type="text"
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
-        placeholder="Note title…"
-        autoFocus
-        className="text-sm font-medium"
-      />
-      <Textarea
-        value={content}
-        onChange={(e) => setContent(e.target.value)}
-        rows={5}
-        placeholder="Write your note (Markdown). Hermes will add a summary and tags."
-        className="text-sm resize-none"
-      />
-      <div className="flex items-center gap-2 justify-end">
-        <Button variant="secondary" size="sm" onClick={onCancel} className="gap-1.5 text-xs">
-          <X size={14} /> Cancel
-        </Button>
-        <Button
-          size="sm"
-          onClick={() => title.trim() && onSave({ title: title.trim(), content, folder: "01-Inbox" })}
-          disabled={!title.trim()}
-          className="gap-1.5 text-sm px-4"
-        >
-          <Check size={14} /> Capture
-        </Button>
-      </div>
-    </Card>
-  );
 }
 
 // --- Note reader ---
@@ -173,10 +125,9 @@ function NoteRow({
 // --- Page ---
 
 export default function KnowledgePage() {
-  const { notes, suggestions, message, enabled, loading, query, setQuery, readNote, createNote } =
-    useKnowledge();
+  const { notes, suggestions, message, enabled, loading, query, setQuery, readNote } = useKnowledge();
+  const { toggleChatPanel } = useAppStore();
   const { toast } = useToast();
-  const [capturing, setCapturing] = useState(false);
   const [active, setActive] = useState<Note | null>(null);
   const [showAllNotes, setShowAllNotes] = useState(false);
 
@@ -200,50 +151,32 @@ export default function KnowledgePage() {
 
   if (active) {
     return (
-      <div className="max-w-3xl">
+      <Page narrow>
         <NoteReader note={active} onBack={closeNote} />
-      </div>
+      </Page>
     );
   }
 
   return (
-    <div className="space-y-5 max-w-3xl">
-      {/* Header */}
-      <div className="flex items-center justify-between gap-4 flex-wrap enter">
-        <div>
-          <h1 className="flex items-center gap-2 text-foreground">
-            <Brain size={22} className="text-primary" /> Knowledge
-          </h1>
-          <p className="text-xs mt-1 text-muted-foreground/70">
-            Your Obsidian vault, enriched by Hermes. Capture here — Hermes summarizes &amp; tags.
-          </p>
-        </div>
-        {enabled && !capturing && (
-          <Button size="sm" onClick={() => setCapturing(true)} className="gap-1.5">
-            <Plus size={15} /> Capture note
-          </Button>
-        )}
-      </div>
+    <Page narrow>
+      <PageHeader
+        kicker="Vault"
+        title="Knowledge"
+        description="Search your Obsidian vault, review Hermes enrichment, and keep teaching sessions moving."
+        icon={Brain}
+        actions={
+          enabled ? (
+            <Button variant="outline" onClick={toggleChatPanel}>
+              <Sparkles size={15} /> Capture with Assistant
+            </Button>
+          ) : undefined
+        }
+      />
 
       {!enabled && (
         <Card className="gap-0 rounded-xl p-4 text-sm text-muted-foreground">
           The knowledge base isn&apos;t mounted. Set <code>KB_PATH</code> to the vault path and restart.
         </Card>
-      )}
-
-      {capturing && (
-        <CaptureForm
-          onCancel={() => setCapturing(false)}
-          onSave={async (data) => {
-            try {
-              await createNote(data);
-              setCapturing(false);
-              toast("Captured — Hermes will enrich it shortly");
-            } catch (e) {
-              toast(e instanceof Error ? e.message : "Failed to capture");
-            }
-          }}
-        />
       )}
 
       {/* Voice teaching sessions — queue, suggestions, session launcher.
@@ -264,7 +197,11 @@ export default function KnowledgePage() {
             className="flex-1 bg-transparent text-sm outline-none text-foreground placeholder:text-muted-foreground"
           />
           {query && (
-            <button onClick={() => setQuery("")} className="text-muted-foreground/70">
+            <button
+              onClick={() => setQuery("")}
+              aria-label="Clear knowledge search"
+              className="grid h-8 w-8 place-items-center rounded-md text-muted-foreground/70 transition-colors hover:bg-muted hover:text-foreground"
+            >
               <X size={14} />
             </button>
           )}
@@ -305,6 +242,6 @@ export default function KnowledgePage() {
           )}
         </div>
       )}
-    </div>
+    </Page>
   );
 }

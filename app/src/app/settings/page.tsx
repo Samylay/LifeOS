@@ -12,6 +12,7 @@ import { useGarmin } from "@/lib/use-garmin";
 import { PushSettings } from "@/components/push-settings";
 import { DevRequestsCard } from "@/components/dev-requests-card";
 import { Button } from "@/components/ui/button";
+import { Page, PageHeader } from "@/components/ui/page";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 
@@ -283,10 +284,14 @@ export default function SettingsPage() {
   };
 
   return (
-    <div>
-      <h1 className="mb-6 text-foreground">Settings</h1>
+    <Page narrow>
+      <PageHeader
+        kicker="System"
+        title="Settings"
+        description="Connections, notifications, and the small set of controls that change how LifeOS runs."
+      />
 
-      <div className="max-w-2xl space-y-4">
+      <div className="space-y-4">
         {/* Notifications — first: the section touched most often */}
         <Section title="Notifications" sub="Pager inbox + web-push to your devices (tailnet-only).">
           <div className="mb-4">
@@ -350,6 +355,6 @@ export default function SettingsPage() {
           </div>
         </Section>
       </div>
-    </div>
+    </Page>
   );
 }

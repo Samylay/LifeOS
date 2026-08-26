@@ -331,7 +331,7 @@ export default function VoiceCapturePage({ params }: { params: Promise<{ id: str
                 voice.state === "recording" ? "bg-destructive" : "bg-primary"
               )}
               style={{
-                transitionDuration: "var(--duration-fast)",
+                transitionDuration: "var(--dur-fast)",
                 transitionTimingFunction: "var(--ease-out-custom)",
                 opacity: busy ? 0.5 : 1,
               }}

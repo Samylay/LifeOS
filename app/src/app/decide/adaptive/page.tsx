@@ -17,6 +17,7 @@ import { toast as sonnerToast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Page, PageHeader } from "@/components/ui/page";
 import { useToast } from "@/components/toast";
 import { categoryMeta } from "@/components/decide/category-colors";
 import type { TriageQueueItem } from "@/components/decide/triage-card";
@@ -237,15 +238,18 @@ export default function AdaptivePrototypePage() {
     : null;
 
   return (
-    <div className="mx-auto max-w-lg">
-      <div className="mb-5 flex items-center gap-3">
-        <Link href="/decide" aria-label="Back to Decide"
-          className="rounded-lg bg-muted p-1.5 text-muted-foreground transition-transform duration-150 active:scale-[0.9]">
-          <ArrowLeft size={18} />
-        </Link>
-        <Sparkles size={20} className="text-primary" />
-        <h1 className="text-foreground">Approved</h1>
-      </div>
+    <Page narrow className="max-w-lg">
+      <PageHeader
+        kicker="Decide / Dispatch"
+        title="Approved"
+        description="Shape approved cards into precise prompts, then send the batch once."
+        icon={Sparkles}
+        actions={
+          <Button asChild variant="outline" size="sm">
+            <Link href="/decide"><ArrowLeft size={15} /> Back to decide</Link>
+          </Button>
+        }
+      />
 
       {!loading && rows.length > 1 && rows.some((r) => !queued.has(r.item.id)) && (
         <div className="mb-3 flex items-center gap-3 rounded-xl border border-border bg-card p-3">
@@ -357,6 +361,6 @@ export default function AdaptivePrototypePage() {
           />
         )}
       </ExpandingWorkspace>
-    </div>
+    </Page>
   );
 }

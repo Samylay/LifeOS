@@ -173,7 +173,7 @@ export default function FeedPage() {
           )}
           <div ref={sentinel} className="h-px" />
           {showHint && (
-            <div className="pointer-events-none fixed bottom-6 left-1/2 -translate-x-1/2 text-muted-foreground motion-safe:animate-bounce">
+            <div className="enter pointer-events-none fixed bottom-6 left-1/2 -translate-x-1/2 rounded-full border border-border bg-popover/90 p-2 text-muted-foreground shadow-pop backdrop-blur-md">
               <ChevronUp className="h-5 w-5" />
             </div>
           )}

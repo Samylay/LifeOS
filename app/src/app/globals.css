@@ -4,6 +4,197 @@
 @import "@fontsource-variable/space-grotesk/index.css";
 @import "@fontsource/jetbrains-mono/600.css";
 
+/*
+ * LIFEOS DESIGN TOKENS
+ *
+ * The previous typography sweep accidentally removed this entire layer. Keep
+ * the three levels explicit: raw palette -> semantic tokens -> component
+ * utilities. Feature code consumes semantic names, never palette values.
+ */
+@theme inline {
+  --color-sage-50: #f0f5f2;
+  --color-sage-100: #dce8e0;
+  --color-sage-200: #b9d1c2;
+  --color-sage-300: #96baa3;
+  --color-sage-400: #7c9e8a;
+  --color-sage-500: #6b8e79;
+  --color-sage-600: #567363;
+  --color-sage-700: #44594d;
+  --color-sage-800: #334038;
+  --color-sage-900: #212924;
+  --color-sage-950: #111614;
+
+  --color-warm-50: #f5f2ee;
+  --color-warm-100: #ede9e3;
+  --color-warm-200: #ddd7cf;
+  --color-warm-300: #c4bcb2;
+  --color-warm-400: #a89f94;
+  --color-warm-500: #8a8279;
+  --color-warm-600: #6b6560;
+  --color-warm-700: #4a4540;
+  --color-warm-800: #2a2724;
+  --color-warm-900: #1a1917;
+  --color-warm-950: #0f0e0d;
+
+  /* Multi-hue data palettes remain raw tokens. */
+  --color-area-health: #14b8a6;
+  --color-area-career: #6366f1;
+  --color-area-finance: #f59e0b;
+  --color-area-brand: #8b5cf6;
+  --color-area-admin: #6b6560;
+  --color-tier-novice: #a89f94;
+  --color-tier-apprentice: #7c9e8a;
+  --color-tier-journeyman: #3b82f6;
+  --color-tier-adept: #8b5cf6;
+  --color-tier-expert: #f59e0b;
+  --color-tier-master: #ef4444;
+  --color-danger: #fb7185;
+  --color-info: #38bdf8;
+
+  --font-sans: "Inter Variable", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  --font-display: "Space Grotesk Variable", var(--font-sans);
+
+  --z-base: 0;
+  --z-card: 10;
+  --z-dropdown: 20;
+  --z-sidebar: 30;
+  --z-header: 40;
+  --z-modal: 50;
+  --z-toast: 60;
+  --z-focus-overlay: 70;
+  --z-celebration: 80;
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent-ui);
+  --color-accent-foreground: var(--accent-ui-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-surface-1: var(--surface-1);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-card: 0.875rem;
+}
+
+@custom-variant dark (&:is(.dark, .dark *));
+
+:root,
+.dark {
+  color-scheme: dark;
+
+  /* Mission desk: opaque working surfaces, glass reserved for shell/overlay. */
+  --background: #080a10;
+  --surface-1: #080a10;
+  --surface-2: #10131d;
+  --surface-3: #171b28;
+  --foreground: #eef2fa;
+  --card: #10131d;
+  --card-foreground: #eef2fa;
+  --popover: #171b28;
+  --popover-foreground: #eef2fa;
+  --primary: #22d3ee;
+  --primary-foreground: #031217;
+  --secondary: rgba(34, 211, 238, 0.09);
+  --secondary-foreground: #c8f5fb;
+  --muted: rgba(238, 242, 250, 0.055);
+  --muted-foreground: #9ba3b7;
+  --accent-ui: rgba(139, 92, 246, 0.15);
+  --accent-ui-foreground: #d9ceff;
+  --destructive: #fb7185;
+  --destructive-foreground: #23060c;
+  --success: #34d399;
+  --success-foreground: #03160e;
+  --warning: #fbbf24;
+  --warning-foreground: #211600;
+  --border: rgba(238, 242, 250, 0.09);
+  --input: rgba(238, 242, 250, 0.08);
+  --ring: #22d3ee;
+  --chart-1: #22d3ee;
+  --chart-2: #8b5cf6;
+  --chart-3: #34d399;
+  --chart-4: #60a5fa;
+  --chart-5: #fbbf24;
+
+  --radius: 0.75rem;
+  --shadow-card: inset 0 1px 0 rgba(255, 255, 255, 0.035), 0 10px 30px rgba(0, 0, 0, 0.16);
+  --shadow-pop: inset 0 1px 0 rgba(255, 255, 255, 0.055), 0 20px 60px rgba(0, 0, 0, 0.42);
+  --shadow-focus: 0 0 0 3px rgba(34, 211, 238, 0.18);
+
+  /* Semantic motion. Constant/keyboard actions opt out in component code. */
+  --ease-out-custom: cubic-bezier(0.25, 1, 0.5, 1);
+  --ease-in-custom: cubic-bezier(0.5, 0, 0.75, 0);
+  --ease-in-out-custom: cubic-bezier(0.45, 0, 0.15, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+  --dur-instant: 0ms;
+  --dur-fast: 120ms;
+  --dur-base: 180ms;
+  --dur-slow: 240ms;
+}
+
+@theme {
+  --shadow-card: inset 0 1px 0 rgba(255, 255, 255, 0.035), 0 10px 30px rgba(0, 0, 0, 0.16);
+  --shadow-pop: inset 0 1px 0 rgba(255, 255, 255, 0.055), 0 20px 60px rgba(0, 0, 0, 0.42);
+}
+
+html {
+  min-width: 320px;
+  background: var(--background);
+}
+
+body {
+  min-height: 100vh;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  text-rendering: optimizeLegibility;
+}
+
+/* Aurora is a navigational horizon, not a full-screen animated wallpaper. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0 auto 0 0;
+  z-index: -1;
+  width: min(40vw, 36rem);
+  background:
+    radial-gradient(32rem 42rem at -12% 18%, rgba(139, 92, 246, 0.13), transparent 66%),
+    radial-gradient(28rem 36rem at -16% 76%, rgba(34, 211, 238, 0.09), transparent 68%);
+  pointer-events: none;
+}
+
+::selection {
+  background: rgba(34, 211, 238, 0.24);
+  color: var(--foreground);
+}
+
 /* AURORA typography: Space Grotesk display for headings (tracked tight,
    weight 600-700), Inter for UI/body, JetBrains Mono for numerals.
    Scale: h1 32px/700 -0.03em | h2 20px/600 -0.02em | labels 11px caps +8% */
@@ -12,7 +203,7 @@
 }
 h1 {
   font-family: var(--font-display);
-  font-size: 2rem;
+  font-size: clamp(1.65rem, 3vw, 2rem);
   font-weight: 700;
   letter-spacing: -0.03em;
   line-height: 1.15;
@@ -30,10 +221,115 @@ h1 .lucide, h2 .lucide {
 /* Frosted panel utility — apply where --card/--surface-2/3 are used.
    backdrop-blur is what makes the translucency read as glass. */
 .glass-panel {
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(20px) saturate(1.4);
-  -webkit-backdrop-filter: blur(20px) saturate(1.4);
+  background: rgba(16, 19, 29, 0.78);
+  border: 1px solid rgba(238, 242, 250, 0.09);
+  backdrop-filter: blur(18px) saturate(1.25);
+  -webkit-backdrop-filter: blur(18px) saturate(1.25);
+}
+
+/* Shared page grammar. Route components can opt in incrementally while the
+   shell keeps every legacy route inside the same readable canvas. */
+.page {
+  width: 100%;
+  max-width: 74rem;
+  margin-inline: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.page-narrow {
+  max-width: 48rem;
+}
+
+.page-header {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  min-height: 4.5rem;
+  padding-block: 0.25rem 1.25rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.page-header::after {
+  content: "";
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  width: clamp(3rem, 9vw, 6rem);
+  height: 1px;
+  background: linear-gradient(90deg, var(--primary), #8b5cf6 70%, transparent);
+  transform-origin: left;
+  animation: horizon-enter var(--dur-slow) var(--ease-out-custom) both;
+}
+
+@keyframes horizon-enter {
+  from { opacity: 0; transform: scaleX(0.6); }
+  to { opacity: 1; transform: scaleX(1); }
+}
+
+.page-kicker {
+  margin-bottom: 0.35rem;
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--primary);
+}
+
+.page-description {
+  max-width: 42rem;
+  margin-top: 0.35rem;
+  color: var(--muted-foreground);
+  font-size: 0.875rem;
+  line-height: 1.55;
+}
+
+.page-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.work-canvas {
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  background: var(--surface-2);
+  box-shadow: var(--shadow-card);
+}
+
+.app-main,
+.app-topbar {
+  margin-left: 0;
+}
+
+.app-main {
+  min-height: calc(100dvh - 3.5rem);
+  padding: 1rem;
+  padding-bottom: calc(5.5rem + env(safe-area-inset-bottom, 0px));
+}
+
+.app-content {
+  width: 100%;
+  max-width: 76rem;
+  margin-inline: auto;
+}
+
+@media (min-width: 1024px) {
+  .app-main,
+  .app-topbar {
+    margin-left: var(--sidebar-width);
+  }
+
+  .app-main {
+    padding: 1.5rem clamp(1.5rem, 3vw, 2.5rem) 3rem;
+  }
 }
 
 /* Tabular numbers for stats/timers */
@@ -64,8 +360,8 @@ h1 .lucide, h2 .lucide {
    Springy scale + fade, ≤400ms, transform/opacity only; the global
    prefers-reduced-motion block above collapses it to nothing. */
 @keyframes celebrate-pop {
-  from { opacity: 0; transform: scale(0.5); }
-  60%  { opacity: 1; transform: scale(1.08); }
+  from { opacity: 0; transform: scale(0.92); }
+  60%  { opacity: 1; transform: scale(1.04); }
   to   { opacity: 1; transform: scale(1); }
 }
 @keyframes celebrate-fade {
@@ -73,8 +369,8 @@ h1 .lucide, h2 .lucide {
   to   { opacity: 0; transform: scale(1.05); }
 }
 .celebrate-pop {
-  animation: celebrate-pop 300ms var(--ease-out-custom) both,
-             celebrate-fade 100ms linear 300ms both;
+  animation: celebrate-pop 240ms var(--ease-out-custom) both,
+             celebrate-fade 80ms var(--ease-in-custom) 240ms both;
 }
 
 /* Origin-aware dropdown/popover scale-in (grows from its trigger). */
@@ -87,14 +383,12 @@ h1 .lucide, h2 .lucide {
   animation: pop-in var(--dur-fast) var(--ease-out-custom) both;
 }
 
-/* Hover lift for actionable cards — transform + shadow only. */
+/* Hover lift for actionable cards. */
 .hover-lift {
-  transition: transform var(--dur-base) var(--ease-out-custom),
-              box-shadow var(--dur-base) var(--ease-out-custom);
+  transition: transform var(--dur-base) var(--ease-out-custom);
 }
 .hover-lift:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 24px -12px rgba(0, 0, 0, 0.25);
+  transform: translateY(-1px);
 }
 
 /* Press feedback for actionable elements — pairs with active:scale-* utilities. */
@@ -109,7 +403,7 @@ h1 .lucide, h2 .lucide {
   50% { opacity: 1; }
 }
 .skeleton-pulse {
-  animation: skeleton-pulse 1.4s var(--ease-in-out-custom) infinite;
+  animation: skeleton-pulse 500ms var(--ease-in-out-custom) infinite alternate;
 }
 
 /* Shimmer sweep for skeletons (UI-MODERN-SPEC M5/U6, 2026-08-22):
@@ -135,7 +429,7 @@ h1 .lucide, h2 .lucide {
     rgba(255, 255, 255, 0.06) 50%,
     transparent
   );
-  animation: shimmer-sweep 1.5s var(--ease-in-out-custom) infinite;
+  animation: shimmer-sweep 500ms var(--ease-in-out-custom) infinite;
 }
 
 /* Section labels (M4) — one utility instead of hand-rolled label styles. */
@@ -155,6 +449,29 @@ h1 .lucide, h2 .lucide {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+
+  button:active,
+  a:active,
+  [role="button"]:active {
+    transform: none !important;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .glass-panel {
+    background: var(--surface-2);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
+
+@media (prefers-contrast: more) {
+  :root,
+  .dark {
+    --muted-foreground: #c0c6d5;
+    --border: rgba(238, 242, 250, 0.24);
+    --input: rgba(238, 242, 250, 0.16);
+  }
 }
 
 /* Mobile ergonomics (ux-audit 2026-07-11) */
@@ -163,6 +480,20 @@ h1 .lucide, h2 .lucide {
      re-enable pinch zoom (WCAG 1.4.4) in the viewport config. */
   input, select, textarea {
     font-size: 16px;
+  }
+
+  .page {
+    gap: 1rem;
+  }
+
+  .page-header {
+    min-height: auto;
+    padding-bottom: 1rem;
+  }
+
+  .page-actions {
+    width: 100%;
+    justify-content: flex-start;
   }
 }
 @media (max-width: 1023px) {

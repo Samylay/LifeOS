@@ -25,10 +25,9 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
+import { FilterBar, Page, PageHeader } from "@/components/ui/page";
 
 type RecipeDraft = Omit<Recipe, "id" | "createdAt" | "updatedAt">;
-
-const EMPTY_DRAFT: RecipeDraft = { name: "", ingredients: [] };
 
 // Parse a leading quantity token back out of each line ("200 g rice" →
 // { quantity: "200 g", name: "rice" }) so quantity and name survive an edit
@@ -292,15 +291,12 @@ export default function RecipesPage() {
     });
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-start justify-between gap-3 flex-wrap">
-        <div>
-          <h1 className="flex items-center gap-2 text-foreground">
-            <CookingPot size={22} className="text-primary" /> Recipes
-          </h1>
-          <p className="text-xs mt-1 text-muted-foreground/70">Meal-prep book.</p>
-        </div>
-        {!creating && (
+    <Page narrow>
+      <PageHeader
+        title="Recipes"
+        description="Meal-prep book."
+        icon={CookingPot}
+        actions={!creating ? (
           <Button
             onClick={() => setCreating(true)}
             size="sm"
@@ -308,8 +304,8 @@ export default function RecipesPage() {
           >
             <Plus size={15} /> New recipe
           </Button>
-        )}
-      </div>
+        ) : undefined}
+      />
 
       {recipes.length > 0 && (
         <div className="relative">
@@ -328,11 +324,12 @@ export default function RecipesPage() {
       )}
 
       {allTags.length > 0 && (
-        <div className="flex items-center gap-1.5 flex-wrap">
+        <FilterBar role="group" aria-label="Filter recipes by tag">
           <button
             onClick={() => setTagFilter("all")}
-            className={`text-xs font-medium rounded-full px-3 py-1 transition-colors ${
-              tagFilter === "all" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+            aria-pressed={tagFilter === "all"}
+            className={`rounded-lg px-3 py-2 text-xs font-medium transition-[color,background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-out-custom)] active:scale-[0.97] ${
+              tagFilter === "all" ? "bg-surface-3 text-foreground shadow-card" : "text-muted-foreground hover:text-foreground"
             }`}
           >
             All ({recipes.length})
@@ -341,14 +338,15 @@ export default function RecipesPage() {
             <button
               key={t}
               onClick={() => setTagFilter(t)}
-              className={`text-xs font-medium rounded-full px-3 py-1 transition-colors ${
-                tagFilter === t ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+              aria-pressed={tagFilter === t}
+              className={`rounded-lg px-3 py-2 text-xs font-medium transition-[color,background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-out-custom)] active:scale-[0.97] ${
+                tagFilter === t ? "bg-surface-3 text-foreground shadow-card" : "text-muted-foreground hover:text-foreground"
               }`}
             >
               {t} ({recipes.filter((r) => r.tags?.includes(t)).length})
             </button>
           ))}
-        </div>
+        </FilterBar>
       )}
 
       {creating && (
@@ -510,6 +508,6 @@ export default function RecipesPage() {
         }}
         onCancel={() => setConfirmId(null)}
       />
-    </div>
+    </Page>
   );
 }

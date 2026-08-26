@@ -18,6 +18,7 @@ import { Celebration } from "@/components/celebration";
 import { type AffirmationType } from "@/lib/types";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Page, PageHeader } from "@/components/ui/page";
 
 const TYPE_LABEL: Record<AffirmationType, string> = {
   anchor: "Anchor",
@@ -72,7 +73,9 @@ function SoftTimer({
   const lastPersistRef = useRef<number>(0);
   // Keep the latest persist callback without restarting the interval.
   const persistRef = useRef(onPersist);
-  persistRef.current = onPersist;
+  useEffect(() => {
+    persistRef.current = onPersist;
+  }, [onPersist]);
 
   useEffect(() => {
     if (!running) return;
@@ -180,24 +183,23 @@ export default function PrimePage() {
   }, [done]);
 
   return (
-    <div className="space-y-6 max-w-2xl">
+    <Page narrow>
       {celebrating && <Celebration onDone={() => setCelebrating(false)} />}
-      {/* Header */}
-      <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div>
-          <h1 className="flex items-center gap-2 text-foreground">
-            <Sunrise size={22} className="text-primary" /> Daily Prime
-          </h1>
-          <p className="text-xs mt-1 text-muted-foreground/70">
-            {done ? "Done for today — nice work." : "Morning ritual: affirm, then speak. Read everything out loud."}
-          </p>
-        </div>
-        <Button asChild variant="ghost" size="icon-sm" className="text-muted-foreground">
-          <Link href="/prime/manage" aria-label="Edit prime banks" title="Edit banks">
-            <Settings2 size={16} />
-          </Link>
-        </Button>
-      </div>
+      <PageHeader
+        kicker="Morning ritual"
+        title="Daily Prime"
+        description={
+          done ? "Done for today. Return tomorrow for the next ritual." : "Affirm, then speak. Read everything out loud."
+        }
+        icon={Sunrise}
+        actions={
+          <Button asChild variant="outline" size="sm">
+            <Link href="/prime/manage">
+              <Settings2 size={15} /> Manage banks
+            </Link>
+          </Button>
+        }
+      />
 
       {loading && !today && (
         <Card className="p-8 text-center">
@@ -209,7 +211,7 @@ export default function PrimePage() {
         <>
           {/* Principle of the day */}
           {today.principleOfDay && (
-            <div className="rounded-xl px-5 py-4 bg-accent border border-primary">
+            <div className="rounded-xl border border-primary/30 bg-primary/8 px-5 py-4">
               <p className="section-label">
                 Principle of the day
               </p>
@@ -300,6 +302,6 @@ export default function PrimePage() {
           />
         </>
       )}
-    </div>
+    </Page>
   );
 }

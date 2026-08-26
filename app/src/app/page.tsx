@@ -7,7 +7,6 @@ import {
   Bell,
   Check,
   AlertTriangle,
-  Flame,
   RefreshCw,
   Sunrise,
   BellRing,
@@ -117,9 +116,9 @@ export default function Today() {
     // Phone is a feed, desktop is a cockpit: one scrolling column on mobile;
     // at lg the brief takes the main column and the quick loop / goals /
     // habits stack becomes a right rail, so the whole day is above the fold.
-    <div className="space-y-4 lg:space-y-6 max-w-2xl lg:max-w-6xl">
+    <div className="page max-w-2xl lg:max-w-6xl">
       {/* Header */}
-      <div className="flex items-start justify-between gap-4 flex-wrap enter">
+      <div className="page-header flex-wrap enter">
         <div>
           <h1 className="flex items-center gap-2 text-foreground">
             {now.getHours() < 18 ? <Sun size={20} className="text-primary" /> : <Moon size={20} className="text-primary" />}
@@ -280,11 +279,6 @@ export default function Today() {
                   >
                     {habit.name}
                   </span>
-                  {habit.streak > 0 && (
-                    <span className="flex items-center gap-1 text-xs font-mono shrink-0 text-primary">
-                      <Flame size={10} />{habit.streak}
-                    </span>
-                  )}
                 </button>
               );
             })}

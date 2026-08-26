@@ -8,6 +8,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Page, PageHeader } from "@/components/ui/page";
 
 const BUCKET_ORDER: Bucket[] = ["tech", "sec", "video", "news"];
 
@@ -28,7 +29,7 @@ export default function NewsFeedsPage() {
   }, []);
 
   useEffect(() => {
-    loadFeeds();
+    queueMicrotask(() => void loadFeeds());
   }, [loadFeeds]);
 
   const addFeed = async () => {
@@ -62,20 +63,17 @@ export default function NewsFeedsPage() {
   };
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-6 text-foreground">
-      <header className="mb-6 flex items-center gap-3">
-        <Button asChild variant="ghost" size="icon-sm" className="text-muted-foreground">
+    <Page narrow>
+      <PageHeader
+        kicker="News / Sources"
+        title="Manage feeds"
+        description={`${feeds.length} feed${feeds.length === 1 ? "" : "s"} in the daily edition.`}
+        actions={<Button asChild variant="outline" size="sm" className="text-muted-foreground">
           <Link href="/news" aria-label="Back to News">
-            <ArrowLeft size={16} />
+            <ArrowLeft size={16} /> Back to news
           </Link>
-        </Button>
-        <div>
-          <h1 className="">Manage feeds</h1>
-          <p className="text-sm text-muted-foreground/70">
-            {feeds.length} feed{feeds.length === 1 ? "" : "s"} in the daily edition
-          </p>
-        </div>
-      </header>
+        </Button>}
+      />
 
       <Card className="p-4 gap-0">
         <ul className="mb-4 space-y-1.5">
@@ -149,6 +147,6 @@ export default function NewsFeedsPage() {
           </Button>
         </div>
       </Card>
-    </div>
+    </Page>
   );
 }

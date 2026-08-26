@@ -1,21 +1,39 @@
 "use client";
 
 import { Menu, Sparkles } from "lucide-react";
+import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { useAppStore } from "@/lib/store";
 
+const ROUTE_TITLES: Array<[string, string]> = [
+  ["/decide", "Decide"],
+  ["/projects", "Projects"],
+  ["/content", "Content"],
+  ["/pager", "Pager"],
+  ["/voice", "Voice"],
+  ["/knowledge", "Knowledge"],
+  ["/feed", "Feed"],
+  ["/news", "News"],
+  ["/workouts", "Training"],
+  ["/recipes", "Recipes"],
+  ["/finance", "Finance"],
+  ["/leads", "Leads"],
+  ["/status", "Status"],
+  ["/terminal", "Terminal"],
+  ["/settings", "Settings"],
+  ["/prime", "Prime"],
+  ["/diagrams", "Diagrams"],
+];
+
 export function TopBar() {
-  const { sidebarExpanded, setMobileSidebarOpen, toggleChatPanel } = useAppStore();
+  const pathname = usePathname();
+  const { setMobileSidebarOpen, toggleChatPanel } = useAppStore();
+  const surface = ROUTE_TITLES.find(([path]) => pathname.startsWith(path))?.[1] ?? "Today";
 
   return (
     <header
-      className="sticky top-0 z-(--z-header) flex h-14 items-center gap-2 border-b border-border bg-card backdrop-blur-2xl backdrop-saturate-[1.4] bg-card/70 px-3 lg:gap-4 lg:px-6"
+      className="app-topbar glass-panel sticky top-0 z-(--z-header) flex h-14 items-center gap-2 border-x-0 border-t-0 px-3 lg:gap-4 lg:px-6"
     >
-      <style>{`
-        @media (min-width: 1024px) {
-          header { margin-left: ${sidebarExpanded ? 256 : 64}px; }
-        }
-      `}</style>
       {/* Mobile menu button */}
       <Button
         variant="ghost"
@@ -27,7 +45,13 @@ export function TopBar() {
         <Menu size={20} />
       </Button>
 
-      <span className="lg:hidden font-semibold text-foreground">LifeOS</span>
+      <div className="flex min-w-0 items-center gap-2">
+        <span className="hidden font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground lg:inline">
+          LifeOS
+        </span>
+        <span className="hidden text-border lg:inline">/</span>
+        <span className="truncate text-sm font-semibold text-foreground">{surface}</span>
+      </div>
 
       <div className="flex-1" />
 
@@ -36,13 +60,14 @@ export function TopBar() {
         {/* Chat panel toggle */}
         <Button
           variant="ghost"
-          size="icon-sm"
+          size="sm"
           onClick={toggleChatPanel}
-          className="text-muted-foreground active:scale-[0.92]"
+          className="gap-2 text-primary hover:bg-secondary hover:text-primary active:scale-[0.97]"
           title="Open Assistant"
           aria-label="Open assistant"
         >
-          <Sparkles size={20} />
+          <Sparkles size={17} />
+          <span className="hidden sm:inline">Assistant</span>
         </Button>
       </div>
     </header>

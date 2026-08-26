@@ -20,6 +20,7 @@ import { useContentIdeas } from "@/lib/use-content";
 import { useShipLog } from "@/lib/use-ship-log";
 import { useToast } from "@/components/toast";
 import { ConfirmDialog } from "@/components/confirm-dialog";
+import { Page, PageHeader } from "@/components/ui/page";
 import { Skeleton } from "@/components/skeleton";
 import type { ContentIdea, ContentIdeaStatus, ContentPillar } from "@/lib/types";
 import { PILLARS, PILLAR_META, HOOK_FORMULAS } from "@/lib/content-os";
@@ -638,18 +639,15 @@ function IdeaBank() {
 
 export default function ContentPage() {
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="flex items-center gap-2 text-foreground">
-          <Clapperboard size={22} className="text-primary" /> Content OS
-        </h1>
-        <p className="text-xs mt-1 text-muted-foreground/70">
-          Build-in-public content system — idea bank and tracker. The playbook lives in the vault
-          (<code>01-Inbox/content-os/</code>), the source of truth.
-        </p>
-      </div>
+    <Page>
+      <PageHeader
+        kicker="Publish"
+        title="Content OS"
+        description="Move ideas toward a published artifact. The playbook in the vault remains the source of truth."
+        icon={Clapperboard}
+      />
 
       <IdeaBank />
-    </div>
+    </Page>
   );
 }

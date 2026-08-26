@@ -1,6 +1,22 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+
+const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
+
+function subscribeToReducedMotion(onChange: () => void): () => void {
+  const mediaQuery = window.matchMedia(REDUCED_MOTION_QUERY);
+  mediaQuery.addEventListener("change", onChange);
+  return () => mediaQuery.removeEventListener("change", onChange);
+}
+
+function getReducedMotionSnapshot(): boolean {
+  return window.matchMedia(REDUCED_MOTION_QUERY).matches;
+}
+
+function getServerReducedMotionSnapshot(): boolean {
+  return false;
+}
 
 // Count-up for stat tiles (interaction-craft: "count-up numbers on stat
 // tiles"). Animates 0 → value once on mount with an ease-out curve. Honors
@@ -25,6 +41,11 @@ export function CountUp({
   // "3h 12m" tiles). Without it the value renders as a rounded integer.
   format?: (n: number) => string;
 }) {
+  const prefersReducedMotion = useSyncExternalStore(
+    subscribeToReducedMotion,
+    getReducedMotionSnapshot,
+    getServerReducedMotionSnapshot
+  );
   // Start at 0 on both server and client so the animation counts up cleanly
   // from mount with no flash of the final value (and no hydration mismatch).
   const [display, setDisplay] = useState(0);
@@ -36,11 +57,7 @@ export function CountUp({
   const firstRef = useRef(true);
 
   useEffect(() => {
-    const reduce =
-      typeof window !== "undefined" &&
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (reduce || value === 0) {
-      setDisplay(value);
+    if (prefersReducedMotion || value === 0) {
       displayRef.current = value;
       firstRef.current = false;
       return;
@@ -62,11 +79,13 @@ export function CountUp({
     return () => {
       if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
     };
-  }, [value, duration, easePow]);
+  }, [value, duration, easePow, prefersReducedMotion]);
+
+  const visibleValue = prefersReducedMotion || value === 0 ? value : display;
 
   return (
     <span className={className} style={{ fontVariantNumeric: "tabular-nums" }}>
-      {format ? format(display) : display}
+      {format ? format(visibleValue) : visibleValue}
       {suffix}
     </span>
   );

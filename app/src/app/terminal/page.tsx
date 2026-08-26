@@ -2,6 +2,7 @@
 
 import { SquareTerminal } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Page, PageHeader } from "@/components/ui/page";
 
 // Full PTY shell into the homelab host (ttyd, systemd units + setup in
 // ~/apps/lifeos/terminal/). Built 2026-07-25 after a remote-control outage —
@@ -24,22 +25,28 @@ const TTYD_URL = "http://100.124.149.101:7681/";
 
 export default function TerminalPage() {
   return (
-    <div className="flex h-full min-h-0 flex-col">
-      <div className="shrink-0 border-b border-border px-4 py-3">
-        <h1 className="text-lg font-semibold text-foreground">Terminal</h1>
-        <p className="text-sm text-muted-foreground">
-          Host shell, persistent tmux session. Opens in a new tab, no login —
-          the tailnet is the only gate.
-        </p>
-      </div>
-      <div className="flex flex-1 items-center justify-center p-6">
-        <Button asChild size="lg" className="active:scale-[0.97]">
+    <Page narrow>
+      <PageHeader
+        kicker="Utility"
+        title="Terminal"
+        description="Host shell and persistent tmux session. It opens in a new tab; the tailnet is the only gate."
+        icon={SquareTerminal}
+      />
+      <div className="work-canvas flex min-h-72 flex-col items-center justify-center gap-4 p-8 text-center">
+        <div className="grid size-14 place-items-center rounded-2xl bg-secondary text-primary">
+          <SquareTerminal size={24} />
+        </div>
+        <div>
+          <p className="font-medium text-foreground">Homelab host shell</p>
+          <p className="mt-1 text-sm text-muted-foreground">Opens outside LifeOS so browser authentication works reliably.</p>
+        </div>
+        <Button asChild size="lg">
           <a href={TTYD_URL} target="_blank" rel="noopener noreferrer">
-            <SquareTerminal size={18} className="mr-2" />
+            <SquareTerminal size={18} />
             Open terminal
           </a>
         </Button>
       </div>
-    </div>
+    </Page>
   );
 }

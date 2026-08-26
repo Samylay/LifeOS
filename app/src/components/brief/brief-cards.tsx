@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   AlertTriangle, Bookmark, Calendar, CheckSquare, ChevronDown, Dumbbell, ExternalLink,
   Link2, Mic, Rocket, Server, ShieldAlert, Square,
@@ -65,20 +65,33 @@ function oneLiner(card: BriefCard): string {
 function CardShell({ card, children }: { card: BriefCard; children: React.ReactNode }) {
   const isState = card.priority === "state";
   const startCollapsed = isState && card.status === "green" && !card.error;
-  const [collapsed, setCollapsed] = useState(startCollapsed);
+  const cardStateKey = `${isState}:${card.status}:${card.error ?? ""}`;
+  const shouldAutoOpen = isState && (card.status !== "green" || Boolean(card.error));
+  const [collapseState, setCollapseState] = useState(() => ({
+    collapsed: startCollapsed,
+    cardStateKey,
+  }));
+  let collapsed = collapseState.collapsed;
   const collapsible = isState;
 
   // A card that turns red/amber after first render must re-open itself —
-  // the initial collapse decision would otherwise freeze it shut.
-  useEffect(() => {
-    if (isState && (card.status !== "green" || card.error)) setCollapsed(false);
-  }, [isState, card.status, card.error]);
+  // adjust state from the changed card props before React commits the render.
+  if (collapseState.cardStateKey !== cardStateKey) {
+    collapsed = shouldAutoOpen ? false : collapseState.collapsed;
+    setCollapseState({ collapsed, cardStateKey });
+  }
 
   return (
     <Card className="gap-0 py-0 rounded-xl transition-[background,border-color]">
       <div className="flex items-center">
         <button
-          onClick={() => collapsible && setCollapsed((c) => !c)}
+          onClick={() =>
+            collapsible &&
+            setCollapseState((current) => ({
+              ...current,
+              collapsed: !current.collapsed,
+            }))
+          }
           disabled={!collapsible}
           className="min-w-0 flex-1 flex items-center gap-2.5 px-4 py-3 text-left"
           style={{ cursor: collapsible ? "pointer" : "default" }}

@@ -75,12 +75,15 @@ export async function POST(req: NextRequest) {
       throw new Error("Empty response from AI");
     }
 
-    const parsed = JSON.parse(content);
+    const parsed: unknown = JSON.parse(content);
     return NextResponse.json(parsed);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Parse API error:", error);
     return NextResponse.json(
-      { error: "Failed to parse text. Check the Claude CLI (or Ollama if GEN_PROVIDER=ollama).", details: error.message },
+      {
+        error: "Failed to parse text. Check the Claude CLI (or Ollama if GEN_PROVIDER=ollama).",
+        details: error instanceof Error ? error.message : undefined,
+      },
       { status: 500 }
     );
   }

@@ -97,10 +97,13 @@ export function NavIndicator({
       ref={indicatorRef}
       aria-hidden="true"
       data-slot="nav-indicator"
+      data-orientation={orientation}
       className={cn(
-        "pointer-events-none absolute left-0 top-0 rounded-md bg-accent-ui opacity-0 will-change-transform",
+        "pointer-events-none absolute left-0 top-0 z-0 opacity-0 will-change-transform",
         "transition-[transform] duration-200 ease-(--ease-in-out-custom)",
-        orientation === "vertical" ? "inset-x-0" : "inset-y-0",
+        orientation === "vertical"
+          ? "inset-x-0 rounded-lg border border-white/[0.04] bg-gradient-to-r from-primary/12 via-accent to-transparent after:absolute after:inset-y-2 after:left-0 after:w-px after:bg-primary"
+          : "h-0.5 rounded-full bg-gradient-to-r from-primary via-primary to-[#8b5cf6] shadow-[0_0_12px_rgba(34,211,238,0.28)]",
         className
       )}
     />

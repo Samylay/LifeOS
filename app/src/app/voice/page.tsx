@@ -8,6 +8,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Mic, Loader2, FileText, CheckCircle2 } from "lucide-react";
 import { useToast } from "@/components/toast";
+import { Page, PageHeader, SectionHeader } from "@/components/ui/page";
 import { calendarDaysBetween } from "@/lib/types";
 
 interface Capture {
@@ -74,21 +75,17 @@ export default function VoiceHome() {
   };
 
   return (
-    <div className="mx-auto flex h-full max-w-2xl flex-col px-4 pb-6">
-      <div className="enter flex items-center justify-between py-4">
-        <div>
-          <h1 className="text-lg font-semibold text-foreground">
-            Voice
-          </h1>
-          <p className="text-xs text-muted-foreground">
-            Talk it out. It asks. You answer. Then it drafts.
-          </p>
-        </div>
-      </div>
+    <Page narrow className="flex min-h-full flex-col">
+      <PageHeader
+        kicker="VoicePal"
+        title="Voice"
+        description="Talk it out. It asks. You answer. Then it drafts."
+        icon={Mic}
+      />
 
       {/* Capture-first hero: the big mic */}
       <div
-        className="enter flex flex-col items-center justify-center gap-4 rounded-2xl bg-card py-12"
+        className="work-canvas enter flex flex-col items-center justify-center gap-4 py-12"
         style={{ "--enter-delay": "40ms" } as React.CSSProperties}
       >
         <button
@@ -97,7 +94,7 @@ export default function VoiceHome() {
           aria-label="Start a new capture"
           className="flex h-24 w-24 items-center justify-center rounded-full bg-primary text-primary-foreground transition-transform active:scale-[0.94]"
           style={{
-            transitionDuration: "var(--duration-fast)",
+            transitionDuration: "var(--dur-fast)",
             transitionTimingFunction: "var(--ease-out-custom)",
             opacity: starting ? 0.6 : 1,
             boxShadow: "0 12px 32px -12px var(--primary)",
@@ -112,9 +109,7 @@ export default function VoiceHome() {
 
       {/* Recent captures */}
       <div className="mt-8 flex-1 overflow-y-auto">
-        <h2 className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          Recent
-        </h2>
+        <SectionHeader title="Recent" description="Sessions stay here until they are filed." />
         {loading ? (
           <div className="space-y-2">
             {[0, 1, 2].map((i) => (
@@ -158,6 +153,6 @@ export default function VoiceHome() {
           </ul>
         )}
       </div>
-    </div>
+    </Page>
   );
 }

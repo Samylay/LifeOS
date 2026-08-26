@@ -45,7 +45,8 @@ export function BottomNav() {
   return (
     <nav
       ref={tabListRef}
-      className="fixed bottom-0 left-0 right-0 z-40 flex h-16 items-center justify-around border-t border-border bg-card backdrop-blur-2xl backdrop-saturate-[1.4] bg-card/70 pb-[env(safe-area-inset-bottom,0px)] lg:hidden"
+      className="glass-panel fixed bottom-0 left-0 right-0 z-40 flex h-[4.25rem] items-center justify-around border-x-0 border-b-0 px-1 pb-[env(safe-area-inset-bottom,0px)] lg:hidden"
+      aria-label="Primary"
     >
       {TABS.map((tab) => {
         const Icon = tab.icon;
@@ -56,8 +57,8 @@ export function BottomNav() {
             key={tab.href}
             href={tab.href}
             className={cn(
-              "relative flex min-w-13 flex-col items-center justify-center gap-0.5 rounded-lg px-2 py-1 pressable active:scale-[0.90]",
-              active ? "text-accent-ui-foreground" : "text-muted-foreground"
+              "relative z-10 flex min-w-12 flex-col items-center justify-center gap-0.5 rounded-lg px-1.5 py-1 pressable active:scale-[0.92]",
+              active ? "text-primary" : "text-muted-foreground"
             )}
           >
             <div className="relative">
@@ -68,18 +69,18 @@ export function BottomNav() {
                 </span>
               )}
             </div>
-            <span className="text-xs font-medium">{tab.label}</span>
+            <span className="text-[10px] font-semibold">{tab.label}</span>
           </Link>
         );
       })}
       {/* "More" — opens mobile sidebar */}
       <button
         onClick={() => setMobileSidebarOpen(true)}
-        className="flex min-w-13 flex-col items-center justify-center gap-0.5 rounded-lg px-2 py-1 text-muted-foreground pressable active:scale-[0.90]"
+        className="relative z-10 flex min-w-12 flex-col items-center justify-center gap-0.5 rounded-lg px-1.5 py-1 text-muted-foreground pressable active:scale-[0.92]"
         aria-label="More"
       >
         <Menu size={22} strokeWidth={2} />
-        <span className="text-xs font-medium">More</span>
+        <span className="text-[10px] font-semibold">More</span>
       </button>
       {/* U5 sliding pill — rendered after the tabs so it doesn't shift the
           container.children indices the indicator measures; -z-10 keeps it
@@ -89,7 +90,7 @@ export function BottomNav() {
           containerRef={tabListRef}
           activeIndex={activeIndex}
           orientation="horizontal"
-          className="-z-10"
+          className=""
         />
       )}
     </nav>

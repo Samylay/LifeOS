@@ -22,6 +22,7 @@ import { useBankAccounts } from "@/lib/use-bank-accounts";
 import { isConsentExpired } from "@/lib/bank-consent-tripwire";
 import { useToast } from "@/components/toast";
 import { ConfirmDialog } from "@/components/confirm-dialog";
+import { Page, PageHeader } from "@/components/ui/page";
 import {
   CADENCE_LABEL,
   formatEuro,
@@ -432,29 +433,23 @@ export default function FinancePage() {
   const empty = flows.length === 0 && !loading;
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="flex items-center gap-2 text-foreground">
-            <Wallet size={22} className="text-primary" /> Finance
-          </h1>
-          <p className="mt-1 text-xs text-muted-foreground/70">
-            Rentrées, sorties, and what the subscriptions actually cost. Kept by hand.
-          </p>
-        </div>
-        {mode === "none" && !empty && (
-          <div className="flex gap-2">
+    <Page>
+      <PageHeader
+        kicker="Money"
+        title="Finance"
+        description="Rentrées, sorties, and the recurring costs that deserve a decision."
+        icon={Wallet}
+        actions={mode === "none" && !empty ? (
+          <>
             <Button size="sm" variant="outline" onClick={() => setMode("paste")} className="gap-1.5 text-sm">
               <ClipboardPaste size={15} /> Paste list
             </Button>
             <Button size="sm" onClick={() => setMode("quick")} className="gap-1.5 text-sm">
               <Plus size={15} /> Add
             </Button>
-          </div>
-        )}
-      </div>
-
-      <ConnectedAccountsPanel />
+          </>
+        ) : undefined}
+      />
 
       {mode === "paste" && (
         <PasteBox
@@ -500,19 +495,22 @@ export default function FinancePage() {
       )}
 
       {flows.length > 0 && (
-        <>
-          {/* The month, in three numbers. */}
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-            <KpiCard label="In" value={formatEuro(totals.monthlyIn, { decimals: false })} icon={<TrendingUp size={13} />} />
-            <KpiCard label="Out" value={formatEuro(totals.monthlyOut, { decimals: false })} icon={<TrendingDown size={13} />} />
-            <KpiCard
-              label="Left over"
-              value={formatEuro(totals.monthlyLeft, { decimals: false })}
-              icon={<PiggyBank size={13} />}
-              className={totals.monthlyLeft < 0 ? "border-destructive/50" : undefined}
-            />
-          </div>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 enter">
+          <KpiCard label="In" value={formatEuro(totals.monthlyIn, { decimals: false })} icon={<TrendingUp size={13} />} />
+          <KpiCard label="Out" value={formatEuro(totals.monthlyOut, { decimals: false })} icon={<TrendingDown size={13} />} />
+          <KpiCard
+            label="Left over"
+            value={formatEuro(totals.monthlyLeft, { decimals: false })}
+            icon={<PiggyBank size={13} />}
+            className={totals.monthlyLeft < 0 ? "border-destructive/50" : undefined}
+          />
+        </div>
+      )}
 
+      <ConnectedAccountsPanel />
+
+      {flows.length > 0 && (
+        <>
           {/* Habits: behaviour, not a ledger. */}
           {habits.length > 0 && (
             <Card className="gap-2 px-4 py-4">
@@ -607,6 +605,6 @@ export default function FinancePage() {
         }}
         onCancel={() => setPendingDelete(null)}
       />
-    </div>
+    </Page>
   );
 }

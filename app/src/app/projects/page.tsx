@@ -19,6 +19,7 @@ import { AREAS, AREA_HEX, mondayOf, goalPlanState, commitmentsForWeek, localDayO
 import { TaskItem, TaskCreateForm } from "@/components/task-list";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { Page, PageHeader } from "@/components/ui/page";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
@@ -999,23 +1000,24 @@ export default function ProjectsPage() {
     // Mobile is one scrolling feed; at lg the goal/project flow keeps the
     // main column and the ship log becomes a sticky scorekeeping rail with
     // its own scroll, so work and evidence are visible side by side.
-    <div className="space-y-5 max-w-2xl lg:max-w-6xl">
+    <Page className="max-w-2xl lg:max-w-6xl">
       {/* Header */}
-      <div className="flex items-center justify-between gap-4 flex-wrap enter">
-        <div>
-          <h1 className="flex items-center gap-2 text-foreground">
-            <FolderKanban size={22} className="text-primary" /> Projects
-          </h1>
-          <p className="text-xs mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-muted-foreground/70">
+      <PageHeader
+        kicker="Ship"
+        title="Projects"
+        icon={FolderKanban}
+        description={
+          <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
             <span>Goals set the direction · projects ship it · the ship log keeps score.</span>
             {weekCommits.length > 0 && (
               <span className="font-mono text-muted-foreground">
                 {weekDone}/{weekCommits.length} committed this week
               </span>
             )}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
+          </span>
+        }
+        actions={
+          <>
           {!showGoalForm && (
             <Button
               variant="ghost"
@@ -1027,7 +1029,7 @@ export default function ProjectsPage() {
             </Button>
           )}
           {!showForm && (
-            <Button size="sm" onClick={() => setShowForm(true)} className="gap-1.5 text-sm">
+            <Button variant="outline" size="sm" onClick={() => setShowForm(true)} className="gap-1.5 text-sm">
               <Plus size={15} /> New project
             </Button>
           )}
@@ -1044,8 +1046,9 @@ export default function ProjectsPage() {
           >
             <Rocket size={15} /> Log a ship
           </Button>
-        </div>
-      </div>
+          </>
+        }
+      />
 
       {/* Momentum */}
       <div className="enter" style={{ ["--enter-delay" as string]: "30ms" }}>
@@ -1153,6 +1156,6 @@ export default function ProjectsPage() {
         <ShipLogSection entries={shipLog} projects={projects} onLog={logShip} showForm={shipFormOpen} setShowForm={setShipFormOpen} />
       </aside>
       </div>
-    </div>
+    </Page>
   );
 }

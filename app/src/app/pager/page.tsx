@@ -28,6 +28,7 @@ import {
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { FilterBar, Page, PageHeader } from "@/components/ui/page";
 import {
   Drawer,
   DrawerContent,
@@ -91,30 +92,25 @@ function PagerInner() {
   const [actionsFor, setActionsFor] = useState<PagerMessage | null>(null);
 
   return (
-    <div className="max-w-2xl mx-auto">
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3">
-          <BellRing size={24} className="text-primary" />
-          <h1 className="text-foreground">
-            Pager
-          </h1>
-        </div>
-        {unreadCount(stream) > 0 && (
+    <Page narrow>
+      <PageHeader
+        title="Pager"
+        icon={BellRing}
+        actions={unreadCount(stream) > 0 ? (
           <Button
             onClick={() => markAllRead(visible)}
-            variant="outline"
             size="sm"
-            className="gap-1.5 text-sm font-medium text-muted-foreground active:scale-[0.97]"
+            className="gap-1.5 text-sm font-medium active:scale-[0.97]"
           >
             <CheckCheck size={16} />
             Mark {unreadCount(stream)} read
           </Button>
-        )}
-      </div>
+        ) : undefined}
+      />
 
       {/* Stream filter — empty streams hide (All always shows; the selected
           stream stays visible so the active filter can't strand itself) */}
-      <div className="flex flex-wrap gap-2 mb-6">
+      <FilterBar role="group" aria-label="Filter pager messages by stream">
         {(["all", ...PAGER_STREAMS] as const)
           .filter((s) => s === "all" || s === stream || messages.some((m) => m.stream === s))
           .map((s) => {
@@ -124,10 +120,11 @@ function PagerInner() {
               <button
                 key={s}
                 onClick={() => setStream(s)}
-                className={`flex items-center gap-1.5 text-xs rounded-lg px-3 py-2 font-medium border transition-transform duration-150 active:scale-[0.97] ${
+                aria-pressed={active}
+                className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium transition-[color,background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-out-custom)] active:scale-[0.97] ${
                   active
-                    ? "bg-primary text-primary-foreground border-primary"
-                    : "bg-muted text-muted-foreground border-transparent"
+                    ? "bg-surface-3 text-foreground shadow-card"
+                    : "text-muted-foreground hover:text-foreground"
                 }`}
               >
                 {s !== "all" && STREAM_META[s].icon}
@@ -136,7 +133,7 @@ function PagerInner() {
               </button>
             );
           })}
-      </div>
+      </FilterBar>
 
       {loading ? (
         <div className="space-y-2">
@@ -209,6 +206,7 @@ function PagerInner() {
                     <div className="mt-2">
                       <Button
                         onClick={() => ack(m)}
+                        variant="outline"
                         size="sm"
                         className="text-xs font-medium active:scale-[0.97]"
                       >
@@ -224,6 +222,7 @@ function PagerInner() {
                     onClick={() => setActionsFor(m)}
                     className="grid h-11 w-11 place-items-center rounded-lg text-muted-foreground/70 transition-transform duration-150 active:scale-[0.97]"
                     title="Message actions"
+                    aria-label="Message actions"
                   >
                     <MoreHorizontal size={16} />
                   </button>
@@ -234,6 +233,7 @@ function PagerInner() {
                     onClick={() => markRead(m.id)}
                     className="grid h-11 w-11 place-items-center rounded-lg text-muted-foreground/70 transition-transform duration-150 active:scale-[0.97]"
                     title="Mark read"
+                    aria-label="Mark read"
                   >
                     <Check size={16} />
                   </button>
@@ -242,6 +242,7 @@ function PagerInner() {
                   onClick={() => handleDelete(m.id)}
                   className="grid h-11 w-11 place-items-center rounded-lg text-muted-foreground/70 transition-transform duration-150 active:scale-[0.97]"
                   title="Delete"
+                  aria-label="Delete"
                 >
                   <Trash2 size={16} />
                 </button>
@@ -305,7 +306,7 @@ function PagerInner() {
           </div>
         </DrawerContent>
       </Drawer>
-    </div>
+    </Page>
   );
 }
 

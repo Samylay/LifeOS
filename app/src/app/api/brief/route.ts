@@ -16,13 +16,19 @@ Rules:
 - No conversational filler (like "Here is your brief").
 - Use a supportive, senior-engineer-to-peer tone.`;
 
+interface BriefRequestBody {
+  tasks: Array<{ title: string; priority: string | number }>;
+  events: Array<{ title: string }>;
+  stats: { habitsDone: number; totalHabits: number };
+}
+
 export async function POST(req: NextRequest) {
   try {
-    const { tasks, events, stats } = await req.json();
+    const { tasks, events, stats } = (await req.json()) as BriefRequestBody;
 
     const context = `
-Tasks: ${tasks.map((t: any) => `${t.title} (${t.priority})`).join(", ")}
-Events: ${events.map((e: any) => e.title).join(", ")}
+Tasks: ${tasks.map((t) => `${t.title} (${t.priority})`).join(", ")}
+Events: ${events.map((e) => e.title).join(", ")}
 Habits Done: ${stats.habitsDone}/${stats.totalHabits}
 `;
 
@@ -48,10 +54,13 @@ Habits Done: ${stats.habitsDone}/${stats.totalHabits}
     }
 
     return NextResponse.json({ brief });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Brief API error:", error);
     return NextResponse.json(
-      { error: "Failed to generate brief. Check the Claude CLI (or Ollama if GEN_PROVIDER=ollama).", details: error.message },
+      {
+        error: "Failed to generate brief. Check the Claude CLI (or Ollama if GEN_PROVIDER=ollama).",
+        details: error instanceof Error ? error.message : undefined,
+      },
       { status: 500 }
     );
   }

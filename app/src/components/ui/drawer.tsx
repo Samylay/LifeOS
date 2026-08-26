@@ -2,7 +2,7 @@
 
 // Vaul drawer primitive (T37) — shadcn-style wrapper over vaul with the house
 // motion doctrine baked in: transform/opacity only, ≤300ms, custom easing,
-// no transition-all. Dismissal keeps vaul's defaults (iOS curve + velocity
+// Dismissal keeps vaul's defaults (iOS curve + velocity
 // handoff). Desktop surfaces never render this — the useIsMobile() split in
 // the consuming component decides.
 import * as React from "react";
@@ -33,7 +33,7 @@ const DrawerOverlay = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <DrawerPrimitive.Overlay
     ref={ref}
-    className={cn("fixed inset-0 z-50 bg-black/80", className)}
+    className={cn("fixed inset-0 z-50 bg-black/70 backdrop-blur-[2px]", className)}
     {...props}
   />
 ));
@@ -48,13 +48,13 @@ const DrawerContent = React.forwardRef<
     <DrawerPrimitive.Content
       ref={ref}
       className={cn(
-        "fixed inset-x-0 bottom-0 z-50 mt-24 flex h-auto flex-col rounded-t-[10px] border border-border bg-background",
+        "glass-panel fixed inset-x-0 bottom-0 z-50 mt-24 flex max-h-[88dvh] h-auto flex-col rounded-t-[1.25rem] border border-border bg-popover shadow-pop",
         className,
       )}
       {...props}
     >
       {/* Drag handle */}
-      <div className="mx-auto mt-4 h-2 w-[100px] rounded-full bg-muted" />
+      <div className="mx-auto mt-3 h-1 w-10 rounded-full bg-muted-foreground/40" />
       {children}
     </DrawerPrimitive.Content>
   </DrawerPortal>

@@ -7,6 +7,7 @@ import { BUCKET_LABELS, type Bucket, type Edition, type NewsItem } from "@/lib/n
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Page, PageHeader } from "@/components/ui/page";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const BUCKET_ORDER: Bucket[] = ["tech", "sec", "video", "news"];
@@ -65,7 +66,7 @@ function NewsCard({ item }: { item: NewsItem }) {
               size={13}
               style={{
                 transform: open ? "rotate(180deg)" : "none",
-                transition: "transform var(--duration-normal) var(--ease-out-custom)",
+                transition: "transform var(--dur-base) var(--ease-out-custom)",
               }}
             />
           </button>
@@ -151,17 +152,15 @@ export default function NewsPage() {
   };
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-6 text-foreground">
-      <header className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="">News</h1>
-          <p className="text-sm text-muted-foreground/70">
-            {edition
-              ? `${edition.items.length} article${edition.items.length === 1 ? "" : "s"} · ${edition.date}`
-              : "Personalised digest — security & dev"}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
+    <Page narrow>
+      <PageHeader
+        kicker="Digest"
+        title="News"
+        description={edition
+          ? `${edition.items.length} article${edition.items.length === 1 ? "" : "s"} · ${edition.date}`
+          : "A focused security and development digest."}
+        actions={
+          <>
           <Button asChild variant="ghost" size="sm" className="gap-1.5 text-sm font-medium text-muted-foreground">
             <Link href="/news/feeds">
               <Settings2 size={15} /> Manage feeds
@@ -179,8 +178,9 @@ export default function NewsPage() {
               {generating ? "Generating…" : refreshArmed ? "Tap again — takes minutes" : "Refresh"}
             </Button>
           )}
-        </div>
-      </header>
+          </>
+        }
+      />
 
       {loading ? (
         <EditionSkeleton />
@@ -222,6 +222,6 @@ export default function NewsPage() {
           );
         })
       )}
-    </div>
+    </Page>
   );
 }

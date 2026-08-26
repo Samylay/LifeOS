@@ -7,6 +7,7 @@ import { useGarmin } from "@/lib/use-garmin";
 import TrainingAnalytics from "@/components/training-analytics";
 import { StrengthCard } from "@/components/strength-card";
 import { NutritionCard } from "@/components/nutrition-card";
+import { Page, PageHeader } from "@/components/ui/page";
 
 export default function TrainingPage() {
   const garmin = useGarmin();
@@ -21,11 +22,13 @@ export default function TrainingPage() {
   }, [garmin.connection.connected]);
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
-      <div className="enter flex items-center gap-3">
-        <Dumbbell size={24} className="text-primary" />
-        <h1>Training</h1>
-      </div>
+    <Page className="max-w-5xl">
+      <PageHeader
+        kicker="Health"
+        title="Training"
+        description="Recovery, nutrition, and the training load that informs today."
+        icon={Dumbbell}
+      />
 
       {garmin.error && (
         <div className="enter rounded-lg bg-muted p-3 text-xs text-muted-foreground">
@@ -51,6 +54,6 @@ export default function TrainingPage() {
       <div className="enter" style={{ ["--enter-delay" as string]: "90ms" }}>
         <StrengthCard />
       </div>
-    </div>
+    </Page>
   );
 }

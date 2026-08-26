@@ -12,7 +12,16 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { sidebarExpanded } = useAppStore();
 
   return (
-    <div className="min-h-screen bg-surface-1">
+    <div
+      className="min-h-screen bg-surface-1"
+      style={{ ["--sidebar-width" as string]: sidebarExpanded ? "244px" : "72px" }}
+    >
+      <a
+        href="#main-content"
+        className="fixed left-3 top-3 z-(--z-focus-overlay) -translate-y-20 rounded-md bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground transition-transform duration-[var(--dur-fast)] focus:translate-y-0"
+      >
+        Skip to content
+      </a>
       {/* Desktop sidebar */}
       <div className="hidden lg:block">
         <Sidebar />
@@ -22,24 +31,8 @@ export function AppShell({ children }: { children: ReactNode }) {
         <Sidebar mobile />
       </div>
       <TopBar />
-      <main
-        className="p-4 lg:p-6"
-        style={{
-          marginLeft: 0,
-          maxWidth: 1280,
-          // space for the bottom nav on mobile, incl. gesture-nav safe area
-          paddingBottom: "calc(80px + env(safe-area-inset-bottom, 0px))",
-        }}
-      >
-        <style>{`
-          @media (min-width: 1024px) {
-            main {
-              margin-left: ${sidebarExpanded ? 256 : 64}px !important;
-              padding-bottom: 24px !important;
-            }
-          }
-        `}</style>
-        {children}
+      <main id="main-content" className="app-main" tabIndex={-1}>
+        <div className="app-content">{children}</div>
       </main>
       {/* Mobile bottom nav - hidden on desktop */}
       <BottomNav />

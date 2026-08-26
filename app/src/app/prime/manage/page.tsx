@@ -2,12 +2,13 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Check, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, Check, Plus, Settings2, Trash2 } from "lucide-react";
 import { usePrime } from "@/lib/use-prime";
 import { PRIME_TIMER_FLOORS, type AffirmationType } from "@/lib/types";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Page, PageHeader } from "@/components/ui/page";
 
 const TYPE_LABEL: Record<AffirmationType, string> = {
   anchor: "Anchor",
@@ -45,20 +46,20 @@ export default function PrimeManagePage() {
     t === "anchor" ? "rotating" : t === "rotating" ? "contextual" : "anchor";
 
   return (
-    <div className="space-y-6 max-w-2xl">
-      <header className="flex items-center gap-3">
-        <Button asChild variant="ghost" size="icon-sm" className="text-muted-foreground">
-          <Link href="/prime" aria-label="Back to Daily Prime">
-            <ArrowLeft size={16} />
-          </Link>
-        </Button>
-        <div>
-          <h1 className="text-foreground">Prime banks</h1>
-          <p className="text-xs mt-1 text-muted-foreground/70">
-            Affirmations, prompts, principles and the soft-timer floor.
-          </p>
-        </div>
-      </header>
+    <Page narrow>
+      <PageHeader
+        kicker="Daily Prime"
+        title="Prime banks"
+        description="Affirmations, prompts, principles, and the soft-timer floor."
+        icon={Settings2}
+        actions={
+          <Button asChild variant="outline" size="sm">
+            <Link href="/prime">
+              <ArrowLeft size={15} /> Back to ritual
+            </Link>
+          </Button>
+        }
+      />
 
       <Card className="p-5 gap-6">
         {/* Timer floor */}
@@ -257,6 +258,6 @@ export default function PrimeManagePage() {
           </div>
         </div>
       </Card>
-    </div>
+    </Page>
   );
 }

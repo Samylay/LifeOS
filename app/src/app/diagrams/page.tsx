@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
+import { Page, PageHeader } from "@/components/ui/page";
 import { useToast } from "@/components/toast";
 import { useVoiceRecorder } from "@/lib/use-voice-recorder";
 
@@ -104,15 +105,13 @@ export default function DiagramsPage() {
   }, [current]);
 
   return (
-    <div className="mx-auto flex max-w-5xl flex-col gap-4 p-4">
-      <div>
-        <h1 className="flex items-center gap-2">
-          <Workflow size={22} className="text-primary" /> Diagrams
-        </h1>
-        <p className="text-xs text-muted-foreground">
-          Describe a system, a plan, or paste a brain-dump. Sonnet draws it as mermaid.
-        </p>
-      </div>
+    <Page className="max-w-5xl">
+      <PageHeader
+        kicker="Utility"
+        title="Diagrams"
+        description="Describe a system or plan. Sonnet turns it into a Mermaid diagram."
+        icon={Workflow}
+      />
 
       <Card className="flex flex-col gap-3 p-4">
         <Textarea
@@ -249,6 +248,6 @@ export default function DiagramsPage() {
           </p>
         )
       )}
-    </div>
+    </Page>
   );
 }

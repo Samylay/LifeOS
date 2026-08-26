@@ -13,6 +13,7 @@ import { Radar, ExternalLink, Check, Trophy, X, Trash2 } from "lucide-react";
 import { useLeads, LEAD_STATUSES, type Lead, type LeadStatus } from "@/lib/use-leads";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { FilterBar, Page, PageHeader } from "@/components/ui/page";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Skeleton } from "@/components/skeleton";
@@ -73,22 +74,22 @@ export default function LeadsPage() {
   const visible = filter === "all" ? scoped : scoped.filter((l) => l.status === filter);
 
   return (
-    <div className="max-w-2xl mx-auto">
-      <div className="flex items-center gap-3 mb-6">
-        <Radar size={24} className="text-primary" />
-        <h1 className="text-foreground">
-          Leads
-        </h1>
-        {count("new") > 0 && (
+    <Page narrow>
+      <PageHeader
+        kicker="Pipeline"
+        title="Leads"
+        description="Requests worth contacting, from first signal to a clear outcome."
+        icon={Radar}
+        actions={count("new") > 0 ? (
           <Badge className="text-xs font-semibold">
             {count("new")} new
           </Badge>
-        )}
-      </div>
+        ) : undefined}
+      />
 
       {/* Source filter — only worth showing once there's more than one. */}
       {sources.length > 1 && (
-        <div className="flex flex-wrap gap-2 mb-3">
+        <FilterBar>
           {(["all", ...sources] as const).map((s) => {
             const active = source === s;
             const n = s === "all" ? leads.length : leads.filter((l) => l.source === s).length;
@@ -105,11 +106,11 @@ export default function LeadsPage() {
               </button>
             );
           })}
-        </div>
+        </FilterBar>
       )}
 
       {/* Status filter — zero-count chips are noise, except All and New */}
-      <div className="flex flex-wrap gap-2 mb-6">
+      <FilterBar>
         {(["all", ...LEAD_STATUSES] as const)
           .filter((s) => s === "all" || s === "new" || count(s) > 0 || filter === s)
           .map((s) => {
@@ -127,7 +128,7 @@ export default function LeadsPage() {
             </button>
           );
         })}
-      </div>
+      </FilterBar>
 
       {loading ? (
         <div className="space-y-3">
@@ -146,7 +147,7 @@ export default function LeadsPage() {
           ))}
         </div>
       )}
-    </div>
+    </Page>
   );
 }
 

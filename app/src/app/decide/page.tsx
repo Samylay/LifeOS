@@ -29,6 +29,8 @@ import { BulkApprovalBar } from "@/components/decide/bulk-approval-bar";
 import type { PainItem } from "@/lib/pain-deck";
 import type { DecisionItem } from "@/lib/decisions";
 import type { Proposal } from "@/lib/proposals";
+import { Button } from "@/components/ui/button";
+import { FilterBar, Page, PageHeader } from "@/components/ui/page";
 
 type Deck = "saved" | "approvals" | "shelf" | "pain" | "proposals";
 
@@ -145,7 +147,9 @@ function DecideInner() {
     });
     setLoading(false);
   }, []);
-  useEffect(() => { refresh(); }, [refresh]);
+  useEffect(() => {
+    queueMicrotask(() => void refresh());
+  }, [refresh]);
 
   // Coming back to the tab (phone-first: the app sleeps a lot) refetches, so
   // decks decided elsewhere or grown overnight are never stale.
@@ -174,43 +178,40 @@ function DecideInner() {
   ];
 
   return (
-    <div className="mx-auto max-w-lg">
-      {/* flex-wrap: at 390px the title + deck switcher exceed the row's
-          min-content width, so the switcher wraps to its own line instead of
-          overflowing the viewport horizontally. */}
-      <div className="mb-3 flex flex-wrap items-center gap-3">
-        <Layers size={24} className="text-primary" />
-        <h1 className="text-foreground">Decide</h1>
+    <Page narrow className="max-w-lg">
+      <PageHeader
+        kicker="Attention queue"
+        title="Decide"
+        description="Clear the next card. Keyboard and repeated verdicts stay instant."
+        icon={Layers}
+        actions={
+          <Button asChild variant="outline" size="sm">
+            <Link href="/decide/adaptive">
+              <Sparkles size={15} />
+              Approved{approvedCount !== null && approvedCount > 0 ? ` · ${approvedCount}` : ""}
+              <ChevronRight size={14} />
+            </Link>
+          </Button>
+        }
+      />
+      <FilterBar
+        className="max-w-full overflow-x-auto"
+        style={{ scrollbarWidth: "none" }}
+      >
         {/* overflow-x-auto: at 390px five tabs exceed the row — scroll the
             switcher instead of overflowing the viewport (scrollbar hidden). */}
-        <div
-          className="ml-auto flex max-w-full overflow-x-auto rounded-lg bg-muted p-0.5"
-          style={{ scrollbarWidth: "none" }}
-        >
           {tabs.map((t) => (
             <button key={t.id} onClick={() => setDeck(t.id)}
               className={cn(
-                "shrink-0 rounded-md px-3 py-1.5 text-sm font-medium transition-transform duration-150 active:scale-[0.97] max-lg:[min-height:44px]",
+                "shrink-0 rounded-lg px-3 py-2 text-sm font-medium transition-[color,background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-out-custom)] active:scale-[0.97] max-lg:[min-height:44px]",
                 deck === t.id
-                  ? "bg-card text-foreground shadow-sm"
-                  : "text-muted-foreground"
+                  ? "bg-surface-3 text-foreground shadow-card"
+                  : "text-muted-foreground hover:text-foreground"
               )}>
               {t.label}{t.count > 0 && <span className="ml-1.5 text-xs text-primary">{t.count}</span>}
             </button>
           ))}
-        </div>
-      </div>
-
-      {/* Approved cards — the dispatch-to-Claude workspace, labelled instead
-          of hiding behind an unlabelled sparkle. */}
-      <Link href="/decide/adaptive"
-        className="mb-5 flex items-center gap-2 rounded-lg bg-muted px-3 py-2 text-sm font-medium text-foreground transition-transform duration-150 active:scale-[0.98] max-lg:[min-height:44px]">
-        <Sparkles size={15} className="shrink-0 text-primary" />
-        <span>
-          Approved{approvedCount !== null && approvedCount > 0 ? ` · ${approvedCount} queued` : ""}
-        </span>
-        <ChevronRight size={15} className="ml-auto shrink-0 text-muted-foreground" />
-      </Link>
+      </FilterBar>
 
       {loading ? (
         <div className="shimmer rounded-xl bg-card p-10 text-center text-sm text-muted-foreground">
@@ -331,6 +332,6 @@ function DecideInner() {
           />
         </div>
       )}
-    </div>
+    </Page>
   );
 }
