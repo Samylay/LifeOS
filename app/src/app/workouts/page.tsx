@@ -6,6 +6,7 @@ import { Dumbbell } from "lucide-react";
 import { useGarmin } from "@/lib/use-garmin";
 import TrainingAnalytics from "@/components/training-analytics";
 import { StrengthCard } from "@/components/strength-card";
+import { ProgramCard } from "@/components/program-card";
 import { NutritionCard } from "@/components/nutrition-card";
 import { Page, PageHeader } from "@/components/ui/page";
 
@@ -53,6 +54,11 @@ export default function TrainingPage() {
       {/* Strength focus (folded in from the retired /strength route) */}
       <div className="enter" style={{ ["--enter-delay" as string]: "90ms" }}>
         <StrengthCard />
+      </div>
+
+      {/* Weekly PPLPPL program — per-exercise weight tracking */}
+      <div className="enter" style={{ ["--enter-delay" as string]: "120ms" }}>
+        <ProgramCard />
       </div>
     </Page>
   );

@@ -250,6 +250,48 @@ export function targetFreq(focus: StrengthFocus): number {
   return focus.state === "building" ? focus.buildTargetFreq : focus.maintainFreq;
 }
 
+// --- Program (PPLPPL weekly split) ---
+//
+// One row per exercise per day. `currentWeightKg` is the working weight for
+// the next session; `history` is the log a session actually happened at,
+// newest last, so progression is visible without leaving the card.
+
+export type ProgramDay = "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
+
+export const PROGRAM_DAY_ORDER: ProgramDay[] = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
+
+export const PROGRAM_DAY_LABEL: Record<ProgramDay, string> = {
+  mon: "Monday", tue: "Tuesday", wed: "Wednesday",
+  thu: "Thursday", fri: "Friday", sat: "Saturday", sun: "Sunday",
+};
+
+export interface ProgramExerciseLogEntry {
+  date: Date;
+  weightKg: number | null;
+  reps?: number;
+}
+
+export interface ProgramExercise {
+  id: string;
+  day: ProgramDay;
+  order: number; // position within the day, asc
+  dayLabel: string; // "Push", "Pull", "Legs (heavy)" — shown once per day
+  name: string;
+  sets: number;
+  targetReps: number; // resolved to the top of the plan's rep range
+  repsSuffix?: string; // "/leg", "/side" — display only
+  currentWeightKg: number | null; // null = bodyweight/machine-stack, no tracked load
+  history: ProgramExerciseLogEntry[];
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+/** Most recent logged weight, falling back to the current working weight. */
+export function lastLoggedWeight(ex: ProgramExercise): number | null {
+  if (ex.history.length === 0) return ex.currentWeightKg;
+  return ex.history[ex.history.length - 1].weightKg;
+}
+
 // --- Reminders / Recurring Tasks ---
 
 export type ReminderFrequency = "once" | "daily" | "weekly" | "monthly" | "yearly";
