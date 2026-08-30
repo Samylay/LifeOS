@@ -14,12 +14,13 @@ import {
   Flag,
 } from "lucide-react";
 import Link from "next/link";
-import { useHabits } from "@/lib/use-habits";
+import { useHabits, toggledHabitState } from "@/lib/use-habits";
 import { useReminders } from "@/lib/use-reminders";
 import { useNotifications } from "@/lib/use-notifications";
 import { useShipLog } from "@/lib/use-ship-log";
 import { useTeachProgress } from "@/lib/use-teach-progress";
 import { CountUp } from "@/components/count-up";
+import { Celebration } from "@/components/celebration";
 import { GoalsCard } from "@/components/goals-card";
 import { BriefCards } from "@/components/brief/brief-cards";
 import { Skeleton } from "@/components/skeleton";
@@ -60,6 +61,9 @@ export default function Today() {
   // Optimistic overlay for habit ticks — flips instantly, server catches up.
   const [optimistic, setOptimistic] = useState<Record<string, boolean>>({});
 
+  // T38: celebrate a habit crossing a weekly streak milestone (7, 14, 21…).
+  const [celebrating, setCelebrating] = useState(false);
+
   const loadBrief = useCallback(async () => {
     setBriefRefreshing(true);
     try {
@@ -96,7 +100,18 @@ export default function Today() {
     setOptimistic((o) => ({ ...o, [id]: !currentlyDone }));
     // T37 haptics: a short buzz only on completion (not un-ticks), fired here
     // in the UI layer so the hook's data logic stays pure.
-    if (!currentlyDone) navigator.vibrate?.(10);
+    if (!currentlyDone) {
+      navigator.vibrate?.(10);
+      // T38: rare-events-only celebration on a weekly streak milestone
+      // (7, 14, 21…). Recompute with the same pure helper the hook uses so
+      // this stays in sync with what actually gets written, no server
+      // round-trip needed to know whether today's tick crossed one.
+      const habit = habits.find((h) => h.id === id);
+      if (habit) {
+        const { streak } = toggledHabitState(habit.history);
+        if (streak > 0 && streak % 7 === 0) setCelebrating(true);
+      }
+    }
     toggleToday(id);
   };
 
@@ -117,6 +132,7 @@ export default function Today() {
     // at lg the brief takes the main column and the quick loop / goals /
     // habits stack becomes a right rail, so the whole day is above the fold.
     <div className="page max-w-2xl lg:max-w-6xl">
+      {celebrating && <Celebration onDone={() => setCelebrating(false)} />}
       {/* Header */}
       <div className="page-header flex-wrap enter">
         <div>

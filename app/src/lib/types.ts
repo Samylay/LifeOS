@@ -563,11 +563,14 @@ export interface Goal {
   why?: string;
   outcome?: string; // definition of done
   status: GoalStatus;
-  milestones: string[]; // AI/user quarter-level steps, for reference
-  // Texts from `milestones` that are marked done. Kept as a parallel list (not
-  // a struct) so legacy `string[]` goals stay readable; defaults to [] via
-  // GOAL_DEFAULTS. Pruned to still-present milestones when a plan is redrafted.
-  doneMilestones: string[];
+  /** @deprecated Milestones layer removed 2026-08-30 (T79) — quarter > week >
+   * commitment > project > task > ship is now the full hierarchy. Field kept
+   * (optional, unread by new code) only so a legacy goal doc's text survives
+   * to be folded into `outcome` by the one-time migration in `use-goals.ts`;
+   * do not write to it. */
+  milestones?: string[];
+  /** @deprecated see `milestones`. */
+  doneMilestones?: string[];
   commitments: GoalCommitment[];
   sessions: GoalSession[];
   // T27 goals→grilling pipeline. All optional + tolerant-read: an absent field
@@ -603,43 +606,31 @@ export function sessionsThisWeekForGoal(goal: Goal, weekOf: string): number {
   return goal.sessions.filter((s) => s.date >= weekOf).length;
 }
 
-// A goal moves through three planning checkpoints — a crisp outcome, a set of
-// milestones, and a concrete commitment for this week. `plan-state` collapses
-// those (plus recent activity) into one label so a vague wish never looks like
-// a decided plan on the card face.
+// A goal moves through two planning checkpoints — a crisp outcome and a
+// concrete commitment for this week. `plan-state` collapses those (plus
+// recent activity) into one label so a vague wish never looks like a decided
+// plan on the card face. (A third checkpoint, milestones, was cut 2026-08-30
+// — T79 — as planning overhead on a shipping surface.)
 export type GoalPlanState = "unplanned" | "planned" | "in-motion" | "stale";
 
 export interface GoalReadiness {
   hasOutcome: boolean;
-  hasMilestones: boolean;
   hasWeek: boolean;
   weekCommits: GoalCommitment[];
-  /** How many of the three planning checkpoints are met (0-3). */
+  /** How many of the two planning checkpoints are met (0-2). */
   score: number;
 }
 
-/** Which of the outcome / milestones / this-week checkpoints a goal has met. */
+/** Which of the outcome / this-week checkpoints a goal has met. */
 export function goalReadiness(goal: Goal, weekOf: string): GoalReadiness {
   const hasOutcome = !!goal.outcome?.trim();
-  const hasMilestones = goal.milestones.length > 0;
   const weekCommits = commitmentsForWeek(goal, weekOf);
   const hasWeek = weekCommits.length > 0;
   return {
     hasOutcome,
-    hasMilestones,
     hasWeek,
     weekCommits,
-    score: [hasOutcome, hasMilestones, hasWeek].filter(Boolean).length,
-  };
-}
-
-/** Completed vs total milestones. A milestone counts done when its text is in
- * `doneMilestones` (defensive against the field being absent on legacy goals). */
-export function milestoneProgress(goal: Goal): { done: number; total: number } {
-  const done = goal.doneMilestones ?? [];
-  return {
-    done: goal.milestones.filter((m) => done.includes(m)).length,
-    total: goal.milestones.length,
+    score: [hasOutcome, hasWeek].filter(Boolean).length,
   };
 }
 

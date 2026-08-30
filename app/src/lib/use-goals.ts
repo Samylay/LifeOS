@@ -1,13 +1,12 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { useCollection } from "./use-collection";
 import type { Goal, GoalCommitment } from "./types";
 import { quarterOf, mondayOf } from "./types";
 
 interface GoalDraftApplied {
   outcome: string;
-  milestones: string[];
   added: number;
 }
 
@@ -15,11 +14,24 @@ let localId = 0;
 const cid = () => `c-${Date.now().toString(36)}-${++localId}`;
 
 const GOAL_DEFAULTS: Partial<Goal> = {
-  milestones: [],
-  doneMilestones: [],
   commitments: [],
   sessions: [],
 };
+
+// T79: the milestones layer (deprecated `milestones`/`doneMilestones` on
+// `Goal`, see types.ts) is gone from the UI and from AI drafting, but a goal
+// doc written before this ships can still carry that text in local-db's
+// schemaless JSON blob. Rather than touch that store directly, fold each
+// legacy goal's milestone text into its `outcome` the first time it loads
+// after this ships — same tolerant-read/self-heal spirit as `doneMilestones
+// ?? []` used to be — then clear the legacy fields so this never re-fires.
+// Nothing is lost; it just moves from a checklist to prose.
+function legacyMilestonesText(goal: Goal): string | null {
+  if (!goal.milestones || goal.milestones.length === 0) return null;
+  const done = new Set(goal.doneMilestones ?? []);
+  const lines = goal.milestones.map((m) => `- [${done.has(m) ? "x" : " "}] ${m}`);
+  return ["Milestones (carried over from the removed milestones layer):", ...lines].join("\n");
+}
 
 export function useGoals() {
   const { items: goals, loading, create, update, remove } = useCollection<Goal>(
@@ -36,8 +48,6 @@ export function useGoals() {
         why: data.why,
         outcome: data.outcome,
         status: data.status || "active",
-        milestones: data.milestones || [],
-        doneMilestones: data.doneMilestones || [],
         commitments: data.commitments || [],
         sessions: data.sessions || [],
         needsGrilling: data.needsGrilling,
@@ -147,21 +157,6 @@ export function useGoals() {
     [goals, updateGoal]
   );
 
-  // --- Milestones (quarter layer) ---
-
-  const toggleMilestone = useCallback(
-    async (id: string, text: string) => {
-      const goal = goals.find((g) => g.id === id);
-      if (!goal) return;
-      const done = goal.doneMilestones ?? [];
-      const next = done.includes(text)
-        ? done.filter((m) => m !== text)
-        : [...done, text];
-      await updateGoal(id, { doneMilestones: next });
-    },
-    [goals, updateGoal]
-  );
-
   // Sessions are no longer logged by hand — ships on a goal's projects ARE the
   // sessions (folded in via withShipActivity). Manual "Log session" rewarded
   // meta-work and was cut 2026-07-29.
@@ -194,20 +189,34 @@ export function useGoals() {
         weekOf,
         done: false,
       }));
-      const nextMilestones: string[] = draft.milestones || [];
-      // Redrafting replaces the milestone list; keep only the done marks whose
-      // text survived so completion doesn't silently point at gone milestones.
-      const prunedDone = (goal.doneMilestones ?? []).filter((m) => nextMilestones.includes(m));
       await updateGoal(id, {
         outcome: goal.outcome || draft.outcome,
-        milestones: nextMilestones,
-        doneMilestones: prunedDone,
         commitments: [...goal.commitments, ...newCommitments],
       });
-      return { outcome: draft.outcome, milestones: draft.milestones, added: newCommitments.length };
+      return { outcome: draft.outcome, added: newCommitments.length };
     },
     [goals, updateGoal]
   );
+
+  // T79: one-time, self-healing migration for goals written before the
+  // milestones layer was removed — see `legacyMilestonesText` above. Runs
+  // for every goal on every load, but the per-id guard plus the fact that a
+  // migrated goal no longer has `milestones` means it fires at most once per
+  // goal, ever.
+  const migratedIds = useRef(new Set<string>());
+  useEffect(() => {
+    for (const goal of goals) {
+      if (migratedIds.current.has(goal.id)) continue;
+      const legacyText = legacyMilestonesText(goal);
+      if (!legacyText) continue;
+      migratedIds.current.add(goal.id);
+      void updateGoal(goal.id, {
+        outcome: [goal.outcome?.trim(), legacyText].filter(Boolean).join("\n\n"),
+        milestones: [],
+        doneMilestones: [],
+      });
+    }
+  }, [goals, updateGoal]);
 
   const active = goals.filter((g) => g.status === "active");
 
@@ -222,7 +231,6 @@ export function useGoals() {
     addCommitment,
     toggleCommitment,
     removeCommitment,
-    toggleMilestone,
     draftPlan,
   };
 }

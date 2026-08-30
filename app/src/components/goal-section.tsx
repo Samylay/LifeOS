@@ -11,7 +11,6 @@ import {
   Circle,
   CheckCircle2,
   Loader2,
-  ArrowUpRight,
   ArrowRight,
 } from "lucide-react";
 import { useGoals } from "@/lib/use-goals";
@@ -21,7 +20,6 @@ import {
   mondayOf,
   sessionsThisWeekForGoal,
   goalReadiness,
-  milestoneProgress,
   goalPlanState,
   lastSessionDaysAgo,
   withShipActivity,
@@ -202,7 +200,7 @@ export function GoalSection({
   /** Render the nested-projects rail (off for archive listings). */
   nest?: boolean;
 }) {
-  const { updateGoal, deleteGoal, addCommitment, toggleCommitment, removeCommitment, toggleMilestone, draftPlan } = useGoals();
+  const { updateGoal, deleteGoal, addCommitment, toggleCommitment, removeCommitment, draftPlan } = useGoals();
   const { toast } = useToast();
   const [expanded, setExpanded] = useState(false);
   const [newCommit, setNewCommit] = useState("");
@@ -404,49 +402,6 @@ export function GoalSection({
               </div>
             </div>
 
-            {/* Milestones — checkable quarter steps, each promotable into this week */}
-            {goal.milestones.length > 0 && (() => {
-              const mp = milestoneProgress(goal);
-              const done = goal.doneMilestones ?? [];
-              return (
-                <div>
-                  <p className="section-label flex items-center gap-2 text-muted-foreground/70">
-                    Milestones
-                    <span className={cn("font-mono", mp.done === mp.total ? "text-primary" : "text-muted-foreground/70")}>{mp.done}/{mp.total}</span>
-                  </p>
-                  <ul className="space-y-1 text-sm">
-                    {goal.milestones.map((m, i) => {
-                      const isDone = done.includes(m);
-                      return (
-                        <li key={i} className="flex items-start gap-2 group">
-                          <button
-                            onClick={() => toggleMilestone(goal.id, m)}
-                            aria-label={isDone ? "Mark milestone not done" : "Mark milestone done"}
-                            className={cn(
-                              "shrink-0 mt-0.5 h-4 w-4 rounded-[5px] border flex items-center justify-center transition-transform duration-150 active:scale-[0.85]",
-                              isDone ? "border-primary bg-primary" : "border-border bg-transparent"
-                            )}
-                          >
-                            {isDone && <Check size={11} className="text-primary-foreground" />}
-                          </button>
-                          <span className={cn("flex-1 text-muted-foreground", isDone && "line-through opacity-55")}>{m}</span>
-                          {!isDone && (
-                            <button
-                              onClick={() => { addCommitment(goal.id, m); toast("Added to this week"); }}
-                              title="Make this week's commitment"
-                              className="shrink-0 flex items-center gap-0.5 text-[10px] font-medium text-primary opacity-0 group-hover:opacity-100 [@media(hover:none)]:opacity-60 transition-transform duration-150 active:scale-[0.9]"
-                            >
-                              <ArrowUpRight size={12} /> This week
-                            </button>
-                          )}
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </div>
-              );
-            })()}
-
             {/* Actions — no manual "log session": ships on this goal's
                 projects already count as sessions via withShipActivity. */}
             <div className="flex items-center gap-2 flex-wrap">
@@ -484,7 +439,7 @@ export function GoalSection({
       <ConfirmDialog
         open={confirmDelete}
         title="Delete goal"
-        message={`Delete "${goal.title}" and its commitments, milestones, and session history? This cannot be undone.`}
+        message={`Delete "${goal.title}" and its commitments and session history? This cannot be undone.`}
         onConfirm={() => { deleteGoal(goal.id); setConfirmDelete(false); }}
         onCancel={() => setConfirmDelete(false)}
       />
