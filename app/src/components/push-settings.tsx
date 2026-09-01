@@ -47,6 +47,28 @@ function deviceLabel(): string {
   return `${os} · ${browser}`;
 }
 
+/**
+ * Turn a browser push error into something actionable. The messages browsers
+ * raise here name their own internals, never the fix: Firefox says "Error
+ * retrieving push subscription." when its push service is unreachable or
+ * disabled (private window, dom.push off, a privacy extension, or a network
+ * that blocks push.services.mozilla.com).
+ */
+function explainPushFailure(e: unknown): string {
+  const raw = e instanceof Error ? e.message : String(e);
+  const name = e instanceof Error ? e.name : "";
+  if (/retrieving push subscription|push service/i.test(raw)) {
+    return `${raw} — the browser could not reach its own push service. In Firefox: not a Private window, dom.push.enabled true in about:config, and no privacy extension or network blocking push.services.mozilla.com. Chrome is the quickest way to confirm it is the browser and not LifeOS.`;
+  }
+  if (name === "NotAllowedError") {
+    return "The browser blocked the subscription — allow notifications for this site, then try again.";
+  }
+  if (name === "AbortError") {
+    return `${raw} — the browser's push service refused the subscription. Try another browser to confirm it is not LifeOS.`;
+  }
+  return raw || "Unknown error.";
+}
+
 export function PushSettings() {
   const { toast } = useToast();
   const [supported, setSupported] = useState<boolean | null>(null);
@@ -115,12 +137,21 @@ export function PushSettings() {
       const keyRes = await fetch("/api/push/public-key");
       if (!keyRes.ok) throw new Error("The server did not return a VAPID key.");
       const { publicKey } = await keyRes.json();
-      const sub =
-        (await reg.pushManager.getSubscription()) ??
-        (await reg.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array(publicKey) as BufferSource,
-        }));
+      const applicationServerKey = urlBase64ToUint8Array(publicKey) as BufferSource;
+      const existing = await reg.pushManager.getSubscription();
+      let sub: PushSubscription;
+      try {
+        sub = existing ?? (await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey }));
+      } catch (err) {
+        // A subscription left over from an older VAPID key can't be reused and
+        // can't be re-subscribed over — drop it and take a fresh one.
+        if (existing) {
+          await existing.unsubscribe().catch(() => {});
+          sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey });
+        } else {
+          throw err;
+        }
+      }
       const res = await fetch("/api/push/subscribe", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -131,9 +162,8 @@ export function PushSettings() {
       await loadDevices();
       toast("Push enabled on this device");
     } catch (e) {
-      const why = e instanceof Error ? e.message : "Unknown error.";
-      setProblem(why);
-      toast(why, "error");
+      setProblem(explainPushFailure(e));
+      toast("Could not enable push", "error");
     } finally {
       setBusy(false);
     }
