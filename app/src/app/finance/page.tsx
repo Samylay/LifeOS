@@ -300,6 +300,61 @@ function FlowRow({
  * Banking consent has completed against this repo yet, so the everyday state
  * here is the empty one below.
  */
+/** Consent flow entry point: lists the banks Enable Banking knows, links to /api/finance/connect. */
+function ConnectBankPicker() {
+  const [aspsps, setAspsps] = useState<Array<{ name: string; country: string }> | null>(null);
+  const [error, setError] = useState(false);
+  const [filter, setFilter] = useState("");
+
+  const load = async () => {
+    try {
+      const r = await fetch("/api/finance/aspsps?country=FR");
+      const body = await r.json();
+      if (!r.ok || !body.aspsps?.length) return setError(true);
+      setAspsps(body.aspsps);
+    } catch {
+      setError(true);
+    }
+  };
+
+  if (error) {
+    return <p className="text-sm text-muted-foreground">Could not reach Enable Banking to list banks.</p>;
+  }
+
+  if (!aspsps) {
+    return (
+      <Button size="sm" variant="outline" className="mt-1 w-fit gap-1.5" onClick={load}>
+        <Landmark size={14} /> Connect a bank
+      </Button>
+    );
+  }
+
+  const shown = aspsps
+    .filter((a) => a.name.toLowerCase().includes(filter.trim().toLowerCase()))
+    .slice(0, 8);
+
+  return (
+    <div className="mt-1 space-y-2">
+      <Input
+        autoFocus
+        value={filter}
+        onChange={(e) => setFilter(e.target.value)}
+        placeholder="Search your bank…"
+        className="h-8 max-w-xs text-sm"
+      />
+      <div className="flex flex-wrap gap-2">
+      {shown.map((a) => (
+        <Button key={`${a.name}-${a.country}`} size="sm" variant="outline" asChild>
+          <a href={`/api/finance/connect?aspsp=${encodeURIComponent(a.name)}&country=${encodeURIComponent(a.country)}`}>
+            {a.name}
+          </a>
+        </Button>
+      ))}
+      </div>
+    </div>
+  );
+}
+
 function ConnectedAccountsPanel() {
   const { configured, accounts, recentTransactions, loading } = useBankAccounts();
 
@@ -323,6 +378,7 @@ function ConnectedAccountsPanel() {
             : "Enable Banking credentials aren't configured."}{" "}
           The numbers above stay hand-kept until then.
         </p>
+        {configured && <ConnectBankPicker />}
       </Card>
     );
   }
