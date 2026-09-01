@@ -17,9 +17,9 @@ import {
   ArrowDownLeft,
   ArrowUpRight,
 } from "lucide-react";
+import Link from "next/link";
 import { useFinance } from "@/lib/use-finance";
 import { useBankAccounts } from "@/lib/use-bank-accounts";
-import { isConsentExpired } from "@/lib/bank-consent-tripwire";
 import { useToast } from "@/components/toast";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Page, PageHeader } from "@/components/ui/page";
@@ -294,175 +294,70 @@ function FlowRow({
 }
 
 /**
- * The bank-fed half (T71): connected accounts + real balances + a marker on
- * synced rows, kept visibly separate from the hand-kept flows above per
- * T83's D4 boundary — this never merges into `financeFlows`. No live Enable
- * Banking consent has completed against this repo yet, so the everyday state
- * here is the empty one below.
+ * The bank-fed half (T71): only the bank's *content* lives here now — recent
+ * synced activity, kept visibly separate from the hand-kept flows above per
+ * T83's D4 boundary (this never merges into `financeFlows`). Connecting a bank
+ * and syncing moved to Settings, next to the other integrations.
  */
-/** Consent flow entry point: lists the banks Enable Banking knows, links to /api/finance/connect. */
-function ConnectBankPicker() {
-  const [aspsps, setAspsps] = useState<Array<{ name: string; country: string }> | null>(null);
-  const [error, setError] = useState(false);
-  const [filter, setFilter] = useState("");
+function RecentBankActivity() {
+  const { accounts, recentTransactions, loading } = useBankAccounts();
 
-  const load = async () => {
-    try {
-      const r = await fetch("/api/finance/aspsps?country=FR");
-      const body = await r.json();
-      if (!r.ok || !body.aspsps?.length) return setError(true);
-      setAspsps(body.aspsps);
-    } catch {
-      setError(true);
-    }
-  };
-
-  if (error) {
-    return <p className="text-sm text-muted-foreground">Could not reach Enable Banking to list banks.</p>;
-  }
-
-  if (!aspsps) {
-    return (
-      <Button size="sm" variant="outline" className="mt-1 w-fit gap-1.5" onClick={load}>
-        <Landmark size={14} /> Connect a bank
-      </Button>
-    );
-  }
-
-  const shown = aspsps
-    .filter((a) => a.name.toLowerCase().includes(filter.trim().toLowerCase()))
-    .slice(0, 8);
-
-  return (
-    <div className="mt-1 space-y-2">
-      <Input
-        autoFocus
-        value={filter}
-        onChange={(e) => setFilter(e.target.value)}
-        placeholder="Search your bank…"
-        className="h-8 max-w-xs text-sm"
-      />
-      <div className="flex flex-wrap gap-2">
-      {shown.map((a) => (
-        <Button key={`${a.name}-${a.country}`} size="sm" variant="outline" asChild>
-          <a href={`/api/finance/connect?aspsp=${encodeURIComponent(a.name)}&country=${encodeURIComponent(a.country)}`}>
-            {a.name}
-          </a>
-        </Button>
-      ))}
-      </div>
-    </div>
-  );
-}
-
-function ConnectedAccountsPanel() {
-  const { configured, accounts, recentTransactions, loading } = useBankAccounts();
-
-  if (loading && accounts.length === 0) {
+  if (loading && recentTransactions.length === 0) {
     return <Skeleton className="h-24 w-full rounded-xl" />;
   }
 
-  const totalBalance = accounts.reduce((sum, a) => sum + (a.balanceAmount ? Number(a.balanceAmount) : 0), 0);
-  const hasBalances = accounts.some((a) => a.balanceAmount !== null);
-
-  if (accounts.length === 0) {
+  if (recentTransactions.length === 0) {
     return (
       <Card className="enter gap-2 px-4 py-4">
         <p className="flex items-center gap-1.5 text-sm font-medium text-foreground">
-          <Landmark size={15} className="text-muted-foreground" /> Connected accounts
+          <Landmark size={15} className="text-muted-foreground" /> Bank activity
         </p>
         <p className="text-sm text-muted-foreground">
-          No bank connected yet.{" "}
-          {configured
-            ? "Enable Banking is set up but no account has been linked through the consent flow."
-            : "Enable Banking credentials aren't configured."}{" "}
-          The numbers above stay hand-kept until then.
+          {accounts.length === 0 ? (
+            <>
+              No bank connected yet — the numbers above stay hand-kept.{" "}
+              <Link href="/settings" className="underline underline-offset-2">
+                Connect one in Settings
+              </Link>
+              .
+            </>
+          ) : (
+            "Connected, but nothing synced yet."
+          )}
         </p>
-        {configured && <ConnectBankPicker />}
       </Card>
     );
   }
 
   return (
-    <>
-      <Card className="enter gap-3 px-4 py-4">
-        <div className="flex items-baseline justify-between gap-2">
-          <p className="flex items-center gap-1.5 text-sm font-medium text-foreground">
-            <Landmark size={15} className="text-muted-foreground" /> Connected accounts
-          </p>
-          {hasBalances && (
-            <p className="text-xs tabular-nums text-muted-foreground">{formatEuro(totalBalance)} total</p>
-          )}
-        </div>
-        <div>
-          {accounts.map((a) => (
+    <Card className="enter gap-2 px-4 py-4">
+      <p className="section-label">Recent bank activity</p>
+      <div>
+        {recentTransactions.map((t) => {
+          const amount = Number(t.amount);
+          const isIn = amount >= 0;
+          return (
             <div
-              key={a.accountUid}
+              key={t.transactionId}
               className="flex items-center justify-between gap-3 border-b border-border/60 py-2 last:border-b-0"
             >
-              <div className="min-w-0">
-                <p className="flex items-center gap-1.5 truncate text-sm font-medium text-foreground">
-                  <span className="truncate">
-                    {a.aspspName ?? "Linked account"}
-                    {a.aspspCountry && <span className="text-muted-foreground"> · {a.aspspCountry}</span>}
-                  </span>
-                  {isConsentExpired(a.validUntil) && (
-                    <Badge variant="destructive" className="shrink-0 text-[10px] font-medium">
-                      stale
-                    </Badge>
-                  )}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {isConsentExpired(a.validUntil)
-                    ? "Consent expired — reconnect at your bank to resume syncing."
-                    : a.balanceSyncedAt
-                      ? `Synced ${new Date(a.balanceSyncedAt).toLocaleDateString("fr-FR")}`
-                      : "Not synced yet"}
-                </p>
+              <div className="flex min-w-0 items-center gap-2">
+                {isIn ? (
+                  <ArrowDownLeft size={14} className="shrink-0 text-primary" />
+                ) : (
+                  <ArrowUpRight size={14} className="shrink-0 text-muted-foreground" />
+                )}
+                <p className="truncate text-sm text-foreground">{t.creditorName ?? t.debtorName ?? "Unlabelled"}</p>
+                <Badge variant="outline" className="shrink-0 text-[10px] font-medium text-muted-foreground">
+                  synced
+                </Badge>
               </div>
-              <span className="shrink-0 tabular-nums text-sm text-foreground">
-                {a.balanceAmount !== null ? formatEuro(Number(a.balanceAmount)) : "—"}
-              </span>
+              <span className="shrink-0 tabular-nums text-sm text-muted-foreground">{formatEuro(amount)}</span>
             </div>
-          ))}
-        </div>
-      </Card>
-
-      {recentTransactions.length > 0 && (
-        <Card className="enter gap-2 px-4 py-4">
-          <p className="section-label">Recent bank activity</p>
-          <div>
-            {recentTransactions.map((t) => {
-              const amount = Number(t.amount);
-              const isIn = amount >= 0;
-              return (
-                <div
-                  key={t.transactionId}
-                  className="flex items-center justify-between gap-3 border-b border-border/60 py-2 last:border-b-0"
-                >
-                  <div className="flex min-w-0 items-center gap-2">
-                    {isIn ? (
-                      <ArrowDownLeft size={14} className="shrink-0 text-primary" />
-                    ) : (
-                      <ArrowUpRight size={14} className="shrink-0 text-muted-foreground" />
-                    )}
-                    <p className="truncate text-sm text-foreground">
-                      {t.creditorName ?? t.debtorName ?? "Unlabelled"}
-                    </p>
-                    <Badge variant="outline" className="shrink-0 text-[10px] font-medium text-muted-foreground">
-                      synced
-                    </Badge>
-                  </div>
-                  <span className="shrink-0 tabular-nums text-sm text-muted-foreground">
-                    {formatEuro(amount)}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        </Card>
-      )}
-    </>
+          );
+        })}
+      </div>
+    </Card>
   );
 }
 
@@ -563,7 +458,7 @@ export default function FinancePage() {
         </div>
       )}
 
-      <ConnectedAccountsPanel />
+      <RecentBankActivity />
 
       {flows.length > 0 && (
         <>

@@ -11,6 +11,7 @@ import {
 import { useGarmin } from "@/lib/use-garmin";
 import { PushSettings } from "@/components/push-settings";
 import { DevRequestsCard } from "@/components/dev-requests-card";
+import { BankAccountsCard } from "@/components/bank-accounts-card";
 import { Button } from "@/components/ui/button";
 import { Page, PageHeader } from "@/components/ui/page";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -330,6 +331,11 @@ export default function SettingsPage() {
             <StravaCard />
             <GarminCard />
           </div>
+        </Section>
+
+        {/* Bank connections — Enable Banking consent + sync (moved off /finance). */}
+        <Section title="Banks" sub="Read-only account access via Enable Banking. Consent lasts 180 days.">
+          <BankAccountsCard />
         </Section>
 
         {/* Morning brief */}
