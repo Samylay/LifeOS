@@ -5,7 +5,7 @@
 // High-severity messages always push; normal only if the toggle is on and
 // outside quiet hours (23:00-07:00 Asia/Tokyo); low never pushes.
 import { useCallback, useEffect, useState } from "react";
-import { Loader2, Smartphone, X } from "lucide-react";
+import { Loader2, Smartphone, X, BellRing } from "lucide-react";
 import { useToast } from "@/components/toast";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -54,12 +54,17 @@ export function PushSettings() {
   const [devices, setDevices] = useState<DeviceSub[]>([]);
   const [pushNormal, setPushNormal] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [quiet, setQuiet] = useState({ start: "23:00", end: "07:00", tz: "Europe/Paris" });
+  // Why enabling failed, kept on screen: a toast that vanishes is useless for
+  // a permission/registration problem the user has to go fix in the browser.
+  const [problem, setProblem] = useState<string | null>(null);
 
   const loadDevices = useCallback(async () => {
     try {
       const res = await fetch("/api/push/subscribe");
       const data = await res.json();
       setDevices(Array.isArray(data.subs) ? data.subs : []);
+      if (data.quiet) setQuiet(data.quiet);
     } catch {
       /* list stays as-is */
     }
@@ -69,7 +74,12 @@ export function PushSettings() {
     const ok = "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
     setSupported(ok);
     if (ok) {
-      navigator.serviceWorker.ready
+      // Register on load, not only when Enable is clicked: `serviceWorker.ready`
+      // never resolves while nothing is registered, which left this card
+      // permanently showing "not enabled" on a device that already was.
+      navigator.serviceWorker
+        .register("/sw.js")
+        .then(() => navigator.serviceWorker.ready)
         .then((reg) => reg.pushManager.getSubscription())
         .then((sub) => setThisEndpoint(sub?.endpoint ?? null))
         .catch(() => {});
@@ -85,15 +95,26 @@ export function PushSettings() {
 
   const enable = async () => {
     setBusy(true);
+    setProblem(null);
     try {
+      if (!window.isSecureContext) {
+        // Push needs HTTPS or localhost — hitting the tailnet IP over http is
+        // the usual way this silently can't work.
+        throw new Error("This page isn't a secure context. Open LifeOS over https (the tailnet hostname), not a bare IP.");
+      }
       const permission = await Notification.requestPermission();
       if (permission !== "granted") {
-        toast("Notification permission denied — enable it in browser settings", "error");
-        return;
+        throw new Error(
+          permission === "denied"
+            ? "Notifications are blocked for this site. Allow them in the browser's site settings, then try again."
+            : "Notification permission was dismissed — try again and choose Allow."
+        );
       }
       const reg = await navigator.serviceWorker.register("/sw.js");
       await navigator.serviceWorker.ready;
-      const { publicKey } = await (await fetch("/api/push/public-key")).json();
+      const keyRes = await fetch("/api/push/public-key");
+      if (!keyRes.ok) throw new Error("The server did not return a VAPID key.");
+      const { publicKey } = await keyRes.json();
       const sub =
         (await reg.pushManager.getSubscription()) ??
         (await reg.pushManager.subscribe({
@@ -105,12 +126,48 @@ export function PushSettings() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ subscription: sub.toJSON(), label: deviceLabel() }),
       });
-      if (!res.ok) throw new Error();
+      if (!res.ok) throw new Error(`The server rejected the subscription (${res.status}).`);
       setThisEndpoint(sub.endpoint);
       await loadDevices();
       toast("Push enabled on this device");
+    } catch (e) {
+      const why = e instanceof Error ? e.message : "Unknown error.";
+      setProblem(why);
+      toast(why, "error");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  /** Round-trips a real push through the gateway, so a failure is visible here. */
+  const sendTest = async () => {
+    setBusy(true);
+    setProblem(null);
+    try {
+      const res = await fetch("/api/notify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          text: `\u{1F6A8} Test push ${new Date().toLocaleTimeString("fr-FR")}`,
+          title: "LifeOS test",
+          severity: "page",
+        }),
+      });
+      const body = await res.json();
+      if (body.push === "sent") {
+        toast("Test push sent — it should appear in a second");
+      } else {
+        const why =
+          body.push === "no-subs"
+            ? "No device is subscribed — enable push on this device first."
+            : `The gateway did not push it (${body.push}).`;
+        setProblem(why);
+        toast(why, "error");
+      }
     } catch {
-      toast("Could not enable push", "error");
+      const why = "Could not reach the notification gateway.";
+      setProblem(why);
+      toast(why, "error");
     } finally {
       setBusy(false);
     }
@@ -202,6 +259,26 @@ export function PushSettings() {
         </Button>
       </div>
 
+      {problem && (
+        <p className="mt-3 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-foreground">
+          {problem}
+        </p>
+      )}
+
+      {devices.length > 0 && (
+        <div className="mt-3">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={sendTest}
+            disabled={busy}
+            className="gap-1.5 text-xs active:scale-[0.97]"
+          >
+            <BellRing size={12} /> Send a test push
+          </Button>
+        </div>
+      )}
+
       {devices.length > 0 && (
         <ul className="mt-3 space-y-1 border-t border-border pt-3">
           {devices.map((d) => (
@@ -233,9 +310,7 @@ export function PushSettings() {
         <div>
           <p className="text-xs font-medium text-foreground">Push normal severity too</p>
           <p className="text-xs text-muted-foreground">
-            {pushNormal
-              ? "Right now: normal + high push · quiet hours 23:00–07:00 JST hold normal back"
-              : "Right now: high-severity only · quiet hours 23:00–07:00 JST"}
+            {`${pushNormal ? "Right now: normal + high push" : "Right now: high-severity only"} · quiet hours ${quiet.start}–${quiet.end} ${quiet.tz}`}
           </p>
         </div>
         <Switch checked={pushNormal} onCheckedChange={togglePushNormal} aria-label="Push normal severity too" />

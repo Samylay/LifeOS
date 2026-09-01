@@ -1,7 +1,9 @@
 // Web-push subscription store (users/local/pushSubs).
 //
-//   GET             -> { subs: [{ id, endpoint, userAgent, createdAt }] }
-//                      (keys are never returned to the client)
+//   GET             -> { subs: [{ id, endpoint, userAgent, createdAt }], quiet }
+//                      (keys are never returned to the client; `quiet` is the
+//                      effective quiet-hours window so the UI can state the
+//                      real timezone instead of a hardcoded one)
 //   POST   { subscription, label? } -> store/upsert this browser's subscription
 //   DELETE { endpoint }             -> remove a subscription
 import { NextRequest, NextResponse } from "next/server";
@@ -10,6 +12,7 @@ import {
   savePushSub,
   deletePushSubByEndpoint,
 } from "@/lib/web-push-channel";
+import { getNotifySettings } from "@/lib/notify-gateway";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -21,7 +24,8 @@ export async function GET() {
     userAgent: s.userAgent,
     createdAt: s.createdAt ?? null,
   }));
-  return NextResponse.json({ subs });
+  const { quietStart, quietEnd, tz } = getNotifySettings();
+  return NextResponse.json({ subs, quiet: { start: quietStart, end: quietEnd, tz } });
 }
 
 export async function POST(req: NextRequest) {

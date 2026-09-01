@@ -41,30 +41,42 @@ describe("severity mapping (both vocabularies accepted)", () => {
   });
 });
 
-describe("quiet hours (default 23:00-07:00 Asia/Tokyo)", () => {
-  // Tokyo is UTC+9, no DST: 23:30 JST == 14:30 UTC.
-  const s = DEFAULT_SETTINGS;
+describe("quiet hours (default 23:00-07:00, Europe/Paris unless BRIEF_TZ says otherwise)", () => {
+  // Paris is UTC+2 in July (CEST): 23:30 Paris == 21:30 UTC.
+  const s = { ...DEFAULT_SETTINGS, tz: "Europe/Paris" };
+  it("defaults to the deployment's timezone, not the one Samy has left", () => {
+    expect(DEFAULT_SETTINGS.tz).toBe(process.env.BRIEF_TZ || "Europe/Paris");
+    expect(DEFAULT_SETTINGS.tz).not.toBe("Asia/Tokyo");
+  });
+
   it("is quiet overnight and awake in the day, across the midnight wrap", () => {
-    expect(isQuietHours(new Date("2026-07-21T14:30:00Z"), s)).toBe(true); // 23:30 JST
-    expect(isQuietHours(new Date("2026-07-21T18:00:00Z"), s)).toBe(true); // 03:00 JST
-    expect(isQuietHours(new Date("2026-07-21T21:59:00Z"), s)).toBe(true); // 06:59 JST
-    expect(isQuietHours(new Date("2026-07-21T22:00:00Z"), s)).toBe(false); // 07:00 JST (end exclusive)
-    expect(isQuietHours(new Date("2026-07-21T03:00:00Z"), s)).toBe(false); // 12:00 JST
-    expect(isQuietHours(new Date("2026-07-21T13:59:00Z"), s)).toBe(false); // 22:59 JST
-    expect(isQuietHours(new Date("2026-07-21T14:00:00Z"), s)).toBe(true); // 23:00 JST (start inclusive)
+    expect(isQuietHours(new Date("2026-07-21T21:30:00Z"), s)).toBe(true); // 23:30 Paris
+    expect(isQuietHours(new Date("2026-07-22T01:00:00Z"), s)).toBe(true); // 03:00 Paris
+    expect(isQuietHours(new Date("2026-07-22T04:59:00Z"), s)).toBe(true); // 06:59 Paris
+    expect(isQuietHours(new Date("2026-07-22T05:00:00Z"), s)).toBe(false); // 07:00 Paris (end exclusive)
+    expect(isQuietHours(new Date("2026-07-21T10:00:00Z"), s)).toBe(false); // 12:00 Paris
+    expect(isQuietHours(new Date("2026-07-21T20:59:00Z"), s)).toBe(false); // 22:59 Paris
+    expect(isQuietHours(new Date("2026-07-21T21:00:00Z"), s)).toBe(true); // 23:00 Paris (start inclusive)
+  });
+
+  // The exact window the old Asia/Tokyo default silenced: a late Paris
+  // afternoon was 23:00-01:00 in Tokyo, so normal pushes died mid-day.
+  it("no longer treats a Paris afternoon as quiet", () => {
+    expect(isQuietHours(new Date("2026-07-21T15:00:00Z"), s)).toBe(false); // 17:00 Paris
+    expect(isQuietHours(new Date("2026-07-21T15:00:00Z"), { ...s, tz: "Asia/Tokyo" })).toBe(true); // 00:00 JST
   });
 
   it("handles a same-day window and the disabled case", () => {
     const day = { ...s, quietStart: "12:00", quietEnd: "14:00" };
-    expect(isQuietHours(new Date("2026-07-21T04:00:00Z"), day)).toBe(true); // 13:00 JST
-    expect(isQuietHours(new Date("2026-07-21T06:00:00Z"), day)).toBe(false); // 15:00 JST
+    expect(isQuietHours(new Date("2026-07-21T11:00:00Z"), day)).toBe(true); // 13:00 Paris
+    expect(isQuietHours(new Date("2026-07-21T13:00:00Z"), day)).toBe(false); // 15:00 Paris
     const off = { ...s, quietStart: "23:00", quietEnd: "23:00" };
-    expect(isQuietHours(new Date("2026-07-21T14:30:00Z"), off)).toBe(false);
+    expect(isQuietHours(new Date("2026-07-21T21:30:00Z"), off)).toBe(false);
   });
 });
 
 describe("push routing", () => {
-  const s = DEFAULT_SETTINGS;
+  const s = { ...DEFAULT_SETTINGS, tz: "Europe/Paris" };
   it("high pushes always, even in quiet hours", () => {
     expect(decidePush("high", false, s, 1)).toBe("send");
     expect(decidePush("high", true, s, 1)).toBe("send");
