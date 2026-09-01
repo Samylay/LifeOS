@@ -147,3 +147,21 @@ describe("listRecentBankTransactions (T71)", () => {
     expect(all.map((t) => t.transactionId).sort()).toEqual(["txn-1", "txn-2"]);
   });
 });
+
+describe("saveBankSession with live-shaped account objects", () => {
+  it("stores the raw account payload without ever binding an object to SQLite", () => {
+    saveBankSession({
+      sessionId: "sess-live",
+      accounts: ["acct-live"],
+      accountsRaw: { "acct-live": { uid: "acct-live", currency: "EUR", nested: { iban: "REDACTED" } } },
+      aspspName: "REDACTED_BANK",
+      aspspCountry: "FR",
+      validUntil: "2027-01-01T00:00:00Z",
+    });
+    const account = listBankAccounts().find((a) => a.accountUid === "acct-live");
+    expect(account).toBeTruthy();
+    const session = listBankSessions().find((s) => s.sessionId === "sess-live");
+    expect(session?.validUntil).toBe("2027-01-01T00:00:00Z");
+    expect(session?.aspspName).toBe("REDACTED_BANK");
+  });
+});

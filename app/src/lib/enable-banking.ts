@@ -137,16 +137,48 @@ export async function startAuth(
 export interface BankSession {
   sessionId: string;
   accounts: string[];
+  /** The full account objects, keyed by uid — kept for `bank_accounts.raw_json`. */
+  accountsRaw: Record<string, unknown>;
+  aspspName?: string;
+  aspspCountry?: string;
+  validUntil?: string;
+}
+
+interface RawSessionBody {
+  session_id: string;
+  // Live Enable Banking returns account OBJECTS here; older fixtures assumed
+  // bare uid strings. Both shapes are accepted — the live one is what broke
+  // the first real consent (an object bound straight into SQLite).
+  accounts: Array<string | { uid?: string; account_uid?: string }>;
+  aspsp?: { name?: string; country?: string };
+  access?: { valid_until?: string };
 }
 
 /** (d) Exchange the consent-redirect `code` for a session id + account uids. */
 export async function exchangeCode(code: string, transport: EnableBankingTransport = fetch): Promise<BankSession | null> {
-  const body = await call<{ session_id: string; accounts: string[] }>(transport, "/sessions", {
+  const body = await call<RawSessionBody>(transport, "/sessions", {
     method: "POST",
     body: JSON.stringify({ code }),
   });
   if (!body) return null;
-  return { sessionId: body.session_id, accounts: body.accounts };
+
+  const accounts: string[] = [];
+  const accountsRaw: Record<string, unknown> = {};
+  for (const a of body.accounts ?? []) {
+    const uid = typeof a === "string" ? a : (a?.uid ?? a?.account_uid);
+    if (!uid) continue;
+    accounts.push(uid);
+    if (typeof a !== "string") accountsRaw[uid] = a;
+  }
+
+  return {
+    sessionId: body.session_id,
+    accounts,
+    accountsRaw,
+    aspspName: body.aspsp?.name,
+    aspspCountry: body.aspsp?.country,
+    validUntil: body.access?.valid_until,
+  };
 }
 
 export interface BankBalance {

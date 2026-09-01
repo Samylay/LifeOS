@@ -37,6 +37,13 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  saveBankSession({ sessionId: session.sessionId, accounts: session.accounts });
+  saveBankSession({
+    sessionId: session.sessionId,
+    accounts: session.accounts,
+    accountsRaw: session.accountsRaw,
+    aspspName: session.aspspName,
+    aspspCountry: session.aspspCountry,
+    validUntil: session.validUntil,
+  });
   return NextResponse.redirect(new URL("/finance?connected=1", req.url));
 }

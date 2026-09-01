@@ -149,7 +149,45 @@ describe("client calls (offline, injected transport)", () => {
       )
     );
     const result = await exchangeCode("redacted-code", transport as unknown as typeof fetch);
-    expect(result).toEqual({ sessionId: "REDACTED_SESSION", accounts: ["REDACTED_ACCT_1", "REDACTED_ACCT_2"] });
+    expect(result?.sessionId).toBe("REDACTED_SESSION");
+    expect(result?.accounts).toEqual(["REDACTED_ACCT_1", "REDACTED_ACCT_2"]);
+    expect(result?.accountsRaw).toEqual({});
+  });
+
+  // The shape live Enable Banking actually returns — objects, not uid strings.
+  // Binding one of these straight into SQLite is what lost the first consent.
+  it("exchangeCode reads uids out of account objects and keeps aspsp + validity", async () => {
+    const transport = vi.fn(async () =>
+      new Response(
+        JSON.stringify({
+          session_id: "REDACTED_SESSION",
+          accounts: [
+            { uid: "REDACTED_ACCT_1", currency: "EUR", name: "REDACTED" },
+            { uid: "REDACTED_ACCT_2", currency: "EUR" },
+          ],
+          aspsp: { name: "REDACTED_BANK", country: "FR" },
+          access: { valid_until: "2027-01-01T00:00:00Z" },
+        }),
+        { status: 200 }
+      )
+    );
+    const result = await exchangeCode("redacted-code", transport as unknown as typeof fetch);
+    expect(result?.accounts).toEqual(["REDACTED_ACCT_1", "REDACTED_ACCT_2"]);
+    expect(result?.aspspName).toBe("REDACTED_BANK");
+    expect(result?.aspspCountry).toBe("FR");
+    expect(result?.validUntil).toBe("2027-01-01T00:00:00Z");
+    expect(Object.keys(result?.accountsRaw ?? {})).toHaveLength(2);
+  });
+
+  it("exchangeCode skips an account object with no uid instead of writing a null row", async () => {
+    const transport = vi.fn(async () =>
+      new Response(
+        JSON.stringify({ session_id: "REDACTED_SESSION", accounts: [{ currency: "EUR" }, { uid: "REDACTED_ACCT_1" }] }),
+        { status: 200 }
+      )
+    );
+    const result = await exchangeCode("redacted-code", transport as unknown as typeof fetch);
+    expect(result?.accounts).toEqual(["REDACTED_ACCT_1"]);
   });
 
   it("getTransactions normalises the fixture shape and passes through continuation_key", async () => {

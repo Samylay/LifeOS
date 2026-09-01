@@ -87,6 +87,7 @@ export interface BankSessionRow {
 export function saveBankSession(session: {
   sessionId: string;
   accounts: string[];
+  accountsRaw?: Record<string, unknown>;
   aspspName?: string;
   aspspCountry?: string;
   validUntil?: string;
@@ -117,7 +118,12 @@ export function saveBankSession(session: {
        ON CONFLICT(account_uid) DO UPDATE SET session_id=excluded.session_id`
     );
     for (const accountUid of session.accounts) {
-      upsertAccount.run({ account_uid: accountUid, session_id: session.sessionId, raw_json: null });
+      const raw = session.accountsRaw?.[accountUid];
+      upsertAccount.run({
+        account_uid: accountUid,
+        session_id: session.sessionId,
+        raw_json: raw === undefined ? null : JSON.stringify(raw),
+      });
     }
   });
   tx();
