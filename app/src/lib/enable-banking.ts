@@ -82,10 +82,17 @@ async function call<T>(
       },
       signal: AbortSignal.timeout(20_000),
     });
-  } catch {
+  } catch (e) {
+    console.error(`[enable-banking] ${path} network error:`, e instanceof Error ? e.message : e);
     return null;
   }
-  if (!r.ok) return null;
+  if (!r.ok) {
+    // Enable Banking's rejection reason is the only way to tell a bad bank name
+    // from a non-whitelisted redirect URL. Never logs the JWT or the auth code.
+    const detail = await r.text().catch(() => "");
+    console.error(`[enable-banking] ${path} -> ${r.status} ${detail.slice(0, 500)}`);
+    return null;
+  }
   return (await r.json()) as T;
 }
 
