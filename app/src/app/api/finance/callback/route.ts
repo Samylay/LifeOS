@@ -45,5 +45,9 @@ export async function GET(req: NextRequest) {
     aspspCountry: session.aspspCountry,
     validUntil: session.validUntil,
   });
-  return NextResponse.redirect(new URL("/finance?connected=1", req.url));
+  // req.url is the container-internal origin (0.0.0.0:3000) behind Tailscale
+  // Serve, so send the browser back via the same public origin the consent
+  // redirect came in on.
+  const base = process.env.ENABLE_BANKING_REDIRECT_URL ?? req.url;
+  return NextResponse.redirect(new URL("/finance?connected=1", base));
 }

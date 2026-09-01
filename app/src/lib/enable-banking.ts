@@ -215,6 +215,41 @@ export interface BankTransaction {
   raw: unknown;
 }
 
+/**
+ * Dedup key for a transaction. Société Générale returns `transaction_id: null`
+ * on every row (only `entry_reference`), and a NULL primary key does not
+ * conflict in SQLite — so without this, every re-sync would duplicate the whole
+ * history. Falls back through the bank's own identifiers, then to a hash of the
+ * fields that identify a movement of money.
+ */
+export function transactionKey(
+  accountUid: string,
+  t: {
+    transaction_id?: string | null;
+    entry_reference?: string | null;
+    reference_number?: string | null;
+    booking_date?: string;
+    value_date?: string;
+    transaction_amount?: { amount?: string; currency?: string };
+    credit_debit_indicator?: string;
+    remittance_information?: string[];
+  }
+): string {
+  if (t.transaction_id) return t.transaction_id;
+  if (t.entry_reference) return `${accountUid}:${t.entry_reference}`;
+  if (t.reference_number) return `${accountUid}:ref:${t.reference_number}`;
+  const parts = [
+    accountUid,
+    t.booking_date ?? "",
+    t.value_date ?? "",
+    t.transaction_amount?.amount ?? "",
+    t.transaction_amount?.currency ?? "",
+    t.credit_debit_indicator ?? "",
+    (t.remittance_information ?? []).join("|"),
+  ].join("\u0000");
+  return `${accountUid}:h:${crypto.createHash("sha256").update(parts).digest("hex").slice(0, 32)}`;
+}
+
 /** (e) Transactions for one account uid. `continuationKey` pages through history. */
 export async function getTransactions(
   accountUid: string,
@@ -224,7 +259,10 @@ export async function getTransactions(
   const qs = continuationKey ? `?continuation_key=${encodeURIComponent(continuationKey)}` : "";
   const body = await call<{
     transactions: Array<{
-      transaction_id: string;
+      transaction_id: string | null;
+      entry_reference?: string | null;
+      reference_number?: string | null;
+      credit_debit_indicator?: string;
       booking_date?: string;
       value_date?: string;
       transaction_amount: { amount: string; currency: string };
@@ -237,7 +275,7 @@ export async function getTransactions(
   if (!body) return null;
   return {
     transactions: body.transactions.map((t) => ({
-      transactionId: t.transaction_id,
+      transactionId: transactionKey(accountUid, t),
       bookingDate: t.booking_date,
       valueDate: t.value_date,
       amount: t.transaction_amount.amount,

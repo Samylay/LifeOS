@@ -8,6 +8,7 @@ import {
   exchangeCode,
   getTransactions,
   getBalances,
+  transactionKey,
 } from "./enable-banking";
 
 // Throwaway keypair generated for this test run only — never the real .pem.
@@ -258,5 +259,36 @@ describe("client calls (offline, injected transport)", () => {
     const transport = vi.fn(async () => new Response("nope", { status: 401 }));
     const result = await listAspsps("FR", transport as unknown as typeof fetch);
     expect(result).toBeNull();
+  });
+});
+
+// Société Générale sends transaction_id: null on every row — the shape that
+// would have duplicated the whole history on the second sync.
+describe("transactionKey", () => {
+  it("prefers the bank's own transaction id", () => {
+    expect(transactionKey("A", { transaction_id: "T1", entry_reference: "E1" })).toBe("T1");
+  });
+
+  it("falls back to entry_reference, scoped by account", () => {
+    expect(transactionKey("A", { transaction_id: null, entry_reference: "E1" })).toBe("A:E1");
+  });
+
+  it("hashes the movement when the bank sends no identifier at all", () => {
+    const t = {
+      transaction_id: null,
+      booking_date: "2026-08-28",
+      transaction_amount: { amount: "12.00", currency: "EUR" },
+      credit_debit_indicator: "DBIT",
+      remittance_information: ["REDACTED"],
+    };
+    const k = transactionKey("A", t);
+    expect(k).toBe(transactionKey("A", { ...t }));
+    expect(k).not.toBe(transactionKey("B", t));
+    expect(k).not.toBe(transactionKey("A", { ...t, transaction_amount: { amount: "13.00", currency: "EUR" } }));
+  });
+
+  it("is stable across two syncs of the same row, so re-syncing inserts nothing", () => {
+    const row = { transaction_id: null, entry_reference: "2026-08-28T00:006668729" };
+    expect(transactionKey("A", row)).toBe(transactionKey("A", { ...row }));
   });
 });
