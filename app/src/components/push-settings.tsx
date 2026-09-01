@@ -57,8 +57,11 @@ function deviceLabel(): string {
 function explainPushFailure(e: unknown): string {
   const raw = e instanceof Error ? e.message : String(e);
   const name = e instanceof Error ? e.name : "";
-  if (/retrieving push subscription|push service/i.test(raw)) {
-    return `${raw} — the browser could not reach its own push service. In Firefox: not a Private window, dom.push.enabled true in about:config, and no privacy extension or network blocking push.services.mozilla.com. Chrome is the quickest way to confirm it is the browser and not LifeOS.`;
+  if (/retrieving push subscription/i.test(raw)) {
+    return `${raw} — Firefox could not reach its own push service. Check: not a Private window, dom.push.enabled and dom.push.connection.enabled true in about:config, and nothing on the network or in an extension blocking push.services.mozilla.com.`;
+  }
+  if (/push service|Registration failed/i.test(raw)) {
+    return `${raw} — the browser reached LifeOS fine but its push service (Google FCM on Chrome) refused or was unreachable. This is a device/network problem, not a LifeOS one: try another network, and check no VPN, DNS filter or firewall is blocking fcm.googleapis.com.`;
   }
   if (name === "NotAllowedError") {
     return "The browser blocked the subscription — allow notifications for this site, then try again.";
