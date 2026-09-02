@@ -1,6 +1,6 @@
-// Shared category metadata for the /decide surfaces (triage card + adaptive
-// approved list). One source of truth: semantic/chart tokens instead of the
-// hex literals both files used to carry, lucide icons instead of emoji.
+// Shared category metadata for the /decide surfaces (triage card). One
+// source of truth: semantic/chart tokens instead of the hex literals both
+// files used to carry, lucide icons instead of emoji.
 import { Code2, Link2, CircleDollarSign, Sparkles, Wrench } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 

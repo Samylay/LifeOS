@@ -7,9 +7,8 @@
 // approve/keep, left = discard/reject; buttons for the finer verdicts;
 // voice for anything nuanced.
 import { Suspense, useCallback, useEffect, useState } from "react";
-import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Archive, Check, ChevronRight, Clock, Lightbulb, ListTodo, MessageCircleQuestion, Layers, RefreshCw, Sparkles, X } from "lucide-react";
+import { Archive, Check, Clock, Lightbulb, ListTodo, MessageCircleQuestion, Layers, RefreshCw, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CardStack, type DeckAction } from "@/components/decide/card-stack";
 import { TriageCard, type TriageQueueItem } from "@/components/decide/triage-card";
@@ -18,7 +17,6 @@ import { ProposalCard } from "@/components/decide/proposal-card";
 import { BulkApprovalBar } from "@/components/decide/bulk-approval-bar";
 import type { DecisionItem } from "@/lib/decisions";
 import type { Proposal } from "@/lib/proposals";
-import { Button } from "@/components/ui/button";
 import { FilterBar, Page, PageHeader } from "@/components/ui/page";
 
 type Deck = "saved" | "approvals" | "proposals";
@@ -77,7 +75,6 @@ function DecideInner() {
   const [triage, setTriage] = useState<TriageQueueItem[]>([]);
   const [decisions, setDecisions] = useState<DecisionItem[]>([]);
   const [proposals, setProposals] = useState<Proposal[]>([]);
-  const [approvedCount, setApprovedCount] = useState<number | null>(null);
   const [missionDrafts, setMissionDrafts] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [errors, setErrors] = useState<Partial<Record<Deck, boolean>>>({});
@@ -95,16 +92,14 @@ function DecideInner() {
       fetch(url)
         .then((r) => (r.ok ? r.json() : null))
         .catch(() => null);
-    const [t, d, pr, ad] = await Promise.all([
+    const [t, d, pr] = await Promise.all([
       get("/api/triage/queue"),
       get("/api/decide/queue"),
       get("/api/proposals"),
-      get("/api/triage/adaptive"), // approved-cards count for the row below the tabs
     ]);
     setTriage((t?.items as TriageQueueItem[]) ?? []);
     setDecisions((d?.items as DecisionItem[]) ?? []);
     setProposals((pr?.items as Proposal[]) ?? []);
-    setApprovedCount(ad?.items ? ad.items.length : null);
     setErrors({
       saved: t === null,
       approvals: d === null,
@@ -139,15 +134,6 @@ function DecideInner() {
         title="Decide"
         description="Clear the next card. Keyboard and repeated verdicts stay instant."
         icon={Layers}
-        actions={
-          <Button asChild variant="outline" size="sm">
-            <Link href="/decide/adaptive">
-              <Sparkles size={15} />
-              Approved{approvedCount !== null && approvedCount > 0 ? ` · ${approvedCount}` : ""}
-              <ChevronRight size={14} />
-            </Link>
-          </Button>
-        }
       />
       <FilterBar
         className="max-w-full overflow-x-auto"
