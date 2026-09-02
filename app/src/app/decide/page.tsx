@@ -1,40 +1,29 @@
 "use client";
 
-// /decide — the decision deck. Four stacks of swipeable cards sharing one
+// /decide — the decision deck. Stacks of swipeable cards sharing one
 // gesture component: "Saved" (bookmark/save triage with category-specific
 // assessments), "Approvals" (NEEDS-USER asks aggregated from every
-// ROADMAP.md), "Shelf" (the one-off Firefox bookmark backfill — every
-// card is a proposed drop, so right = rescue), and "Pain" (the one-off
-// read-through of pulled pain points). Swipe right = approve/keep, left =
-// discard/reject; buttons for the finer verdicts; voice for anything nuanced.
-//
-// Shelf and Pain are temporary by design: when either deck empties it stays
-// empty, and the tab hides itself.
-//
-// Pain is the odd one out and deliberately so — no voice, and its card shows
-// no assessment. Every other deck asks Samy to approve an LLM's verdict; that
-// deck asks him to form the first one. See lib/pain-deck.ts.
+// ROADMAP.md), and "Proposals" (tag/topic proposals). Swipe right =
+// approve/keep, left = discard/reject; buttons for the finer verdicts;
+// voice for anything nuanced.
 import { Suspense, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Archive, Check, ChevronRight, Clock, Lightbulb, ListTodo, MessageCircleQuestion, Layers, RefreshCw, Sparkles, Trash2, X } from "lucide-react";
+import { Archive, Check, ChevronRight, Clock, Lightbulb, ListTodo, MessageCircleQuestion, Layers, RefreshCw, Sparkles, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CardStack, type DeckAction } from "@/components/decide/card-stack";
 import { TriageCard, type TriageQueueItem } from "@/components/decide/triage-card";
 import { DecisionCard } from "@/components/decide/decision-card";
-import { BookmarkCard, type BackfillDeckItem } from "@/components/decide/bookmark-card";
-import { PainCard, PAIN_STACK_HEIGHT } from "@/components/decide/pain-card";
 import { ProposalCard } from "@/components/decide/proposal-card";
 import { BulkApprovalBar } from "@/components/decide/bulk-approval-bar";
-import type { PainItem } from "@/lib/pain-deck";
 import type { DecisionItem } from "@/lib/decisions";
 import type { Proposal } from "@/lib/proposals";
 import { Button } from "@/components/ui/button";
 import { FilterBar, Page, PageHeader } from "@/components/ui/page";
 
-type Deck = "saved" | "approvals" | "shelf" | "pain" | "proposals";
+type Deck = "saved" | "approvals" | "proposals";
 
-const DECKS: Deck[] = ["saved", "approvals", "shelf", "pain", "proposals"];
+const DECKS: Deck[] = ["saved", "approvals", "proposals"];
 
 const TRIAGE_ACTIONS: DeckAction[] = [
   { id: "discard", label: "Discard", icon: X, direction: "left", tone: "danger" },
@@ -42,22 +31,6 @@ const TRIAGE_ACTIONS: DeckAction[] = [
   { id: "idea-bank", label: "Idea", icon: Lightbulb, direction: "none", tone: "neutral" },
   { id: "backlog", label: "Backlog", icon: ListTodo, direction: "none", tone: "neutral" },
   { id: "approve", label: "Approve", icon: Check, direction: "right", tone: "success" },
-];
-
-// Inverted on purpose: the cull already proposed "drop" on every card here,
-// so the deck's job is to catch the ones it got wrong. Right/keep is the
-// rescue, and it's the success-toned action because it's the one that matters.
-const BACKFILL_ACTIONS: DeckAction[] = [
-  { id: "drop", label: "Drop", icon: Trash2, direction: "left", tone: "danger" },
-  { id: "keep", label: "Keep", icon: Check, direction: "right", tone: "success" },
-];
-
-// Same shape as the shelf's, opposite meaning: nothing has proposed anything
-// here, so "keep" is Samy's own first verdict — worth chasing, i.e. worth
-// talking to that person.
-const PAIN_ACTIONS: DeckAction[] = [
-  { id: "drop", label: "Drop", icon: Trash2, direction: "left", tone: "danger" },
-  { id: "keep", label: "Keep", icon: Check, direction: "right", tone: "success" },
 ];
 
 // "Never" tombstones the tag permanently (map 11's only eligibility
@@ -103,8 +76,6 @@ function DecideInner() {
   );
   const [triage, setTriage] = useState<TriageQueueItem[]>([]);
   const [decisions, setDecisions] = useState<DecisionItem[]>([]);
-  const [shelf, setShelf] = useState<BackfillDeckItem[]>([]);
-  const [pain, setPain] = useState<PainItem[]>([]);
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [approvedCount, setApprovedCount] = useState<number | null>(null);
   const [missionDrafts, setMissionDrafts] = useState<Record<string, string>>({});
@@ -124,25 +95,19 @@ function DecideInner() {
       fetch(url)
         .then((r) => (r.ok ? r.json() : null))
         .catch(() => null);
-    const [t, d, s, p, pr, ad] = await Promise.all([
+    const [t, d, pr, ad] = await Promise.all([
       get("/api/triage/queue"),
       get("/api/decide/queue"),
-      get("/api/triage/backfill"),
-      get("/api/pain"),
       get("/api/proposals"),
       get("/api/triage/adaptive"), // approved-cards count for the row below the tabs
     ]);
     setTriage((t?.items as TriageQueueItem[]) ?? []);
     setDecisions((d?.items as DecisionItem[]) ?? []);
-    setShelf((s?.items as BackfillDeckItem[]) ?? []);
-    setPain((p?.items as PainItem[]) ?? []);
     setProposals((pr?.items as Proposal[]) ?? []);
     setApprovedCount(ad?.items ? ad.items.length : null);
     setErrors({
       saved: t === null,
       approvals: d === null,
-      shelf: s === null,
-      pain: p === null,
       proposals: pr === null,
     });
     setLoading(false);
@@ -162,16 +127,6 @@ function DecideInner() {
   const tabs: { id: Deck; label: string; count: number }[] = [
     { id: "saved", label: "Saved", count: triage.length },
     { id: "approvals", label: "Approvals", count: decisions.length },
-    // The backfill is one-off: once drained, the tab stops existing rather
-    // than sitting there empty forever — but it stays while he's standing on
-    // it, so finishing the last card doesn't yank the tab out from under him.
-    ...(shelf.length > 0 || deck === "shelf"
-      ? [{ id: "shelf" as Deck, label: "Shelf", count: shelf.length }]
-      : []),
-    // Same one-off contract as Shelf.
-    ...(pain.length > 0 || deck === "pain"
-      ? [{ id: "pain" as Deck, label: "Pain", count: pain.length }]
-      : []),
     ...(proposals.length > 0 || deck === "proposals"
       ? [{ id: "proposals" as Deck, label: "Proposals", count: proposals.length }]
       : []),
@@ -198,8 +153,8 @@ function DecideInner() {
         className="max-w-full overflow-x-auto"
         style={{ scrollbarWidth: "none" }}
       >
-        {/* overflow-x-auto: at 390px five tabs exceed the row — scroll the
-            switcher instead of overflowing the viewport (scrollbar hidden). */}
+        {/* overflow-x-auto: keeps the switcher scrollable instead of
+            overflowing the viewport on narrow phones (scrollbar hidden). */}
           {tabs.map((t) => (
             <button key={t.id} onClick={() => setDeck(t.id)}
               className={cn(
@@ -243,35 +198,6 @@ function DecideInner() {
             return d.reply || d.result;
           }}
           emptyLabel="Saved queue is clear — new captures get studied nightly at 00:30."
-        />
-      ) : deck === "shelf" ? (
-        <CardStack
-          items={shelf}
-          renderCard={(item) => <BookmarkCard item={item} />}
-          actions={BACKFILL_ACTIONS}
-          swipeLeftId="drop"
-          swipeRightId="keep"
-          perform={async (item, actionId) =>
-            (await post("/api/triage/backfill/verdict", { id: item.id, action: actionId })).result}
-          onResolved={(item) => setShelf((xs) => xs.filter((x) => x.id !== item.id))}
-          undo={async (item) => { await post("/api/triage/backfill/restore", { id: item.id }); }}
-          onRestore={(item) => setShelf((xs) => [item, ...xs.filter((x) => x.id !== item.id)])}
-          emptyLabel="Shelf reviewed — the old bookmark backlog is cleared."
-        />
-      ) : deck === "pain" ? (
-        <CardStack
-          items={pain}
-          renderCard={(item) => <PainCard item={item} />}
-          actions={PAIN_ACTIONS}
-          swipeLeftId="drop"
-          swipeRightId="keep"
-          perform={async (item, actionId) =>
-            (await post("/api/pain/verdict", { id: item.id, action: actionId })).result}
-          onResolved={(item) => setPain((xs) => xs.filter((x) => x.id !== item.id))}
-          undo={async (item) => { await post("/api/pain/restore", { id: item.id }); }}
-          onRestore={(item) => setPain((xs) => [item, ...xs.filter((x) => x.id !== item.id)])}
-          emptyLabel="Read through — keeps are at /api/pain?status=kept. Go talk to one of them."
-          minHeight={PAIN_STACK_HEIGHT}
         />
       ) : deck === "proposals" ? (
         <CardStack
