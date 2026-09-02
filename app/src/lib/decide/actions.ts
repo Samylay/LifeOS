@@ -9,6 +9,8 @@
 // `legacyDestinationToAction` maps every existing string onto exactly one
 // action id so the 613 existing triage items keep loading.
 import type { TriageItem } from "@/lib/triage";
+import type { BacklogCentre } from "@/lib/backlog";
+import { normalizeCentre } from "@/lib/brief/triage-reply";
 
 export type ActionId =
   | "file-vault"
@@ -21,6 +23,9 @@ export type ActionId =
 export interface ActionDescriptor {
   id: ActionId;
   label: string;
+  // The parameter names this action accepts, so the closed set is
+  // self-describing without reading the Action union.
+  params: readonly string[];
   // Generic, plain-language description of what this action does — not tied
   // to a specific item. describeEffect() below produces the per-item sentence.
   effect: string;
@@ -32,31 +37,37 @@ export const ACTIONS: readonly ActionDescriptor[] = [
   {
     id: "file-vault",
     label: "File to vault",
+    params: [],
     effect: "Writes the item as a reference note in the vault.",
   },
   {
     id: "file-idea-bank",
     label: "Add to idea bank",
+    params: [],
     effect: "Creates a new content idea from the item.",
   },
   {
     id: "file-backlog",
     label: "Add to backlog",
+    params: ["centre"],
     effect: "Appends the item as a task to a centre's backlog.",
   },
   {
     id: "file-roadmap",
     label: "File to ROADMAP",
+    params: ["project"],
     effect: "Files the item as a task on a project's ROADMAP.",
   },
   {
     id: "discard",
     label: "Discard",
+    params: [],
     effect: "Drops the item — no record kept beyond the triage log.",
   },
   {
     id: "hold-for-review",
     label: "Hold for review",
+    params: [],
     effect:
       "Takes no action. Safe no-op used when an item's intended destination could not be recognised.",
   },
@@ -67,12 +78,15 @@ export const ACTIONS: readonly ActionDescriptor[] = [
 export type Action =
   | { id: "file-vault"; params: Record<string, never> }
   | { id: "file-idea-bank"; params: Record<string, never> }
-  | { id: "file-backlog"; params: { centre: string } }
+  | { id: "file-backlog"; params: { centre: BacklogCentre } }
   | { id: "file-roadmap"; params: { project: string } }
   | { id: "discard"; params: Record<string, never> }
   | { id: "hold-for-review"; params: Record<string, never> };
 
 const NO_PARAMS: Record<string, never> = {};
+
+// A project name is a repo directory name: lowercase slug, nothing else.
+const PROJECT_SLUG = /^[a-z0-9][a-z0-9-]{0,63}$/;
 
 type EligibilityPredicate = (item: TriageItem) => boolean;
 
@@ -158,17 +172,25 @@ export function legacyDestinationToAction(destination: string): Action {
   if (d === "idea-bank") return { id: "file-idea-bank", params: NO_PARAMS };
   if (d === "discard") return { id: "discard", params: NO_PARAMS };
 
+  // A legacy destination is LLM-authored text derived from an ingested item,
+  // so what follows the prefix is untrusted. Capturing it into a param would
+  // carry ingested text through the boundary this module exists to be — every
+  // payload must therefore be VALIDATED against a closed vocabulary, and
+  // anything unrecognised held for review rather than passed along.
   const backlogMatch = d.match(/^backlog:(.+)$/i);
   if (backlogMatch) {
-    const centre = backlogMatch[1].trim().toLowerCase();
-    if (centre) return { id: "file-backlog", params: { centre } };
+    const centre = normalizeCentre(backlogMatch[1]);
+    if (centre) return { id: "file-backlog", params: { centre: centre as BacklogCentre } };
     return { id: "hold-for-review", params: NO_PARAMS };
   }
 
   const roadmapMatch = d.match(/^roadmap:(.+)$/i);
   if (roadmapMatch) {
     const project = roadmapMatch[1].trim().toLowerCase();
-    if (project) return { id: "file-roadmap", params: { project } };
+    // No closed project registry exists in this repo, so the param is
+    // constrained by SHAPE instead: a plain slug cannot carry whitespace,
+    // backticks, separators, newlines, or path traversal.
+    if (PROJECT_SLUG.test(project)) return { id: "file-roadmap", params: { project } };
     return { id: "hold-for-review", params: NO_PARAMS };
   }
 

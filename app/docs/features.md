@@ -15,7 +15,7 @@ Personal life-ops app. Next.js 16 (App Router) + better-sqlite3 local DB (`data/
 | Surface | What it does |
 |---|---|
 | Dashboard (`/`) | Morning/evening brief, attention surface, headline stats |
-| Decide (`/decide`, `/decide/adaptive`) | Decision decks: pain inbox, triage, proposals queue, adaptive deck |
+| Decide (`/decide`) | Decision decks: saved-item triage, approvals, proposals queue |
 | Knowledge (`/knowledge`, `/knowledge/teach/[id]`) | Knowledge base, capture, teach-back sessions per topic |
 | Feed (`/feed`) | IG replacement; cards unlock via recall quizzes (no engagement mechanics) |
 | Finance (`/finance`) | Bank sync, budgets, transactions, monthly view |

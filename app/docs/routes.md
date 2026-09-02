@@ -6,8 +6,7 @@ Every route below exists on disk under `src/app/` (verified 2026-08-22). No phan
 |-------|------|--------|-------------|
 | `/` | Dashboard | **Live** | Command center: morning/evening brief, attention surface, stats |
 | `/content` | Content | **Live** | Content pipeline / publishing management |
-| `/decide` | Decide | **Live** | Decision decks: pain inbox, triage, proposals queue |
-| `/decide/adaptive` | Adaptive Deck | **Live** | Adaptive decision deck view |
+| `/decide` | Decide | **Live** | Decision decks: saved-item triage, approvals, proposals queue |
 | `/diagrams` | Diagrams | **Live** | Diagram viewer/gallery |
 | `/feed` | Feed | **Live** | IG-replacement feed; cards gated behind recall quizzes |
 | `/finance` | Finance | **Live** | Finances with bank sync, budgets, transactions |
