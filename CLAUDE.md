@@ -9,3 +9,13 @@
 - Samy's explicit call (2026-07-10): LifeOS leans ANIMATED — it must feel nice to use, not austere. Exceptions: keyboard-driven flows and rapid repeat actions stay instant.
 - Hard floor even without the skill loaded: animate only `transform`/`opacity`/`clip-path`/`filter`; ≤300ms with custom easing vars (never default `ease`); `transition-all` banned; `active:scale-[0.97]` press feedback on actionable elements; `prefers-reduced-motion` block required in `globals.css`; optimistic UI on frequent mutations.
 - Approved deps for this doctrine (Samy, 2026-07-10): `sonner`, `vaul`.
+
+## Agent skills
+
+### Issue tracker
+
+Issues and specs live as local markdown under `.scratch/<feature-slug>/`. See `docs/agents/issue-tracker.md`.
+
+### Domain docs
+
+Single-context: root `CONTEXT.md` + `docs/adr/`. See `docs/agents/domain.md`.
