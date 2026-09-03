@@ -11,7 +11,15 @@ import { Archive, ExternalLink, Lightbulb, ListTodo, Map, Trash2, HelpCircle } f
 import type { LucideIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { categoryMeta } from "@/components/decide/category-colors";
-import { ACTIONS, describeEffect, proposedAction, type ActionId } from "@/lib/decide/actions";
+import { cn } from "@/lib/utils";
+import {
+  ACTIONS,
+  actionKey,
+  describeEffect,
+  selectableActions,
+  type Action,
+  type ActionId,
+} from "@/lib/decide/actions";
 import type { TriageCategory } from "@/lib/triage";
 
 export interface TriageQueueItem {
@@ -71,15 +79,32 @@ function Field({ label, value }: { label: string; value?: string }) {
   );
 }
 
-export function TriageCard({ item }: { item: TriageQueueItem }) {
+function actionLabel(action: Action): string {
+  const base = ACTIONS.find((d) => d.id === action.id)?.label ?? action.id;
+  return action.id === "file-backlog" ? `${action.params.centre} backlog` : base;
+}
+
+export function TriageCard({
+  item,
+  action,
+  onChangeAction,
+}: {
+  item: TriageQueueItem;
+  /** The action approving this card would commit — the proposal, or Samy's
+   *  correction of it. */
+  action: Action | null;
+  /** Correcting the action is one tap; approving is still the next gesture. */
+  onChangeAction?: (action: Action) => void;
+}) {
   const p = item.proposal ?? {};
   const a = p.assessment;
   const cat = categoryMeta(p.category);
   const CatIcon = cat.icon;
   const isBiz = p.category === "business-idea";
-  const action = proposedAction(item);
-  const descriptor = action ? ACTIONS.find((d) => d.id === action.id) : undefined;
   const ActionIcon = action ? ACTION_ICONS[action.id] : HelpCircle;
+  const currentKey = action ? actionKey(action) : "";
+  // Only offer a correction when there is a real alternative to correct to.
+  const alternatives = onChangeAction ? selectableActions(item) : [];
   const confidenceColor =
     CONFIDENCE_COLORS[(p.confidence ?? "").toLowerCase()] ?? "var(--muted-foreground)";
   const verdictColor = VERDICT_COLORS[(a?.verdict ?? "").split(/\W/)[0].toLowerCase()] ?? "var(--muted-foreground)";
@@ -109,7 +134,7 @@ export function TriageCard({ item }: { item: TriageQueueItem }) {
         <div className="space-y-1 rounded-lg border border-primary/25 bg-primary/[0.06] p-3">
           <div className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
             <ActionIcon size={14} aria-hidden className="text-primary" />
-            {descriptor?.label ?? action.id}
+            {actionLabel(action)}
             <span
               aria-label={p.confidence ? `confidence: ${p.confidence}` : undefined}
               title={p.confidence ? `confidence: ${p.confidence}` : undefined}
@@ -120,6 +145,33 @@ export function TriageCard({ item }: { item: TriageQueueItem }) {
           <p className="text-sm leading-relaxed text-muted-foreground">
             {describeEffect(action, item)}
           </p>
+          {alternatives.length > 1 && (
+            // One tap re-aims the card. The chips sit inside the banner so
+            // correcting and approving read as the same decision.
+            <div className="flex flex-wrap gap-1.5 pt-1.5">
+              {alternatives.map((alt) => {
+                const key = actionKey(alt);
+                const AltIcon = ACTION_ICONS[alt.id];
+                const isCurrent = key === currentKey;
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    aria-pressed={isCurrent}
+                    onClick={() => onChangeAction?.(alt)}
+                    className={cn(
+                      "inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-medium transition-transform duration-150 active:scale-[0.97] max-lg:[min-height:32px]",
+                      isCurrent
+                        ? "border-primary/50 bg-primary/10 text-foreground"
+                        : "border-border text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    <AltIcon size={11} aria-hidden /> {actionLabel(alt)}
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 

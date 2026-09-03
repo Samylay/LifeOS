@@ -8,6 +8,8 @@ import {
   isDecidable,
   isPerformable,
   parseActionRequest,
+  selectableActions,
+  actionKey,
   type Action,
   type ActionId,
 } from "./actions";
@@ -510,5 +512,70 @@ describe("isPerformable", () => {
     });
     expect(proposedAction(item)).toEqual({ id: "file-roadmap", params: { project: "lifeos" } });
     expect(isDecidable(item)).toBe(false);
+  });
+});
+
+describe("selectableActions — correcting a wrong suggestion", () => {
+  const item = (source: TriageSource, category?: TriageCategory) =>
+    makeItem({
+      source,
+      proposal: {
+        summary: "s",
+        why_relevant: "r",
+        destination: "vault",
+        confidence: "high",
+        rationale: "r",
+        category,
+      },
+    });
+
+  it("always offers vault and discard", () => {
+    const keys = selectableActions(item("other")).map(actionKey);
+    expect(keys).toEqual(["file-vault", "discard"]);
+  });
+
+  it("expands backlog to one entry per centre, so the centre is the choice", () => {
+    const keys = selectableActions(item("other", "swe")).map(actionKey);
+    expect(keys).toEqual([
+      "file-vault",
+      "file-backlog:centre=workouts",
+      "file-backlog:centre=polymath",
+      "file-backlog:centre=swe-learning",
+      "discard",
+    ]);
+  });
+
+  it("offers the idea bank for social captures", () => {
+    expect(selectableActions(item("x")).map(actionKey)).toContain("file-idea-bank");
+  });
+
+  it("never offers file-roadmap — ingested text may not author a task body", () => {
+    const roadmappable = makeItem({
+      proposal: {
+        summary: "s", why_relevant: "r", destination: "roadmap:lifeos",
+        confidence: "high", rationale: "r", category: "swe",
+        assessment: makeAssessment({ apply: "wire it into T64" }),
+      },
+    });
+    expect(eligibleActions(roadmappable)).toContain("file-roadmap");
+    expect(selectableActions(roadmappable).map((a) => a.id)).not.toContain("file-roadmap");
+  });
+
+  it("every offered action is performable and survives the request boundary", () => {
+    for (const source of ["x", "instagram", "other"] as TriageSource[]) {
+      for (const category of [undefined, "business-idea", "ai-tip", "swe", "other"] as (TriageCategory | undefined)[]) {
+        for (const action of selectableActions(item(source, category))) {
+          expect(isPerformable(action)).toBe(true);
+          expect(parseActionRequest({ action: action.id, params: action.params })).toEqual(action);
+        }
+      }
+    }
+  });
+
+  it("actionKey distinguishes backlog centres and is stable", () => {
+    expect(actionKey({ id: "file-backlog", params: { centre: "polymath" } })).not.toBe(
+      actionKey({ id: "file-backlog", params: { centre: "workouts" } }),
+    );
+    expect(actionKey({ id: "file-vault", params: {} })).toBe("file-vault");
   });
 });

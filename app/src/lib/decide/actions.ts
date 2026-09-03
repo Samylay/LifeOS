@@ -103,6 +103,8 @@ const NO_PARAMS: Record<string, never> = {};
 // A project name is a repo directory name: lowercase slug, nothing else.
 const PROJECT_SLUG = /^[a-z0-9][a-z0-9-]{0,63}$/;
 
+const BACKLOG_CENTRES: readonly BacklogCentre[] = ["workouts", "polymath", "swe-learning"];
+
 type EligibilityPredicate = (item: ActionSubject) => boolean;
 
 // Data-driven eligibility table — which of the closed actions an item may
@@ -276,4 +278,33 @@ export function parseActionRequest(body: unknown): Action | null {
       // unrecognised id is not an action at all.
       return null;
   }
+}
+
+// Every action this item could be corrected to, already instantiated with its
+// parameters so a chip is one tap rather than a tap plus a parameter prompt.
+// Performable only: an option Samy cannot approve is not an option. Backlog
+// expands to one entry per centre, because choosing the centre IS the
+// correction he is making.
+export function selectableActions(item: ActionSubject): Action[] {
+  const eligible = new Set(eligibleActions(item));
+  const out: Action[] = [];
+  if (eligible.has("file-vault")) out.push({ id: "file-vault", params: NO_PARAMS });
+  if (eligible.has("file-idea-bank")) out.push({ id: "file-idea-bank", params: NO_PARAMS });
+  if (eligible.has("file-backlog")) {
+    for (const centre of BACKLOG_CENTRES) out.push({ id: "file-backlog", params: { centre } });
+  }
+  if (eligible.has("discard")) out.push({ id: "discard", params: NO_PARAMS });
+  // file-roadmap is never offered: Samy's call, 2026-09-03 — ingested text
+  // may not author a ROADMAP task body, so those items are held, not filed.
+  return out;
+}
+
+// A stable key for one instantiated action, so the UI can compare and key
+// chips without reaching into params.
+export function actionKey(action: Action): string {
+  const params = Object.entries(action.params as Record<string, string>)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([k, v]) => `${k}=${v}`)
+    .join(",");
+  return params ? `${action.id}:${params}` : action.id;
 }

@@ -9,10 +9,11 @@
 import { Suspense, useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Check, Clock, MessageCircleQuestion, Layers, RefreshCw, X } from "lucide-react";
+import { TriageBulkBar, bulkTarget } from "@/components/decide/triage-bulk-bar";
 import { cn } from "@/lib/utils";
 import { CardStack, type DeckAction } from "@/components/decide/card-stack";
 import { TriageCard, type TriageQueueItem } from "@/components/decide/triage-card";
-import { isDecidable, proposedAction } from "@/lib/decide/actions";
+import { isDecidable, proposedAction, type Action } from "@/lib/decide/actions";
 import { DecisionCard } from "@/components/decide/decision-card";
 import { ProposalCard } from "@/components/decide/proposal-card";
 import { BulkApprovalBar } from "@/components/decide/bulk-approval-bar";
@@ -31,6 +32,7 @@ const DECKS: Deck[] = ["saved", "approvals", "proposals"];
 // Choosing a different action comes back, properly typed, in ticket 06.
 const TRIAGE_ACTIONS: DeckAction[] = [
   { id: "discard", label: "Discard", icon: X, direction: "left", tone: "danger" },
+  { id: "defer", label: "Not now", icon: Clock, direction: "none", tone: "neutral" },
   { id: "approve", label: "Approve", icon: Check, direction: "right", tone: "success" },
 ];
 
@@ -81,6 +83,9 @@ function DecideInner() {
   // cannot decide from the card is not a card — but counted, so they are
   // withheld rather than silently lost.
   const [withheld, setWithheld] = useState(0);
+  // Samy's corrections, keyed by item id. A card with no entry commits the
+  // action the study step proposed.
+  const [overrides, setOverrides] = useState<Record<string, Action>>({});
   const [decisions, setDecisions] = useState<DecisionItem[]>([]);
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [missionDrafts, setMissionDrafts] = useState<Record<string, string>>({});
@@ -129,6 +134,25 @@ function DecideInner() {
     document.addEventListener("visibilitychange", onVis);
     return () => document.removeEventListener("visibilitychange", onVis);
   }, [refresh]);
+
+  // The action a card would commit: Samy's correction if he made one, else
+  // the study step's proposal.
+  const actionFor = useCallback(
+    (item: TriageQueueItem): Action | null => overrides[item.id] ?? proposedAction(item),
+    [overrides],
+  );
+
+  // One approval, typed: action id + its parameters, never the item's text.
+  const approveOne = useCallback(async (item: TriageQueueItem, action: Action) => {
+    const d = await post("/api/triage/decide", {
+      id: item.id,
+      action: action.id,
+      params: action.params,
+    });
+    return d.result;
+  }, []);
+
+  const bulk = deck === "saved" ? bulkTarget(triage, actionFor) : null;
 
   const tabs: { id: Deck; label: string; count: number }[] = [
     { id: "saved", label: "Saved", count: triage.length },
@@ -180,9 +204,26 @@ function DecideInner() {
         </div>
       ) : deck === "saved" ? (
         <>
+        {bulk && (
+          <TriageBulkBar
+            target={bulk}
+            approve={approveOne}
+            onResolved={(landed) => {
+              const ids = new Set(landed.map((i) => i.id));
+              setTriage((xs) => xs.filter((x) => !ids.has(x.id)));
+            }}
+          />
+        )}
         <CardStack
           items={triage}
-          renderCard={(item) => <TriageCard item={item} />}
+          renderCard={(item) => (
+            <TriageCard
+              item={item}
+              action={actionFor(item)}
+              onChangeAction={(action) =>
+                setOverrides((o) => ({ ...o, [item.id]: action }))}
+            />
+          )}
           actions={TRIAGE_ACTIONS}
           swipeLeftId="discard"
           swipeRightId="approve"
@@ -190,17 +231,14 @@ function DecideInner() {
           // never the item's own text. Approving commits exactly the action
           // the card named.
           perform={async (item, actionId) => {
+            // "Not now" is its own verdict — no filing side effect runs.
+            if (actionId === "defer") {
+              return (await post("/api/triage/defer", { id: item.id })).result;
+            }
             const action =
-              actionId === "discard"
-                ? ({ id: "discard", params: {} } as const)
-                : proposedAction(item);
+              actionId === "discard" ? ({ id: "discard", params: {} } as const) : actionFor(item);
             if (!action) throw new Error("no action proposed for this card");
-            const d = await post("/api/triage/decide", {
-              id: item.id,
-              action: action.id,
-              params: action.params,
-            });
-            return d.result;
+            return approveOne(item, action);
           }}
           onResolved={(item) => setTriage((xs) => xs.filter((x) => x.id !== item.id))}
           undo={async (item) => { await post("/api/triage/restore", { id: item.id }); }}
@@ -209,7 +247,7 @@ function DecideInner() {
             const d = await post("/api/triage/interpret", { id: item.id, transcript });
             return d.reply || d.result;
           }}
-          emptyLabel="Saved queue is clear — new captures get studied nightly at 00:30."
+          emptyLabel="Saved queue is clear — new captures get studied nightly at 00:30. Deferred cards come back on their date."
         />
         {withheld > 0 && (
           <p className="text-center text-xs text-muted-foreground">
