@@ -1,29 +1,29 @@
 "use client";
 
-// /decide — the decision deck. Stacks of swipeable cards sharing one
-// gesture component: "Saved" (bookmark/save triage with category-specific
-// assessments), "Approvals" (NEEDS-USER asks aggregated from every
-// ROADMAP.md), and "Proposals" (tag/topic proposals). Swipe right =
-// approve/keep, left = discard/reject; buttons for the finer verdicts;
-// voice for anything nuanced.
+// /decide — Samy sorting inbound material. Stacks of swipeable cards sharing
+// one gesture component: "Saved" (captured items, each naming the action
+// approving it commits) and "Proposals" (tag/topic proposals). Swipe right =
+// approve, left = discard; "Not now" defers; voice for anything nuanced.
+//
+// ROADMAP approvals moved to /decide/approvals (T-decide-rework-07): an agent
+// asking permission is a different interruption from sorting bookmarks, and
+// the two no longer interleave in one deck.
 import { Suspense, useCallback, useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
-import { Check, Clock, MessageCircleQuestion, Layers, RefreshCw, X } from "lucide-react";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Check, Clock, Inbox, Layers, RefreshCw, X } from "lucide-react";
 import { TriageBulkBar, bulkTarget } from "@/components/decide/triage-bulk-bar";
 import { cn } from "@/lib/utils";
 import { CardStack, type DeckAction } from "@/components/decide/card-stack";
 import { TriageCard, type TriageQueueItem } from "@/components/decide/triage-card";
 import { isDecidable, proposedAction, type Action } from "@/lib/decide/actions";
-import { DecisionCard } from "@/components/decide/decision-card";
 import { ProposalCard } from "@/components/decide/proposal-card";
-import { BulkApprovalBar } from "@/components/decide/bulk-approval-bar";
-import type { DecisionItem } from "@/lib/decisions";
 import type { Proposal } from "@/lib/proposals";
 import { FilterBar, Page, PageHeader } from "@/components/ui/page";
 
-type Deck = "saved" | "approvals" | "proposals";
+type Deck = "saved" | "proposals";
 
-const DECKS: Deck[] = ["saved", "approvals", "proposals"];
+const DECKS: Deck[] = ["saved", "proposals"];
 
 // Two gestures, because the card already names the one action approving
 // commits (T-decide-rework-04). The old Vault / Idea / Backlog buttons are
@@ -42,13 +42,6 @@ const TRIAGE_ACTIONS: DeckAction[] = [
 const PROPOSAL_ACTIONS: DeckAction[] = [
   { id: "never", label: "Never", icon: X, direction: "left", tone: "danger" },
   { id: "accept", label: "Accept", icon: Check, direction: "right", tone: "success" },
-];
-
-const DECISION_ACTIONS: DeckAction[] = [
-  { id: "rejected", label: "Reject", icon: X, direction: "left", tone: "danger" },
-  { id: "deferred", label: "Defer", icon: Clock, direction: "none", tone: "neutral" },
-  { id: "discuss", label: "Discuss", icon: MessageCircleQuestion, direction: "none", tone: "neutral" },
-  { id: "approved", label: "Approve", icon: Check, direction: "right", tone: "success" },
 ];
 
 async function post(url: string, body: Record<string, unknown>): Promise<Record<string, string>> {
@@ -72,8 +65,14 @@ export default function DecidePage() {
 }
 
 function DecideInner() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const paramDeck = searchParams.get("deck");
+  // Approvals moved to their own surface; old links and push payloads still
+  // point at ?deck=approvals, so send them on rather than showing an empty tab.
+  useEffect(() => {
+    if (paramDeck === "approvals") router.replace("/decide/approvals");
+  }, [paramDeck, router]);
   const [deck, setDeckState] = useState<Deck>(
     DECKS.includes(paramDeck as Deck) ? (paramDeck as Deck) : "saved",
   );
@@ -86,7 +85,8 @@ function DecideInner() {
   // Samy's corrections, keyed by item id. A card with no entry commits the
   // action the study step proposed.
   const [overrides, setOverrides] = useState<Record<string, Action>>({});
-  const [decisions, setDecisions] = useState<DecisionItem[]>([]);
+  // Only the pending count, to link across without loading the other deck.
+  const [approvalCount, setApprovalCount] = useState(0);
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [missionDrafts, setMissionDrafts] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
@@ -110,17 +110,13 @@ function DecideInner() {
       get("/api/decide/queue"),
       get("/api/proposals"),
     ]);
+    setApprovalCount(d?.items?.length ?? 0);
     const triageItems = (t?.items as TriageQueueItem[]) ?? [];
     const decidable = triageItems.filter(isDecidable);
     setTriage(decidable);
     setWithheld(triageItems.length - decidable.length);
-    setDecisions((d?.items as DecisionItem[]) ?? []);
     setProposals((pr?.items as Proposal[]) ?? []);
-    setErrors({
-      saved: t === null,
-      approvals: d === null,
-      proposals: pr === null,
-    });
+    setErrors({ saved: t === null, proposals: pr === null });
     setLoading(false);
   }, []);
   useEffect(() => {
@@ -156,7 +152,6 @@ function DecideInner() {
 
   const tabs: { id: Deck; label: string; count: number }[] = [
     { id: "saved", label: "Saved", count: triage.length },
-    { id: "approvals", label: "Approvals", count: decisions.length },
     ...(proposals.length > 0 || deck === "proposals"
       ? [{ id: "proposals" as Deck, label: "Proposals", count: proposals.length }]
       : []),
@@ -167,7 +162,7 @@ function DecideInner() {
       <PageHeader
         kicker="Attention queue"
         title="Decide"
-        description="Clear the next card. Keyboard and repeated verdicts stay instant."
+        description="Clear the next card. Each one names the action approving it commits."
         icon={Layers}
       />
       <FilterBar
@@ -187,6 +182,14 @@ function DecideInner() {
               {t.label}{t.count > 0 && <span className="ml-1.5 text-xs text-primary">{t.count}</span>}
             </button>
           ))}
+          {/* Approvals is a separate surface, one tap away and never buried. */}
+          <Link
+            href="/decide/approvals"
+            className="ml-auto inline-flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-[color,transform] duration-[var(--dur-fast)] ease-[var(--ease-out-custom)] hover:text-foreground active:scale-[0.97] max-lg:[min-height:44px]"
+          >
+            <Inbox size={14} aria-hidden /> Approvals
+            {approvalCount > 0 && <span className="text-xs text-primary">{approvalCount}</span>}
+          </Link>
       </FilterBar>
 
       {loading ? (
@@ -286,34 +289,7 @@ function DecideInner() {
           onRestore={(item) => setProposals((xs) => [item, ...xs.filter((x) => x.id !== item.id)])}
           emptyLabel="No tag or topic proposals right now — they surface as your saves cluster."
         />
-      ) : (
-        <div className="space-y-4">
-          {decisions.length > 1 && (
-            <BulkApprovalBar
-              items={decisions}
-              onApplied={(ids) => setDecisions((xs) => xs.filter((x) => !ids.includes(x.id)))}
-              onRefresh={refresh}
-            />
-          )}
-          <CardStack
-          items={decisions}
-          renderCard={(item) => <DecisionCard item={item} />}
-          actions={DECISION_ACTIONS}
-          swipeLeftId="rejected"
-          swipeRightId="approved"
-          perform={async (item, actionId) =>
-            (await post("/api/decide/verdict", { id: item.id, verdict: actionId })).result}
-          onResolved={(item) => setDecisions((xs) => xs.filter((x) => x.id !== item.id))}
-          undo={async (item) => { await post("/api/decide/restore", { id: item.id }); }}
-          onRestore={(item) => setDecisions((xs) => [item, ...xs.filter((x) => x.id !== item.id)])}
-          interpret={async (item, transcript) => {
-            const d = await post("/api/decide/interpret", { id: item.id, transcript });
-            return d.reply || d.result;
-          }}
-          emptyLabel="Nothing needs your call — NEEDS-USER asks land here on the nightly scan."
-          />
-        </div>
-      )}
+      ) : null}
     </Page>
   );
 }

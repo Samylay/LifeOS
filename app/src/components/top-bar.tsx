@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { useAppStore } from "@/lib/store";
 
 const ROUTE_TITLES: Array<[string, string]> = [
+  ["/decide/approvals", "Approvals"],
   ["/decide", "Decide"],
   ["/projects", "Projects"],
   ["/content", "Content"],
