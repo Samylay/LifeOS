@@ -125,3 +125,35 @@ describe("listProjectSources — projects exist because repos exist", () => {
     expect(listProjectSources({ appsDir: "/nope/nope", infraDir: "/nope/nope" })).toEqual([]);
   });
 });
+
+describe("a repo whose ROADMAPs live one level down", () => {
+  it("merges them, so infra work is not invisible", () => {
+    // ~/infra keeps a ROADMAP.md per area rather than one at its root.
+    // Reading only the root reported the homelab as having nothing open.
+    const dir = makeRepo("infra-shaped");
+    fs.mkdirSync(path.join(dir, "backup"));
+    fs.mkdirSync(path.join(dir, "monitoring"));
+    fs.writeFileSync(path.join(dir, "backup", "ROADMAP.md"), "- [ ] **T01 — Fix the backup**\n");
+    fs.writeFileSync(
+      path.join(dir, "monitoring", "ROADMAP.md"),
+      "- [ ] **T02 — NEEDS-USER: pick an alert threshold**\n",
+    );
+    const entry = gatherSignals({ name: "infra-shaped", dir }, NONE, NOW);
+    expect(entry.openTaskCount).toBe(2);
+    expect(entry.state?.nextAction?.title).toBe("T01 — Fix the backup");
+  });
+
+  it("prefers a root ROADMAP when there is one", () => {
+    const dir = makeRepo("root-wins", { roadmap: "- [ ] **T99 — Root task**\n" });
+    fs.mkdirSync(path.join(dir, "sub"));
+    fs.writeFileSync(path.join(dir, "sub", "ROADMAP.md"), "- [ ] **T01 — Nested**\n");
+    expect(gatherSignals({ name: "root-wins", dir }, NONE, NOW).state?.nextAction?.title)
+      .toBe("T99 — Root task");
+  });
+
+  it("a repo with no ROADMAP anywhere still reports none", () => {
+    const dir = makeRepo("nothing");
+    fs.mkdirSync(path.join(dir, "src"));
+    expect(gatherSignals({ name: "nothing", dir }, NONE, NOW).openTaskCount).toBe(0);
+  });
+});

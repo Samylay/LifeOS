@@ -8,7 +8,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
-import { parseRoadmap } from "@/lib/brief/roadmap-parser";
+import { parseRoadmap, type ParsedRoadmap } from "@/lib/brief/roadmap-parser";
 import { deriveProjectState, type ProjectSignals, type ProjectState } from "./state";
 
 const HOME = "/home/quorky";
@@ -69,6 +69,30 @@ function git(dir: string, args: string[]): string {
     stdio: ["ignore", "pipe", "ignore"],
     timeout: 5000,
   }).trim();
+}
+
+// ~/infra keeps a ROADMAP.md per area rather than one at its root, so reading
+// only the root would report the homelab as having no open work while several
+// areas do. Walk one level deep and merge — the same shape tracked-centres.ts
+// already uses for ~/infra, so the two agree on where infra work lives.
+function readRoadmap(dir: string): ParsedRoadmap | null {
+  const rootPath = path.join(dir, "ROADMAP.md");
+  if (fs.existsSync(rootPath)) return parseRoadmap(fs.readFileSync(rootPath, "utf-8"));
+
+  const merged: ParsedRoadmap = { needsUserTasks: [], nextTask: null };
+  let found = false;
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
+    if (!entry.isDirectory() || entry.name.startsWith(".")) continue;
+    const nested = path.join(dir, entry.name, "ROADMAP.md");
+    if (!fs.existsSync(nested)) continue;
+    found = true;
+    const parsed = parseRoadmap(fs.readFileSync(nested, "utf-8"));
+    merged.needsUserTasks.push(...parsed.needsUserTasks);
+    // First unchecked task in directory order wins, matching the rule the
+    // nightly executor follows within a single file.
+    if (!merged.nextTask && parsed.nextTask) merged.nextTask = parsed.nextTask;
+  }
+  return found ? merged : null;
 }
 
 function isReadableRepo(dir: string): boolean {
@@ -132,10 +156,9 @@ export function gatherSignals(
   }
 
   let roadmap = null;
-  const roadmapPath = path.join(source.dir, "ROADMAP.md");
   try {
-    if (fs.existsSync(roadmapPath)) {
-      roadmap = parseRoadmap(fs.readFileSync(roadmapPath, "utf-8"));
+    roadmap = readRoadmap(source.dir);
+    if (roadmap) {
       base.openTaskCount = roadmap.needsUserTasks.length + (roadmap.nextTask ? 1 : 0);
     }
   } catch (e) {
