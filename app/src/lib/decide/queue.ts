@@ -67,3 +67,10 @@ export function dispatchableItems<T extends QueueDoc & { id: string }>(
     })
     .sort((a, b) => (toTime(b.filedAt) ?? 0) - (toTime(a.filedAt) ?? 0));
 }
+
+// A verdict is allowed while the item is still open. Deferred counts: a
+// deferred card comes back to the deck, and a card you can see but cannot act
+// on is worse than one that never returned.
+export function isOpenForVerdict(status: string | undefined): boolean {
+  return status === "proposed" || status === "deferred";
+}

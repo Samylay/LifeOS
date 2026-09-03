@@ -3,7 +3,7 @@
 // discarded to get it off the screen. No filing side effect runs.
 import { NextRequest, NextResponse } from "next/server";
 import { getDoc, updateDoc } from "@/lib/server-db";
-import { DEFER_DAYS, deferUntilFrom } from "@/lib/decide/queue";
+import { DEFER_DAYS, deferUntilFrom, isOpenForVerdict } from "@/lib/decide/queue";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
   if (!body.id) return NextResponse.json({ error: "id required" }, { status: 400 });
   const item = getDoc("users/local/triageQueue", body.id);
   if (!item) return NextResponse.json({ error: "no such item" }, { status: 404 });
-  if (item.status !== "proposed" && item.status !== "deferred") {
+  if (!isOpenForVerdict(item.status as string)) {
     return NextResponse.json({ error: `item is ${item.status}, not open` }, { status: 409 });
   }
   const until = deferUntilFrom(new Date());

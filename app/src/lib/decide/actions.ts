@@ -229,9 +229,17 @@ export function proposedAction(item: ActionSubject): Action | null {
   return action;
 }
 
-export function isDecidable(item: ActionSubject): boolean {
-  const action = proposedAction(item);
-  return action !== null && isPerformable(action);
+// Every item can be decided, because file-vault and discard are always
+// eligible and the correction chips can reach them. What varies is whether the
+// card arrives with an action already CHOSEN.
+//
+// This replaced an earlier `isDecidable` filter that hid cards whose
+// destination did not resolve. Hiding them created exactly the thing the map
+// forbids: a pile with no exit, counted under the deck and clearable by no
+// gesture. A card with no proposed action now shows up asking Samy to pick
+// one, which is a decision he can actually make.
+export function hasProposedAction(item: ActionSubject): boolean {
+  return proposedAction(item) !== null;
 }
 
 // Actions whose effect this app can perform itself. `file-roadmap` is
@@ -285,7 +293,7 @@ export function parseActionRequest(body: unknown): Action | null {
 // Performable only: an option Samy cannot approve is not an option. Backlog
 // expands to one entry per centre, because choosing the centre IS the
 // correction he is making.
-export function selectableActions(item: ActionSubject): Action[] {
+export function selectableActions(item: ActionSubject, current?: Action | null): Action[] {
   const eligible = new Set(eligibleActions(item));
   const out: Action[] = [];
   if (eligible.has("file-vault")) out.push({ id: "file-vault", params: NO_PARAMS });
@@ -296,7 +304,23 @@ export function selectableActions(item: ActionSubject): Action[] {
   if (eligible.has("discard")) out.push({ id: "discard", params: NO_PARAMS });
   // file-roadmap is never offered: Samy's call, 2026-09-03 — ingested text
   // may not author a ROADMAP task body, so those items are held, not filed.
+  //
+  // The action a card is already carrying is always offered, even when the
+  // eligibility table would not have proposed it. Eligibility governs the
+  // MENU, not what a legacy proposal is allowed to be — and a card whose own
+  // action is missing from its own chips is just a bug.
+  if (current && isPerformable(current) && !out.some((a) => actionKey(a) === actionKey(current))) {
+    out.push(current);
+  }
   return out;
+}
+
+// The human label for one instantiated action. Lives here, next to the closed
+// set, so the card and the bulk bar cannot drift apart on what an action is
+// called (they had each grown their own copy).
+export function actionLabel(action: Action): string {
+  const base = ACTIONS.find((d) => d.id === action.id)?.label ?? action.id;
+  return action.id === "file-backlog" ? `${action.params.centre} backlog` : base;
 }
 
 // A stable key for one instantiated action, so the UI can compare and key

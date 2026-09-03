@@ -16,7 +16,8 @@ import { TriageBulkBar, bulkTarget } from "@/components/decide/triage-bulk-bar";
 import { cn } from "@/lib/utils";
 import { CardStack, type DeckAction } from "@/components/decide/card-stack";
 import { TriageCard, type TriageQueueItem } from "@/components/decide/triage-card";
-import { isDecidable, proposedAction, type Action } from "@/lib/decide/actions";
+import { proposedAction, type Action } from "@/lib/decide/actions";
+import { post } from "@/lib/decide/post";
 import { ProposalCard } from "@/components/decide/proposal-card";
 import type { Proposal } from "@/lib/proposals";
 import { FilterBar, Page, PageHeader } from "@/components/ui/page";
@@ -44,17 +45,6 @@ const PROPOSAL_ACTIONS: DeckAction[] = [
   { id: "accept", label: "Accept", icon: Check, direction: "right", tone: "success" },
 ];
 
-async function post(url: string, body: Record<string, unknown>): Promise<Record<string, string>> {
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  const data = await res.json();
-  if (!res.ok || data.error) throw new Error(data.error || `HTTP ${res.status}`);
-  return data;
-}
-
 export default function DecidePage() {
   // useSearchParams needs a Suspense boundary for prerendering.
   return (
@@ -77,11 +67,6 @@ function DecideInner() {
     DECKS.includes(paramDeck as Deck) ? (paramDeck as Deck) : "saved",
   );
   const [triage, setTriage] = useState<TriageQueueItem[]>([]);
-  // Items the study step left undecidable (no proposal, or a destination that
-  // did not resolve to a real action). Withheld from the deck — a card you
-  // cannot decide from the card is not a card — but counted, so they are
-  // withheld rather than silently lost.
-  const [withheld, setWithheld] = useState(0);
   // Samy's corrections, keyed by item id. A card with no entry commits the
   // action the study step proposed.
   const [overrides, setOverrides] = useState<Record<string, Action>>({});
@@ -111,10 +96,10 @@ function DecideInner() {
       get("/api/proposals"),
     ]);
     setApprovalCount(d?.items?.length ?? 0);
-    const triageItems = (t?.items as TriageQueueItem[]) ?? [];
-    const decidable = triageItems.filter(isDecidable);
-    setTriage(decidable);
-    setWithheld(triageItems.length - decidable.length);
+    // Every item is shown. One that arrived with no resolvable action asks
+    // Samy to pick one rather than being hidden — a hidden pile with no
+    // gesture is the backlog this deck refuses to hold.
+    setTriage((t?.items as TriageQueueItem[]) ?? []);
     setProposals((pr?.items as Proposal[]) ?? []);
     setErrors({ saved: t === null, proposals: pr === null });
     setLoading(false);
@@ -145,7 +130,7 @@ function DecideInner() {
       action: action.id,
       params: action.params,
     });
-    return d.result;
+    return String(d.result ?? "");
   }, []);
 
   const bulk = deck === "saved" ? bulkTarget(triage, actionFor) : null;
@@ -237,13 +222,19 @@ function DecideInner() {
           actions={TRIAGE_ACTIONS}
           swipeLeftId="discard"
           swipeRightId="approve"
+          // Approving a card that has no action yet would be a verdict with no
+          // meaning — spring it back and say what is missing.
+          guard={(item, actionId) =>
+            actionId === "approve" && !actionFor(item)
+              ? "pick where it goes first"
+              : null}
           // The request carries the action id and its typed parameters only —
           // never the item's own text. Approving commits exactly the action
           // the card named.
           perform={async (item, actionId) => {
             // "Not now" is its own verdict — no filing side effect runs.
             if (actionId === "defer") {
-              return (await post("/api/triage/defer", { id: item.id })).result;
+              return String((await post("/api/triage/defer", { id: item.id })).result ?? "");
             }
             const action =
               actionId === "discard" ? ({ id: "discard", params: {} } as const) : actionFor(item);
@@ -255,15 +246,10 @@ function DecideInner() {
           onRestore={(item) => setTriage((xs) => [item, ...xs.filter((x) => x.id !== item.id)])}
           interpret={async (item, transcript) => {
             const d = await post("/api/triage/interpret", { id: item.id, transcript });
-            return d.reply || d.result;
+            return String(d.reply || d.result || "");
           }}
           emptyLabel="Saved queue is clear — new captures get studied nightly at 00:30. Deferred cards come back on their date."
         />
-        {withheld > 0 && (
-          <p className="text-center text-xs text-muted-foreground">
-            {withheld} held back — no action could be proposed from the card alone.
-          </p>
-        )}
         </>
       ) : deck === "proposals" ? (
         <CardStack
@@ -287,11 +273,11 @@ function DecideInner() {
           // "Never" tombstones the tag permanently: two taps/swipes to commit.
           confirmIds={["never"]}
           perform={async (item, actionId) =>
-            (await post("/api/proposals/verdict", {
+            String((await post("/api/proposals/verdict", {
               id: item.id,
               action: actionId,
               mission: item.kind === "topic" ? missionDrafts[item.id] : undefined,
-            })).result}
+            })).result ?? "")}
           onResolved={(item) => setProposals((xs) => xs.filter((x) => x.id !== item.id))}
           onRestore={(item) => setProposals((xs) => [item, ...xs.filter((x) => x.id !== item.id)])}
           emptyLabel="No tag or topic proposals right now — they surface as your saves cluster."

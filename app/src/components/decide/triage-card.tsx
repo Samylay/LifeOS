@@ -13,8 +13,8 @@ import { Badge } from "@/components/ui/badge";
 import { categoryMeta } from "@/components/decide/category-colors";
 import { cn } from "@/lib/utils";
 import {
-  ACTIONS,
   actionKey,
+  actionLabel,
   describeEffect,
   selectableActions,
   type Action,
@@ -79,11 +79,6 @@ function Field({ label, value }: { label: string; value?: string }) {
   );
 }
 
-function actionLabel(action: Action): string {
-  const base = ACTIONS.find((d) => d.id === action.id)?.label ?? action.id;
-  return action.id === "file-backlog" ? `${action.params.centre} backlog` : base;
-}
-
 export function TriageCard({
   item,
   action,
@@ -103,8 +98,9 @@ export function TriageCard({
   const isBiz = p.category === "business-idea";
   const ActionIcon = action ? ACTION_ICONS[action.id] : HelpCircle;
   const currentKey = action ? actionKey(action) : "";
-  // Only offer a correction when there is a real alternative to correct to.
-  const alternatives = onChangeAction ? selectableActions(item) : [];
+  // The card's own action is always among the chips, so a card that arrived
+  // with no resolvable action still has somewhere to go.
+  const alternatives = onChangeAction ? selectableActions(item, action) : [];
   const confidenceColor =
     CONFIDENCE_COLORS[(p.confidence ?? "").toLowerCase()] ?? "var(--muted-foreground)";
   const verdictColor = VERDICT_COLORS[(a?.verdict ?? "").split(/\W/)[0].toLowerCase()] ?? "var(--muted-foreground)";
@@ -128,13 +124,15 @@ export function TriageCard({
         <p className="text-sm leading-relaxed text-muted-foreground">{p.summary}</p>
       )}
 
-      {action && (
+      {(action || alternatives.length > 0) && (
         // The card's primary content: the action, then its effect in plain
-        // words. Approving commits exactly this.
+        // words. Approving commits exactly this. When nothing resolved, the
+        // banner asks for a pick instead of hiding the card — a card with no
+        // gesture is the backlog this deck refuses to hold.
         <div className="space-y-1 rounded-lg border border-primary/25 bg-primary/[0.06] p-3">
           <div className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
             <ActionIcon size={14} aria-hidden className="text-primary" />
-            {actionLabel(action)}
+            {action ? actionLabel(action) : "Pick an action"}
             <span
               aria-label={p.confidence ? `confidence: ${p.confidence}` : undefined}
               title={p.confidence ? `confidence: ${p.confidence}` : undefined}
@@ -143,9 +141,11 @@ export function TriageCard({
             />
           </div>
           <p className="text-sm leading-relaxed text-muted-foreground">
-            {describeEffect(action, item)}
+            {action
+              ? describeEffect(action, item)
+              : "No action was proposed for this one. Choose where it goes, then approve."}
           </p>
-          {alternatives.length > 1 && (
+          {alternatives.length > 0 && (
             // One tap re-aims the card. The chips sit inside the banner so
             // correcting and approving read as the same decision.
             <div className="flex flex-wrap gap-1.5 pt-1.5">
@@ -160,7 +160,7 @@ export function TriageCard({
                     aria-pressed={isCurrent}
                     onClick={() => onChangeAction?.(alt)}
                     className={cn(
-                      "inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-medium transition-transform duration-150 active:scale-[0.97] max-lg:[min-height:32px]",
+                      "inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-medium transition-transform duration-[var(--dur-fast)] ease-[var(--ease-out-custom)] active:scale-[0.97] max-lg:[min-height:32px]",
                       isCurrent
                         ? "border-primary/50 bg-primary/10 text-foreground"
                         : "border-border text-muted-foreground hover:text-foreground",
@@ -198,7 +198,7 @@ export function TriageCard({
       <Field label="Why you:" value={p.why_relevant} />
 
       <a href={item.url} target="_blank" rel="noreferrer"
-        className="inline-flex items-center gap-1 text-xs font-medium text-primary transition-transform duration-150 active:scale-[0.97]">
+        className="inline-flex items-center gap-1 text-xs font-medium text-primary transition-transform duration-[var(--dur-fast)] ease-[var(--ease-out-custom)] active:scale-[0.97]">
         <ExternalLink size={12} /> open original
       </a>
     </div>

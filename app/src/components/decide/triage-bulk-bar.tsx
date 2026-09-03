@@ -7,7 +7,7 @@
 import { useState } from "react";
 import { Layers, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { ACTIONS, actionKey, type Action } from "@/lib/decide/actions";
+import { actionKey, actionLabel, type Action } from "@/lib/decide/actions";
 
 export interface BulkTarget<T> {
   action: Action;
@@ -28,11 +28,6 @@ export function bulkTarget<T extends { id: string }>(
     return a !== null && actionKey(a) === key;
   });
   return matching.length > 1 ? { action: top, items: matching } : null;
-}
-
-function label(action: Action): string {
-  const base = ACTIONS.find((d) => d.id === action.id)?.label ?? action.id;
-  return action.id === "file-backlog" ? `${action.params.centre} backlog` : base;
 }
 
 export function TriageBulkBar<T extends { id: string }>({
@@ -58,7 +53,7 @@ export function TriageBulkBar<T extends { id: string }>({
     onResolved(landed);
     setBusy(false);
 
-    if (landed.length > 0) toast.success(`${landed.length} × ${label(target.action)}`);
+    if (landed.length > 0) toast.success(`${landed.length} × ${actionLabel(target.action)}`);
     if (failed > 0) {
       // Say which ones did not land — the whole point is that a failure
       // inside a batch cannot masquerade as work done.
@@ -72,10 +67,10 @@ export function TriageBulkBar<T extends { id: string }>({
     <button
       onClick={run}
       disabled={busy}
-      className="flex w-full items-center justify-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm font-medium text-foreground transition-transform duration-150 active:scale-[0.97] disabled:opacity-40 max-lg:[min-height:44px]"
+      className="flex w-full items-center justify-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm font-medium text-foreground transition-transform duration-[var(--dur-fast)] ease-[var(--ease-out-custom)] active:scale-[0.97] disabled:opacity-40 max-lg:[min-height:44px]"
     >
       {busy ? <Loader2 size={15} className="animate-spin" /> : <Layers size={15} />}
-      Approve all {target.items.length} → {label(target.action)}
+      Approve all {target.items.length} → {actionLabel(target.action)}
     </button>
   );
 }

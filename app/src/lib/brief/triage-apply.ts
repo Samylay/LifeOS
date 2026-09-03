@@ -207,7 +207,7 @@ export function performAction(item: Record<string, unknown>, action: Action): st
       break;
     default:
       // file-roadmap / hold-for-review never reach here: parseActionRequest
-      // refuses them at the route, and isDecidable withholds their cards.
+      // refuses them at the route, and the deck never offers them as chips.
       throw new Error(`${action.id} cannot be performed`);
   }
 

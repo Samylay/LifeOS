@@ -19,9 +19,11 @@
 //    while he writes; what crosses is his words plus the item's id.
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { Loader2, Send, Terminal, Trash2 } from "lucide-react";
+import { Loader2, RefreshCw, Send, Terminal, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Page, PageHeader } from "@/components/ui/page";
+import { post } from "@/lib/decide/post";
+import { queueBodyFor } from "@/lib/decide/dispatch";
 
 interface QueuedPrompt {
   id: string;
@@ -37,23 +39,6 @@ interface Dispatchable {
   filedAs: string;
 }
 
-async function post(url: string, body: Record<string, unknown>): Promise<Record<string, unknown>> {
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  const data = await res.json();
-  if (!res.ok || data.error) throw new Error(String(data.error ?? `HTTP ${res.status}`));
-  return data;
-}
-
-// The queued title is derived from Samy's own instruction, never the item —
-// it becomes a heading inside the merged prompt an agent executes.
-function titleFrom(instruction: string): string {
-  return instruction.trim().split("\n")[0].slice(0, 80);
-}
-
 export default function DispatchPage() {
   const [queued, setQueued] = useState<QueuedPrompt[]>([]);
   const [candidates, setCandidates] = useState<Dispatchable[]>([]);
@@ -61,6 +46,9 @@ export default function DispatchPage() {
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  // null from a fetch = it failed. A dead API must never render as "nothing
+  // queued" — the same guard the approvals surface carries.
+  const [failed, setFailed] = useState(false);
 
   const refresh = useCallback(async () => {
     const [q, c] = await Promise.all([
@@ -70,23 +58,22 @@ export default function DispatchPage() {
     setQueued((q?.items as QueuedPrompt[]) ?? []);
     setCandidates((c?.items as Dispatchable[]) ?? []);
     if (typeof c?.windowDays === "number") setWindowDays(c.windowDays);
+    setFailed(q === null || c === null);
     setLoading(false);
   }, []);
 
   useEffect(() => { queueMicrotask(() => void refresh()); }, [refresh]);
 
   const queuePrompt = async (item: Dispatchable) => {
-    const instruction = (drafts[item.id] ?? "").trim();
-    if (!instruction) {
+    // queueBodyFor is the boundary: it composes the entry from his words and
+    // the item's id, and refuses a blank rather than falling back to the item.
+    const body = queueBodyFor(item.id, drafts[item.id] ?? "");
+    if (!body) {
       toast.error("write the instruction first — the item's own text is never sent");
       return;
     }
     try {
-      await post("/api/triage/prompt-queue", {
-        itemId: item.id,
-        title: titleFrom(instruction),
-        prompt: instruction,
-      });
+      await post("/api/triage/prompt-queue", { ...body });
       setDrafts((d) => ({ ...d, [item.id]: "" }));
       toast.success("queued — nothing runs until you send");
       refresh();
@@ -134,7 +121,7 @@ export default function DispatchPage() {
       />
       <Link
         href="/decide"
-        className="inline-flex items-center gap-1 text-xs font-medium text-primary transition-transform duration-150 active:scale-[0.97]"
+        className="inline-flex items-center gap-1 text-xs font-medium text-primary transition-transform duration-[var(--dur-fast)] ease-[var(--ease-out-custom)] active:scale-[0.97]"
       >
         ← Saved items
       </Link>
@@ -142,6 +129,14 @@ export default function DispatchPage() {
       {loading ? (
         <div className="shimmer rounded-xl bg-card p-10 text-center text-sm text-muted-foreground">
           loading…
+        </div>
+      ) : failed ? (
+        <div className="space-y-3 rounded-xl border border-border bg-card p-10 text-center">
+          <p className="text-sm text-muted-foreground">Couldn&apos;t load the queue.</p>
+          <button onClick={() => refresh()}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-accent px-3 py-2 text-sm font-medium text-accent-foreground transition-transform duration-[var(--dur-fast)] ease-[var(--ease-out-custom)] active:scale-[0.97] max-lg:[min-height:44px]">
+            <RefreshCw size={14} /> Retry
+          </button>
         </div>
       ) : (
         <div className="space-y-6">
@@ -170,7 +165,7 @@ export default function DispatchPage() {
                         <button
                           onClick={() => remove(q.id)}
                           aria-label="Remove from the queue"
-                          className="shrink-0 rounded-md p-1.5 text-muted-foreground transition-transform duration-150 hover:text-destructive active:scale-[0.97]"
+                          className="shrink-0 rounded-md p-1.5 text-muted-foreground transition-transform duration-[var(--dur-fast)] ease-[var(--ease-out-custom)] hover:text-destructive active:scale-[0.97]"
                         >
                           <Trash2 size={14} />
                         </button>
@@ -181,7 +176,7 @@ export default function DispatchPage() {
                 <button
                   onClick={send}
                   disabled={sending}
-                  className="flex w-full items-center justify-center gap-2 rounded-lg bg-success/10 px-3 py-2 text-sm font-semibold text-success transition-transform duration-150 active:scale-[0.97] disabled:opacity-40 max-lg:[min-height:44px]"
+                  className="flex w-full items-center justify-center gap-2 rounded-lg bg-success/10 px-3 py-2 text-sm font-semibold text-success transition-transform duration-[var(--dur-fast)] ease-[var(--ease-out-custom)] active:scale-[0.97] disabled:opacity-40 max-lg:[min-height:44px]"
                 >
                   {sending ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />}
                   Send {queued.length} to Claude
@@ -216,7 +211,7 @@ export default function DispatchPage() {
                     />
                     <button
                       onClick={() => queuePrompt(item)}
-                      className="rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-accent-foreground transition-transform duration-150 active:scale-[0.97] max-lg:[min-height:36px]"
+                      className="rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-accent-foreground transition-transform duration-[var(--dur-fast)] ease-[var(--ease-out-custom)] active:scale-[0.97] max-lg:[min-height:36px]"
                     >
                       Queue
                     </button>

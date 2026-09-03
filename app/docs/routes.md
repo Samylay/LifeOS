@@ -1,6 +1,6 @@
 # LifeOS — Routes
 
-Every route below exists on disk under `src/app/` (verified 2026-08-22). No phantom routes.
+Every route below exists on disk under `src/app/` (verified 2026-09-04). No phantom routes.
 
 | Route | Page | Status | Description |
 |-------|------|--------|-------------|

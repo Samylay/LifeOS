@@ -16,6 +16,7 @@ import { DecisionCard } from "@/components/decide/decision-card";
 import { BulkApprovalBar } from "@/components/decide/bulk-approval-bar";
 import type { DecisionItem } from "@/lib/decisions";
 import { Page, PageHeader } from "@/components/ui/page";
+import { post } from "@/lib/decide/post";
 
 const DECISION_ACTIONS: DeckAction[] = [
   { id: "rejected", label: "Reject", icon: X, direction: "left", tone: "danger" },
@@ -23,17 +24,6 @@ const DECISION_ACTIONS: DeckAction[] = [
   { id: "discuss", label: "Discuss", icon: MessageCircleQuestion, direction: "none", tone: "neutral" },
   { id: "approved", label: "Approve", icon: Check, direction: "right", tone: "success" },
 ];
-
-async function post(url: string, body: Record<string, unknown>): Promise<Record<string, string>> {
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  const data = await res.json();
-  if (!res.ok || data.error) throw new Error(data.error || `HTTP ${res.status}`);
-  return data;
-}
 
 export default function ApprovalsPage() {
   const [decisions, setDecisions] = useState<DecisionItem[]>([]);
@@ -73,7 +63,7 @@ export default function ApprovalsPage() {
       />
       <Link
         href="/decide"
-        className="inline-flex items-center gap-1 text-xs font-medium text-primary transition-transform duration-150 active:scale-[0.97]"
+        className="inline-flex items-center gap-1 text-xs font-medium text-primary transition-transform duration-[var(--dur-fast)] ease-[var(--ease-out-custom)] active:scale-[0.97]"
       >
         ← Saved items
       </Link>
@@ -86,7 +76,7 @@ export default function ApprovalsPage() {
         <div className="space-y-3 rounded-xl border border-border bg-card p-10 text-center">
           <p className="text-sm text-muted-foreground">Couldn&apos;t load approvals.</p>
           <button onClick={() => refresh()}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-accent px-3 py-2 text-sm font-medium text-accent-foreground transition-transform duration-150 active:scale-[0.97] max-lg:[min-height:44px]">
+            className="inline-flex items-center gap-1.5 rounded-lg bg-accent px-3 py-2 text-sm font-medium text-accent-foreground transition-transform duration-[var(--dur-fast)] ease-[var(--ease-out-custom)] active:scale-[0.97] max-lg:[min-height:44px]">
             <RefreshCw size={14} /> Retry
           </button>
         </div>
@@ -106,13 +96,13 @@ export default function ApprovalsPage() {
             swipeLeftId="rejected"
             swipeRightId="approved"
             perform={async (item, actionId) =>
-              (await post("/api/decide/verdict", { id: item.id, verdict: actionId })).result}
+              String((await post("/api/decide/verdict", { id: item.id, verdict: actionId })).result ?? "")}
             onResolved={(item) => setDecisions((xs) => xs.filter((x) => x.id !== item.id))}
             undo={async (item) => { await post("/api/decide/restore", { id: item.id }); }}
             onRestore={(item) => setDecisions((xs) => [item, ...xs.filter((x) => x.id !== item.id)])}
             interpret={async (item, transcript) => {
               const d = await post("/api/decide/interpret", { id: item.id, transcript });
-              return d.reply || d.result;
+              return String(d.reply || d.result || "");
             }}
             emptyLabel="Nothing needs your call — NEEDS-USER asks land here on the nightly scan."
           />

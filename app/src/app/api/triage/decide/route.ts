@@ -11,6 +11,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getDoc } from "@/lib/server-db";
 import { performAction } from "@/lib/brief/triage-apply";
 import { parseActionRequest } from "@/lib/decide/actions";
+import { isOpenForVerdict } from "@/lib/decide/queue";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -32,11 +33,10 @@ export async function POST(req: NextRequest) {
   }
   const item = getDoc("users/local/triageQueue", id);
   if (!item) return NextResponse.json({ error: "no such item" }, { status: 404 });
-  // Filed items may still be discarded (the Approved view's second look);
-  // anything else on a non-proposed item stays a conflict.
-  const lateDiscard = item.status === "filed" && action.id === "discard";
-  if (item.status !== "proposed" && !lateDiscard) {
-    return NextResponse.json({ error: `item is ${item.status}, not proposed` }, { status: 409 });
+  // Deferred items are back in the deck, so they take verdicts like any other
+  // card. Anything already filed or discarded is a conflict.
+  if (!isOpenForVerdict(item.status as string)) {
+    return NextResponse.json({ error: `item is ${item.status}, not open` }, { status: 409 });
   }
   try {
     const result = performAction(item, action);

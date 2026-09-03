@@ -5,7 +5,7 @@ import {
   describeEffect,
   legacyDestinationToAction,
   proposedAction,
-  isDecidable,
+  hasProposedAction,
   isPerformable,
   parseActionRequest,
   selectableActions,
@@ -399,13 +399,13 @@ describe("proposedAction — the one action a card leads with", () => {
 
   it("an item with no proposal is not decidable", () => {
     expect(proposedAction(makeItem({ proposal: undefined }))).toBeNull();
-    expect(isDecidable(makeItem({ proposal: undefined }))).toBe(false);
+    expect(hasProposedAction(makeItem({ proposal: undefined }))).toBe(false);
   });
 
   it("an unrecognised destination is withheld, never shown as hold-for-review", () => {
     expect(proposedAction(withDestination("carrier-pigeon"))).toBeNull();
     expect(proposedAction(withDestination(""))).toBeNull();
-    expect(isDecidable(withDestination("carrier-pigeon"))).toBe(false);
+    expect(hasProposedAction(withDestination("carrier-pigeon"))).toBe(false);
   });
 
   // The review lesson from ticket 03: the prefixed forms are the ones that
@@ -418,7 +418,7 @@ describe("proposedAction — the one action a card leads with", () => {
       "backlog:carrier-pigeon",
     ]) {
       expect(proposedAction(withDestination(hostile))).toBeNull();
-      expect(isDecidable(withDestination(hostile))).toBe(false);
+      expect(hasProposedAction(withDestination(hostile))).toBe(false);
     }
   });
 
@@ -506,12 +506,14 @@ describe("isPerformable", () => {
     expect(isPerformable({ id: "discard", params: {} })).toBe(true);
   });
 
-  it("a roadmap-destined item is withheld from the deck", () => {
+  it("a roadmap-destined card resolves its action but cannot approve it", () => {
     const item = makeItem({
       proposal: { summary: "s", why_relevant: "r", destination: "roadmap:lifeos", confidence: "high", rationale: "r" },
     });
-    expect(proposedAction(item)).toEqual({ id: "file-roadmap", params: { project: "lifeos" } });
-    expect(isDecidable(item)).toBe(false);
+    const action = proposedAction(item);
+    expect(action).toEqual({ id: "file-roadmap", params: { project: "lifeos" } });
+    expect(isPerformable(action!)).toBe(false);
+    expect(parseActionRequest({ action: "file-roadmap", params: { project: "lifeos" } })).toBeNull();
   });
 });
 
@@ -577,5 +579,52 @@ describe("selectableActions — correcting a wrong suggestion", () => {
       actionKey({ id: "file-backlog", params: { centre: "workouts" } }),
     );
     expect(actionKey({ id: "file-vault", params: {} })).toBe("file-vault");
+  });
+});
+
+
+describe("every card has an exit — no withheld pile", () => {
+  const undecidable = makeItem({
+    proposal: { summary: "s", why_relevant: "r", destination: "backlog:scout", confidence: "low", rationale: "r" },
+  });
+
+  it("an item whose destination did not resolve still has actions to pick from", () => {
+    expect(hasProposedAction(undecidable)).toBe(false);
+    const options = selectableActions(undecidable, null).map(actionKey);
+    expect(options).toContain("file-vault");
+    expect(options).toContain("discard");
+  });
+
+  it("offers the card's own action even when eligibility would not propose it", () => {
+    // A legacy proposal can name a destination the eligibility table would
+    // never suggest for this item. The chip must still be there and selected.
+    const item = makeItem({
+      source: "other",
+      proposal: { summary: "s", why_relevant: "r", destination: "idea-bank", confidence: "high", rationale: "r" },
+    });
+    const current = proposedAction(item);
+    expect(current).toEqual({ id: "file-idea-bank", params: {} });
+    expect(eligibleActions(item)).not.toContain("file-idea-bank");
+    expect(selectableActions(item, current).map(actionKey)).toContain("file-idea-bank");
+  });
+
+  it("never offers the same action twice", () => {
+    const item = makeItem({
+      source: "x",
+      proposal: { summary: "s", why_relevant: "r", destination: "idea-bank", confidence: "high", rationale: "r" },
+    });
+    const keys = selectableActions(item, proposedAction(item)).map(actionKey);
+    expect(new Set(keys).size).toBe(keys.length);
+  });
+
+  it("never offers a non-performable action, even as the current one", () => {
+    const roadmap = makeItem({
+      proposal: { summary: "s", why_relevant: "r", destination: "roadmap:lifeos", confidence: "high", rationale: "r" },
+    });
+    const current = proposedAction(roadmap);
+    expect(current?.id).toBe("file-roadmap");
+    expect(selectableActions(roadmap, current).map((a) => a.id)).not.toContain("file-roadmap");
+    // …and it still has somewhere to go.
+    expect(selectableActions(roadmap, current).length).toBeGreaterThan(0);
   });
 });

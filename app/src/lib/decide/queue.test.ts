@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { DEFER_DAYS, deferUntilFrom, dispatchableItems, isDue, visibleQueueItems } from "./queue";
+import { DEFER_DAYS, deferUntilFrom, dispatchableItems, isDue, isOpenForVerdict, visibleQueueItems } from "./queue";
 
 const NOW = new Date("2026-09-03T12:00:00.000Z");
 const d = (iso: string) => ({ __date: iso });
@@ -85,5 +85,30 @@ describe("dispatchableItems — bounded, so the list never becomes a backlog", (
   it("excludes an item with no readable filedAt rather than showing it forever", () => {
     expect(dispatchableItems([{ id: "x", status: "filed" }], [], NOW)).toEqual([]);
     expect(dispatchableItems([{ id: "y", status: "filed", filedAt: d("nope") }], [], NOW)).toEqual([]);
+  });
+});
+
+describe("isOpenForVerdict — a card in the deck can always be acted on", () => {
+  it("accepts a deferred card, because a deferred card comes back", () => {
+    // Regression: the deck returned due-deferred cards while the verdict route
+    // still demanded status "proposed", so a card came back unusable.
+    expect(isOpenForVerdict("deferred")).toBe(true);
+    expect(isOpenForVerdict("proposed")).toBe(true);
+  });
+
+  it("refuses a card that already got its verdict", () => {
+    for (const s of ["filed", "discarded", "done", "queued", undefined]) {
+      expect(isOpenForVerdict(s)).toBe(false);
+    }
+  });
+
+  it("every card the deck shows is one the verdict route accepts", () => {
+    const deck = [
+      { id: "a", status: "proposed", createdAt: d("2026-09-01T00:00:00.000Z") },
+      { id: "b", status: "deferred", createdAt: d("2026-09-01T00:00:00.000Z"), deferUntil: d("2026-09-02T00:00:00.000Z") },
+    ];
+    for (const item of visibleQueueItems(deck, NOW)) {
+      expect(isOpenForVerdict(item.status)).toBe(true);
+    }
   });
 });
