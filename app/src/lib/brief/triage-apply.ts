@@ -9,6 +9,7 @@ import { listDocs, updateDoc, createDoc } from "@/lib/server-db";
 import { appendBacklogItem, type BacklogCentre } from "@/lib/backlog";
 import { mergeFrontmatterTags } from "@/lib/frontmatter";
 import { parseTriageReply, normalizeCentre, type TriageAction } from "./triage-reply";
+import type { Action } from "@/lib/decide/actions";
 
 const COLLECTION = "users/local/triageQueue";
 const KB_PATH = process.env.KB_PATH || "/vault";
@@ -36,7 +37,7 @@ interface QProposal {
  * Read-modify-write rather than append, since frontmatter lives at the top.
  * Written atomically: a crash mid-write must not truncate a vault note.
  */
-function fileToVault(url: string, source: string, p: QProposal, previewImage?: string): void {
+function fileToVault(url: string, source: string, p: QProposal, previewImage?: string): string {
   const date = new Date().toISOString().slice(0, 10);
   const full = path.join(KB_PATH, `${TRIAGE_DIR}/${date}.md`);
   const dir = path.dirname(full);
@@ -57,6 +58,7 @@ function fileToVault(url: string, source: string, p: QProposal, previewImage?: s
   } catch {
     // local dev, not root — perms already fine
   }
+  return `${TRIAGE_DIR}/${date}.md`;
 }
 
 function fileToIdeaBank(url: string, p: QProposal): void {
@@ -168,4 +170,51 @@ export function applyTriageReply(text: string, source?: string): TriageApplyResu
   }
 
   return { ok: true, count: verdicts.length, summary: results.join(" · ") };
+}
+
+// T-decide-rework-05 — perform one typed action from the closed set, and
+// report what concretely happened. This is the /decide deck's path; the
+// numbered-reply and voice paths keep using applyActionToItem above.
+//
+// Only the action id and its typed parameters cross this boundary. The item's
+// own text is read from the stored document, never from the request, so
+// nothing a caller sends can steer what is written or where.
+//
+// Throws on I/O failure, and the status flip happens only after the effect
+// lands — a failed action must never mark the card handled.
+export function performAction(item: Record<string, unknown>, action: Action): string {
+  const p = (item.proposal ?? {}) as QProposal;
+  const url = String(item.url ?? "");
+  const source = String(item.source ?? "other");
+
+  let outcome: string;
+  switch (action.id) {
+    case "file-vault": {
+      const note = fileToVault(url, source, p, item.previewImage as string | undefined);
+      outcome = `filed to ${note}`;
+      break;
+    }
+    case "file-idea-bank":
+      fileToIdeaBank(url, p);
+      outcome = "added to the idea bank";
+      break;
+    case "file-backlog":
+      appendBacklogItem(action.params.centre, `${p.summary ?? url} — ${url}`);
+      outcome = `added to the ${action.params.centre} backlog`;
+      break;
+    case "discard":
+      outcome = "discarded";
+      break;
+    default:
+      // file-roadmap / hold-for-review never reach here: parseActionRequest
+      // refuses them at the route, and isDecidable withholds their cards.
+      throw new Error(`${action.id} cannot be performed`);
+  }
+
+  updateDoc(COLLECTION, String(item.id), {
+    status: action.id === "discard" ? "discarded" : "filed",
+    filedAs: action.id,
+    filedAt: { __date: new Date().toISOString() },
+  });
+  return outcome;
 }

@@ -8,11 +8,11 @@
 // voice for anything nuanced.
 import { Suspense, useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { Archive, Check, Clock, Lightbulb, ListTodo, MessageCircleQuestion, Layers, RefreshCw, X } from "lucide-react";
+import { Check, Clock, MessageCircleQuestion, Layers, RefreshCw, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CardStack, type DeckAction } from "@/components/decide/card-stack";
 import { TriageCard, type TriageQueueItem } from "@/components/decide/triage-card";
-import { isDecidable } from "@/lib/decide/actions";
+import { isDecidable, proposedAction } from "@/lib/decide/actions";
 import { DecisionCard } from "@/components/decide/decision-card";
 import { ProposalCard } from "@/components/decide/proposal-card";
 import { BulkApprovalBar } from "@/components/decide/bulk-approval-bar";
@@ -24,11 +24,13 @@ type Deck = "saved" | "approvals" | "proposals";
 
 const DECKS: Deck[] = ["saved", "approvals", "proposals"];
 
+// Two gestures, because the card already names the one action approving
+// commits (T-decide-rework-04). The old Vault / Idea / Backlog buttons are
+// gone: they overrode the proposal with an untyped verb, and the Backlog one
+// silently defaulted to the polymath centre when no centre was given.
+// Choosing a different action comes back, properly typed, in ticket 06.
 const TRIAGE_ACTIONS: DeckAction[] = [
   { id: "discard", label: "Discard", icon: X, direction: "left", tone: "danger" },
-  { id: "vault", label: "Vault", icon: Archive, direction: "none", tone: "neutral" },
-  { id: "idea-bank", label: "Idea", icon: Lightbulb, direction: "none", tone: "neutral" },
-  { id: "backlog", label: "Backlog", icon: ListTodo, direction: "none", tone: "neutral" },
   { id: "approve", label: "Approve", icon: Check, direction: "right", tone: "success" },
 ];
 
@@ -184,8 +186,22 @@ function DecideInner() {
           actions={TRIAGE_ACTIONS}
           swipeLeftId="discard"
           swipeRightId="approve"
-          perform={async (item, actionId) =>
-            (await post("/api/triage/decide", { id: item.id, action: actionId })).result}
+          // The request carries the action id and its typed parameters only —
+          // never the item's own text. Approving commits exactly the action
+          // the card named.
+          perform={async (item, actionId) => {
+            const action =
+              actionId === "discard"
+                ? ({ id: "discard", params: {} } as const)
+                : proposedAction(item);
+            if (!action) throw new Error("no action proposed for this card");
+            const d = await post("/api/triage/decide", {
+              id: item.id,
+              action: action.id,
+              params: action.params,
+            });
+            return d.result;
+          }}
           onResolved={(item) => setTriage((xs) => xs.filter((x) => x.id !== item.id))}
           undo={async (item) => { await post("/api/triage/restore", { id: item.id }); }}
           onRestore={(item) => setTriage((xs) => [item, ...xs.filter((x) => x.id !== item.id)])}

@@ -228,5 +228,52 @@ export function proposedAction(item: ActionSubject): Action | null {
 }
 
 export function isDecidable(item: ActionSubject): boolean {
-  return proposedAction(item) !== null;
+  const action = proposedAction(item);
+  return action !== null && isPerformable(action);
+}
+
+// Actions whose effect this app can perform itself. `file-roadmap` is
+// deliberately absent: a ROADMAP task body is executed verbatim by the
+// nightly autoloop, and an item's text is ingested from the internet, so
+// there is no safe way to author one from a card. Until a channel exists
+// that carries an action id instead of prose, roadmap-destined items are
+// held for Samy rather than quietly filed somewhere else.
+const PERFORMABLE = new Set<ActionId>([
+  "file-vault",
+  "file-idea-bank",
+  "file-backlog",
+  "discard",
+]);
+
+export function isPerformable(action: Action): boolean {
+  return PERFORMABLE.has(action.id);
+}
+
+// THE TRUST BOUNDARY, in one function. An approval request arrives as
+// untrusted JSON; this rebuilds the Action from the closed set, reading only
+// the parameters the chosen action declares and validating each against the
+// same closed vocabulary the legacy mapping uses. Every other field in the
+// body — including anything resembling the item's own text — is discarded.
+// Returns null for anything that is not a performable, well-formed action.
+export function parseActionRequest(body: unknown): Action | null {
+  if (typeof body !== "object" || body === null) return null;
+  const { action, params } = body as { action?: unknown; params?: unknown };
+  if (typeof action !== "string") return null;
+  const p = (typeof params === "object" && params !== null ? params : {}) as Record<string, unknown>;
+
+  switch (action) {
+    case "file-vault":
+    case "file-idea-bank":
+    case "discard":
+      return { id: action, params: NO_PARAMS };
+    case "file-backlog": {
+      if (typeof p.centre !== "string") return null;
+      const centre = normalizeCentre(p.centre);
+      return centre ? { id: "file-backlog", params: { centre: centre as BacklogCentre } } : null;
+    }
+    default:
+      // file-roadmap and hold-for-review are not performable, and an
+      // unrecognised id is not an action at all.
+      return null;
+  }
 }
