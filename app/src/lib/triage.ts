@@ -6,7 +6,10 @@ export type TriageSource = "x" | "instagram" | "other";
 // "done" = an approved (filed) item that has been handed to Claude to act on
 // (dispatched from the Approved view); it drops off that page, which lists only
 // `filed`. Set programmatically in dispatchQueuedPrompts — never a swipe verdict.
-export type TriageStatus = "queued" | "proposed" | "filed" | "discarded" | "done";
+// "deferred" = an explicit "not now" verdict (T-decide-rework-06). The item
+// keeps a deferUntil date and returns to the deck on it — deferring is a real
+// answer, not abandonment.
+export type TriageStatus = "queued" | "proposed" | "filed" | "discarded" | "done" | "deferred";
 
 export type TriageCategory = "business-idea" | "ai-tip" | "ai-project" | "swe" | "other";
 

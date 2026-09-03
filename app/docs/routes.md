@@ -1,13 +1,14 @@
 # LifeOS — Routes
 
-Every route below exists on disk under `src/app/` (verified 2026-08-22). No phantom routes.
+Every route below exists on disk under `src/app/` (verified 2026-09-04). No phantom routes.
 
 | Route | Page | Status | Description |
 |-------|------|--------|-------------|
 | `/` | Dashboard | **Live** | Command center: morning/evening brief, attention surface, stats |
 | `/content` | Content | **Live** | Content pipeline / publishing management |
-| `/decide` | Decide | **Live** | Decision decks: pain inbox, triage, proposals queue |
-| `/decide/adaptive` | Adaptive Deck | **Live** | Adaptive decision deck view |
+| `/decide` | Decide | **Live** | Saved-item triage (each card names the action approving it commits) + tag/topic proposals |
+| `/decide/approvals` | Approvals | **Live** | NEEDS-USER asks from every ROADMAP; verdicts written back to the project |
+| `/decide/dispatch` | Send to Claude | **Live** | Queue instructions for a Claude session and send the merged brief |
 | `/diagrams` | Diagrams | **Live** | Diagram viewer/gallery |
 | `/feed` | Feed | **Live** | IG-replacement feed; cards gated behind recall quizzes |
 | `/finance` | Finance | **Live** | Finances with bank sync, budgets, transactions |

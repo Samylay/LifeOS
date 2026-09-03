@@ -1,38 +1,49 @@
-// One swipe/button verdict on one triage item from the /decide deck.
+// One verdict on one triage item from the /decide deck. The request carries an
+// action id from the closed set plus that action's typed parameters, and
+// nothing else — see parseActionRequest, which is the trust boundary: no text
+// the caller sends can reach the effect, and the item's own text is read from
+// the stored document rather than the request.
+//
+// Approving performs the action here and now (T-decide-rework-05). There is no
+// holding pen: the response reports the concrete outcome, and a failed effect
+// returns an error with the card left un-handled.
 import { NextRequest, NextResponse } from "next/server";
 import { getDoc } from "@/lib/server-db";
-import { applyActionToItem } from "@/lib/brief/triage-apply";
-import type { TriageAction } from "@/lib/brief/triage-reply";
+import { performAction } from "@/lib/brief/triage-apply";
+import { parseActionRequest } from "@/lib/decide/actions";
+import { isOpenForVerdict } from "@/lib/decide/queue";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const ACTIONS: TriageAction[] = ["approve", "vault", "idea-bank", "backlog", "discard"];
-
 export async function POST(req: NextRequest) {
-  let body: { id?: string; action?: string; centre?: string };
+  let body: unknown;
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ error: "invalid JSON" }, { status: 400 });
   }
-  if (!body.id || !ACTIONS.includes(body.action as TriageAction)) {
-    return NextResponse.json({ error: "id and a valid action required" }, { status: 400 });
+  const id = (body as { id?: unknown })?.id;
+  if (typeof id !== "string" || !id) {
+    return NextResponse.json({ error: "id required" }, { status: 400 });
   }
-  const item = getDoc("users/local/triageQueue", body.id);
+  const action = parseActionRequest(body);
+  if (!action) {
+    return NextResponse.json({ error: "not a performable action" }, { status: 400 });
+  }
+  const item = getDoc("users/local/triageQueue", id);
   if (!item) return NextResponse.json({ error: "no such item" }, { status: 404 });
-  // Filed items may still be discarded (the Approved view's second look);
-  // anything else on a non-proposed item stays a conflict.
-  const lateDiscard = item.status === "filed" && body.action === "discard";
-  if (item.status !== "proposed" && !lateDiscard) {
-    return NextResponse.json({ error: `item is ${item.status}, not proposed` }, { status: 409 });
+  // Deferred items are back in the deck, so they take verdicts like any other
+  // card. Anything already filed or discarded is a conflict.
+  if (!isOpenForVerdict(item.status as string)) {
+    return NextResponse.json({ error: `item is ${item.status}, not open` }, { status: 409 });
   }
   try {
-    const result = applyActionToItem(item, body.action as TriageAction, body.centre ?? null);
+    const result = performAction(item, action);
     return NextResponse.json({ ok: true, result });
   } catch (e) {
     return NextResponse.json(
-      { error: e instanceof Error ? e.message : "apply failed" },
+      { error: e instanceof Error ? e.message : "action failed" },
       { status: 500 }
     );
   }

@@ -1,63 +1,40 @@
 "use client";
 
-// /decide — the decision deck. Four stacks of swipeable cards sharing one
-// gesture component: "Saved" (bookmark/save triage with category-specific
-// assessments), "Approvals" (NEEDS-USER asks aggregated from every
-// ROADMAP.md), "Shelf" (the one-off Firefox bookmark backfill — every
-// card is a proposed drop, so right = rescue), and "Pain" (the one-off
-// read-through of pulled pain points). Swipe right = approve/keep, left =
-// discard/reject; buttons for the finer verdicts; voice for anything nuanced.
+// /decide — Samy sorting inbound material. Stacks of swipeable cards sharing
+// one gesture component: "Saved" (captured items, each naming the action
+// approving it commits) and "Proposals" (tag/topic proposals). Swipe right =
+// approve, left = discard; "Not now" defers; voice for anything nuanced.
 //
-// Shelf and Pain are temporary by design: when either deck empties it stays
-// empty, and the tab hides itself.
-//
-// Pain is the odd one out and deliberately so — no voice, and its card shows
-// no assessment. Every other deck asks Samy to approve an LLM's verdict; that
-// deck asks him to form the first one. See lib/pain-deck.ts.
+// ROADMAP approvals moved to /decide/approvals (T-decide-rework-07): an agent
+// asking permission is a different interruption from sorting bookmarks, and
+// the two no longer interleave in one deck.
 import { Suspense, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-import { Archive, Check, ChevronRight, Clock, Lightbulb, ListTodo, MessageCircleQuestion, Layers, RefreshCw, Sparkles, Trash2, X } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Check, Clock, Inbox, Layers, RefreshCw, Terminal, X } from "lucide-react";
+import { TriageBulkBar, bulkTarget } from "@/components/decide/triage-bulk-bar";
 import { cn } from "@/lib/utils";
 import { CardStack, type DeckAction } from "@/components/decide/card-stack";
 import { TriageCard, type TriageQueueItem } from "@/components/decide/triage-card";
-import { DecisionCard } from "@/components/decide/decision-card";
-import { BookmarkCard, type BackfillDeckItem } from "@/components/decide/bookmark-card";
-import { PainCard, PAIN_STACK_HEIGHT } from "@/components/decide/pain-card";
+import { proposedAction, type Action } from "@/lib/decide/actions";
+import { post } from "@/lib/decide/post";
 import { ProposalCard } from "@/components/decide/proposal-card";
-import { BulkApprovalBar } from "@/components/decide/bulk-approval-bar";
-import type { PainItem } from "@/lib/pain-deck";
-import type { DecisionItem } from "@/lib/decisions";
 import type { Proposal } from "@/lib/proposals";
-import { Button } from "@/components/ui/button";
 import { FilterBar, Page, PageHeader } from "@/components/ui/page";
 
-type Deck = "saved" | "approvals" | "shelf" | "pain" | "proposals";
+type Deck = "saved" | "proposals";
 
-const DECKS: Deck[] = ["saved", "approvals", "shelf", "pain", "proposals"];
+const DECKS: Deck[] = ["saved", "proposals"];
 
+// Two gestures, because the card already names the one action approving
+// commits (T-decide-rework-04). The old Vault / Idea / Backlog buttons are
+// gone: they overrode the proposal with an untyped verb, and the Backlog one
+// silently defaulted to the polymath centre when no centre was given.
+// Choosing a different action comes back, properly typed, in ticket 06.
 const TRIAGE_ACTIONS: DeckAction[] = [
   { id: "discard", label: "Discard", icon: X, direction: "left", tone: "danger" },
-  { id: "vault", label: "Vault", icon: Archive, direction: "none", tone: "neutral" },
-  { id: "idea-bank", label: "Idea", icon: Lightbulb, direction: "none", tone: "neutral" },
-  { id: "backlog", label: "Backlog", icon: ListTodo, direction: "none", tone: "neutral" },
+  { id: "defer", label: "Not now", icon: Clock, direction: "none", tone: "neutral" },
   { id: "approve", label: "Approve", icon: Check, direction: "right", tone: "success" },
-];
-
-// Inverted on purpose: the cull already proposed "drop" on every card here,
-// so the deck's job is to catch the ones it got wrong. Right/keep is the
-// rescue, and it's the success-toned action because it's the one that matters.
-const BACKFILL_ACTIONS: DeckAction[] = [
-  { id: "drop", label: "Drop", icon: Trash2, direction: "left", tone: "danger" },
-  { id: "keep", label: "Keep", icon: Check, direction: "right", tone: "success" },
-];
-
-// Same shape as the shelf's, opposite meaning: nothing has proposed anything
-// here, so "keep" is Samy's own first verdict — worth chasing, i.e. worth
-// talking to that person.
-const PAIN_ACTIONS: DeckAction[] = [
-  { id: "drop", label: "Drop", icon: Trash2, direction: "left", tone: "danger" },
-  { id: "keep", label: "Keep", icon: Check, direction: "right", tone: "success" },
 ];
 
 // "Never" tombstones the tag permanently (map 11's only eligibility
@@ -67,24 +44,6 @@ const PROPOSAL_ACTIONS: DeckAction[] = [
   { id: "never", label: "Never", icon: X, direction: "left", tone: "danger" },
   { id: "accept", label: "Accept", icon: Check, direction: "right", tone: "success" },
 ];
-
-const DECISION_ACTIONS: DeckAction[] = [
-  { id: "rejected", label: "Reject", icon: X, direction: "left", tone: "danger" },
-  { id: "deferred", label: "Defer", icon: Clock, direction: "none", tone: "neutral" },
-  { id: "discuss", label: "Discuss", icon: MessageCircleQuestion, direction: "none", tone: "neutral" },
-  { id: "approved", label: "Approve", icon: Check, direction: "right", tone: "success" },
-];
-
-async function post(url: string, body: Record<string, unknown>): Promise<Record<string, string>> {
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  const data = await res.json();
-  if (!res.ok || data.error) throw new Error(data.error || `HTTP ${res.status}`);
-  return data;
-}
 
 export default function DecidePage() {
   // useSearchParams needs a Suspense boundary for prerendering.
@@ -96,17 +55,24 @@ export default function DecidePage() {
 }
 
 function DecideInner() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const paramDeck = searchParams.get("deck");
+  // Approvals moved to their own surface; old links and push payloads still
+  // point at ?deck=approvals, so send them on rather than showing an empty tab.
+  useEffect(() => {
+    if (paramDeck === "approvals") router.replace("/decide/approvals");
+  }, [paramDeck, router]);
   const [deck, setDeckState] = useState<Deck>(
     DECKS.includes(paramDeck as Deck) ? (paramDeck as Deck) : "saved",
   );
   const [triage, setTriage] = useState<TriageQueueItem[]>([]);
-  const [decisions, setDecisions] = useState<DecisionItem[]>([]);
-  const [shelf, setShelf] = useState<BackfillDeckItem[]>([]);
-  const [pain, setPain] = useState<PainItem[]>([]);
+  // Samy's corrections, keyed by item id. A card with no entry commits the
+  // action the study step proposed.
+  const [overrides, setOverrides] = useState<Record<string, Action>>({});
+  // Only the pending count, to link across without loading the other deck.
+  const [approvalCount, setApprovalCount] = useState(0);
   const [proposals, setProposals] = useState<Proposal[]>([]);
-  const [approvedCount, setApprovedCount] = useState<number | null>(null);
   const [missionDrafts, setMissionDrafts] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [errors, setErrors] = useState<Partial<Record<Deck, boolean>>>({});
@@ -124,27 +90,18 @@ function DecideInner() {
       fetch(url)
         .then((r) => (r.ok ? r.json() : null))
         .catch(() => null);
-    const [t, d, s, p, pr, ad] = await Promise.all([
+    const [t, d, pr] = await Promise.all([
       get("/api/triage/queue"),
       get("/api/decide/queue"),
-      get("/api/triage/backfill"),
-      get("/api/pain"),
       get("/api/proposals"),
-      get("/api/triage/adaptive"), // approved-cards count for the row below the tabs
     ]);
+    setApprovalCount(d?.items?.length ?? 0);
+    // Every item is shown. One that arrived with no resolvable action asks
+    // Samy to pick one rather than being hidden — a hidden pile with no
+    // gesture is the backlog this deck refuses to hold.
     setTriage((t?.items as TriageQueueItem[]) ?? []);
-    setDecisions((d?.items as DecisionItem[]) ?? []);
-    setShelf((s?.items as BackfillDeckItem[]) ?? []);
-    setPain((p?.items as PainItem[]) ?? []);
     setProposals((pr?.items as Proposal[]) ?? []);
-    setApprovedCount(ad?.items ? ad.items.length : null);
-    setErrors({
-      saved: t === null,
-      approvals: d === null,
-      shelf: s === null,
-      pain: p === null,
-      proposals: pr === null,
-    });
+    setErrors({ saved: t === null, proposals: pr === null });
     setLoading(false);
   }, []);
   useEffect(() => {
@@ -159,19 +116,27 @@ function DecideInner() {
     return () => document.removeEventListener("visibilitychange", onVis);
   }, [refresh]);
 
+  // The action a card would commit: Samy's correction if he made one, else
+  // the study step's proposal.
+  const actionFor = useCallback(
+    (item: TriageQueueItem): Action | null => overrides[item.id] ?? proposedAction(item),
+    [overrides],
+  );
+
+  // One approval, typed: action id + its parameters, never the item's text.
+  const approveOne = useCallback(async (item: TriageQueueItem, action: Action) => {
+    const d = await post("/api/triage/decide", {
+      id: item.id,
+      action: action.id,
+      params: action.params,
+    });
+    return String(d.result ?? "");
+  }, []);
+
+  const bulk = deck === "saved" ? bulkTarget(triage, actionFor) : null;
+
   const tabs: { id: Deck; label: string; count: number }[] = [
     { id: "saved", label: "Saved", count: triage.length },
-    { id: "approvals", label: "Approvals", count: decisions.length },
-    // The backfill is one-off: once drained, the tab stops existing rather
-    // than sitting there empty forever — but it stays while he's standing on
-    // it, so finishing the last card doesn't yank the tab out from under him.
-    ...(shelf.length > 0 || deck === "shelf"
-      ? [{ id: "shelf" as Deck, label: "Shelf", count: shelf.length }]
-      : []),
-    // Same one-off contract as Shelf.
-    ...(pain.length > 0 || deck === "pain"
-      ? [{ id: "pain" as Deck, label: "Pain", count: pain.length }]
-      : []),
     ...(proposals.length > 0 || deck === "proposals"
       ? [{ id: "proposals" as Deck, label: "Proposals", count: proposals.length }]
       : []),
@@ -182,24 +147,15 @@ function DecideInner() {
       <PageHeader
         kicker="Attention queue"
         title="Decide"
-        description="Clear the next card. Keyboard and repeated verdicts stay instant."
+        description="Clear the next card. Each one names the action approving it commits."
         icon={Layers}
-        actions={
-          <Button asChild variant="outline" size="sm">
-            <Link href="/decide/adaptive">
-              <Sparkles size={15} />
-              Approved{approvedCount !== null && approvedCount > 0 ? ` · ${approvedCount}` : ""}
-              <ChevronRight size={14} />
-            </Link>
-          </Button>
-        }
       />
       <FilterBar
         className="max-w-full overflow-x-auto"
         style={{ scrollbarWidth: "none" }}
       >
-        {/* overflow-x-auto: at 390px five tabs exceed the row — scroll the
-            switcher instead of overflowing the viewport (scrollbar hidden). */}
+        {/* overflow-x-auto: keeps the switcher scrollable instead of
+            overflowing the viewport on narrow phones (scrollbar hidden). */}
           {tabs.map((t) => (
             <button key={t.id} onClick={() => setDeck(t.id)}
               className={cn(
@@ -211,6 +167,21 @@ function DecideInner() {
               {t.label}{t.count > 0 && <span className="ml-1.5 text-xs text-primary">{t.count}</span>}
             </button>
           ))}
+          {/* Approvals is a separate surface, one tap away and never buried. */}
+          <Link
+            href="/decide/approvals"
+            className="ml-auto inline-flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-[color,transform] duration-[var(--dur-fast)] ease-[var(--ease-out-custom)] hover:text-foreground active:scale-[0.97] max-lg:[min-height:44px]"
+          >
+            <Inbox size={14} aria-hidden /> Approvals
+            {approvalCount > 0 && <span className="text-xs text-primary">{approvalCount}</span>}
+          </Link>
+          <Link
+            href="/decide/dispatch"
+            aria-label="Send to Claude"
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-[color,transform] duration-[var(--dur-fast)] ease-[var(--ease-out-custom)] hover:text-foreground active:scale-[0.97] max-lg:[min-height:44px]"
+          >
+            <Terminal size={14} aria-hidden />
+          </Link>
       </FilterBar>
 
       {loading ? (
@@ -227,52 +198,59 @@ function DecideInner() {
           </button>
         </div>
       ) : deck === "saved" ? (
+        <>
+        {bulk && (
+          <TriageBulkBar
+            target={bulk}
+            approve={approveOne}
+            onResolved={(landed) => {
+              const ids = new Set(landed.map((i) => i.id));
+              setTriage((xs) => xs.filter((x) => !ids.has(x.id)));
+            }}
+          />
+        )}
         <CardStack
           items={triage}
-          renderCard={(item) => <TriageCard item={item} />}
+          renderCard={(item) => (
+            <TriageCard
+              item={item}
+              action={actionFor(item)}
+              onChangeAction={(action) =>
+                setOverrides((o) => ({ ...o, [item.id]: action }))}
+            />
+          )}
           actions={TRIAGE_ACTIONS}
           swipeLeftId="discard"
           swipeRightId="approve"
-          perform={async (item, actionId) =>
-            (await post("/api/triage/decide", { id: item.id, action: actionId })).result}
+          // Approving a card that has no action yet would be a verdict with no
+          // meaning — spring it back and say what is missing.
+          guard={(item, actionId) =>
+            actionId === "approve" && !actionFor(item)
+              ? "pick where it goes first"
+              : null}
+          // The request carries the action id and its typed parameters only —
+          // never the item's own text. Approving commits exactly the action
+          // the card named.
+          perform={async (item, actionId) => {
+            // "Not now" is its own verdict — no filing side effect runs.
+            if (actionId === "defer") {
+              return String((await post("/api/triage/defer", { id: item.id })).result ?? "");
+            }
+            const action =
+              actionId === "discard" ? ({ id: "discard", params: {} } as const) : actionFor(item);
+            if (!action) throw new Error("no action proposed for this card");
+            return approveOne(item, action);
+          }}
           onResolved={(item) => setTriage((xs) => xs.filter((x) => x.id !== item.id))}
           undo={async (item) => { await post("/api/triage/restore", { id: item.id }); }}
           onRestore={(item) => setTriage((xs) => [item, ...xs.filter((x) => x.id !== item.id)])}
           interpret={async (item, transcript) => {
             const d = await post("/api/triage/interpret", { id: item.id, transcript });
-            return d.reply || d.result;
+            return String(d.reply || d.result || "");
           }}
-          emptyLabel="Saved queue is clear — new captures get studied nightly at 00:30."
+          emptyLabel="Saved queue is clear — new captures get studied nightly at 00:30. Deferred cards come back on their date."
         />
-      ) : deck === "shelf" ? (
-        <CardStack
-          items={shelf}
-          renderCard={(item) => <BookmarkCard item={item} />}
-          actions={BACKFILL_ACTIONS}
-          swipeLeftId="drop"
-          swipeRightId="keep"
-          perform={async (item, actionId) =>
-            (await post("/api/triage/backfill/verdict", { id: item.id, action: actionId })).result}
-          onResolved={(item) => setShelf((xs) => xs.filter((x) => x.id !== item.id))}
-          undo={async (item) => { await post("/api/triage/backfill/restore", { id: item.id }); }}
-          onRestore={(item) => setShelf((xs) => [item, ...xs.filter((x) => x.id !== item.id)])}
-          emptyLabel="Shelf reviewed — the old bookmark backlog is cleared."
-        />
-      ) : deck === "pain" ? (
-        <CardStack
-          items={pain}
-          renderCard={(item) => <PainCard item={item} />}
-          actions={PAIN_ACTIONS}
-          swipeLeftId="drop"
-          swipeRightId="keep"
-          perform={async (item, actionId) =>
-            (await post("/api/pain/verdict", { id: item.id, action: actionId })).result}
-          onResolved={(item) => setPain((xs) => xs.filter((x) => x.id !== item.id))}
-          undo={async (item) => { await post("/api/pain/restore", { id: item.id }); }}
-          onRestore={(item) => setPain((xs) => [item, ...xs.filter((x) => x.id !== item.id)])}
-          emptyLabel="Read through — keeps are at /api/pain?status=kept. Go talk to one of them."
-          minHeight={PAIN_STACK_HEIGHT}
-        />
+        </>
       ) : deck === "proposals" ? (
         <CardStack
           items={proposals}
@@ -295,43 +273,16 @@ function DecideInner() {
           // "Never" tombstones the tag permanently: two taps/swipes to commit.
           confirmIds={["never"]}
           perform={async (item, actionId) =>
-            (await post("/api/proposals/verdict", {
+            String((await post("/api/proposals/verdict", {
               id: item.id,
               action: actionId,
               mission: item.kind === "topic" ? missionDrafts[item.id] : undefined,
-            })).result}
+            })).result ?? "")}
           onResolved={(item) => setProposals((xs) => xs.filter((x) => x.id !== item.id))}
           onRestore={(item) => setProposals((xs) => [item, ...xs.filter((x) => x.id !== item.id)])}
           emptyLabel="No tag or topic proposals right now — they surface as your saves cluster."
         />
-      ) : (
-        <div className="space-y-4">
-          {decisions.length > 1 && (
-            <BulkApprovalBar
-              items={decisions}
-              onApplied={(ids) => setDecisions((xs) => xs.filter((x) => !ids.includes(x.id)))}
-              onRefresh={refresh}
-            />
-          )}
-          <CardStack
-          items={decisions}
-          renderCard={(item) => <DecisionCard item={item} />}
-          actions={DECISION_ACTIONS}
-          swipeLeftId="rejected"
-          swipeRightId="approved"
-          perform={async (item, actionId) =>
-            (await post("/api/decide/verdict", { id: item.id, verdict: actionId })).result}
-          onResolved={(item) => setDecisions((xs) => xs.filter((x) => x.id !== item.id))}
-          undo={async (item) => { await post("/api/decide/restore", { id: item.id }); }}
-          onRestore={(item) => setDecisions((xs) => [item, ...xs.filter((x) => x.id !== item.id)])}
-          interpret={async (item, transcript) => {
-            const d = await post("/api/decide/interpret", { id: item.id, transcript });
-            return d.reply || d.result;
-          }}
-          emptyLabel="Nothing needs your call — NEEDS-USER asks land here on the nightly scan."
-          />
-        </div>
-      )}
+      ) : null}
     </Page>
   );
 }
