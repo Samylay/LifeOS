@@ -14,6 +14,7 @@
 ## Tasks
 
 - [ ] **T83 — the nightly study step writes destinations the /decide action set cannot honour** (S) — from the /decide rework (merged 2026-09-04, `8235fbd`). `TriageProposal.destination` is now mapped onto a closed action set (`app/src/lib/decide/actions.ts`). Two shapes coming out of the study step do not resolve: `roadmap:<project>` (2 live items), which is deliberately not performable because a ROADMAP task body is executed verbatim by the autoloop and a triage item is ingested text; and `backlog:<project>` (7 live items: `lifeos`, `homelab-infra`, `scout`), where a PROJECT name was written under the `backlog:` prefix, which accepts only the three learning centres (`workouts`, `polymath`, `swe-learning`). The deck handles both correctly — it asks Samy to pick rather than inventing a centre — but 9 of 45 cards arrive with no action chosen, which is upstream noise, not a UI problem. Fix the prompt that writes `destination` so it emits only what the action set accepts: `vault`, `idea-bank`, `backlog:<one of the three centres>`, `discard`. Drop `roadmap:` from its vocabulary entirely, or send those items to `vault` with the project named in the assessment's `apply` field instead. Do NOT widen the action set to accept the current output — the closed set is the security boundary as well as the product decision. Verify: re-run the study step on a sample, then assert every emitted `destination` resolves through `proposedAction()` to a performable action (`isPerformable`), and that `app/src/lib/decide/actions.test.ts` still passes unchanged.
+  BLOCKED (2026-09-04, autoloop): the prompt that writes `destination` is `study.py` in `~/services/triage` — a different repo with its own ROADMAP and nightly executor (per this file's own note at line ~35: "do not edit `~/services/triage` from a LifeOS task"). Nothing in `app/src` emits `destination`; this repo only consumes it (`app/src/lib/decide/actions.ts`, `app/src/lib/brief/triage-apply.ts`). This task needs to be filed on the triage repo's ROADMAP instead — leaving unchecked here.
 
 
 - [x] **T65 — Pain-deck keeps land on /leads (LIVE 2026-07-15)** (S) — answers the open question T52 left: a kept pain point now files a lead (`source: "hn-pain"`) instead of sitting statusless in the pain collection. Rationale: the only thing that matters about a keep is whether Samy talked to the person, and `/leads` is the only surface that tracks that (`new → contacted → won/passed`); anywhere else is a shelf, and a shelf is exactly how the 54-gap shortlist died. The lead shape + `(source, extId)` dedup moved into `src/lib/leads-ingest.ts` (`enqueueLead`, now shared by `POST /api/leads` and the keep verdict — the batch route's in-memory key set became a per-row read-back, same within-batch dedup guarantee, first row wins on re-post); `src/lib/leads-ingest.test.ts` gives the leads path its first tests (5). Undo deletes the lead it filed under the shelf's two guards (only a row we created, only while still `new`). A pain lead carries no budget, so its pill renders `—` — deliberate: it's "would pay" vs "pays", visible at a glance. **`/leads` gained a source filter**, which is not cosmetic: leads sort by `postedAt`, an HN comment is always older than this morning's Codeur brief, so the 8 keeps landed at positions 40–47 of 47 (jm4, the only one worth contacting, at #45) — invisible without it. The 8 keeps made before this change were backfilled by replaying them through restore→keep. *(2026-07-15, interactive with Samy — he picked /leads over a Kept view or /projects. Verified: tsc clean, vitest 46 files/400 (real suite is 28/227 — see T66), docker build + up -d, `/` `/decide` `/leads` `/api/pain` 200, 8 leads filed + confirmed at positions 40–47 pre-filter, then Pain (HN) chip clicked in headless chromium → only hn-pain rows visible, jm4 present, screenshotted.)*
@@ -79,6 +80,15 @@
   (2026-08-17: done in autoloop — see Log.)
 
 ## Log
+
+- **2026-09-04 (autoloop, T83):** BLOCKED. T83 asks to fix the prompt that
+  writes `TriageProposal.destination`, but that prompt is `study.py`, which
+  lives in `~/services/triage` — a separate repo with its own ROADMAP and
+  nightly executor. This repo (`app/src`) only reads `destination`
+  (`decide/actions.ts`, `brief/triage-apply.ts`); nothing here emits it. Per
+  this ROADMAP's own cross-repo note, an executor must not edit
+  `~/services/triage` from a LifeOS task. Left unchecked with a BLOCKED note;
+  the fix needs to be filed as a task on the triage repo's own ROADMAP.
 
 - **2026-08-28 (autoloop, T64 falsifier re-check):** First unchecked
   non-NEEDS-USER task; re-ran the falsifier read-only against the live DB
