@@ -12,6 +12,7 @@ import { Archive, Check, Clock, Lightbulb, ListTodo, MessageCircleQuestion, Laye
 import { cn } from "@/lib/utils";
 import { CardStack, type DeckAction } from "@/components/decide/card-stack";
 import { TriageCard, type TriageQueueItem } from "@/components/decide/triage-card";
+import { isDecidable } from "@/lib/decide/actions";
 import { DecisionCard } from "@/components/decide/decision-card";
 import { ProposalCard } from "@/components/decide/proposal-card";
 import { BulkApprovalBar } from "@/components/decide/bulk-approval-bar";
@@ -73,6 +74,11 @@ function DecideInner() {
     DECKS.includes(paramDeck as Deck) ? (paramDeck as Deck) : "saved",
   );
   const [triage, setTriage] = useState<TriageQueueItem[]>([]);
+  // Items the study step left undecidable (no proposal, or a destination that
+  // did not resolve to a real action). Withheld from the deck — a card you
+  // cannot decide from the card is not a card — but counted, so they are
+  // withheld rather than silently lost.
+  const [withheld, setWithheld] = useState(0);
   const [decisions, setDecisions] = useState<DecisionItem[]>([]);
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [missionDrafts, setMissionDrafts] = useState<Record<string, string>>({});
@@ -97,7 +103,10 @@ function DecideInner() {
       get("/api/decide/queue"),
       get("/api/proposals"),
     ]);
-    setTriage((t?.items as TriageQueueItem[]) ?? []);
+    const triageItems = (t?.items as TriageQueueItem[]) ?? [];
+    const decidable = triageItems.filter(isDecidable);
+    setTriage(decidable);
+    setWithheld(triageItems.length - decidable.length);
     setDecisions((d?.items as DecisionItem[]) ?? []);
     setProposals((pr?.items as Proposal[]) ?? []);
     setErrors({
@@ -168,6 +177,7 @@ function DecideInner() {
           </button>
         </div>
       ) : deck === "saved" ? (
+        <>
         <CardStack
           items={triage}
           renderCard={(item) => <TriageCard item={item} />}
@@ -185,6 +195,12 @@ function DecideInner() {
           }}
           emptyLabel="Saved queue is clear — new captures get studied nightly at 00:30."
         />
+        {withheld > 0 && (
+          <p className="text-center text-xs text-muted-foreground">
+            {withheld} held back — no action could be proposed from the card alone.
+          </p>
+        )}
+        </>
       ) : deck === "proposals" ? (
         <CardStack
           items={proposals}

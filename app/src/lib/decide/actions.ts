@@ -8,9 +8,24 @@
 // roadmap:<project> | discard) is the proto-action-menu this supersedes.
 // `legacyDestinationToAction` maps every existing string onto exactly one
 // action id so the 613 existing triage items keep loading.
-import type { TriageItem } from "@/lib/triage";
+import type { TriageCategory } from "@/lib/triage";
 import type { BacklogCentre } from "@/lib/backlog";
 import { normalizeCentre } from "@/lib/brief/triage-reply";
+
+// The narrow shape this module reads. `TriageItem` satisfies it, and so does
+// the JSON the queue API hands the card — so eligibility and effect sentences
+// are computable on the server and in the browser without a shared date type.
+export interface ActionSubject {
+  url?: string;
+  source?: string;
+  proposal?: {
+    title?: string;
+    summary?: string;
+    category?: TriageCategory;
+    destination?: string;
+    assessment?: { apply?: string };
+  };
+}
 
 export type ActionId =
   | "file-vault"
@@ -88,7 +103,7 @@ const NO_PARAMS: Record<string, never> = {};
 // A project name is a repo directory name: lowercase slug, nothing else.
 const PROJECT_SLUG = /^[a-z0-9][a-z0-9-]{0,63}$/;
 
-type EligibilityPredicate = (item: TriageItem) => boolean;
+type EligibilityPredicate = (item: ActionSubject) => boolean;
 
 // Data-driven eligibility table — which of the closed actions an item may
 // take, derived from its source, category, and assessment. Order here is the
@@ -126,11 +141,11 @@ const ELIGIBILITY: ReadonlyArray<[Exclude<ActionId, "hold-for-review">, Eligibil
   ["discard", () => true],
 ];
 
-export function eligibleActions(item: TriageItem): ActionId[] {
+export function eligibleActions(item: ActionSubject): ActionId[] {
   return ELIGIBILITY.filter(([, predicate]) => predicate(item)).map(([id]) => id);
 }
 
-function itemTitle(item: TriageItem): string {
+function itemTitle(item: ActionSubject): string {
   const title = item.proposal?.title?.trim();
   if (title) return title;
   const summary = item.proposal?.summary?.trim();
@@ -143,7 +158,7 @@ function itemTitle(item: TriageItem): string {
 // The plain-language sentence shown before approval. Must never return an
 // empty string — describeEffect always has a title fallback and a case for
 // every ActionId in the closed set.
-export function describeEffect(action: Action, item: TriageItem): string {
+export function describeEffect(action: Action, item: ActionSubject): string {
   const title = itemTitle(item);
   switch (action.id) {
     case "file-vault":
@@ -195,4 +210,23 @@ export function legacyDestinationToAction(destination: string): Action {
   }
 
   return { id: "hold-for-review", params: NO_PARAMS };
+}
+
+// The one action a card leads with: what the study step proposed, resolved
+// through the legacy mapping into the closed set. `null` means the item is
+// NOT decidable from the card — no proposal, or a destination that did not
+// resolve to a real action. Such items are withheld rather than shown, so the
+// deck never contains work that cannot be done from the deck.
+export function proposedAction(item: ActionSubject): Action | null {
+  const destination = item.proposal?.destination;
+  if (!destination) return null;
+  const action = legacyDestinationToAction(destination);
+  // hold-for-review is the mapping's safe fallback, not a decision Samy can
+  // approve — an item that lands there needs a human look, not a card.
+  if (action.id === "hold-for-review") return null;
+  return action;
+}
+
+export function isDecidable(item: ActionSubject): boolean {
+  return proposedAction(item) !== null;
 }
