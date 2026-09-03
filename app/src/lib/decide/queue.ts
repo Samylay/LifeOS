@@ -7,13 +7,20 @@
 
 export const DEFER_DAYS = 7;
 
+// How far back the dispatch surface looks for items to hand to Claude. The
+// window is the point: an "approved items" list with no bound is the holding
+// pen this rework exists to kill (45 items sat filed and untouched). Filing is
+// the action now — anything older than this is finished, not pending.
+export const DISPATCH_WINDOW_DAYS = 7;
+
 export interface QueueDoc {
   status?: string;
   deferUntil?: { __date?: string } | string;
   createdAt?: { __date?: string } | string;
+  filedAt?: { __date?: string } | string;
 }
 
-function toTime(v: QueueDoc["deferUntil"]): number | null {
+function toTime(v: QueueDoc["deferUntil"] | undefined): number | null {
   const iso = typeof v === "string" ? v : v?.__date;
   if (!iso) return null;
   const t = new Date(iso).getTime();
@@ -38,4 +45,25 @@ export function visibleQueueItems<T extends QueueDoc>(items: T[], now: Date): T[
   return items
     .filter((i) => isDue(i, now))
     .sort((a, b) => (toTime(a.createdAt) ?? 0) - (toTime(b.createdAt) ?? 0));
+}
+
+// Items filed inside the dispatch window and not already queued for Claude —
+// newest first, because the thing you just decided is the thing you want to
+// hand over. An item with no readable filedAt is excluded: it is old enough
+// to predate the field, so it is finished, not pending.
+export function dispatchableItems<T extends QueueDoc & { id: string }>(
+  items: T[],
+  queuedItemIds: Iterable<string>,
+  now: Date,
+  days = DISPATCH_WINDOW_DAYS,
+): T[] {
+  const queued = new Set(queuedItemIds);
+  const cutoff = now.getTime() - days * 24 * 60 * 60 * 1000;
+  return items
+    .filter((i) => {
+      if (i.status !== "filed" || queued.has(i.id)) return false;
+      const filed = toTime(i.filedAt);
+      return filed !== null && filed >= cutoff;
+    })
+    .sort((a, b) => (toTime(b.filedAt) ?? 0) - (toTime(a.filedAt) ?? 0));
 }

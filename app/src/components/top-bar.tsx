@@ -7,6 +7,7 @@ import { useAppStore } from "@/lib/store";
 
 const ROUTE_TITLES: Array<[string, string]> = [
   ["/decide/approvals", "Approvals"],
+  ["/decide/dispatch", "Send to Claude"],
   ["/decide", "Decide"],
   ["/projects", "Projects"],
   ["/content", "Content"],

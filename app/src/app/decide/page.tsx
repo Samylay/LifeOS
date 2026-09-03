@@ -11,7 +11,7 @@
 import { Suspense, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Check, Clock, Inbox, Layers, RefreshCw, X } from "lucide-react";
+import { Check, Clock, Inbox, Layers, RefreshCw, Terminal, X } from "lucide-react";
 import { TriageBulkBar, bulkTarget } from "@/components/decide/triage-bulk-bar";
 import { cn } from "@/lib/utils";
 import { CardStack, type DeckAction } from "@/components/decide/card-stack";
@@ -189,6 +189,13 @@ function DecideInner() {
           >
             <Inbox size={14} aria-hidden /> Approvals
             {approvalCount > 0 && <span className="text-xs text-primary">{approvalCount}</span>}
+          </Link>
+          <Link
+            href="/decide/dispatch"
+            aria-label="Send to Claude"
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-[color,transform] duration-[var(--dur-fast)] ease-[var(--ease-out-custom)] hover:text-foreground active:scale-[0.97] max-lg:[min-height:44px]"
+          >
+            <Terminal size={14} aria-hidden />
           </Link>
       </FilterBar>
 
