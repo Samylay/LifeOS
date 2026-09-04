@@ -59,3 +59,27 @@ describe("NEXT_STATUS — the advance path reflects what Samy actually does", ()
     expect(NEXT_STATUS.idea?.label).toMatch(/film/i);
   });
 });
+
+describe("rendering a row that has not been migrated yet", () => {
+  // Regression, 2026-09-04. The status migration runs in an effect, which is
+  // after first paint, so a card holding a legacy status renders BEFORE its
+  // row is rewritten. Indexing the three-state lookup with the raw value threw
+  // on the one `scripted` idea and crashed the whole list — which then stopped
+  // the migration effect from ever running. The page could never heal itself.
+  const META = Object.fromEntries(IDEA_STATUSES.map((s) => [s.status, s]));
+
+  it("every legacy status resolves to a renderable entry", () => {
+    for (const legacy of ["idea", "scripted", "recorded", "edited", "posted", "junk", ""]) {
+      const entry = META[migrateStatus(legacy)];
+      expect(entry).toBeDefined();
+      expect(entry.label).toBeTruthy();
+      expect(entry.color).toBeTruthy();
+    }
+  });
+
+  it("the raw legacy value is NOT a valid key — normalizing is required", () => {
+    // Proves the guard is load-bearing rather than decorative.
+    expect(META["scripted"]).toBeUndefined();
+    expect(META[migrateStatus("scripted")]).toBeDefined();
+  });
+});

@@ -18,7 +18,9 @@ import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Page, PageHeader } from "@/components/ui/page";
 import { Skeleton } from "@/components/skeleton";
 import type { ContentIdea, ContentIdeaStatus, ContentPillar } from "@/lib/types";
-import { PILLARS, PILLAR_META, HOOK_FORMULAS } from "@/lib/content-os";
+import { useContentCatalog } from "@/lib/use-catalog";
+import { countByType, resolveType, type ContentType, type HookFormula } from "@/lib/content/catalog";
+import { Playbook } from "@/components/content/playbook";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -26,7 +28,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { IDEA_STATUSES, NEXT_STATUS } from "@/lib/content/idea-status";
+import { IDEA_STATUSES, NEXT_STATUS, migrateStatus } from "@/lib/content/idea-status";
 import { IdeaBody } from "@/components/content/idea-body";
 
 const STATUSES = IDEA_STATUSES;
@@ -36,14 +38,21 @@ const STATUS_META = Object.fromEntries(STATUSES.map((s) => [s.status, s])) as Re
   (typeof STATUSES)[number]
 >;
 
+// Rendering normalizes the stored status instead of trusting it. The database
+// migration runs in an effect, which is AFTER first paint — so a card holding
+// a legacy status renders before its row is rewritten. Indexing STATUS_META
+// with the raw value crashed the whole list on the one `scripted` idea, which
+// in turn stopped the migration effect from ever running. Derive, don't trust.
+const statusOf = (idea: ContentIdea): ContentIdeaStatus => migrateStatus(idea.status as string);
+
 // One advance button per card: the label names what Samy actually does next.
 const NEXT_STEP = NEXT_STATUS;
 
 /** Translucent tint of a color (hex or CSS var) for chip backgrounds. */
 const tint = (color: string, pct: number) => `color-mix(in srgb, ${color} ${pct}%, transparent)`;
 
-function PillarBadge({ pillar }: { pillar: ContentPillar | "" }) {
-  const meta = pillar ? PILLAR_META[pillar] : undefined;
+function PillarBadge({ pillar, types }: { pillar: ContentPillar | ""; types: ContentType[] }) {
+  const meta = resolveType(pillar, types);
   if (!meta) {
     return (
       <Badge
@@ -65,7 +74,7 @@ function PillarBadge({ pillar }: { pillar: ContentPillar | "" }) {
   );
 }
 
-function HookBadge({ n }: { n?: number }) {
+function HookBadge({ n, hooks }: { n?: number; hooks: HookFormula[] }) {
   if (!n) {
     return (
       <Badge
@@ -77,7 +86,7 @@ function HookBadge({ n }: { n?: number }) {
       </Badge>
     );
   }
-  const f = HOOK_FORMULAS.find((h) => h.n === n);
+  const f = hooks.find((h) => h.n === n);
   return (
     <Badge
       variant="secondary"
@@ -98,10 +107,14 @@ function IdeaEditor({
   initial,
   onSave,
   onCancel,
+  types,
+  hooks,
 }: {
   initial?: ContentIdea;
   onSave: (d: IdeaDraft) => void;
   onCancel: () => void;
+  types: ContentType[];
+  hooks: HookFormula[];
 }) {
   const [d, setD] = useState<IdeaDraft>(initial ? { ...initial } : { ...EMPTY_IDEA });
   const set = (patch: Partial<IdeaDraft>) => setD((prev) => ({ ...prev, ...patch }));
@@ -120,14 +133,14 @@ function IdeaEditor({
         <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">
           Pillar
         </span>
-        {PILLARS.map((p) => (
+        {types.map((p) => (
           <button
-            key={p.pillar}
-            onClick={() => set({ pillar: p.pillar })}
+            key={p.key}
+            onClick={() => set({ pillar: p.key as ContentPillar })}
             className="text-xs font-medium rounded-full px-3 py-1.5 transition-colors duration-150 active:scale-[0.95]"
             style={{
-              color: d.pillar === p.pillar ? p.color : "var(--muted-foreground)",
-              background: d.pillar === p.pillar ? tint(p.color, 20) : "var(--muted)",
+              color: d.pillar === p.key ? p.color : "var(--muted-foreground)",
+              background: d.pillar === p.key ? tint(p.color, 20) : "var(--muted)",
             }}
           >
             {p.label}
@@ -165,7 +178,7 @@ function IdeaEditor({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="none">— none —</SelectItem>
-              {HOOK_FORMULAS.map((h) => (
+              {hooks.map((h) => (
                 <SelectItem key={h.n} value={String(h.n)}>
                   {h.n} · {h.name}
                 </SelectItem>
@@ -220,7 +233,9 @@ function IdeaBank() {
   const [hidePosted, setHidePosted] = useState(false);
   const [seeding, setSeeding] = useState(false);
   const [showAll, setShowAll] = useState(false);
-  // Per-idea batch failure reasons, rendered inline on the card (not a toast storm).
+  const { types, hooks, addType, updateType, addHook, updateHook } = useContentCatalog();
+  const typeCounts = countByType(ideas, types);
+  const [showPlaybook, setShowPlaybook] = useState(false);
 
   // No ship-logging step: the ship log is being retired, and this surface
   // must not write to a collection on its way out.
@@ -232,10 +247,10 @@ function IdeaBank() {
 
 
   const visible = ideas.filter(
-    (i) => (pillarFilter === "all" || i.pillar === pillarFilter) && (!hidePosted || i.status !== "posted")
+    (i) => (pillarFilter === "all" || i.pillar === pillarFilter) && (!hidePosted || statusOf(i) !== "posted")
   );
   const shown = showAll ? visible : visible.slice(0, 25);
-  const unscripted = ideas.filter((i) => i.status === "idea").length;
+  const unscripted = ideas.filter((i) => statusOf(i) === "idea").length;
 
   return (
     <div className="space-y-4">
@@ -249,24 +264,45 @@ function IdeaBank() {
           >
             All ({ideas.length})
           </button>
-          {PILLARS.map((p) => (
-            <button
-              key={p.pillar}
-              onClick={() => setPillarFilter(p.pillar)}
-              className="text-xs font-medium rounded-full px-3 py-1.5 transition-colors duration-150 active:scale-[0.95]"
-              style={{
-                color: pillarFilter === p.pillar ? p.color : "var(--muted-foreground)",
-                background: pillarFilter === p.pillar ? tint(p.color, 20) : "var(--muted)",
-              }}
-            >
-              {p.label} ({ideas.filter((i) => i.pillar === p.pillar).length})
-            </button>
-          ))}
+          {typeCounts.map((c) => {
+            const color = types.find((t) => t.key === c.key)?.color ?? "var(--muted-foreground)";
+            const active = pillarFilter === c.key;
+            return (
+              <button
+                key={c.key || "unsorted"}
+                onClick={() => setPillarFilter(c.key as ContentPillar)}
+                className="text-xs font-medium rounded-full px-3 py-1.5 transition-colors duration-150 active:scale-[0.95]"
+                style={{
+                  color: active ? color : "var(--muted-foreground)",
+                  background: active ? tint(color, 20) : "var(--muted)",
+                }}
+              >
+                {c.label} ({c.count})
+              </button>
+            );
+          })}
           <label className="flex items-center gap-1.5 text-xs ml-2 text-muted-foreground/70">
             <Checkbox checked={hidePosted} onCheckedChange={(v) => setHidePosted(v === true)} />
             hide posted
           </label>
+          <button
+            onClick={() => setShowPlaybook((v) => !v)}
+            className="ml-auto text-xs font-medium text-muted-foreground transition-transform duration-[var(--dur-fast)] ease-[var(--ease-out-custom)] hover:text-foreground active:scale-[0.97]"
+          >
+            {showPlaybook ? "Hide" : "Playbook"}
+          </button>
         </div>
+      {showPlaybook && (
+        <Playbook
+          types={types}
+          hooks={hooks}
+          counts={typeCounts}
+          onAddType={addType}
+          onUpdateType={updateType}
+          onAddHook={addHook}
+          onUpdateHook={updateHook}
+        />
+      )}
         <div className="flex items-center gap-2">
           {!creating && (
             <Button
@@ -295,6 +331,8 @@ function IdeaBank() {
 
       {creating && (
         <IdeaEditor
+          types={types}
+          hooks={hooks}
           onSave={(d) => {
             createIdea(d);
             setCreating(false);
@@ -339,6 +377,8 @@ function IdeaBank() {
         {shown.map((idea) =>
           editingId === idea.id ? (
             <IdeaEditor
+              types={types}
+              hooks={hooks}
               key={idea.id}
               initial={idea}
               onSave={(d) => {
@@ -352,13 +392,13 @@ function IdeaBank() {
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
                   <div className="flex items-center gap-1.5 flex-wrap">
-                    <PillarBadge pillar={idea.pillar} />
+                    <PillarBadge pillar={idea.pillar} types={types} />
                     {idea.episode != null && (
                       <Badge variant="secondary" className="text-[10px] font-bold">
                         Ep {idea.episode}
                       </Badge>
                     )}
-                    <HookBadge n={idea.hookFormula} />
+                    <HookBadge n={idea.hookFormula} hooks={hooks} />
                   </div>
                   <p className="text-sm font-medium mt-1.5 text-foreground">
                     {idea.title}
@@ -392,20 +432,20 @@ function IdeaBank() {
                 <span
                   className="text-[11px] font-medium rounded-full px-2.5 py-1"
                   style={{
-                    color: STATUS_META[idea.status].color,
-                    background: tint(STATUS_META[idea.status].color, 20),
+                    color: STATUS_META[statusOf(idea)].color,
+                    background: tint(STATUS_META[statusOf(idea)].color, 20),
                   }}
                 >
-                  {STATUS_META[idea.status].label}
+                  {STATUS_META[statusOf(idea)].label}
                 </span>
-                {NEXT_STEP[idea.status] && (
+                {NEXT_STEP[statusOf(idea)] && (
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => setIdeaStatus(idea, NEXT_STEP[idea.status]!.next)}
+                    onClick={() => setIdeaStatus(idea, NEXT_STEP[statusOf(idea)]!.next)}
                     className="gap-1 text-xs"
                   >
-                    {NEXT_STEP[idea.status]!.label} <ArrowRight size={13} />
+                    {NEXT_STEP[statusOf(idea)]!.label} <ArrowRight size={13} />
                   </Button>
                 )}
               </div>
