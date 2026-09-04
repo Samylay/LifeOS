@@ -10,10 +10,8 @@ import {
   Check,
   Download,
   AlertTriangle,
-  Wand2,
   FileText,
   Copy,
-  Loader2,
   ArrowRight,
 } from "lucide-react";
 import { useContentIdeas } from "@/lib/use-content";
@@ -248,7 +246,7 @@ function IdeaEditor({
 }
 
 function IdeaBank() {
-  const { ideas, loading, createIdea, updateIdea, deleteIdea, seedIdeas, scriptIdea, scriptWeeklyBatch } =
+  const { ideas, loading, createIdea, updateIdea, deleteIdea, seedIdeas } =
     useContentIdeas();
   const { logShip } = useShipLog();
   const { toast } = useToast();
@@ -258,13 +256,9 @@ function IdeaBank() {
   const [pillarFilter, setPillarFilter] = useState<ContentPillar | "all">("all");
   const [hidePosted, setHidePosted] = useState(false);
   const [seeding, setSeeding] = useState(false);
-  const [scriptingId, setScriptingId] = useState<string | null>(null);
-  const [batchProgress, setBatchProgress] = useState<{ done: number; total: number } | null>(null);
   const [openScriptIds, setOpenScriptIds] = useState<Set<string>>(new Set());
   const [showAll, setShowAll] = useState(false);
   // Per-idea batch failure reasons, rendered inline on the card (not a toast storm).
-  const [failReasons, setFailReasons] = useState<Record<string, string>>({});
-  const busy = scriptingId !== null || batchProgress !== null;
 
   // Posting is a ship: the moment an idea flips to "posted", it left the
   // machine — write it to the same ship log the projects surface keeps score in.
@@ -284,64 +278,6 @@ function IdeaBank() {
       return next;
     });
 
-  const runScriptIdea = async (id: string) => {
-    setScriptingId(id);
-    try {
-      await scriptIdea(id);
-      setOpenScriptIds((prev) => new Set(prev).add(id));
-      setFailReasons((prev) => {
-        const next = { ...prev };
-        delete next[id];
-        return next;
-      });
-      toast("Script drafted — review, read aloud, cut 15%");
-    } catch (e) {
-      toast(e instanceof Error ? e.message : "Script draft failed", "error");
-    } finally {
-      setScriptingId(null);
-    }
-  };
-
-  const runBatch = async () => {
-    setBatchProgress({ done: 0, total: 0 });
-    try {
-      const result = await scriptWeeklyBatch((done, total) => setBatchProgress({ done, total }));
-      if (result.scripted.length > 0) {
-        setOpenScriptIds((prev) => {
-          const next = new Set(prev);
-          for (const i of result.scripted) next.add(i.id);
-          return next;
-        });
-        toast(`Drafted ${result.scripted.length} script${result.scripted.length === 1 ? "" : "s"} — Monday block done, review before Tuesday`);
-      }
-      // Failures land inline on each card instead of a toast per idea.
-      setFailReasons((prev) => {
-        const next = { ...prev };
-        for (const i of result.scripted) delete next[i.id];
-        for (const f of result.failed) next[f.idea.id] = f.error;
-        return next;
-      });
-      if (result.failed.length > 0) {
-        toast(`${result.failed.length} draft${result.failed.length === 1 ? "" : "s"} failed — reasons on the cards`, "error");
-      }
-      if (result.blocked.length > 0) {
-        const floorBlocked = result.blocked.filter((b) => b.reason.startsWith("bank floor"));
-        if (floorBlocked.length > 0) {
-          toast(
-            `${floorBlocked.length} held back — bank floor is 12 unscripted ideas (${result.unscripted} in bank). Brainstorm first.`,
-            "warning"
-          );
-        }
-        for (const b of result.blocked.filter((x) => !x.reason.startsWith("bank floor"))) {
-          toast(b.reason, "warning");
-        }
-      }
-    } catch (e) {
-      toast(e instanceof Error ? e.message : "Batch draft failed", "error");
-    } finally {
-      setBatchProgress(null);
-    }
-  };
 
   const visible = ideas.filter(
     (i) => (pillarFilter === "all" || i.pillar === pillarFilter) && (!hidePosted || i.status !== "posted")
@@ -380,27 +316,6 @@ function IdeaBank() {
           </label>
         </div>
         <div className="flex items-center gap-2">
-          {ideas.length > 0 && (
-            <Button
-              onClick={runBatch}
-              disabled={busy}
-              title="Monday block: draft 2 Concept + 1 Built-It + 1 Gotcha from the bank (never drains unscripted ideas below 12)"
-              variant="secondary"
-              size="sm"
-              className="gap-1.5 text-sm font-medium"
-            >
-              {batchProgress ? (
-                <>
-                  <Loader2 size={15} className="animate-spin" />
-                  Drafting{batchProgress.total > 0 ? ` ${batchProgress.done}/${batchProgress.total}` : "…"}
-                </>
-              ) : (
-                <>
-                  <Wand2 size={15} /> Draft week&rsquo;s batch
-                </>
-              )}
-            </Button>
-          )}
           {!creating && (
             <Button
               onClick={() => setCreating(true)}
@@ -503,24 +418,6 @@ function IdeaBank() {
                   )}
                 </div>
                 <div className="flex items-center shrink-0">
-                  {idea.status === "idea" && (
-                    <button
-                      onClick={() => runScriptIdea(idea.id)}
-                      disabled={busy || !idea.hookFormula}
-                      title={
-                        !idea.hookFormula
-                          ? "Assign a hook formula first — a topic isn't a post"
-                          : "Draft script + caption with Claude"
-                      }
-                      className="h-11 w-11 flex items-center justify-center rounded-lg disabled:opacity-40 text-primary transition-transform duration-150 active:scale-[0.9]"
-                    >
-                      {scriptingId === idea.id ? (
-                        <Loader2 size={15} className="animate-spin" />
-                      ) : (
-                        <Wand2 size={15} />
-                      )}
-                    </button>
-                  )}
                   {idea.script && (
                     <button
                       onClick={() => toggleScript(idea.id)}
@@ -546,11 +443,6 @@ function IdeaBank() {
                   </button>
                 </div>
               </div>
-              {failReasons[idea.id] && (
-                <p className="mt-2 text-xs text-destructive">
-                  Draft failed: {failReasons[idea.id]}
-                </p>
-              )}
               {/* One advance button, labeled with the next step; the full
                   status row lives in the editor for corrections. */}
               <div className="mt-2 flex items-center gap-2 flex-wrap">

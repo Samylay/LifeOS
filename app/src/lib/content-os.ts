@@ -7,7 +7,7 @@ import type { ContentPillar, ContentIdea } from "./types";
 // entering AI one scarce concept per 60–90s video, in a peer voice (not a tech
 // lead), grounded in things Samy actually built. The build-in-public "Build Log"
 // diary was scrapped. NOTE: the underlying pillar KEYS are unchanged
-// (build-log/workflow-win/under-the-hood) because content-scripting.ts + its
+// (build-log/workflow-win/under-the-hood) because content/weekly-batch.ts + its
 // tests + the weekly scheduler are wired to them; only their MEANING/labels
 // changed here. Key → new meaning:
 //   under-the-hood → Concept   (the front door: "what X actually is")

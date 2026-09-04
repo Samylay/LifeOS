@@ -4,32 +4,6 @@ import { useCallback } from "react";
 import { useCollection } from "./use-collection";
 import type { ContentIdea } from "./types";
 import { SEED_IDEAS } from "./content-os";
-import { planWeeklyBatch, type BatchPlan, type ScriptDraft } from "./content-scripting";
-
-async function fetchScriptDraft(idea: ContentIdea): Promise<ScriptDraft> {
-  const res = await fetch("/api/content/script", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      title: idea.title,
-      pillar: idea.pillar,
-      hookFormula: idea.hookFormula,
-      episode: idea.episode,
-      notes: idea.notes,
-    }),
-  });
-  if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    throw new Error(data.error || "script draft failed");
-  }
-  const { draft } = await res.json();
-  return draft as ScriptDraft;
-}
-
-export interface BatchResult extends BatchPlan {
-  scripted: ContentIdea[];
-  failed: { idea: ContentIdea; error: string }[];
-}
 
 export function useContentIdeas() {
   const { items: ideas, loading, create, update, remove } =
@@ -65,42 +39,5 @@ export function useContentIdeas() {
     }
   }, [create]);
 
-  // --- AI script drafting via claude -p (Monday scripting block) ---
-
-  // Draft script + caption for one idea and flip it to "scripted".
-  const scriptIdea = useCallback(
-    async (id: string) => {
-      const idea = ideas.find((i) => i.id === id);
-      if (!idea) throw new Error("idea not found");
-      if (!idea.hookFormula) // covers unset AND the "" that pre-fix triage banking wrote
-        throw new Error("assign a hook formula first — a topic isn't a post");
-      const draft = await fetchScriptDraft(idea);
-      await updateIdea(id, { ...draft, status: "scripted" });
-    },
-    [ideas, updateIdea]
-  );
-
-  // Draft the full weekly batch (2 Concept + 1 Built-It + 1 Gotcha per the
-  // cadence), in bank order, never draining unscripted ideas below the floor.
-  const scriptWeeklyBatch = useCallback(
-    async (onProgress?: (done: number, total: number) => void): Promise<BatchResult> => {
-      const plan = planWeeklyBatch(ideas);
-      const scripted: ContentIdea[] = [];
-      const failed: BatchResult["failed"] = [];
-      for (const idea of plan.toGenerate) {
-        try {
-          const draft = await fetchScriptDraft(idea);
-          await updateIdea(idea.id, { ...draft, status: "scripted" });
-          scripted.push(idea);
-        } catch (e) {
-          failed.push({ idea, error: e instanceof Error ? e.message : "draft failed" });
-        }
-        onProgress?.(scripted.length + failed.length, plan.toGenerate.length);
-      }
-      return { ...plan, scripted, failed };
-    },
-    [ideas, updateIdea]
-  );
-
-  return { ideas, loading, createIdea, updateIdea, deleteIdea, seedIdeas, scriptIdea, scriptWeeklyBatch };
+  return { ideas, loading, createIdea, updateIdea, deleteIdea, seedIdeas };
 }
