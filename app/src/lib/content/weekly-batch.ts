@@ -26,7 +26,7 @@ export const WEEKLY_SLOTS: ContentPillar[] = [
 export interface BatchPlan {
   toGenerate: ContentIdea[];
   blocked: { pillar: ContentPillar; reason: string }[];
-  unscripted: number; // ideas with status "idea" before generating
+  unscripted: number; // ideas still at status "idea" — the unfilmed bank
 }
 
 /**

@@ -52,8 +52,8 @@ describe("planWeeklyBatch", () => {
     expect(eps).toEqual([1]);
   });
 
-  it("skips scripted/posted ideas and ideas without a hook formula", () => {
-    const scripted = idea("workflow-win", { status: "scripted" });
+  it("skips ready/posted ideas and ideas without a hook formula", () => {
+    const scripted = idea("workflow-win", { status: "ready" });
     const noHook = idea("workflow-win", { hookFormula: undefined });
     const ready = idea("workflow-win");
     const ideas = [scripted, noHook, ready, ...bank(8, 4, 6)];
