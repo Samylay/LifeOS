@@ -1,1161 +1,262 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+// /projects — derived state, not maintained state (T-projects-rework-03).
+//
+// The old surface was 1,161 lines tracking work that was finished: 10
+// projects, 7 completed, 1 active and six weeks stale, 10 tasks of which
+// none was ever done. Every fact on it was a fact Samy had to update, so it
+// stopped being true the moment he stopped maintaining it.
+//
+// This one answers two questions and nothing else:
+//   1. What has stalled and shouldn't have — the thing a list of repos will
+//      not tell you, so it leads.
+//   2. What to work on next.
+//
+// Nothing here is typed in. Status, last activity and next task all come from
+// the repo, so there is no field that needs an update to stay accurate. The
+// only stored state is the archive flag, because archiving is a decision
+// rather than a fact.
+//
+// Tasks are gone. Todoist owns tasks — a second inbox is why none of those
+// ten was ever completed.
+import { useCallback, useEffect, useState } from "react";
 import {
-  FolderKanban, Plus, Archive, MoreHorizontal, Rocket, Flag,
-  ChevronDown, ChevronUp, AlertTriangle,
+  AlertTriangle, Archive, ArchiveRestore, CircleCheck, CircleDot,
+  FolderKanban, RefreshCw, UserRound,
 } from "lucide-react";
-import { useProjects, WIP_LIMIT } from "@/lib/use-projects";
-import { useGoals } from "@/lib/use-goals";
-import { useShipLog } from "@/lib/use-ship-log";
-import { useTasks } from "@/lib/use-tasks";
-import { useToast } from "@/components/toast";
-import { Skeleton } from "@/components/skeleton";
-import { ConfirmDialog } from "@/components/confirm-dialog";
-import { CountUp } from "@/components/count-up";
-import { GoalSection, GoalEditor, GOAL_STATE_RANK } from "@/components/goal-section";
-import type { Project, ProjectStatus, AreaId, Task, ShipLogEntry, Goal } from "@/lib/types";
-import { AREAS, AREA_HEX, mondayOf, goalPlanState, commitmentsForWeek, localDayOf, calendarDaysBetween, withShipActivity, parseTags } from "@/lib/types";
-import { TaskItem, TaskCreateForm } from "@/components/task-list";
-import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 import { Page, PageHeader } from "@/components/ui/page";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Card } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { post } from "@/lib/decide/post";
+import type { ProjectStatus } from "@/lib/projects/state";
 
-// --- Status metadata ---
-
-const STATUS_COLUMNS: { status: ProjectStatus; label: string; color: string }[] = [
-  { status: "planning", label: "Planning", color: "var(--muted-foreground)" },
-  { status: "active", label: "Active", color: "var(--primary)" },
-  { status: "paused", label: "Paused", color: "var(--warning)" },
-  { status: "completed", label: "Completed", color: "var(--chart-4)" },
-];
-const statusMeta = (s: ProjectStatus) => STATUS_COLUMNS.find((c) => c.status === s);
-
-/** Translucent tint of a color (hex or CSS var) for chip backgrounds. */
-const tint = (color: string, pct: number) => `color-mix(in srgb, ${color} ${pct}%, transparent)`;
-
-const DAY_MS = 86_400_000;
-// Calendar-day count for prose ("Shipped today") — not the same as the
-// rolling 30-day window below, which stays elapsed-ms on purpose.
-const daysSince = (d: Date) => calendarDaysBetween(new Date(d), new Date());
-
-// A project that's meant to be in flight but hasn't named its exit point (or
-// has run its task list dry) is drifting — the thing exit-velocity guards
-// against. Return the one-line prompt, or null if it's healthy.
-function looseEnd(p: Project, projectTasks: Task[]): string | null {
-  if (p.status !== "active" && p.status !== "planning") return null;
-  if (!p.shippingEvent?.trim()) return "No shipping event — what leaves the machine?";
-  if (projectTasks.length > 0 && projectTasks.every((t) => t.status === "done"))
-    return "All tasks done — ship it or close it out.";
-  return null;
+interface ProjectEntry {
+  name: string;
+  dir: string;
+  state: {
+    status: ProjectStatus;
+    stallReason: string | null;
+    nextAction: { title: string; needsUser: boolean } | null;
+  } | null;
+  lastCommitAt: string | null;
+  lastCommitSubject: string | null;
+  autoloopTouchedAt: string | null;
+  openTaskCount: number;
+  error: string | null;
 }
 
-// --- Momentum hero ---
-// The page's anchor: one card instead of three tiles — shipped/30d as the
-// hero number, days-since-ship with the coaching line, WIP pips. A readout,
-// not a control. Token-based (bg-card + primary accent) since the page went
-// dark-by-default; the old hardcoded dark gradient read flat.
+interface Snapshot {
+  computedAt: string | null;
+  projects: ProjectEntry[];
+  computing: boolean;
+  stale: boolean;
+}
 
-function MomentumHero({
-  activeCount, shipped30, lastShip,
+const STATUS_META: Record<ProjectStatus, { label: string; color: string }> = {
+  stalled: { label: "stalled", color: "var(--warning)" },
+  blocked: { label: "waiting on you", color: "var(--destructive)" },
+  moving: { label: "moving", color: "var(--success)" },
+  done: { label: "done", color: "var(--muted-foreground)" },
+  archived: { label: "archived", color: "var(--muted-foreground)" },
+};
+
+// Stalled first, then what is waiting on Samy, then live work. Done and
+// archived are not in the active view at all.
+const ACTIVE_ORDER: ProjectStatus[] = ["stalled", "blocked", "moving"];
+
+function ago(iso: string | null): string {
+  if (!iso) return "never";
+  const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
+  if (Number.isNaN(days)) return "unknown";
+  if (days <= 0) return "today";
+  if (days === 1) return "yesterday";
+  if (days < 30) return `${days}d ago`;
+  const months = Math.floor(days / 30);
+  return `${months}mo ago`;
+}
+
+function computedLabel(snap: Snapshot): string {
+  if (snap.computing) return "scanning repos…";
+  if (!snap.computedAt) return "not computed yet";
+  const mins = Math.floor((Date.now() - new Date(snap.computedAt).getTime()) / 60_000);
+  const when = mins < 1 ? "just now" : mins === 1 ? "1 min ago" : `${mins} min ago`;
+  // Say when, always. A number pretending to be live is the failure this
+  // surface exists to fix.
+  return snap.stale ? `computed ${when} · refreshing` : `computed ${when}`;
+}
+
+function ProjectRow({
+  project,
+  onArchive,
 }: {
-  activeCount: number;
-  shipped30: number;
-  lastShip: Date | null;
+  project: ProjectEntry;
+  onArchive: (name: string, archived: boolean) => void;
 }) {
-  const atLimit = activeCount >= WIP_LIMIT;
-  const sinceShip = lastShip ? daysSince(lastShip) : null;
-  const cold = sinceShip === null || sinceShip > 7;
-
-  const sinceLabel =
-    sinceShip === null ? "Nothing shipped yet" :
-    sinceShip === 0 ? "Shipped today" :
-    `${sinceShip} day${sinceShip === 1 ? "" : "s"} since last ship`;
-  // Purely informational — this is a readout, not a nudge (no guilt styling).
-  const coach =
-    sinceShip === 0 ? "That's the job. Again tomorrow." :
-    cold ? "No ships logged in the last week." :
-    "Shipped within the last week.";
+  const status = project.state?.status;
+  const meta = status ? STATUS_META[status] : null;
+  const isArchived = status === "archived";
 
   return (
-    <div className="enter hover-lift relative overflow-hidden rounded-2xl border border-border bg-card p-5 text-foreground">
-      <div
-        aria-hidden
-        className="absolute -top-16 -right-12 h-52 w-52 rounded-full"
-        style={{ background: `radial-gradient(circle, ${tint("var(--primary)", 30)}, transparent 70%)` }}
-      />
-      <div className="relative flex items-center gap-5 flex-wrap">
-        <div className="shrink-0">
-          <p className="text-4xl font-bold leading-none tabular-nums text-foreground">
-            <CountUp value={shipped30} />
-          </p>
-          <p className="text-xs mt-1.5 text-primary">shipped / 30d</p>
-        </div>
-        <div aria-hidden className="w-px self-stretch bg-border" />
-        <div className="flex-1 min-w-[180px]">
-          <p className="text-sm font-semibold">{sinceLabel}</p>
-          <p className="text-xs mt-0.5 text-muted-foreground">{coach}</p>
-          <div className="flex items-center gap-1.5 mt-3">
-            {Array.from({ length: WIP_LIMIT }).map((_, i) => (
-              <span
-                key={i}
-                aria-hidden
-                className="h-1.5 w-6 rounded-full transition-colors duration-200 [transition-timing-function:var(--ease-out-custom)]"
-                style={{
-                  background: i < activeCount ? (atLimit ? "var(--warning)" : "var(--primary)") : "var(--muted)",
-                }}
-              />
-            ))}
-            <span className={cn("text-[11px] ml-1 font-mono", atLimit ? "text-warning" : "text-muted-foreground/70")}>
-              {activeCount}/{WIP_LIMIT} active{atLimit ? " · at limit" : ""}
-            </span>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// --- Loose ends (always-on staleness, replaces the Sun/Mon-only banner) ---
-
-function LooseEnds({ items, onJump }: {
-  items: { project: Project; reason: string }[];
-  onJump: (project: Project) => void;
-}) {
-  if (items.length === 0) return null;
-  return (
-    <div className="rounded-xl p-4 bg-warning/5 border border-warning/20">
-      <div className="flex items-center gap-2 mb-2.5">
-        <AlertTriangle size={14} className="text-warning" />
-        <h2 className="text-xs font-bold uppercase tracking-widest text-warning">
-          Loose ends ({items.length})
-        </h2>
-      </div>
-      <div className="space-y-1.5">
-        {items.map(({ project, reason }) => (
-          <button
-            key={project.id}
-            onClick={() => onJump(project)}
-            className="w-full flex items-center gap-2 rounded-lg bg-muted px-3 py-2 text-left transition-transform duration-150 active:scale-[0.99]"
-          >
-            <span className="flex-1 min-w-0 text-sm truncate text-foreground">{project.title}</span>
-            <span className="text-xs shrink-0 text-right text-warning">{reason}</span>
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// --- Create form ---
-
-function ProjectCreateForm({ goals, defaultGoalId, onSubmit, onCancel }: {
-  goals: Goal[];
-  defaultGoalId?: string;
-  onSubmit: (data: Omit<Project, "id" | "createdAt" | "updatedAt">) => void;
-  onCancel: () => void;
-}) {
-  const [title, setTitle] = useState("");
-  const [area, setArea] = useState<AreaId | "">("");
-  const [status, setStatus] = useState<ProjectStatus>("planning");
-  const [nextAction, setNextAction] = useState("");
-  const [shippingEvent, setShippingEvent] = useState("");
-  const [targetDate, setTargetDate] = useState("");
-  const [goalId, setGoalId] = useState(defaultGoalId ?? "");
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!title.trim()) return;
-    onSubmit({
-      title: title.trim(),
-      area: area || undefined,
-      status,
-      nextAction: nextAction.trim() || undefined,
-      shippingEvent: shippingEvent.trim() || undefined,
-      targetDate: targetDate ? new Date(targetDate) : undefined,
-      goalId: goalId || undefined,
-      linkedTaskIds: [],
-    });
-  };
-
-  return (
-    <form onSubmit={handleSubmit} className="rounded-xl border border-primary bg-card p-4 space-y-3 enter">
-      <Input
-        type="text"
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
-        placeholder="Project title..."
-        autoFocus
-        className="text-sm font-medium"
-      />
-      <Input
-        type="text"
-        value={nextAction}
-        onChange={(e) => setNextAction(e.target.value)}
-        placeholder="Next action..."
-        className="text-xs"
-      />
-      <Input
-        type="text"
-        value={shippingEvent}
-        onChange={(e) => setShippingEvent(e.target.value)}
-        placeholder="Shipping event — what leaves the machine, to whom? (required to be Active)"
-        className="text-xs"
-      />
-      <div className="flex flex-wrap items-center gap-2">
-        <Select value={goalId || "__none"} onValueChange={(v) => setGoalId(v === "__none" ? "" : v)}>
-          <SelectTrigger size="sm" className="text-xs bg-muted max-w-[180px]">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="__none">No goal</SelectItem>
-            {goals.map((g) => (<SelectItem key={g.id} value={g.id}>{g.title}</SelectItem>))}
-          </SelectContent>
-        </Select>
-        <Select value={area || "__none"} onValueChange={(v) => setArea(v === "__none" ? "" : (v as AreaId))}>
-          <SelectTrigger size="sm" className="text-xs bg-muted">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="__none">No area</SelectItem>
-            {Object.entries(AREAS).map(([id, a]) => (<SelectItem key={id} value={id}>{a.name}</SelectItem>))}
-          </SelectContent>
-        </Select>
-        <Select value={status} onValueChange={(v) => setStatus(v as ProjectStatus)}>
-          <SelectTrigger size="sm" className="text-xs bg-muted">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {STATUS_COLUMNS.map((col) => (<SelectItem key={col.status} value={col.status}>{col.label}</SelectItem>))}
-          </SelectContent>
-        </Select>
-        <Input
-          type="date"
-          value={targetDate}
-          onChange={(e) => setTargetDate(e.target.value)}
-          className="text-xs h-8 w-auto bg-muted"
-        />
-        <div className="flex-1" />
-        <Button type="button" variant="ghost" size="sm" onClick={onCancel} className="text-xs text-muted-foreground">
-          Cancel
-        </Button>
-        <Button type="submit" size="sm" className="text-xs">Create</Button>
-      </div>
-    </form>
-  );
-}
-
-// --- Project Card ---
-
-// Kill-reason capture for in-flight projects — a real dialog (not window.prompt).
-// The reason is optional but nudged: a kill is a logged decision, not silent drift.
-function ArchiveDialog({
-  open, title, onConfirm, onCancel,
-}: {
-  open: boolean;
-  title: string;
-  onConfirm: (reason: string | undefined) => void;
-  onCancel: () => void;
-}) {
-  const [reason, setReason] = useState("");
-
-  const submit = () => { onConfirm(reason.trim() || undefined); setReason(""); };
-  const cancel = () => { setReason(""); onCancel(); };
-
-  return (
-    <Dialog open={open} onOpenChange={(v) => { if (!v) cancel(); }}>
-      <DialogContent
-        className="sm:max-w-sm"
-        onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) submit(); }}
-      >
-        <DialogHeader>
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-warning/10">
-              <Archive size={18} className="text-warning" />
-            </div>
-            <DialogTitle>Archive project</DialogTitle>
-          </div>
-          <DialogDescription className="pt-1">
-            Killing <span className="font-medium text-foreground">&ldquo;{title}&rdquo;</span> is fine — but log why, so it&rsquo;s a decision, not drift.
-          </DialogDescription>
-        </DialogHeader>
-        <Textarea
-          autoFocus
-          value={reason}
-          onChange={(e) => setReason(e.target.value)}
-          rows={2}
-          placeholder="One-line reason (optional)"
-          className="resize-none"
-        />
-        <DialogFooter>
-          <Button variant="secondary" onClick={cancel}>Cancel</Button>
-          <Button
-            onClick={submit}
-            className="bg-warning text-warning-foreground hover:bg-warning/90"
-          >
-            Archive
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-// One inline-editable field: renders as quiet text; click to edit; commits on
-// blur or Enter, reverts on Escape. For fixing typos without delete/recreate.
-function InlineEditField({
-  label, value, placeholder, onSave, multiline,
-}: {
-  label: string;
-  value: string;
-  placeholder: string;
-  onSave: (v: string) => void;
-  multiline?: boolean;
-}) {
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(value);
-
-  const commit = () => {
-    setEditing(false);
-    if (draft.trim() !== value) onSave(draft.trim());
-  };
-
-  if (!editing) {
-    return (
-      <button
-        onClick={() => { setDraft(value); setEditing(true); }}
-        className="group flex w-full items-baseline gap-2 rounded-lg px-1 py-0.5 text-left transition-colors duration-150 hover:bg-muted"
-      >
-        <span className="section-label shrink-0 pt-0.5">{label}</span>
-        <span className={cn("min-w-0 flex-1", value ? "text-sm text-foreground" : "text-sm text-muted-foreground/50")}>
-          {value || placeholder}
-        </span>
-      </button>
-    );
-  }
-  const shared = {
-    autoFocus: true,
-    value: draft,
-    onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setDraft(e.target.value),
-    onBlur: commit,
-    onKeyDown: (e: React.KeyboardEvent) => {
-      if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); commit(); }
-      if (e.key === "Escape") { setDraft(value); setEditing(false); }
-    },
-    className: "text-sm",
-  };
-  return multiline ? <Textarea rows={2} {...shared} className="text-sm resize-none" /> : <Input {...shared} />;
-}
-
-function ProjectCard({
-  project, projectTasks, goals, lastShip, hero, registerExpand, onUpdate, onDelete, onTaskUpdate, onTaskDelete, onTaskCreate,
-}: {
-  project: Project;
-  /** Only this project's tasks (built once per page in tasksByProject). */
-  projectTasks: Task[];
-  goals: Goal[];
-  lastShip: Date | null;
-  hero?: boolean;
-  /** Registers an "open me" callback so a LooseEnds jump can expand the card. */
-  registerExpand?: (id: string, fn: (() => void) | null) => void;
-  onUpdate: (id: string, data: Partial<Project>) => void;
-  onDelete: (id: string) => void;
-  onTaskUpdate: (id: string, data: Partial<Task>) => void;
-  onTaskDelete: (id: string) => void;
-  onTaskCreate: (data: Omit<Task, "id" | "createdAt" | "updatedAt">) => void;
-}) {
-  const [expanded, setExpanded] = useState(false);
-  const [showTaskForm, setShowTaskForm] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState(false);
-  const [showArchive, setShowArchive] = useState(false);
-
-  useEffect(() => {
-    if (!registerExpand) return;
-    registerExpand(project.id, () => setExpanded(true));
-    return () => registerExpand(project.id, null);
-  }, [registerExpand, project.id]);
-
-  const doneTasks = projectTasks.filter((t) => t.status === "done").length;
-  const totalTasks = projectTasks.length;
-  const progress = totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : 0;
-  const meta = statusMeta(project.status);
-  const drift = looseEnd(project, projectTasks);
-  const sinceShip = lastShip ? daysSince(lastShip) : null;
-
-  return (
-    <div id={project.id} className={cn("rounded-xl border bg-card hover-lift scroll-mt-20", hero ? "border-primary" : "border-border")}>
-      <div className="flex items-start gap-2 p-4">
-        {/* Toggle surface — a real button, keyboard-operable */}
-        <button
-          onClick={() => setExpanded((e) => !e)}
-          aria-expanded={expanded}
-          className="flex-1 min-w-0 text-left rounded-lg transition-transform duration-150 active:scale-[0.99]"
-        >
-          <div className="flex items-center gap-2 flex-wrap mb-1">
-            {project.area && (
-              <span
-                className="text-[10px] font-semibold px-1.5 py-0.5 rounded"
-                style={{ background: tint(AREA_HEX[project.area] || "#64748B", 10), color: AREA_HEX[project.area] || "#64748B" }}
-              >
-                {AREAS[project.area]?.name}
-              </span>
-            )}
-            {drift && (
-              <span
-                className="flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-warning/10 text-warning"
-              >
-                <AlertTriangle size={9} /> loose end
-              </span>
-            )}
-          </div>
-
-          <h3 className={cn("font-semibold line-clamp-2 text-foreground", hero ? "text-base" : "text-sm")}>
-            {project.title}
-          </h3>
-
-          {/* Next action — first-class, not a footnote */}
-          {project.nextAction && (
-            <p className="text-xs mt-1.5 flex items-start gap-1.5 text-muted-foreground">
-              <span className="font-mono shrink-0 text-primary">→</span>
-              <span className="min-w-0">{project.nextAction}</span>
-            </p>
-          )}
-
-          {/* Shipping event / drift prompt */}
-          {project.shippingEvent ? (
-            <p className="text-xs mt-1 flex items-center gap-1.5 text-muted-foreground/70">
-              <Rocket size={11} className="text-primary shrink-0" />
-              <span className="truncate">Ships: {project.shippingEvent}</span>
-            </p>
-          ) : (project.status === "active" || project.status === "planning") && (
-            <p className="text-xs mt-1 text-warning">
-              No shipping event — what leaves the machine, and to whom?
-            </p>
-          )}
-
-          {/* Progress — only when there ARE linked tasks; ROADMAP-driven
-              projects don't get a misleading 0% */}
-          {totalTasks > 0 && (
-            <div className="mt-2.5 max-w-[220px]">
-              <div className="flex justify-between mb-1">
-                <span className="text-[10px] uppercase tracking-wider text-muted-foreground/70">
-                  {doneTasks}/{totalTasks} tasks
-                </span>
-                <span className="text-[10px] font-mono text-primary">{progress}%</span>
-              </div>
-              <Progress value={progress} className="h-1.5 bg-muted [&>div]:duration-300 [&>div]:[transition-timing-function:var(--ease-out-custom)]" />
-            </div>
-          )}
-
-          <div className="flex items-center gap-3 mt-2">
-            {sinceShip !== null ? (
-              // Staleness thresholds from the mobile design: amber past a week,
-              // red past two — the card itself says when a project has gone cold.
-              <span
-                className="text-[11px] font-mono"
-                style={{ color: sinceShip > 14 ? "var(--destructive)" : sinceShip > 7 ? "var(--warning)" : undefined }}
-              >
-                <span className={sinceShip > 7 ? "" : "text-muted-foreground/70"}>
-                  {sinceShip === 0 ? "shipped today" : `${sinceShip}d since ship`}
-                </span>
-              </span>
-            ) : project.updatedAt && (
-              // No ship yet — fall back to last-touched so the card still shows recency.
-              <span className="text-[11px] font-mono text-muted-foreground/70">
-                updated {daysSince(new Date(project.updatedAt))}d ago
-              </span>
-            )}
-            {project.targetDate && (
-              <span className="text-[11px] text-muted-foreground/70">
-                Target {new Date(project.targetDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-              </span>
-            )}
-          </div>
-        </button>
-
-        {/* Right column: status + menu (siblings, not nested in the button —
-            the title block itself is the expand toggle) */}
-        <div className="flex items-center gap-1 shrink-0">
-          <span
-            className="text-[11px] px-2 py-0.5 rounded-full capitalize"
-            style={{
-              background: tint(meta?.color || "var(--muted-foreground)", 13),
-              color: meta?.color || "var(--muted-foreground)",
-            }}
-          >
-            {project.status}
-          </span>
-          <ChevronDown
-            size={15}
-            aria-hidden
-            className={cn("text-muted-foreground/70 transition-transform duration-200", expanded && "rotate-180")}
-          />
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon-sm" aria-label="Project actions" className="text-muted-foreground/70">
-                <MoreHorizontal size={15} />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="min-w-[150px]">
-              {STATUS_COLUMNS.map((col) => (
-                <DropdownMenuItem
-                  key={col.status}
-                  onClick={() => onUpdate(project.id, { status: col.status })}
-                  className="gap-2 text-xs"
-                >
-                  <span className="h-1.5 w-1.5 rounded-full" style={{ background: col.color }} /> {col.label}
-                </DropdownMenuItem>
-              ))}
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onClick={() => {
-                  // Kills are fine, but they're a decision: in-flight projects
-                  // don't get archived without a logged reason (captured in a
-                  // real dialog); anything else archives straight away.
-                  const inFlight = project.status === "active" || project.status === "planning";
-                  if (inFlight) setShowArchive(true);
-                  else onUpdate(project.id, { status: "archived" as ProjectStatus });
-                }}
-                className="gap-2 text-xs"
-              >
-                <Archive size={12} /> Archive
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => setConfirmDelete(true)}
-                variant="destructive"
-                className="text-xs"
-              >
-                Delete
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </div>
-
-      {expanded && (
-        <div className="px-4 pb-4 border-t border-border enter">
-          {/* Core fields — inline-editable so fixes don't mean delete + recreate */}
-          <div className="space-y-0.5 mb-3">
-            <InlineEditField
-              label="Title" value={project.title} placeholder="Project title"
-              onSave={(v) => v && onUpdate(project.id, { title: v })}
-            />
-            <InlineEditField
-              label="Next action" value={project.nextAction ?? ""} placeholder="What's the next physical action?"
-              onSave={(v) => onUpdate(project.id, { nextAction: v || undefined })}
-            />
-            {(project.status === "active" || project.status === "planning") && (
-              <InlineEditField
-                label="Ships" value={project.shippingEvent ?? ""} placeholder="What leaves the machine, to whom?"
-                onSave={(v) => onUpdate(project.id, { shippingEvent: v || undefined })}
-              />
-            )}
-            <div className="flex items-center gap-2 px-1 pt-1">
-              <span className="section-label shrink-0">Target</span>
-              <Input
-                type="date"
-                value={project.targetDate ? new Date(project.targetDate).toISOString().slice(0, 10) : ""}
-                onChange={(e) =>
-                  onUpdate(project.id, { targetDate: e.target.value ? new Date(e.target.value) : undefined })
-                }
-                className="h-7 w-auto bg-muted text-xs"
-              />
-            </div>
-          </div>
-
-          {/* Goal link — which direction this project serves; ships roll up there */}
-          <div className="flex items-center gap-2 mt-3">
-            <Flag size={12} className="text-muted-foreground/70" />
-            <span className="section-label">Goal</span>
-            <Select
-              value={project.goalId ?? "__none"}
-              onValueChange={(v) => onUpdate(project.id, { goalId: v === "__none" ? undefined : v } as Partial<Project>)}
-            >
-              <SelectTrigger size="sm" className="text-xs bg-muted max-w-[220px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__none">No goal</SelectItem>
-                {goals.map((g) => (<SelectItem key={g.id} value={g.id}>{g.title}</SelectItem>))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="flex items-center justify-between mt-3 mb-2">
-            <span className="section-label">
-              Linked tasks ({totalTasks})
-            </span>
-            <Button size="sm" onClick={() => setShowTaskForm(true)} className="h-7 gap-1 text-xs">
-              <Plus size={12} />Add
-            </Button>
-          </div>
-          {showTaskForm && (
-            <div className="mb-2">
-              <TaskCreateForm
-                onSubmit={(data) => { onTaskCreate({ ...data, projectId: project.id }); setShowTaskForm(false); }}
-                onCancel={() => setShowTaskForm(false)}
-              />
-            </div>
-          )}
-          <div className="space-y-1">
-            {projectTasks.length === 0 && !showTaskForm && (
-              <p className="text-xs py-2 text-center text-muted-foreground/70">
-                No linked tasks — this project may run off its ROADMAP instead.
-              </p>
-            )}
-            {projectTasks.map((task) => (
-              <TaskItem key={task.id} task={task} onUpdate={onTaskUpdate} onDelete={onTaskDelete} />
-            ))}
-          </div>
-        </div>
-      )}
-      <ConfirmDialog
-        open={confirmDelete}
-        title="Delete Project"
-        message={`Delete "${project.title}" and all its data? This cannot be undone.`}
-        onConfirm={() => { onDelete(project.id); setConfirmDelete(false); }}
-        onCancel={() => setConfirmDelete(false)}
-      />
-      <ArchiveDialog
-        open={showArchive}
-        title={project.title}
-        onConfirm={(reason) => {
-          onUpdate(project.id, { status: "archived" as ProjectStatus, ...(reason ? { killReason: reason } : {}) });
-          setShowArchive(false);
-        }}
-        onCancel={() => setShowArchive(false)}
-      />
-    </div>
-  );
-}
-
-// --- Ship Log ---
-// One row per thing that left the machine.
-
-function ShipLogSection({ entries, projects, onLog, showForm, setShowForm }: {
-  entries: ShipLogEntry[];
-  projects: Project[];
-  onLog: (data: Omit<ShipLogEntry, "id" | "createdAt">) => Promise<unknown>;
-  /** Lifted so the page header's "Log a ship" can open it from anywhere. */
-  showForm: boolean;
-  setShowForm: (v: boolean) => void;
-}) {
-  const [what, setWhat] = useState("");
-  const [toWhom, setToWhom] = useState("public");
-  const [tagsInput, setTagsInput] = useState("");
-  const [projectId, setProjectId] = useState("");
-  const [openId, setOpenId] = useState<string | null>(null);
-  const [tagFilter, setTagFilter] = useState<string | null>(null);
-  const [showAll, setShowAll] = useState(false);
-  const [now] = useState(() => Date.now());
-
-  const shipped30 = entries.filter((e) => now - new Date(e.date).getTime() <= 30 * DAY_MS).length;
-  const projectTitle = (id?: string) => projects.find((p) => p.id === id)?.title;
-
-  // Tag universe across all entries, most-used first — the filter row.
-  const tagCounts = new Map<string, number>();
-  for (const e of entries) for (const t of e.tags ?? []) tagCounts.set(t, (tagCounts.get(t) ?? 0) + 1);
-  const allTags = [...tagCounts.entries()].sort((a, b) => b[1] - a[1]).map(([t]) => t);
-  const visible = tagFilter ? entries.filter((e) => e.tags?.includes(tagFilter)) : entries;
-  const shown = showAll ? visible : visible.slice(0, 12);
-
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!what.trim()) return;
-    const tags = parseTags(tagsInput);
-    await onLog({
-      date: new Date(),
-      what: what.trim(),
-      toWhom: toWhom.trim() || "public",
-      tags: tags.length > 0 ? tags : undefined,
-      projectId: projectId || undefined,
-    });
-    setWhat(""); setToWhom("public"); setTagsInput("");
-    setProjectId("");
-    setShowForm(false);
-  };
-
-  return (
-    <div className="mt-10 lg:mt-0">
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <Rocket size={16} className="text-primary" />
-          <h2 className="text-sm font-semibold text-foreground">Ship Log</h2>
-          <span
-            className={cn(
-              "text-xs px-2 py-0.5 rounded-full font-mono",
-              shipped30 === 0 ? "bg-destructive/15 text-destructive" : "bg-muted text-muted-foreground"
-            )}
-          >
-            {shipped30} shipped / 30d
-          </span>
-        </div>
-        <Button size="sm" onClick={() => setShowForm(true)} className="gap-1.5 text-xs">
-          <Plus size={12} /> Log a ship
-        </Button>
-      </div>
-
-      {shipped30 === 0 && entries.length === 0 && !showForm && (
-        <p className="text-xs mb-3 text-muted-foreground/70">
-          Nothing has left the machine yet. Progress here beats progress on the tracker.
-        </p>
-      )}
-
-      {showForm && (
-        <form onSubmit={submit} className="rounded-xl border border-primary bg-card p-4 space-y-3 mb-4 enter">
-          <Input
-            type="text"
-            value={what}
-            onChange={(e) => setWhat(e.target.value)}
-            autoFocus
-            placeholder="What shipped? (rough is fine — it left the machine)"
-            className="text-sm font-medium"
-          />
-          <Input
-            type="text"
-            value={toWhom}
-            onChange={(e) => setToWhom(e.target.value)}
-            placeholder='To whom? (defaults to "public")'
-            className="text-xs"
-          />
-          <Input
-            type="text"
-            value={tagsInput}
-            onChange={(e) => setTagsInput(e.target.value)}
-            placeholder="Tags, comma-separated (lifeos, content, infra…)"
-            className="text-xs"
-          />
+    <li className="rounded-xl border border-border bg-card p-4">
+      <div className="flex items-start gap-2">
+        <div className="min-w-0 flex-1 space-y-1">
           <div className="flex items-center gap-2">
-            <Select value={projectId || "__none"} onValueChange={(v) => setProjectId(v === "__none" ? "" : v)}>
-              <SelectTrigger size="sm" className="text-xs bg-muted">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__none">No project</SelectItem>
-                {projects.filter((p) => p.status !== "archived").map((p) => (
-                  <SelectItem key={p.id} value={p.id}>{p.title}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <div className="flex-1" />
-            <Button type="button" variant="ghost" size="sm" onClick={() => setShowForm(false)} className="text-xs text-muted-foreground">
-              Cancel
-            </Button>
-            <Button type="submit" size="sm" className="text-xs">Log it</Button>
-          </div>
-        </form>
-      )}
-
-      {/* Tag filter — only appears once entries carry tags */}
-      {allTags.length > 0 && (
-        <div className="flex items-center gap-1.5 flex-wrap mb-3">
-          <button
-            onClick={() => setTagFilter(null)}
-            className={cn(
-              "text-[11px] font-medium rounded-full px-2.5 py-1 transition-[background,color,transform] duration-150 active:scale-[0.95]",
-              tagFilter === null ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
-            )}
-          >
-            All
-          </button>
-          {allTags.map((t) => (
-            <button
-              key={t}
-              onClick={() => setTagFilter(tagFilter === t ? null : t)}
-              className={cn(
-                "text-[11px] font-medium rounded-full px-2.5 py-1 transition-[background,color,transform] duration-150 active:scale-[0.95]",
-                tagFilter === t ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
-              )}
-            >
-              {t} <span className="font-mono opacity-70">{tagCounts.get(t)}</span>
-            </button>
-          ))}
-        </div>
-      )}
-
-      {/* Compact rows: dot + what + relative time; expand for the audience,
-          tags, and project. */}
-      <div className="rounded-xl border border-border overflow-hidden">
-        {shown.map((entry, i) => {
-          const open = openId === entry.id;
-          const days = daysSince(new Date(entry.date));
-          return (
-            <div key={entry.id} className={cn(i > 0 && "border-t border-border")}>
-              <button
-                onClick={() => setOpenId(open ? null : entry.id)}
-                aria-expanded={open}
-                className="w-full flex items-center gap-3 px-4 py-3 text-left transition-transform duration-150 active:scale-[0.99]"
+            <h3 className="truncate text-sm font-semibold text-foreground">{project.name}</h3>
+            {meta && (
+              <span
+                className="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
+                style={{ color: meta.color, background: `color-mix(in srgb, ${meta.color} 12%, transparent)` }}
               >
-                <span className="h-2 w-2 rounded-full shrink-0 bg-primary" />
-                <span className="flex-1 min-w-0 text-sm truncate text-foreground">{entry.what}</span>
-                <span className="text-xs font-mono shrink-0 text-muted-foreground/70">
-                  {days === 0 ? "today" : `${days}d`}
-                </span>
-                <ChevronDown
-                  size={13}
-                  className={cn("shrink-0 text-muted-foreground/70 transition-transform duration-200", open && "rotate-180")}
-                />
-              </button>
-              {open && (
-                <div className="px-4 pb-3 enter">
-                  <p className="text-xs text-muted-foreground">
-                    → {entry.toWhom}
-                    {projectTitle(entry.projectId) && (
-                      <span className="ml-2 px-1.5 py-0.5 rounded bg-muted text-muted-foreground/70">
-                        {projectTitle(entry.projectId)}
-                      </span>
-                    )}
-                  </p>
-                  {(entry.tags?.length ?? 0) > 0 && (
-                    <div className="flex items-center gap-1 flex-wrap mt-1.5">
-                      {entry.tags!.map((t) => (
-                        <button
-                          key={t}
-                          onClick={() => setTagFilter(t)}
-                          className="text-[10px] font-medium rounded-full px-2 py-0.5 bg-primary/10 text-primary transition-transform duration-150 active:scale-[0.95]"
-                        >
-                          {t}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                {meta.label}
+              </span>
+            )}
+          </div>
+
+          {project.error ? (
+            <p className="flex items-start gap-1.5 text-xs text-destructive">
+              <AlertTriangle size={12} className="mt-0.5 shrink-0" aria-hidden />
+              {project.error}
+            </p>
+          ) : (
+            <>
+              {/* The rule behind a stall verdict, in words — a judgement you
+                  cannot see the reasoning for is one you cannot trust. */}
+              {project.state?.stallReason && (
+                <p className="text-xs text-muted-foreground">{project.state.stallReason}</p>
               )}
-            </div>
-          );
-        })}
-        {!showAll && visible.length > shown.length && (
-          <button
-            onClick={() => setShowAll(true)}
-            className="w-full px-4 py-2.5 text-xs font-medium text-primary border-t border-border transition-transform duration-150 active:scale-[0.99]"
-          >
-            Show all ({visible.length})
-          </button>
-        )}
+              <p className="text-xs text-muted-foreground">
+                last commit {ago(project.lastCommitAt)}
+                {project.openTaskCount > 0 && ` · ${project.openTaskCount} open`}
+                {project.autoloopTouchedAt && " · autoloop"}
+              </p>
+              {project.state?.nextAction && (
+                <p className="flex items-start gap-1.5 pt-0.5 text-sm leading-snug text-foreground">
+                  {project.state.nextAction.needsUser ? (
+                    <UserRound size={13} className="mt-0.5 shrink-0 text-destructive" aria-hidden />
+                  ) : (
+                    <CircleDot size={13} className="mt-0.5 shrink-0 text-muted-foreground" aria-hidden />
+                  )}
+                  <span>{project.state.nextAction.title}</span>
+                </p>
+              )}
+            </>
+          )}
+        </div>
+
+        <button
+          onClick={() => onArchive(project.name, !isArchived)}
+          aria-label={isArchived ? `Restore ${project.name}` : `Archive ${project.name}`}
+          title={isArchived ? "Restore" : "Archive"}
+          className="shrink-0 rounded-md p-1.5 text-muted-foreground transition-transform duration-[var(--dur-fast)] ease-[var(--ease-out-custom)] hover:text-foreground active:scale-[0.97] max-lg:[min-height:36px]"
+        >
+          {isArchived ? <ArchiveRestore size={14} /> : <Archive size={14} />}
+        </button>
       </div>
-    </div>
+    </li>
   );
 }
-
-// --- Grouped section header ---
-
-function GroupHeader({ color, label, count }: { color: string; label: string; count: number }) {
-  return (
-    <div className="flex items-center gap-2 mb-2">
-      <span className="h-2 w-2 rounded-full" style={{ background: color }} />
-      <h2 className="text-xs font-bold uppercase tracking-widest" style={{ color }}>{label}</h2>
-      <span className="text-xs font-mono text-muted-foreground/70">{count}</span>
-    </div>
-  );
-}
-
-// --- Main Page ---
 
 export default function ProjectsPage() {
-  const { projects, loading, createProject, updateProject, deleteProject } = useProjects();
-  const { goals, createGoal } = useGoals();
-  const { entries: shipLog, logShip } = useShipLog();
-  const { tasks, updateTask, deleteTask, createTask } = useTasks();
-  const { toast } = useToast();
-  const [showForm, setShowForm] = useState(false);
-  const [showGoalForm, setShowGoalForm] = useState(false);
-  const [showArchive, setShowArchive] = useState(false);
-  const [shipFormOpen, setShipFormOpen] = useState(false);
-  // Cards register an "open me" callback here so a LooseEnds row can expand them.
-  const expandFns = useRef(new Map<string, () => void>());
-  const registerExpand = useCallback((id: string, fn: (() => void) | null) => {
-    if (fn) expandFns.current.set(id, fn);
-    else expandFns.current.delete(id);
+  const [snap, setSnap] = useState<Snapshot | null>(null);
+  const [failed, setFailed] = useState(false);
+  const [showDone, setShowDone] = useState(false);
+
+  const refresh = useCallback(async () => {
+    const d = await fetch("/api/projects/state")
+      .then((r) => (r.ok ? r.json() : null))
+      .catch(() => null);
+    setFailed(d === null);
+    if (d) setSnap(d as Snapshot);
   }, []);
 
-  const jumpToProject = (p: Project) => {
-    expandFns.current.get(p.id)?.();
-    // Let the card expand before scrolling so the target position is final.
-    requestAnimationFrame(() => {
-      document.getElementById(p.id)?.scrollIntoView({ behavior: "smooth", block: "center" });
-    });
-  };
+  useEffect(() => { queueMicrotask(() => void refresh()); }, [refresh]);
 
-  const handleProjectUpdate = async (id: string, data: Partial<Project>) => {
+  // The first load lands before the background scan finishes, so poll while
+  // it is still computing rather than showing an empty surface forever.
+  useEffect(() => {
+    if (!snap?.computing) return;
+    const t = setTimeout(() => void refresh(), 1500);
+    return () => clearTimeout(t);
+  }, [snap, refresh]);
+
+  const archive = async (name: string, archived: boolean) => {
     try {
-      await updateProject(id, data);
+      const d = await post("/api/projects/archive", { name, archived });
+      toast.success(`${name} ${d.result}`, {
+        // Recoverable in one gesture: archiving resolves a stall, it does not
+        // destroy anything.
+        action: { label: "Undo", onClick: () => void archive(name, !archived) },
+      });
+      refresh();
     } catch (e) {
-      toast(e instanceof Error ? e.message : "Update failed", "error");
+      toast.error(e instanceof Error ? e.message : "could not archive");
     }
   };
 
-  const handleProjectCreate = async (data: Omit<Project, "id" | "createdAt" | "updatedAt">) => {
-    try {
-      await createProject(data);
-      setShowForm(false);
-      toast("Project created");
-    } catch (e) {
-      toast(e instanceof Error ? e.message : "Create failed", "error");
-    }
-  };
-
-  // Momentum figures
-  const activeCount = projects.filter((p) => p.status === "active").length;
-  const shipped30 = shipLog.filter((e) => e.date && daysSince(new Date(e.date)) <= 30).length;
-  const lastShip = shipLog
-    .map((e) => (e.date ? new Date(e.date) : null))
-    .filter((d): d is Date => d !== null)
-    .sort((a, b) => b.getTime() - a.getTime())[0] ?? null;
-
-  // Last ship per project (per-card momentum)
-  const lastShipByProject = new Map<string, Date>();
-  for (const e of shipLog) {
-    if (!e.projectId || !e.date) continue;
-    const d = new Date(e.date);
-    const prev = lastShipByProject.get(e.projectId);
-    if (!prev || d > prev) lastShipByProject.set(e.projectId, d);
-  }
-
-  // --- Goal ⇄ project integration --------------------------------------
-  // Goals set the quarter's direction; projects are the vehicles that ship
-  // it. The page groups live projects under the goal they serve, and ships
-  // logged against those projects count as activity on the goal.
-
-  const projectById = new Map(projects.map((p) => [p.id, p]));
-  const shipDatesByGoal = new Map<string, string[]>();
-  for (const e of shipLog) {
-    if (!e.projectId || !e.date) continue;
-    const gid = projectById.get(e.projectId)?.goalId;
-    if (!gid) continue;
-    if (!shipDatesByGoal.has(gid)) shipDatesByGoal.set(gid, []);
-    shipDatesByGoal.get(gid)!.push(localDayOf(new Date(e.date)));
-  }
-
-  const week = mondayOf();
-  const activeGoals = goals.filter((g) => g.status === "active");
-  const doneGoals = goals.filter((g) => g.status !== "active");
-  // Goals that need a decision surface first (ships included in the readout).
-  const rankGoal = (g: Goal) =>
-    GOAL_STATE_RANK[goalPlanState(withShipActivity(g, shipDatesByGoal.get(g.id) ?? []), week)];
-  const goalsSorted = [...activeGoals].sort((a, b) => rankGoal(a) - rankGoal(b));
-
-  const goalIds = new Set(activeGoals.map((g) => g.id));
-  const statusOrder: Record<ProjectStatus, number> = { active: 0, planning: 1, paused: 2, completed: 3, archived: 4 };
-  const live = projects
-    .filter((p) => p.status === "active" || p.status === "planning" || p.status === "paused")
-    .sort((a, b) => statusOrder[a.status] - statusOrder[b.status]);
-  const projectsForGoal = (gid: string) => live.filter((p) => p.goalId === gid);
-  const unaligned = live.filter((p) => !p.goalId || !goalIds.has(p.goalId));
-  const doneP = projects.filter((p) => p.status === "completed");
-  const anyLive = live.length > 0 || activeGoals.length > 0;
-
-  // Week-at-a-glance across active goals (header readout).
-  const weekCommits = activeGoals.flatMap((g) => commitmentsForWeek(g, week));
-  const weekDone = weekCommits.filter((c) => c.done).length;
-
-  // Tasks bucketed by project once, instead of every card filtering all tasks.
-  const tasksByProject = new Map<string, Task[]>();
-  for (const t of tasks) {
-    if (!t.projectId) continue;
-    if (!tasksByProject.has(t.projectId)) tasksByProject.set(t.projectId, []);
-    tasksByProject.get(t.projectId)!.push(t);
-  }
-
-  // Loose ends across in-flight projects (always on, not Sun/Mon-gated)
-  const looseEnds = projects
-    .map((p) => {
-      const reason = looseEnd(p, tasksByProject.get(p.id) ?? []);
-      return reason ? { project: p, reason } : null;
-    })
-    .filter((x): x is { project: Project; reason: string } => x !== null);
-
-  const cardProps = (p: Project, hero = false) => ({
-    project: p, projectTasks: tasksByProject.get(p.id) ?? [], goals: activeGoals,
-    lastShip: lastShipByProject.get(p.id) ?? null, hero, registerExpand,
-    onUpdate: handleProjectUpdate, onDelete: deleteProject,
-    onTaskUpdate: updateTask, onTaskDelete: deleteTask, onTaskCreate: createTask,
-  });
+  const projects = snap?.projects ?? [];
+  const active = ACTIVE_ORDER.flatMap((status) =>
+    projects.filter((p) => p.state?.status === status),
+  );
+  const broken = projects.filter((p) => p.error);
+  const done = projects.filter((p) => p.state?.status === "done" || p.state?.status === "archived");
 
   return (
-    // Mobile is one scrolling feed; at lg the goal/project flow keeps the
-    // main column and the ship log becomes a sticky scorekeeping rail with
-    // its own scroll, so work and evidence are visible side by side.
-    <Page className="max-w-2xl lg:max-w-6xl">
-      {/* Header */}
+    <Page narrow className="max-w-lg">
       <PageHeader
-        kicker="Ship"
+        kicker="Derived from your repos"
         title="Projects"
+        description="What stalled, and what to pick up. Nothing here is typed in."
         icon={FolderKanban}
-        description={
-          <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-            <span>Goals set the direction · projects ship it · the ship log keeps score.</span>
-            {weekCommits.length > 0 && (
-              <span className="font-mono text-muted-foreground">
-                {weekDone}/{weekCommits.length} committed this week
-              </span>
-            )}
-          </span>
-        }
-        actions={
-          <>
-          {!showGoalForm && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowGoalForm(true)}
-              className="gap-1.5 text-sm text-primary bg-primary/10 hover:bg-primary/15"
-            >
-              <Flag size={15} /> New goal
-            </Button>
-          )}
-          {!showForm && (
-            <Button variant="outline" size="sm" onClick={() => setShowForm(true)} className="gap-1.5 text-sm">
-              <Plus size={15} /> New project
-            </Button>
-          )}
-          {/* Reachable without scrolling — on mobile the ship log lives below the flow */}
-          <Button
-            size="sm"
-            onClick={() => {
-              setShipFormOpen(true);
-              requestAnimationFrame(() => {
-                document.getElementById("ship-log")?.scrollIntoView({ behavior: "smooth", block: "start" });
-              });
-            }}
-            className="gap-1.5 text-sm"
-          >
-            <Rocket size={15} /> Log a ship
-          </Button>
-          </>
-        }
       />
 
-      {/* Momentum */}
-      <div className="enter" style={{ ["--enter-delay" as string]: "30ms" }}>
-        <MomentumHero activeCount={activeCount} shipped30={shipped30} lastShip={lastShip} />
-      </div>
-
-      <div className="flex flex-col gap-5 lg:grid lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-6 lg:items-start">
-      <div className="space-y-5 min-w-0">
-
-      {/* Loose ends */}
-      {looseEnds.length > 0 && (
-        <div className="enter" style={{ ["--enter-delay" as string]: "60ms" }}>
-          <LooseEnds items={looseEnds} onJump={jumpToProject} />
-        </div>
-      )}
-
-      {showGoalForm && (
-        <GoalEditor onCancel={() => setShowGoalForm(false)}
-          onSave={(data) => { createGoal(data); setShowGoalForm(false); toast("Goal created"); }} />
-      )}
-      {showForm && (
-        <ProjectCreateForm goals={activeGoals} onSubmit={handleProjectCreate} onCancel={() => setShowForm(false)} />
-      )}
-
-      {/* Loading skeletons */}
-      {loading && projects.length === 0 && (
-        <div className="space-y-3">
-          {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-28" />)}
-        </div>
-      )}
-
-      {/* Empty */}
-      {!loading && !anyLive && !showForm && !showGoalForm && (
-        <Card className="flex flex-col items-center justify-center gap-0 py-16 rounded-xl text-center enter">
-          <FolderKanban size={44} className="mb-4 text-muted-foreground/70" />
-          <p className="text-lg font-medium text-foreground">Nothing in flight</p>
-          <p className="text-sm mt-1 max-w-sm text-muted-foreground">
-            Set a goal for the quarter, hang a project on it, name the shipping event, then get it out the door.
-          </p>
-        </Card>
-      )}
-
-      {/* Goals — each with the projects that serve it nested beneath */}
-      {goalsSorted.map((g, i) => {
-        const gp = projectsForGoal(g.id);
-        return (
-          <GoalSection
-            key={g.id}
-            goal={g}
-            shipDates={shipDatesByGoal.get(g.id) ?? []}
-            delay={90 + Math.min(i * 40, 200)}
-            projectCount={gp.length}
-          >
-            {gp.map((p) => <ProjectCard key={p.id} {...cardProps(p, p.status === "active")} />)}
-          </GoalSection>
-        );
-      })}
-
-      {/* Unaligned — live projects serving no goal. Not a crime, but a question. */}
-      {unaligned.length > 0 && (
-        <div className="enter" style={{ ["--enter-delay" as string]: "120ms" }}>
-          <GroupHeader color="var(--muted-foreground)" label={activeGoals.length > 0 ? "No goal" : "Projects"} count={unaligned.length} />
-          {activeGoals.length > 0 && (
-            <p className="text-[11px] mb-2 -mt-1 text-muted-foreground/70">
-              These serve no goal — link them (expand a card) or ask why they&apos;re in flight.
-            </p>
-          )}
-          <div className="space-y-2">
-            {unaligned.map((p) => <ProjectCard key={p.id} {...cardProps(p, p.status === "active")} />)}
-          </div>
-        </div>
-      )}
-
-      {/* Archive — completed projects + past goals, one collapsed disclosure */}
-      {(doneP.length > 0 || doneGoals.length > 0) && (
-        <div>
-          <button
-            onClick={() => setShowArchive((s) => !s)}
-            aria-expanded={showArchive}
-            className="flex items-center gap-2 transition-transform duration-150 active:scale-[0.98]"
-          >
-            <GroupHeader color="var(--muted-foreground)" label="Archive" count={doneP.length + doneGoals.length} />
-            {showArchive
-              ? <ChevronUp size={14} className="mb-2 text-muted-foreground/70" />
-              : <ChevronDown size={14} className="mb-2 text-muted-foreground/70" />}
+      {failed ? (
+        <div className="space-y-3 rounded-xl border border-border bg-card p-10 text-center">
+          <p className="text-sm text-muted-foreground">Couldn&apos;t load project state.</p>
+          <button onClick={() => refresh()}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-accent px-3 py-2 text-sm font-medium text-accent-foreground transition-transform duration-[var(--dur-fast)] ease-[var(--ease-out-custom)] active:scale-[0.97] max-lg:[min-height:44px]">
+            <RefreshCw size={14} /> Retry
           </button>
-          {showArchive && (
-            <div className="space-y-2 enter">
-              {doneP.map((p) => <ProjectCard key={p.id} {...cardProps(p)} />)}
-              {doneGoals.length > 0 && doneP.length > 0 && (
-                <p className="section-label pt-2 text-muted-foreground/70">Past goals</p>
+        </div>
+      ) : !snap ? (
+        <div className="shimmer rounded-xl bg-card p-10 text-center text-sm text-muted-foreground">
+          loading…
+        </div>
+      ) : (
+        <div className="space-y-4">
+          <p className="text-xs text-muted-foreground">{computedLabel(snap)}</p>
+
+          {active.length === 0 && broken.length === 0 ? (
+            <p className="rounded-xl border border-border bg-card p-8 text-center text-sm text-muted-foreground">
+              {snap.computing
+                ? "Reading your repos…"
+                : "Nothing active. Every project is done or archived."}
+            </p>
+          ) : (
+            <ul className="space-y-2">
+              {active.map((p) => <ProjectRow key={p.name} project={p} onArchive={archive} />)}
+              {/* A repo that cannot be read stays in the list with its
+                  error — silently dropping it is how a surface starts lying. */}
+              {broken.map((p) => <ProjectRow key={p.name} project={p} onArchive={archive} />)}
+            </ul>
+          )}
+
+          {done.length > 0 && (
+            <div className="space-y-2">
+              <button
+                onClick={() => setShowDone((v) => !v)}
+                className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground transition-transform duration-[var(--dur-fast)] ease-[var(--ease-out-custom)] hover:text-foreground active:scale-[0.97]"
+              >
+                <CircleCheck size={13} aria-hidden />
+                {showDone ? "Hide" : "Show"} done and archived ({done.length})
+              </button>
+              {showDone && (
+                <ul className="space-y-2">
+                  {done.map((p) => <ProjectRow key={p.name} project={p} onArchive={archive} />)}
+                </ul>
               )}
-              {doneGoals.map((g) => (
-                <GoalSection key={g.id} goal={g} shipDates={shipDatesByGoal.get(g.id) ?? []} delay={0} projectCount={0} nest={false} />
-              ))}
             </div>
           )}
         </div>
       )}
-
-      </div>
-
-      {/* Scorekeeping rail on desktop; below the flow on mobile */}
-      <aside id="ship-log" className="min-w-0 lg:sticky lg:top-6 lg:max-h-[calc(100vh-4.5rem)] lg:overflow-y-auto lg:pr-1 scroll-mt-6">
-        <ShipLogSection entries={shipLog} projects={projects} onLog={logShip} showForm={shipFormOpen} setShowForm={setShipFormOpen} />
-      </aside>
-      </div>
     </Page>
   );
 }
