@@ -50,6 +50,7 @@
 - [ ] **T64 — SRS: spaced repetition for taught topics (LAST — see the falsifier)** (L) — GATED on T62 **and on real usage**. Per map 07/08. The picker's third rule: *taught before* → **due for review**. Needs what does not exist: retrieval outcomes as **structured data** (graded recall), per-topic strength, next-review dates. **Grades are PRIVATE FUEL — never rendered** (T61 stands: Samy sees prose, never a score). ⚠️ **This is a bet, and Samy took it with the evidence in front of him**: at spec time the live DB held **149 triage items and 0 teach topics / 0 sessions / 0 turns** — the engine shipped 2026-07-12 and had never been used once. He kept it anyway, reasoning that zero usage reflected the missing supply + picker (i.e. T53–T62), not disinterest. That is on the record and is **not to be re-litigated by an executor**. **FALSIFIER — check before building: if, with T53–T62 live and real sessions run, Samy has never revisited a topic, this task is dead code. Do not build it; leave it unchecked with a dated note and tell him.** (Precedent: predicted-vs-actual shipped, went unused across 40+ entries, and was cut 2026-07-14 as "pure amber noise" — catching that early is the whole point of this note.) Verify (only if the gate passes): tests for strength/scheduling, `grep` proves no grade reaches the UI, redeploy, `/knowledge` 200.
   BLOCKED (2026-07-24, autoloop): falsifier checked against the live DB (read-only query, no writes) — `users/local/teachSessions` has **0 docs** (never a session started, let alone routed) and `users/local/teachTopics` has 11 topics, all still `status:"queued"`, 0 with `scheduledFor` set. The one topic with non-empty `learningRecords` (6 entries, "logical fallacies") got them from `feed.ts`'s "kept feed card" auto-note, not a real teach session — `endSession()` (the only path that writes a genuine learning record) has never run. Gate does not pass: not built. Re-check next time a real `teachSessions` doc exists.
   BLOCKED (2026-08-28, autoloop re-check — CAUSE CHANGED, still holds): `teachSessions` is no longer 0 — one doc exists now: a "distributed systems fundamentals" session, `startedAt` 2026-08-27T15:04:50Z, `abandoned:true`, swept `endedAt` 2026-08-27T22:34:04Z. `teachTurns` has exactly 1 row for it: the tutor's opener; no learner turn ever came back, so `endSession()`'s `turns.some(learner)` gate never fired, no summary/learningRecord was generated, and the topic's `learningRecords` stayed `[]` (topic status is stuck `active` rather than cycling back to `queued`, confirming no record was written). All 10 other topics are still `queued`/unscheduled with the same pre-existing "logical fallacies" auto-note. So: first real session attempt ever, but zero learner engagement — still nothing to revisit. Falsifier still holds; not built. Re-check next time a session has ≥1 learner turn or a real learningRecord.
+  BLOCKED (2026-09-06, autoloop re-check — CAUSE CHANGED, still holds): `teachSessions` now has **3** docs, not 1 — two more attempts since 2026-08-28, both against the same "distributed systems fundamentals" topic (`startedAt` 2026-09-02T16:32:48Z and 2026-09-04T15:17:18Z), both `abandoned:true`, both swept ~7h later like the first. `teachTurns` still has exactly 1 row per session (3 total) — every one is the tutor's opener; no learner turn has ever landed, across all 3 attempts. The topic's `learningRecords` is still `[]` and its status is still stuck `active`. This is now a repeated pattern, not a one-off: 3 separate sessions over 10 days, same topic, same shape (opens, gets zero replies, times out). Worth flagging to Samy directly rather than just re-blocking again — either he's opening these and not replying, or something upstream of `endSession()`'s learner-turn capture isn't landing his replies; an unattended agent can't tell which from doc state alone. Falsifier still holds (never revisited); not built. Re-check next time a session has ≥1 learner turn or a real learningRecord.
 
 - [x] **T52 — /decide "Pain" deck: read real pain points in people's own words (LIVE 2026-07-14)** (M) — a one-off deck (same disposable contract as Shelf: drains, then the tab hides itself) holding 112 Hacker News comments pulled by searching literal annoyance/spend phrases ("I would happily pay", "we pay someone to"), each with its thread context. **The deck's whole point is that no card carries a pre-written verdict** — every other /decide deck shows an LLM assessment and asks Samy to approve it; three rounds of SaaS gap research died precisely because agents read vendor content and formed the verdicts (see the saas-gap-hunt notes). Here the swipe IS the first judgment. Keep = worth talking to that person (the card carries their handle + permalink); keeps stay at `GET /api/pain?status=kept` rather than auto-filing anywhere — where they should land is Samy's call, unmade. Lib `src/lib/pain-deck.ts` (+ tests), API `src/app/api/pain{,/verdict,/restore}` (seed is idempotent on `source:extId`), card `src/components/decide/pain-card.tsx`, wired into `src/app/decide/page.tsx`. `CardStack` gained an optional `minHeight` (default 420, unchanged for existing decks) because pain cards are far taller than a bookmark card and were painting over the Keep/Drop row; the pain card is pinned to a fixed 560 with the quote scrolling internally, since content-height cards let a taller under-card poke out below the top one. No compose/infra change. Seeded off-repo (one-off, like `backfill-firefox.py`) — pull scripts now at **`~/services/pain/`** (moved out of the session scratchpad 2026-07-15, `services` repo; README carries the sources + the agent-fetches-Samy-reads rule), raw pull at `~/scratch/pain-points-raw-2026-07-14.md`. *(2026-07-14, interactive with Samy — he overruled my recommendation to read the markdown instead of building a deck; the no-verdict rule is the part of that argument he kept. Verified: tsc clean, vitest 385/385 (8 new), docker build + up -d, `/` `/decide` `/api/pain` all 200, 112 seeded then re-seeded → new=0 duplicate=112, keep→kept list→replay 409→bad action 400→restore→112 pending, deck rendered + Pain tab clicked in headless chromium over CDP and screenshotted (no verdict word in the DOM). **Known gap:** Reddit is unreachable from this box (403 direct + WebFetch refuses it) so the pull is HN-only = tech/founder skew; an English/non-tech source needs Samy to create a free Reddit API app — same blocker as scout's demand_scout.)*
 
@@ -81,6 +82,36 @@
   (2026-08-17: done in autoloop — see Log.)
 
 ## Log
+
+- **2026-09-06 (autoloop, T64 falsifier re-check):** First unchecked
+  non-NEEDS-USER task; re-ran the falsifier read-only against the live DB
+  (`docker exec lifeos node`, no writes). Evidence moved again since
+  2026-08-28: `teachSessions` is now 3 docs (was 1) — two more attempts,
+  2026-09-02 and 2026-09-04, both against the same "distributed systems
+  fundamentals" topic, both abandoned after ~7h with exactly one `teachTurns`
+  row (the tutor's opener) and zero learner turns. Same shape all 3 times.
+  Falsifier still holds (no learner ever engaged, no learningRecord from a
+  real session), so still not built. Updated the BLOCKED note with the new
+  count and flagged the repeated 3-for-3 zero-engagement pattern as worth a
+  direct look from Samy — an unattended agent can't distinguish "not
+  interested" from "his replies aren't landing" from doc state alone.
+  Checked T27 and T29 next (only other unchecked, non-NEEDS-USER tasks in the
+  file besides T82 which is titled NEEDS-USER): both unchanged from their
+  standing BLOCKED notes (T27 — Samy-deferred design capture, no verify note;
+  T29 — needs a read-write mount that contradicts T28's read-only rationale,
+  needs Samy's call on scope). No new cause on either; wrote nothing there
+  per the re-block-on-unchanged-cause rule. No code changes. Nothing left to
+  execute tonight.
+  Pitch: n/a — no code shipped, this was the falsifier check T64 itself
+  requires before any SRS code is written.
+  Quiz: why does 3 abandoned sessions against the *same* topic, each with
+  only the tutor's opening turn, count as evidence worth escalating rather
+  than just "falsifier still holds, nothing changed"? *(Because the shape is
+  identical every time — not "sometimes engages, sometimes doesn't" but
+  "never once gets a reply" — which is a distinct signal from simple
+  disinterest: it's consistent with the reply path itself being broken, and
+  that's a bug report, not a product-fit verdict, so it shouldn't sit silent
+  in a re-block note Samy may never expand.)*
 
 - **2026-09-04 (autoloop, T83):** BLOCKED. T83 asks to fix the prompt that
   writes `TriageProposal.destination`, but that prompt is `study.py`, which
