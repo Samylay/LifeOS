@@ -14,14 +14,16 @@
 // Emptiness is a real, finished answer here, not a loading or error state:
 // see EmptySurface below.
 import { useState } from "react";
-import { Radar, ExternalLink, Check, Trophy, X, Trash2 } from "lucide-react";
+import { Radar, ExternalLink, Check, Trophy, X, Trash2, Copy } from "lucide-react";
 import { useLeads, type Lead, type LeadStatus } from "@/lib/use-leads";
+import { buildCopyContext } from "@/lib/leads/copy-context";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Page, PageHeader } from "@/components/ui/page";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Skeleton } from "@/components/skeleton";
+import { useToast } from "@/components/toast";
 import { calendarDaysBetween } from "@/lib/types";
 
 const SOURCE_LABELS: Record<string, string> = {
@@ -114,10 +116,36 @@ function LeadCard({
   const [briefOpen, setBriefOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [now] = useState(() => Date.now());
+  const { toast } = useToast();
   const contactedDays =
     lead.status === "contacted" && lead.contactedAt
       ? calendarDaysBetween(new Date(lead.contactedAt), new Date(now))
       : null;
+
+  // The counterparty/requirement contract (ticket 01) delivered as-is —
+  // never a summary the app invented. A lead missing both still has a title
+  // (scout always sets one), so this only actually goes blank on maximally
+  // thin data, in which case the line is dropped rather than shown empty.
+  const displayName = lead.counterparty || lead.title;
+
+  const handleCopy = async () => {
+    const text = buildCopyContext(
+      {
+        counterparty: lead.counterparty,
+        requirement: lead.requirement,
+        deadline: lead.deadline,
+        budget: lead.budget,
+        url: lead.url,
+      },
+      lead.relatedWork,
+    );
+    try {
+      await navigator.clipboard.writeText(text);
+      toast("Context copied", "success");
+    } catch {
+      toast("Couldn't copy — clipboard unavailable", "error");
+    }
+  };
 
   return (
     <Card className="p-4 gap-0 enter">
@@ -136,12 +164,33 @@ function LeadCard({
         </span>
       </div>
 
-      <p className="text-sm font-semibold mb-1 text-foreground">
-        {lead.title}
-      </p>
+      {displayName && (
+        <p className="text-sm font-semibold mb-1 text-foreground">{displayName}</p>
+      )}
+
+      {/* Ticket 03: what they need, named without opening the source posting. */}
+      {lead.requirement && <p className="text-sm mb-1 text-foreground">{lead.requirement}</p>}
 
       {/* The one line that answers "why is this here" — story 14. */}
       <p className="text-xs mb-1.5 text-primary">{lead.admissionReason}</p>
+
+      {/* Samy's own relevant prior work — quiet when there is none, never
+          padded with something loosely related (ticket 03). */}
+      {lead.relatedWork.length > 0 && (
+        <div className="mb-2.5 rounded-lg border border-border/60 bg-muted/30 p-2.5">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground/70 mb-1">
+            Your prior work
+          </p>
+          <ul className="space-y-0.5">
+            {lead.relatedWork.map((w) => (
+              <li key={w.path} className="text-xs text-foreground">
+                {w.title}
+                {w.summary && <span className="text-muted-foreground">{" — " + w.summary}</span>}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {lead.brief && (
         <button
@@ -173,6 +222,13 @@ function LeadCard({
         >
           <ExternalLink size={14} /> Open brief
         </a>
+        <button
+          onClick={handleCopy}
+          className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium border border-border text-foreground ${pressable}`}
+          title="Copy prepared context"
+        >
+          <Copy size={14} /> Copy context
+        </button>
         <ActionButton
           onClick={() => onStatus(lead.id, "contacted")}
           color="var(--warning)"
