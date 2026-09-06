@@ -1,43 +1,32 @@
 "use client";
 
-// Leads — persistent demand, from two places: website-build briefs found by
-// scout/demand_scout.py (source "codeur") and pain points kept in the /decide
-// Pain deck (source "hn-pain"). The counterpart to /pager: these don't get
-// pruned, they carry a status the user drives (new → contacted → won / passed).
+// Leads — a handful you could act on today, or nothing.
 //
-// The source filter is not cosmetic. Leads sort by postedAt, and an HN comment
-// is always older than this morning's freelance brief — so kept pain points
-// land at the bottom of the list and are effectively invisible without it.
+// This surface used to be a 653-item graveyard: every lead scout found
+// landed here with no bar to clear, and a year of that produced zero
+// contacts. The fix lives upstream of the UI (admission — see
+// lib/leads/admission.ts and lib/leads/surface.ts): GET /api/leads returns
+// only what's admitted right now, capped at a handful, so this component has
+// nothing left to filter or paginate. There is deliberately no "show all", no
+// source filter, no status filter — those existed only to navigate a pile,
+// and a capped set has no pile to navigate.
+//
+// Emptiness is a real, finished answer here, not a loading or error state:
+// see EmptySurface below.
 import { useState } from "react";
 import { Radar, ExternalLink, Check, Trophy, X, Trash2 } from "lucide-react";
-import { useLeads, LEAD_STATUSES, type Lead, type LeadStatus } from "@/lib/use-leads";
+import { useLeads, type Lead, type LeadStatus } from "@/lib/use-leads";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { FilterBar, Page, PageHeader } from "@/components/ui/page";
+import { Page, PageHeader } from "@/components/ui/page";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Skeleton } from "@/components/skeleton";
 import { calendarDaysBetween } from "@/lib/types";
 
-const STATUS_LABELS: Record<LeadStatus, string> = {
-  new: "New",
-  contacted: "Contacted",
-  won: "Won",
-  passed: "Passed",
-};
-
-const STATUS_COLORS: Record<LeadStatus, string> = {
-  new: "var(--primary)",
-  contacted: "var(--warning)",
-  won: "var(--success)",
-  passed: "var(--muted-foreground)",
-};
-
-// Known sources get a readable name; anything new falls back to its raw key
-// rather than disappearing.
 const SOURCE_LABELS: Record<string, string> = {
   codeur: "Codeur",
-  "hn-pain": "Pain (HN)",
+  "ject-osm": "JobExtract/OSM",
 };
 
 /** Translucent tint of a color (hex or CSS var) for chip backgrounds. */
@@ -59,95 +48,57 @@ function timeAgo(d: Date): string {
   return `${Math.floor(hours / 24)}d`;
 }
 
-const pressable = "transition-transform duration-150 active:scale-[0.97]";
+const pressable = "pressable active:scale-[0.97]";
 
 export default function LeadsPage() {
-  const { leads, loading, setStatus, remove } = useLeads();
-  const [filter, setFilter] = useState<LeadStatus | "all">("all");
-  const [source, setSource] = useState<string>("all");
-
-  const sources = Array.from(new Set(leads.map((l) => l.source))).sort();
-  // Source narrows first, so the status counts describe what you're looking at.
-  const scoped = source === "all" ? leads : leads.filter((l) => l.source === source);
-  const count = (s: LeadStatus | "all") =>
-    s === "all" ? scoped.length : scoped.filter((l) => l.status === s).length;
-  const visible = filter === "all" ? scoped : scoped.filter((l) => l.status === filter);
+  const { leads, loading, cap, lastDeliveredAt, setStatus, remove } = useLeads();
 
   return (
     <Page narrow>
       <PageHeader
         kicker="Pipeline"
         title="Leads"
-        description="Requests worth contacting, from first signal to a clear outcome."
+        description="A handful worth contacting today. Nothing more."
         icon={Radar}
-        actions={count("new") > 0 ? (
+        actions={leads.length > 0 ? (
           <Badge className="text-xs font-semibold">
-            {count("new")} new
+            {leads.length}/{cap}
           </Badge>
         ) : undefined}
       />
-
-      {/* Source filter — only worth showing once there's more than one. */}
-      {sources.length > 1 && (
-        <FilterBar>
-          {(["all", ...sources] as const).map((s) => {
-            const active = source === s;
-            const n = s === "all" ? leads.length : leads.filter((l) => l.source === s).length;
-            return (
-              <button
-                key={s}
-                onClick={() => setSource(s)}
-                className={`text-xs rounded-full px-3 py-1.5 font-medium border ${pressable} ${
-                  active ? "bg-muted text-foreground border-muted-foreground" : "bg-transparent text-muted-foreground/70 border-border"
-                }`}
-              >
-                {s === "all" ? "All sources" : (SOURCE_LABELS[s] ?? s)}
-                <span className="ml-1.5 font-semibold">{n}</span>
-              </button>
-            );
-          })}
-        </FilterBar>
-      )}
-
-      {/* Status filter — zero-count chips are noise, except All and New */}
-      <FilterBar>
-        {(["all", ...LEAD_STATUSES] as const)
-          .filter((s) => s === "all" || s === "new" || count(s) > 0 || filter === s)
-          .map((s) => {
-          const active = filter === s;
-          return (
-            <button
-              key={s}
-              onClick={() => setFilter(s)}
-              className={`text-xs rounded-lg px-3 py-2 font-medium border ${pressable} ${
-                active ? "bg-primary text-primary-foreground border-primary" : "bg-card text-muted-foreground border-border"
-              }`}
-            >
-              {s === "all" ? "All" : STATUS_LABELS[s]}
-              <span className="ml-1.5 font-semibold">{count(s)}</span>
-            </button>
-          );
-        })}
-      </FilterBar>
 
       {loading ? (
         <div className="space-y-3">
           {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-32 rounded-xl" />)}
         </div>
-      ) : visible.length === 0 ? (
-        <p className="text-muted-foreground/70">
-          {filter === "all"
-            ? "No leads yet. demand-scout drops new website requests here every morning."
-            : `No ${STATUS_LABELS[filter as LeadStatus].toLowerCase()} leads.`}
-        </p>
+      ) : leads.length === 0 ? (
+        <EmptySurface lastDeliveredAt={lastDeliveredAt} />
       ) : (
         <div className="space-y-3">
-          {visible.map((lead) => (
+          {leads.map((lead) => (
             <LeadCard key={lead.id} lead={lead} onStatus={setStatus} onRemove={remove} />
           ))}
         </div>
       )}
     </Page>
+  );
+}
+
+/**
+ * A finished answer, not a failure. Distinguishes "scout is running and
+ * nothing cleared the bar today" from "something broke" by naming when scout
+ * last delivered anything at all — a quiet day looks different from silence.
+ */
+function EmptySurface({ lastDeliveredAt }: { lastDeliveredAt: Date | null }) {
+  const deliveredText = lastDeliveredAt
+    ? `Scout last delivered a lead ${timeAgo(lastDeliveredAt)} ago.`
+    : "Scout hasn't delivered a lead yet.";
+
+  return (
+    <Card className="p-6 text-center enter">
+      <p className="text-sm font-medium text-foreground mb-1">Nothing worth your attention right now.</p>
+      <p className="text-xs text-muted-foreground/70">{deliveredText}</p>
+    </Card>
   );
 }
 
@@ -160,7 +111,6 @@ function LeadCard({
   onStatus: (id: string, s: LeadStatus) => void;
   onRemove: (id: string) => void;
 }) {
-  const dimmed = lead.status === "passed";
   const [briefOpen, setBriefOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [now] = useState(() => Date.now());
@@ -170,25 +120,13 @@ function LeadCard({
       : null;
 
   return (
-    <Card
-      className="p-4 gap-0 transition-opacity enter"
-      style={{ opacity: dimmed ? 0.55 : 1, transitionDuration: "var(--dur-base)", transitionTimingFunction: "var(--ease-out-custom)" }}
-    >
+    <Card className="p-4 gap-0 enter">
       <div className="flex items-center gap-2 mb-1.5 flex-wrap">
         <span
           className="text-xs font-semibold rounded-md px-2 py-0.5"
           style={{ background: tint(budgetColor(lead.budgetFloor), 18), color: budgetColor(lead.budgetFloor) }}
         >
           {lead.budget}
-        </span>
-        <span
-          className="text-xs font-medium rounded-md px-2 py-0.5 border"
-          style={{
-            color: STATUS_COLORS[lead.status],
-            borderColor: STATUS_COLORS[lead.status],
-          }}
-        >
-          {STATUS_LABELS[lead.status]}
         </span>
         <span className="text-xs text-muted-foreground/70">
           {SOURCE_LABELS[lead.source] ?? lead.source} · {timeAgo(lead.postedAt)}
@@ -201,11 +139,10 @@ function LeadCard({
       <p className="text-sm font-semibold mb-1 text-foreground">
         {lead.title}
       </p>
-      {lead.categories && (
-        <p className="text-xs mb-1.5 text-muted-foreground/70">
-          {lead.categories}
-        </p>
-      )}
+
+      {/* The one line that answers "why is this here" — story 14. */}
+      <p className="text-xs mb-1.5 text-primary">{lead.admissionReason}</p>
+
       {lead.brief && (
         <button
           onClick={() => setBriefOpen((o) => !o)}
@@ -236,23 +173,20 @@ function LeadCard({
         >
           <ExternalLink size={14} /> Open brief
         </a>
-        <StatusButton
-          active={lead.status === "contacted"}
-          onClick={() => onStatus(lead.id, lead.status === "contacted" ? "new" : "contacted")}
+        <ActionButton
+          onClick={() => onStatus(lead.id, "contacted")}
           color="var(--warning)"
           icon={<Check size={14} />}
           label="Contacted"
         />
-        <StatusButton
-          active={lead.status === "won"}
-          onClick={() => onStatus(lead.id, lead.status === "won" ? "new" : "won")}
+        <ActionButton
+          onClick={() => onStatus(lead.id, "won")}
           color="var(--success)"
           icon={<Trophy size={14} />}
           label="Won"
         />
-        <StatusButton
-          active={lead.status === "passed"}
-          onClick={() => onStatus(lead.id, lead.status === "passed" ? "new" : "passed")}
+        <ActionButton
+          onClick={() => onStatus(lead.id, "passed")}
           color="var(--muted-foreground)"
           icon={<X size={14} />}
           label="Pass"
@@ -278,14 +212,12 @@ function LeadCard({
   );
 }
 
-function StatusButton({
-  active,
+function ActionButton({
   onClick,
   color,
   icon,
   label,
 }: {
-  active: boolean;
   onClick: () => void;
   color: string;
   icon: React.ReactNode;
@@ -293,11 +225,11 @@ function StatusButton({
 }) {
   return (
     <Button
-      variant={active ? "secondary" : "outline"}
+      variant="outline"
       size="sm"
       onClick={onClick}
-      className="gap-1.5 text-xs font-medium"
-      style={active ? { background: tint(color, 18), color, borderColor: tint(color, 40) } : undefined}
+      className={`gap-1.5 text-xs font-medium ${pressable}`}
+      style={{ color, borderColor: tint(color, 40) }}
     >
       {icon} {label}
     </Button>
