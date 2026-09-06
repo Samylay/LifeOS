@@ -365,6 +365,173 @@ describe("merchant fallback from remittance_information (CAUSE 1)", () => {
   });
 });
 
+describe("classify — fixed vs sub for a SEPA direct-debit cost of living (CAUSE 3)", () => {
+  // Live bug (2026-09-07): rent, a bank fee, a phone line and a charity
+  // direct debit all landed in `sub` because their labels don't match any
+  // FIXED_WORDS keyword — a placeholder property manager doesn't say "loyer",
+  // a bank's own fee line doesn't say "assurance", a telecom brand name isn't
+  // in the word list, a charity name isn't either. `classify` must not need
+  // a merchant list to get these right: it reads the SEPA transaction-type
+  // prefix off the remittance text instead.
+
+  it("reads a direct-debited rent-shaped charge (no rent keyword in the label) as fixed, not sub", () => {
+    const transactions: BankTransactionLike[] = [
+      outNoCreditor({
+        transactionId: "rent1",
+        amount: "845.14",
+        date: "2026-01-04",
+        remittance: "PRELEVEMENT EUROPEEN 1000000001 DE: PLACEHOLDER PROPERTY CO ID: FR00ZZZ000099 MOTIF: QUITTANCE 01/01",
+      }),
+      outNoCreditor({
+        transactionId: "rent2",
+        amount: "845.14",
+        date: "2026-02-04",
+        remittance: "PRELEVEMENT EUROPEEN 1000000002 DE: PLACEHOLDER PROPERTY CO ID: FR00ZZZ000099 MOTIF: QUITTANCE 01/02",
+      }),
+      outNoCreditor({
+        transactionId: "rent3",
+        amount: "845.14",
+        date: "2026-03-04",
+        remittance: "PRELEVEMENT EUROPEEN 1000000003 DE: PLACEHOLDER PROPERTY CO ID: FR00ZZZ000099 MOTIF: QUITTANCE 01/03",
+      }),
+    ];
+    const { charges } = detectRecurring(transactions);
+    expect(charges).toHaveLength(1);
+    expect(charges[0].kind).toBe("fixed");
+  });
+
+  it("reads a direct-debited utility-shaped charge as fixed", () => {
+    const transactions: BankTransactionLike[] = [
+      outNoCreditor({ transactionId: "u1", amount: "58.30", date: "2026-01-12", remittance: "PRELEVEMENT SEPA 4000000001 DE: PLACEHOLDER ENERGY CO ID: FR00ZZZ000098" }),
+      outNoCreditor({ transactionId: "u2", amount: "58.30", date: "2026-02-12", remittance: "PRELEVEMENT SEPA 4000000002 DE: PLACEHOLDER ENERGY CO ID: FR00ZZZ000098" }),
+      outNoCreditor({ transactionId: "u3", amount: "58.30", date: "2026-03-12", remittance: "PRELEVEMENT SEPA 4000000003 DE: PLACEHOLDER ENERGY CO ID: FR00ZZZ000098" }),
+    ];
+    const { charges } = detectRecurring(transactions);
+    expect(charges).toHaveLength(1);
+    expect(charges[0].kind).toBe("fixed");
+  });
+
+  it("reads a direct-debited insurance-shaped charge as fixed", () => {
+    const transactions: BankTransactionLike[] = [
+      outNoCreditor({ transactionId: "i1", amount: "22.90", date: "2026-01-08", remittance: "PRELEVEMENT EUROPEEN 5000000001 DE: PLACEHOLDER COVER CO ID: FR00ZZZ000097" }),
+      outNoCreditor({ transactionId: "i2", amount: "22.90", date: "2026-02-08", remittance: "PRELEVEMENT EUROPEEN 5000000002 DE: PLACEHOLDER COVER CO ID: FR00ZZZ000097" }),
+      outNoCreditor({ transactionId: "i3", amount: "22.90", date: "2026-03-08", remittance: "PRELEVEMENT EUROPEEN 5000000003 DE: PLACEHOLDER COVER CO ID: FR00ZZZ000097" }),
+    ];
+    const { charges } = detectRecurring(transactions);
+    expect(charges).toHaveLength(1);
+    expect(charges[0].kind).toBe("fixed");
+  });
+
+  it("reads a bank-fee-shaped charge (whole remittance text, no DE:/POUR: label) as fixed via the cotisation keyword", () => {
+    const transactions: BankTransactionLike[] = [
+      outNoCreditor({ transactionId: "f1", amount: "3.50", date: "2026-01-15", remittance: "COTISATION MENSUELLE PLACEHOLDER BANK" }),
+      outNoCreditor({ transactionId: "f2", amount: "3.50", date: "2026-02-15", remittance: "COTISATION MENSUELLE PLACEHOLDER BANK" }),
+      outNoCreditor({ transactionId: "f3", amount: "3.50", date: "2026-03-15", remittance: "COTISATION MENSUELLE PLACEHOLDER BANK" }),
+    ];
+    const { charges } = detectRecurring(transactions);
+    expect(charges).toHaveLength(1);
+    expect(charges[0].kind).toBe("fixed");
+  });
+
+  it("reads a direct-debited charity-shaped charge as fixed, with no charity keyword anywhere", () => {
+    const transactions: BankTransactionLike[] = [
+      outNoCreditor({ transactionId: "c1", amount: "10.00", date: "2026-01-05", remittance: "PRELEVEMENT EUROPEEN 6000000001 DE: PLACEHOLDER CHARITY ORG ID: FR00ZZZ000096" }),
+      outNoCreditor({ transactionId: "c2", amount: "10.00", date: "2026-02-05", remittance: "PRELEVEMENT EUROPEEN 6000000002 DE: PLACEHOLDER CHARITY ORG ID: FR00ZZZ000096" }),
+      outNoCreditor({ transactionId: "c3", amount: "10.00", date: "2026-03-05", remittance: "PRELEVEMENT EUROPEEN 6000000003 DE: PLACEHOLDER CHARITY ORG ID: FR00ZZZ000096" }),
+    ];
+    const { charges } = detectRecurring(transactions);
+    expect(charges).toHaveLength(1);
+    expect(charges[0].kind).toBe("fixed");
+  });
+
+  it("still reads a card-charged, unmatched, cheap recurring charge as sub (no direct-debit marker)", () => {
+    const transactions: BankTransactionLike[] = [
+      out({ transactionId: "s1", amount: "9.99", date: "2026-01-20", creditorName: "GENERIC STREAMING CO" }),
+      out({ transactionId: "s2", amount: "9.99", date: "2026-02-20", creditorName: "GENERIC STREAMING CO" }),
+      out({ transactionId: "s3", amount: "9.99", date: "2026-03-20", creditorName: "GENERIC STREAMING CO" }),
+    ];
+    const { charges } = detectRecurring(transactions);
+    expect(charges).toHaveLength(1);
+    expect(charges[0].kind).toBe("sub");
+  });
+
+  it("still reads Netflix-, Spotify- and Apple-shaped charges as sub even when direct-debited", () => {
+    const brands = [
+      { key: "netflix", label: "NETFLIX.COM" },
+      { key: "spotify", label: "SPOTIFY" },
+      { key: "apple", label: "APPLE.COM/BILL" },
+    ];
+    for (const { key, label } of brands) {
+      const transactions: BankTransactionLike[] = [
+        outNoCreditor({ transactionId: `${key}1`, amount: "9.99", date: "2026-01-15", remittance: `PRELEVEMENT EUROPEEN 7000000001 DE: ${label} ID: FR00ZZZ000095` }),
+        outNoCreditor({ transactionId: `${key}2`, amount: "9.99", date: "2026-02-15", remittance: `PRELEVEMENT EUROPEEN 7000000002 DE: ${label} ID: FR00ZZZ000095` }),
+        outNoCreditor({ transactionId: `${key}3`, amount: "9.99", date: "2026-03-15", remittance: `PRELEVEMENT EUROPEEN 7000000003 DE: ${label} ID: FR00ZZZ000095` }),
+      ];
+      const { charges } = detectRecurring(transactions);
+      expect(charges).toHaveLength(1);
+      expect(charges[0].kind).toBe("sub");
+    }
+  });
+
+  it("reads a large, unmatched, non-direct-debit recurring charge as fixed on amount alone", () => {
+    // No keyword, no direct-debit marker (card-charged) — but €300/mo is far
+    // past anything a genuine discretionary subscription costs.
+    const transactions: BankTransactionLike[] = [
+      out({ transactionId: "big1", amount: "300.00", date: "2026-01-01", creditorName: "PLACEHOLDER LARGE CO" }),
+      out({ transactionId: "big2", amount: "300.00", date: "2026-02-01", creditorName: "PLACEHOLDER LARGE CO" }),
+      out({ transactionId: "big3", amount: "300.00", date: "2026-03-01", creditorName: "PLACEHOLDER LARGE CO" }),
+    ];
+    const { charges } = detectRecurring(transactions);
+    expect(charges).toHaveLength(1);
+    expect(charges[0].kind).toBe("fixed");
+  });
+
+  it("still lets an override win over the direct-debit signal", () => {
+    const transactions: BankTransactionLike[] = [
+      outNoCreditor({ transactionId: "o1", amount: "845.14", date: "2026-01-04", remittance: "PRELEVEMENT EUROPEEN 1 DE: PLACEHOLDER PROPERTY CO ID: FR00ZZZ000099" }),
+      outNoCreditor({ transactionId: "o2", amount: "845.14", date: "2026-02-04", remittance: "PRELEVEMENT EUROPEEN 2 DE: PLACEHOLDER PROPERTY CO ID: FR00ZZZ000099" }),
+      outNoCreditor({ transactionId: "o3", amount: "845.14", date: "2026-03-04", remittance: "PRELEVEMENT EUROPEEN 3 DE: PLACEHOLDER PROPERTY CO ID: FR00ZZZ000099" }),
+    ];
+    const { charges } = detectRecurring(transactions, { "PLACEHOLDER PROPERTY CO": "variable" });
+    expect(charges).toHaveLength(1);
+    expect(charges[0].kind).toBe("variable");
+  });
+
+  it("keeps the bucket-sum invariant in integer cents for a full mixed month (rent + bank fee + phone + charity + Netflix + groceries)", () => {
+    const transactions: BankTransactionLike[] = [
+      // Rent: direct debit, unmatched label -> fixed.
+      outNoCreditor({ transactionId: "rent1", amount: "845.14", date: "2026-01-04", remittance: "PRELEVEMENT EUROPEEN 1 DE: PLACEHOLDER PROPERTY CO ID: FR00ZZZ000099" }),
+      outNoCreditor({ transactionId: "rent2", amount: "845.14", date: "2026-02-04", remittance: "PRELEVEMENT EUROPEEN 2 DE: PLACEHOLDER PROPERTY CO ID: FR00ZZZ000099" }),
+      outNoCreditor({ transactionId: "rent3", amount: "845.14", date: "2026-03-04", remittance: "PRELEVEMENT EUROPEEN 3 DE: PLACEHOLDER PROPERTY CO ID: FR00ZZZ000099" }),
+      // Bank fee: cotisation keyword -> fixed.
+      outNoCreditor({ transactionId: "fee1", amount: "3.50", date: "2026-01-15", remittance: "COTISATION MENSUELLE PLACEHOLDER BANK" }),
+      outNoCreditor({ transactionId: "fee2", amount: "3.50", date: "2026-02-15", remittance: "COTISATION MENSUELLE PLACEHOLDER BANK" }),
+      outNoCreditor({ transactionId: "fee3", amount: "3.50", date: "2026-03-15", remittance: "COTISATION MENSUELLE PLACEHOLDER BANK" }),
+      // Phone: direct debit, unmatched brand label -> fixed.
+      outNoCreditor({ transactionId: "phone1", amount: "24.99", date: "2026-01-10", remittance: "PRELEVEMENT EUROPEEN 1 DE: PLACEHOLDER TELECOM CO ID: FR00ZZZ000094" }),
+      outNoCreditor({ transactionId: "phone2", amount: "24.99", date: "2026-02-10", remittance: "PRELEVEMENT EUROPEEN 2 DE: PLACEHOLDER TELECOM CO ID: FR00ZZZ000094" }),
+      outNoCreditor({ transactionId: "phone3", amount: "24.99", date: "2026-03-10", remittance: "PRELEVEMENT EUROPEEN 3 DE: PLACEHOLDER TELECOM CO ID: FR00ZZZ000094" }),
+      // Charity: direct debit -> fixed.
+      outNoCreditor({ transactionId: "charity1", amount: "10.00", date: "2026-01-05", remittance: "PRELEVEMENT EUROPEEN 1 DE: PLACEHOLDER CHARITY ORG ID: FR00ZZZ000096" }),
+      outNoCreditor({ transactionId: "charity2", amount: "10.00", date: "2026-02-05", remittance: "PRELEVEMENT EUROPEEN 2 DE: PLACEHOLDER CHARITY ORG ID: FR00ZZZ000096" }),
+      outNoCreditor({ transactionId: "charity3", amount: "10.00", date: "2026-03-05", remittance: "PRELEVEMENT EUROPEEN 3 DE: PLACEHOLDER CHARITY ORG ID: FR00ZZZ000096" }),
+      // Netflix: card-charged, keyword match -> sub.
+      out({ transactionId: "n1", amount: "7.99", date: "2026-01-20", creditorName: "NETFLIX.COM 1111" }),
+      out({ transactionId: "n2", amount: "7.99", date: "2026-02-20", creditorName: "NETFLIX.COM 2222" }),
+      out({ transactionId: "n3", amount: "7.99", date: "2026-03-20", creditorName: "NETFLIX.COM 3333" }),
+      // A one-off grocery run in the target month -> variable.
+      out({ transactionId: "g1", amount: "37.42", date: "2026-03-07", creditorName: "PLACEHOLDER GROCERY STORE" }),
+    ];
+    const { burn, recurring } = monthlyBurn(transactions, "2026-03");
+    expect(recurring.filter((c) => c.kind === "fixed")).toHaveLength(4); // rent, fee, phone, charity
+    expect(recurring.filter((c) => c.kind === "sub")).toHaveLength(1); // netflix
+    expect(burn.fixed).toBeCloseTo(845.14 + 3.5 + 24.99 + 10.0, 2);
+    expect(burn.sub).toBeCloseTo(7.99, 2);
+    expect(burn.variable).toBeCloseTo(37.42, 2);
+    expect(burn.fixed + burn.sub + burn.variable).toBeCloseTo(burn.out, 2);
+  });
+});
+
 describe("transfer bucket — self-transfers and internal moves excluded from spend (CAUSE 2)", () => {
   it("routes a transfer to another account Samy holds into `transfer`, not `variable`", () => {
     const transactions: BankTransactionLike[] = [

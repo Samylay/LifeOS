@@ -12,7 +12,7 @@
 // Pure module: no filesystem, no network, no database. Every function here
 // takes plain data in and returns plain data out.
 import type { FlowCadence, FlowDirection, FlowKind } from "./finance";
-import { inferKind } from "./finance";
+import { keywordKind, monthlyAmount } from "./finance";
 import {
   detectRecurringSeries,
   normalizeMerchantKey,
@@ -166,6 +166,21 @@ function deriveMerchantFromRemittance(raw: unknown): string | null {
   return captured || text;
 }
 
+// --- Direct-debit signal (CAUSE 3: the fixed/sub split) --------------------
+//
+// "PRELEVEMENT" (SEPA direct debit) is the transaction-TYPE prefix a French
+// bank puts on a collection a biller pulls from the account — rent managers,
+// utilities, insurers, telecom operators, loan servicers, charities all bill
+// this way. A discretionary media/software subscription (Netflix, Spotify,
+// Claude, a SaaS tool) is charged by card instead, never a SEPA collection.
+// This is deliberately read off the remittance text's own vocabulary, not a
+// merchant name, so it generalises to any biller using the instrument,
+// present or future, without a fixture ever naming one.
+function isDirectDebit(raw: unknown): boolean {
+  const text = remittanceText(raw);
+  return text != null && /\bPRELEVEMENT\b/i.test(text);
+}
+
 // --- Self-transfer / internal-move detection (CAUSE 2) --------------------
 //
 // April's headline burn included €9,230 across two transfers to Samy's OWN
@@ -190,6 +205,9 @@ interface Converted {
   /** True when this row is money moving between Samy's own accounts/pockets
    * rather than spend or income — routed to `BurnMonth.transfer` instead. */
   isTransfer: boolean;
+  /** True when the raw payload's remittance text carries a SEPA direct-debit
+   * marker. See `isDirectDebit` — feeds `classify`'s fixed/sub signal. */
+  isDirectDebit: boolean;
 }
 interface NotConverted {
   undetermined: UndeterminedTransaction;
@@ -237,6 +255,7 @@ function convert(tx: BankTransactionLike, ownAccountIdentifiers: string[]): Conv
       date: tx.bookingDate,
     },
     isTransfer: isSelfTransfer(merchant, remittance, ownAccountIdentifiers),
+    isDirectDebit: isDirectDebit(tx.raw),
   };
 }
 
@@ -250,20 +269,29 @@ function splitTransactions(
    * or income. */
   transferTxs: DetectorTransaction[];
   undetermined: UndeterminedTransaction[];
+  /** transactionId -> was this a SEPA direct debit, for every row in
+   * `detectorTxs`. Kept as a side map rather than a field on
+   * `DetectorTransaction` because subscription-detector.ts's shape is
+   * shared/tested elsewhere and stays untouched — see `classify`. */
+  directDebitByTxId: Map<string, boolean>;
 } {
   const detectorTxs: DetectorTransaction[] = [];
   const transferTxs: DetectorTransaction[] = [];
   const undetermined: UndeterminedTransaction[] = [];
+  const directDebitByTxId = new Map<string, boolean>();
   for (const tx of transactions) {
     const result = convert(tx, ownAccountIdentifiers);
     if ("detectorTx" in result) {
       if (result.isTransfer) transferTxs.push(result.detectorTx);
-      else detectorTxs.push(result.detectorTx);
+      else {
+        detectorTxs.push(result.detectorTx);
+        directDebitByTxId.set(result.detectorTx.transactionId, result.isDirectDebit);
+      }
     } else {
       undetermined.push(result.undetermined);
     }
   }
-  return { detectorTxs, transferTxs, undetermined };
+  return { detectorTxs, transferTxs, undetermined, directDebitByTxId };
 }
 
 // --- Recurrence + classification ------------------------------------------
@@ -279,20 +307,69 @@ function computeConfidence(series: RecurringSeries): number {
   return Math.round(Math.min(raw, 0.95) * 100) / 100;
 }
 
-/** Overrides win over the detector's own guess. Kept as its own function
- * because ticket 01 names it explicitly: "classify(group)". */
-export function classify(series: RecurringSeries, overrides: ClassificationOverrides = {}): FlowKind {
-  return overrides[series.merchantKey] ?? inferKind(series.merchantRaw, series.direction, series.cadence);
+// A real discretionary subscription in this data tops out well under this —
+// Netflix/Spotify/a gym/a SaaS seat are all two-digit euros a month. A
+// recurring charge this large, with no keyword match and no direct-debit
+// marker either, reads as an unrecognised bill far more often than a
+// subscription he forgot to name, so it defaults to "fixed" rather than
+// "sub" — the same asymmetry `inferKind`'s own fallback already applies in
+// the opposite direction for genuinely ambiguous small charges.
+const FIXED_AMOUNT_FLOOR = 150;
+
+/**
+ * Overrides win over every guess below. Kept as its own function because
+ * ticket 01 names it explicitly: "classify(group)".
+ *
+ * `inferKind`'s label-keyword match still wins when it fires (Netflix, rent,
+ * insurance...). What it CAN'T see from a label alone is the instrument a
+ * charge was collected with or how it compares to his other recurring
+ * charges — so for everything a keyword doesn't already resolve, this reads
+ * two signals `inferKind` has no access to:
+ *   1. SEPA direct debit ("PRELEVEMENT..." — see `isDirectDebit`) is how
+ *      billers (rent managers, utilities, insurers, telecoms, banks,
+ *      charities) collect a recurring cost of living; a discretionary media
+ *      or software subscription is charged by card instead. Majority of a
+ *      series' occurrences being direct debits reads as "fixed".
+ *   2. Amount magnitude: nothing in the "cancel it and lose only
+ *      convenience" bucket costs hundreds of euros a month — a large,
+ *      unmatched, non-direct-debit recurring charge reads as "fixed" too.
+ * Neither signal names a merchant, so this holds up when Samy changes bank,
+ * landlord or phone plan.
+ */
+export function classify(
+  series: RecurringSeries,
+  overrides: ClassificationOverrides = {},
+  directDebitByTxId: ReadonlyMap<string, boolean> = new Map()
+): FlowKind {
+  const override = overrides[series.merchantKey];
+  if (override) return override;
+  if (series.direction === "in") return "fixed";
+
+  const keyword = keywordKind(series.merchantRaw);
+  if (keyword) return keyword;
+
+  const directDebitCount = series.occurrences.filter((o) => directDebitByTxId.get(o.transactionId)).length;
+  if (directDebitCount / series.occurrences.length >= 0.5) return "fixed";
+
+  if (monthlyAmount({ amount: series.amount, cadence: series.cadence }) >= FIXED_AMOUNT_FLOOR) return "fixed";
+
+  // Cheap, card-charged, unmatched and recurring: still more often a
+  // subscription he hasn't named than a bill, same asymmetry as before.
+  return "sub";
 }
 
-function toRecurringCharge(series: RecurringSeries, overrides: ClassificationOverrides): RecurringCharge {
+function toRecurringCharge(
+  series: RecurringSeries,
+  overrides: ClassificationOverrides,
+  directDebitByTxId: ReadonlyMap<string, boolean>
+): RecurringCharge {
   return {
     merchantKey: series.merchantKey,
     label: series.merchantRaw,
     direction: series.direction,
     cadence: series.cadence,
     amount: series.amount,
-    kind: classify(series, overrides),
+    kind: classify(series, overrides, directDebitByTxId),
     firstSeen: series.firstSeen,
     lastSeen: series.lastSeen,
     confidence: computeConfidence(series),
@@ -320,9 +397,9 @@ export function detectRecurring(
    * gets mistaken for a recurring charge. See `monthlyBurn`'s doc comment. */
   ownAccountIdentifiers: string[] = []
 ): DetectRecurringResult {
-  const { detectorTxs, undetermined } = splitTransactions(transactions, ownAccountIdentifiers);
+  const { detectorTxs, undetermined, directDebitByTxId } = splitTransactions(transactions, ownAccountIdentifiers);
   const series = detectRecurringSeries(detectorTxs);
-  return { charges: series.map((s) => toRecurringCharge(s, overrides)), undetermined };
+  return { charges: series.map((s) => toRecurringCharge(s, overrides, directDebitByTxId)), undetermined };
 }
 
 // --- Burn -------------------------------------------------------------
@@ -359,9 +436,12 @@ export function monthlyBurn(
    * internal-move labels are recognised with no identifiers supplied. */
   ownAccountIdentifiers: string[] = []
 ): MonthlyBurnResult {
-  const { detectorTxs, transferTxs, undetermined } = splitTransactions(transactions, ownAccountIdentifiers);
+  const { detectorTxs, transferTxs, undetermined, directDebitByTxId } = splitTransactions(
+    transactions,
+    ownAccountIdentifiers
+  );
   const series = detectRecurringSeries(detectorTxs);
-  const charges = series.map((s) => toRecurringCharge(s, overrides));
+  const charges = series.map((s) => toRecurringCharge(s, overrides, directDebitByTxId));
   // Recurring detection groups by direction + normalized merchant (see
   // subscription-detector.ts); rebuild the same composite key here so a
   // transaction can be matched back to the charge it belongs to.
