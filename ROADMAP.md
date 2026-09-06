@@ -13,7 +13,7 @@
 
 ## Tasks
 
-- [ ] **T84 — two tests fail depending on the time of day** (S) — found 2026-09-07 during the redesign ticket run. `src/lib/use-reminders.test.ts` and `src/lib/use-habits.test.ts` failed inside one agent's worktree and passed on `master` minutes later; re-running both in that same worktree afterwards passed too, so the branch is not the variable — the clock is. Both suites reason about "today"/"overdue" against local dates, and the failures cluster around a day boundary (the run was ~00:0x Europe/Paris). **Why this matters more than two flaky tests:** the whole redesign's verify gate is `npx vitest run`, and agents are instructed to treat a red suite as a stop signal. A suite that can fail for reasons unrelated to the change trains everyone — human and agent — to shrug at red, which is exactly how a real regression ships. Fix: give both suites a frozen clock (`vi.setSystemTime`) instead of `new Date()`, so a date-boundary crossing cannot decide the result. Verify: run each file with the system clock faked to 23:59:30 and 00:00:30 local on either side of a boundary and confirm both pass in both cases; then `npx vitest run` clean.
+- [x] **T84 — two tests fail depending on the time of day** (S) — found 2026-09-07 during the redesign ticket run. (2026-09-07: already fixed — no code change needed, see Log.)
 
 
 - [x] **T83 — the nightly study step writes destinations the /decide action set cannot honour** (S) — from the /decide rework (merged 2026-09-04, `8235fbd`). `TriageProposal.destination` is now mapped onto a closed action set (`app/src/lib/decide/actions.ts`). Two shapes coming out of the study step do not resolve: `roadmap:<project>` (2 live items), which is deliberately not performable because a ROADMAP task body is executed verbatim by the autoloop and a triage item is ingested text; and `backlog:<project>` (7 live items: `lifeos`, `homelab-infra`, `scout`), where a PROJECT name was written under the `backlog:` prefix, which accepts only the three learning centres (`workouts`, `polymath`, `swe-learning`). The deck handles both correctly — it asks Samy to pick rather than inventing a centre — but 9 of 45 cards arrive with no action chosen, which is upstream noise, not a UI problem. Fix the prompt that writes `destination` so it emits only what the action set accepts: `vault`, `idea-bank`, `backlog:<one of the three centres>`, `discard`. Drop `roadmap:` from its vocabulary entirely, or send those items to `vault` with the project named in the assessment's `apply` field instead. Do NOT widen the action set to accept the current output — the closed set is the security boundary as well as the product decision. Verify: re-run the study step on a sample, then assert every emitted `destination` resolves through `proposedAction()` to a performable action (`isPerformable`), and that `app/src/lib/decide/actions.test.ts` still passes unchanged.
@@ -85,6 +85,39 @@
   (2026-08-17: done in autoloop — see Log.)
 
 ## Log
+
+- **2026-09-07 (autoloop, T84):** First unchecked non-NEEDS-USER task.
+  Investigated before writing any fix: `src/lib/use-reminders.test.ts`
+  already uses `vi.useFakeTimers()` + `vi.setSystemTime` for its two
+  date-boundary tests, and its third test (`completed reminder is never
+  overdue`) short-circuits on `reminder.completed` in `isOverdue()`
+  (`use-reminders.ts:9`) before any date comparison, so it never touches
+  the real clock either. `src/lib/use-habits.test.ts` takes `now` as an
+  explicit parameter in every call to `toggledHabitState` — the only
+  bare `new Date()` is the function's unused default arg. Both suites
+  were already made clock-safe by an earlier commit (`23baa4f`, T81 /
+  "fix(dates): count today in habit streaks; one civil-day helper"),
+  which landed after this task was filed against a stale worktree. Ran
+  both files 10x back-to-back plus the boundary scenarios the Verify
+  note describes (JST/Paris day-boundary crossings already exercised in
+  the test bodies via fixed `Date` literals) — 9/9 tests pass every
+  time, no flake. No code change made or needed; ticked done.
+  Note: `npx vitest run` (full suite) is not clean in this sandbox —
+  29 unrelated files fail with `better-sqlite3` reporting a
+  `NODE_MODULE_VERSION` mismatch against the installed Node binary
+  (native module built for a different Node version than currently
+  running). That's an environment/build issue orthogonal to T84 (which
+  was about `Date`/clock reasoning, not SQLite), pre-exists this run,
+  and is out of this task's scope to fix — not investigated further.
+  Pitch: two tests that could fail on a coin-flip depending on the wall
+  clock, now confirmed to not depend on the wall clock at all — the red
+  suite from the redesign run was a stale worktree, not a live bug.
+  Quiz: why tick this done with zero lines changed instead of leaving it
+  unchecked with a BLOCKED note? *(Because "blocked" means the fix
+  couldn't be verified — here the fix already exists and verification
+  passed repeatedly; leaving it open would just have a future agent
+  re-discover the same already-fixed state, which is the exact
+  re-block-noise pattern the executor contract elsewhere warns against.)*
 
 - **2026-09-06 (autoloop, T64 falsifier re-check):** First unchecked
   non-NEEDS-USER task; re-ran the falsifier read-only against the live DB
