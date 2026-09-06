@@ -13,6 +13,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth, LOCAL_USER } from "./auth-context";
 import { updateDocument, deleteDocument } from "./firestore";
 import { ADMISSION_CAP } from "./leads/admission";
+import type { RelatedWorkNote } from "./leads/related-work";
 
 const LEADS_PATH = "leads";
 const POLL_MS = 4000;
@@ -38,6 +39,12 @@ export interface Lead {
   updatedAt: Date;
   /** Why admission let this one through — the one line every card shows. */
   admissionReason: string;
+  /** Ticket 01's contract fields, as delivered — never invented client-side. */
+  counterparty: string;
+  requirement: string;
+  deadline: Date | null;
+  /** Samy's own relevant prior work (lib/leads/related-work.ts); empty when none matched. */
+  relatedWork: RelatedWorkNote[];
 }
 
 interface ApiLead {
@@ -56,6 +63,10 @@ interface ApiLead {
   createdAt?: unknown;
   updatedAt?: unknown;
   admissionReason: string;
+  counterparty?: string;
+  requirement?: string;
+  deadline?: unknown;
+  relatedWork?: RelatedWorkNote[];
 }
 
 function toDate(v: unknown): Date {
@@ -87,6 +98,10 @@ function reviveLead(raw: ApiLead): Lead {
     createdAt: toDate(raw.createdAt),
     updatedAt: toDate(raw.updatedAt),
     admissionReason: raw.admissionReason,
+    counterparty: raw.counterparty ?? "",
+    requirement: raw.requirement ?? "",
+    deadline: toOptionalDate(raw.deadline) ?? null,
+    relatedWork: Array.isArray(raw.relatedWork) ? raw.relatedWork : [],
   };
 }
 

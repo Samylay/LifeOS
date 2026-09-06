@@ -12,7 +12,8 @@
 //                     categories, brief, postedAt }] }
 //        -> { inserted, skipped }
 //
-//   GET -> { leads: [...admitted, each carrying `admissionReason`],
+//   GET -> { leads: [...admitted, each carrying `admissionReason`,
+//            `counterparty`, `requirement`, `deadline`, and `relatedWork`],
 //            cap, lastDeliveredAt }
 //
 // GET is the *only* sanctioned way to read leads for display. It exists
@@ -22,12 +23,21 @@
 // that cannot hold more than a handful. `selectAdmittedLeads` (lib/leads/surface.ts)
 // enforces the cap here, at the fetch boundary, before anything reaches a
 // client that could otherwise widen it.
+//
+// Ticket 03 adds `relatedWork`: for each admitted lead, the vault (kb.ts's
+// FTS search) is queried for Samy's own notes relevant to that lead's
+// counterparty/requirement — see lib/leads/related-work.ts. The lookup is
+// injected here (this route is the only place kb.ts's filesystem access and
+// the pure selection logic meet) so related-work.ts itself stays testable
+// with no vault on disk.
 import { NextRequest, NextResponse } from "next/server";
 import { enqueueLead, LEADS_COLLECTION, type LeadInput } from "@/lib/leads-ingest";
 import { listDocs } from "@/lib/server-db";
 import { ADMISSION_CAP } from "@/lib/leads/admission";
-import { selectAdmittedLeads, lastDeliveredAt, type RawLeadDoc } from "@/lib/leads/surface";
+import { selectAdmittedLeads, lastDeliveredAt, toAdmissionCandidate, type RawLeadDoc } from "@/lib/leads/surface";
 import { getLeadsAvailability } from "@/lib/leads/availability-settings";
+import { selectRelatedWork, type RelatedWorkNote } from "@/lib/leads/related-work";
+import { searchNotes } from "@/lib/kb";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -38,13 +48,37 @@ export async function GET() {
   const availability = getLeadsAvailability();
   const admitted = selectAdmittedLeads(rows, now, availability, ADMISSION_CAP);
 
+  type EnrichedLead = RawLeadDoc & {
+    admissionReason: string;
+    counterparty: string;
+    requirement: string;
+    deadline: string | null;
+    relatedWork: RelatedWorkNote[];
+  };
+
   const byId = new Map(rows.map((r) => [r.id, r]));
   const leads = admitted
-    .map((a) => {
+    .map((a): EnrichedLead | null => {
       const row = byId.get(a.id);
-      return row ? { ...row, admissionReason: a.reason } : null;
+      if (!row) return null;
+      // Reuses ticket 01's own field extraction (counterparty/requirement
+      // fallbacks, deadline parsing) rather than re-deriving it here, so the
+      // card can never disagree with what admission itself judged.
+      const candidate = toAdmissionCandidate(row, now);
+      const relatedWork = selectRelatedWork(
+        { counterparty: candidate.counterparty, requirement: candidate.requirement },
+        searchNotes,
+      );
+      return {
+        ...row,
+        admissionReason: a.reason,
+        counterparty: candidate.counterparty,
+        requirement: candidate.requirement,
+        deadline: candidate.deadline ? candidate.deadline.toISOString() : null,
+        relatedWork,
+      };
     })
-    .filter((r): r is RawLeadDoc & { admissionReason: string } => r !== null);
+    .filter((r): r is EnrichedLead => r !== null);
 
   const delivered = lastDeliveredAt(rows);
 
