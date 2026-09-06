@@ -20,6 +20,7 @@ const {
   saveAccountBalance,
   listConnectedAccounts,
   listRecentBankTransactions,
+  listBankTransactionsInRange,
 } = await import("./bank-db");
 
 afterAll(() => {
@@ -145,6 +146,71 @@ describe("listRecentBankTransactions (T71)", () => {
 
     const all = listRecentBankTransactions(10);
     expect(all.map((t) => t.transactionId).sort()).toEqual(["txn-1", "txn-2"]);
+  });
+});
+
+describe("listBankTransactionsInRange (ticket 02 — burn read)", () => {
+  beforeAll(() => {
+    upsertBankTransactions([
+      {
+        transactionId: "range-mar",
+        accountUid: "acct-1",
+        bookingDate: "2026-03-15",
+        amount: "10.00",
+        currency: "EUR",
+        creditorName: "MARCH MERCHANT",
+        raw: { credit_debit_indicator: "DBIT" },
+      },
+      {
+        transactionId: "range-aug",
+        accountUid: "acct-1",
+        bookingDate: "2026-08-20",
+        amount: "20.00",
+        currency: "EUR",
+        creditorName: "AUGUST MERCHANT",
+        raw: { credit_debit_indicator: "DBIT" },
+      },
+      {
+        transactionId: "range-sep",
+        accountUid: "acct-1",
+        bookingDate: "2026-09-01",
+        amount: "30.00",
+        currency: "EUR",
+        creditorName: "SEPTEMBER MERCHANT",
+        raw: { credit_debit_indicator: "DBIT" },
+      },
+      // No booking date at all — must never be returned by a range query,
+      // regardless of how wide the range is (see the function's doc comment).
+      {
+        transactionId: "range-undated",
+        accountUid: "acct-1",
+        amount: "5.00",
+        currency: "EUR",
+        creditorName: "PENDING",
+        raw: { credit_debit_indicator: "DBIT" },
+      },
+    ]);
+  });
+
+  it("returns only rows whose booking date falls in [from, to), oldest first", () => {
+    const rows = listBankTransactionsInRange("2026-08-02", "2026-09-30");
+    expect(rows.map((r) => r.transactionId)).toEqual(["range-aug", "range-sep"]);
+  });
+
+  it("excludes the upper bound (exclusive) and undated rows", () => {
+    const rows = listBankTransactionsInRange("2026-03-01", "2026-09-01").filter((r) =>
+      r.transactionId.startsWith("range-")
+    );
+    expect(rows.map((r) => r.transactionId)).toEqual(["range-mar", "range-aug"]);
+  });
+
+  it("parses raw_json back into an object for direction derivation", () => {
+    const [row] = listBankTransactionsInRange("2026-03-01", "2026-03-31");
+    expect(row.raw).toEqual({ credit_debit_indicator: "DBIT" });
+  });
+
+  it("returns nothing for a range with no data", () => {
+    expect(listBankTransactionsInRange("2020-01-01", "2020-02-01")).toEqual([]);
   });
 });
 
