@@ -32,26 +32,45 @@ function tzOffsetMs(tz: string, date: Date): number {
   return wall.getTime() - date.getTime();
 }
 
-/** Ms from `now` until the next `hour`:00 wall-clock in `tz` (DST-safe enough: offset recomputed per target day). */
-export function msUntilNextRun(hour: number, tz: string = BRIEF_TZ, now: Date = new Date()): number {
+/**
+ * Ms from `now` until the next `hour`:`minute` wall-clock in `tz` (DST-safe
+ * enough: offset recomputed per target day). `minute` defaults to :00 so
+ * existing hour-only callers (feed/ships-vault/body-measurements schedulers)
+ * are unaffected.
+ */
+export function msUntilNextRun(
+  hour: number,
+  tz: string = BRIEF_TZ,
+  now: Date = new Date(),
+  minute: number = 0
+): number {
   for (let addDays = 0; addDays <= 2; addDays++) {
     const dateStr = new Date(now.getTime() + addDays * 86_400_000).toLocaleDateString("en-CA", {
       timeZone: tz,
     });
     const [y, m, d] = dateStr.split("-").map(Number);
-    const naive = Date.UTC(y, m - 1, d, hour, 0, 0);
+    const naive = Date.UTC(y, m - 1, d, hour, minute, 0);
     const target = naive - tzOffsetMs(tz, new Date(naive));
     if (target > now.getTime()) return target - now.getTime();
   }
   return 86_400_000; // unreachable fallback
 }
 
-/** True if `tz` wall clock is already past `hour`:00 today. */
-export function isPastHourInTz(hour: number, tz: string = BRIEF_TZ, now: Date = new Date()): boolean {
-  const h = Number(
-    now.toLocaleTimeString("en-GB", { timeZone: tz, hour12: false, hour: "2-digit" })
-  );
-  return h >= hour;
+/**
+ * True if `tz` wall clock is already past `hour`:`minute` today. `minute`
+ * defaults to :00 so existing hour-only callers are unaffected.
+ */
+export function isPastHourInTz(
+  hour: number,
+  tz: string = BRIEF_TZ,
+  now: Date = new Date(),
+  minute: number = 0
+): boolean {
+  const [h, min] = now
+    .toLocaleTimeString("en-GB", { timeZone: tz, hour12: false, hour: "2-digit", minute: "2-digit" })
+    .split(":")
+    .map(Number);
+  return h > hour || (h === hour && min >= minute);
 }
 
 /** ISO-8601 UTC instant for `hour`:`minute` wall-clock on `dateStr` (YYYY-MM-DD) in `tz`. */

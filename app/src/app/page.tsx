@@ -173,6 +173,15 @@ export default function Today() {
                 Stale · {brief.brief.date}
               </span>
             )}
+            {brief?.brief?.generated_at && (
+              <span className="text-[10px] font-medium text-muted-foreground/70">
+                Generated{" "}
+                {new Date(brief.brief.generated_at).toLocaleTimeString(undefined, {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
+              </span>
+            )}
             {briefErr && brief && (
               <span className="rounded-full bg-destructive/10 px-2 py-0.5 text-[10px] font-medium text-destructive">
                 Refresh failed
