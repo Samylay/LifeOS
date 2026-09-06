@@ -7,18 +7,22 @@
 // the tutor model call — a crash or disconnect after that point loses
 // nothing; the sweep will route what exists.
 import { NextRequest, NextResponse } from "next/server";
-import { endSession, getSession, learnerTurn, saveAudio } from "@/lib/teach";
+import { endSession, getSession, learnerTurn, saveAudio, sessionProgress } from "@/lib/teach";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const WHISPER_URL = process.env.WHISPER_URL || "http://host.docker.internal:8091";
 
+// Reopening a session (interrupted mid-flow, or just a page refresh) always
+// re-derives progress from the persisted turns rather than trusting a stored
+// counter — the turn he stopped on and the remaining budget come back
+// correct by construction, never from client state.
 export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params;
   const found = getSession(id);
   if (!found) return NextResponse.json({ error: "unknown session" }, { status: 404 });
-  return NextResponse.json(found);
+  return NextResponse.json({ ...found, progress: sessionProgress(found.session, found.turns) });
 }
 
 export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {

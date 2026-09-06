@@ -40,9 +40,11 @@ export async function POST(req: NextRequest) {
       }
       case "start": {
         const minutesAvailable = Number(body.minutesAvailable);
+        const turnBudget = Number(body.turnBudget);
         const { sessionId, opening } = startSession(
           String(body.topicId),
-          Number.isFinite(minutesAvailable) && minutesAvailable > 0 ? minutesAvailable : undefined
+          Number.isFinite(minutesAvailable) && minutesAvailable > 0 ? minutesAvailable : undefined,
+          Number.isFinite(turnBudget) && turnBudget > 0 ? turnBudget : undefined
         );
         return NextResponse.json({ sessionId, opening: await opening });
       }

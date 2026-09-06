@@ -19,6 +19,11 @@ import {
 } from "@/components/ui/drawer";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 
+// Mirrors `TURN_BUDGET_OPTIONS` in `src/lib/teach.ts` (server-only module —
+// it pulls in fs/server-db, so a client component can't import it directly).
+// A fixed exchange count, stated up front, never a time estimate (ticket 02).
+const TURN_BUDGET_OPTIONS = [4, 8, 12] as const;
+
 interface Topic {
   id: string;
   topic: string;
@@ -126,16 +131,17 @@ export function TeachSection() {
     }
   };
 
-  // His available time is the only bound on session material (T59) — the Play
-  // tap reveals inline minute chips instead of a window.prompt.
-  const start = async (t: Topic, minutesAvailable: number) => {
+  // Ticket 02: starting is an honest decision because the length is visible
+  // before he commits — the Play tap reveals a fixed exchange count, never a
+  // minute estimate for an open conversation.
+  const start = async (t: Topic, turnBudget: number) => {
     setPickingId(null);
     setBusyId(t.id);
     try {
       const { sessionId } = await post({
         action: "start",
         topicId: t.id,
-        minutesAvailable,
+        turnBudget,
       });
       router.push(`/knowledge/teach/${sessionId}`);
     } catch (e) {
@@ -335,14 +341,14 @@ export function TeachSection() {
                 </div>
                 {pickingId === t.id && busyId !== t.id && (
                   <div className="enter mt-2 flex items-center gap-2">
-                    <span className="text-xs text-muted-foreground">How long?</span>
-                    {[10, 20, 40].map((m) => (
+                    <span className="text-xs text-muted-foreground">How many exchanges?</span>
+                    {TURN_BUDGET_OPTIONS.map((n) => (
                       <button
-                        key={m}
-                        onClick={() => start(t, m)}
-                        className="rounded-full bg-background px-3 py-1.5 text-xs font-medium text-foreground transition-transform duration-150 active:scale-[0.95]"
+                        key={n}
+                        onClick={() => start(t, n)}
+                        className="rounded-full bg-background px-3 py-1.5 text-xs font-medium text-foreground transition-transform duration-150 [transition-timing-function:var(--ease-out-custom)] active:scale-[0.95]"
                       >
-                        {m} min
+                        {n}
                       </button>
                     ))}
                   </div>
