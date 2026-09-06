@@ -5,7 +5,7 @@
 // the exact same write instead of growing a second, drifting one
 // (spec.md: "the idea bank gets its idea through the same path the content
 // surface writes").
-import { createDoc } from "@/lib/server-db";
+import { createDoc, deleteDoc } from "@/lib/server-db";
 import type { ContentPillar } from "@/lib/types";
 
 const COLLECTION = "users/local/contentIdeas";
@@ -32,4 +32,11 @@ export function createIdeaBankEntry(input: IdeaBankEntryInput): string {
     createdAt: now,
     updatedAt: now,
   });
+}
+
+/** Removes one idea by id (T-voice-rework-05's "move" — retracting a voice
+ * capture from the idea bank once it has landed somewhere else instead).
+ * Only ever called after the new destination write already succeeded. */
+export function deleteIdeaBankEntry(id: string): void {
+  deleteDoc(COLLECTION, id);
 }

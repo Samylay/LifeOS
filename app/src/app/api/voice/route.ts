@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { stashAudio, stashFailure, stashTranscript } from "@/lib/voice-stash";
+import { transcribeAudio } from "@/lib/voice-transcribe";
 
 // Prompt-card voice notes: audio → local whisper service on the host →
 // transcript returned to the client for review/editing. The vault write still
@@ -7,7 +8,6 @@ import { stashAudio, stashFailure, stashTranscript } from "@/lib/voice-stash";
 // from the first byte: audio is written to the data volume BEFORE whisper
 // runs, and the raw transcript lands in `users/local/voicePending` before it
 // is returned. Abandoned reviews and failed transcriptions are recoverable.
-const WHISPER_URL = process.env.WHISPER_URL || "http://host.docker.internal:8091";
 
 export const dynamic = "force-dynamic";
 
@@ -25,35 +25,21 @@ export async function POST(req: NextRequest) {
     // we bail out rather than process audio that has no recoverable copy.
     const audioPath = stashAudio(buf, mime);
 
-    let data: { transcript?: unknown; language?: string; error?: string };
-    try {
-      const res = await fetch(`${WHISPER_URL}/transcribe`, {
-        method: "POST",
-        headers: { "Content-Type": mime },
-        body: buf,
-      });
-      data = await res.json();
-      if (!res.ok || data.error) {
-        stashFailure(audioPath, `transcription failed: ${data.error || res.status}`);
-        return NextResponse.json(
-          { error: `transcription failed: ${data.error || res.status}` },
-          { status: 502 }
-        );
-      }
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : "whisper unreachable";
-      stashFailure(audioPath, msg);
-      return NextResponse.json({ error: `transcription failed: ${msg}` }, { status: 502 });
+    // T-voice-rework-05: the whisper call itself is shared with the recovery
+    // path (voice-reroute.ts's retryTranscription) so a failed take is
+    // retried through the exact same transcription logic, not a duplicate.
+    const result = await transcribeAudio(buf, mime);
+    if (!result.ok) {
+      stashFailure(audioPath, result.error || "transcription failed");
+      return NextResponse.json({ error: result.error }, { status: result.reason === "empty" ? 422 : 502 });
     }
 
-    const transcript = String(data.transcript || "").trim();
-    if (!transcript) {
-      stashFailure(audioPath, "empty transcript");
-      return NextResponse.json({ error: "empty transcript — try again closer to the mic" }, { status: 422 });
-    }
-
-    const pendingId = stashTranscript({ audioPath, transcript, language: data.language });
-    return NextResponse.json({ transcript, language: data.language, pendingId });
+    const pendingId = stashTranscript({
+      audioPath,
+      transcript: result.transcript!,
+      language: result.language,
+    });
+    return NextResponse.json({ transcript: result.transcript, language: result.language, pendingId });
   } catch (e) {
     return NextResponse.json(
       { error: e instanceof Error ? e.message : "voice processing failed" },

@@ -108,8 +108,12 @@ const DUE_PHRASES = [
 ];
 
 // Pulls a Todoist-ready due phrase out of spoken text, verbatim as spoken
-// (case preserved) — this module structures, it does not rewrite.
-function extractDue(text: string): string | undefined {
+// (case preserved) — this module structures, it does not rewrite. Exported
+// so voice-reroute.ts (T-voice-rework-05) can reuse the exact same due
+// extraction when re-routing an existing take to Todoist, instead of
+// re-running full classification against a destination the user already
+// picked explicitly.
+export function extractDue(text: string): string | undefined {
   const lower = text.toLowerCase();
   for (const phrase of DUE_PHRASES) {
     const index = lower.indexOf(phrase);
