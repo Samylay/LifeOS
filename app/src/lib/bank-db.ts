@@ -46,6 +46,20 @@ function migrate(db: Database.Database) {
       key TEXT PRIMARY KEY,
       value TEXT
     );
+
+    -- Ticket 04: the ONE writable table in the finance vertical. A
+    -- classification correction keyed by the normalized counterparty
+    -- (finance-burn.ts's ClassificationOverrides key) — never by
+    -- transaction_id or account_uid, so it survives every re-sync and
+    -- applies to every future charge from the same counterparty.
+    -- finance-overrides-db.ts owns all reads/writes to this table;
+    -- bank_accounts and bank_transactions above stay insert-only, and this
+    -- table is never joined into a write against either of them.
+    CREATE TABLE IF NOT EXISTS finance_classification_overrides (
+      merchant_key TEXT PRIMARY KEY,
+      kind TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    );
   `);
 
   // bank_accounts predates balance tracking (T69), so an existing live DB

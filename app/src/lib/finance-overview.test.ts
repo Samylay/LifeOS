@@ -11,6 +11,7 @@ process.env.LIFEOS_DB_PATH = path.join(tmpDir, "test.db");
 
 const { getFinanceOverview, markNewlyAppeared, groupCancellable } = await import("./finance-overview");
 const { saveBankSession, upsertBankTransactions, saveAccountBalance, setBankSyncState } = await import("./bank-db");
+const { setClassificationOverride, clearClassificationOverride } = await import("./finance-overrides-db");
 
 afterAll(() => {
   fs.rmSync(tmpDir, { recursive: true, force: true });
@@ -193,5 +194,64 @@ describe("getFinanceOverview — with seeded data", () => {
     const overview = getFinanceOverview(new Date("2026-09-06T12:00:00Z"));
     expect(overview.consentWarnings).toHaveLength(1);
     expect(overview.consentWarnings[0].aspspName).toBe("REDACTED_BANK");
+  });
+});
+
+// Ticket 04: corrections read through the glue layer, not just the pure
+// finance-burn.ts module already covered by finance-burn.test.ts.
+describe("getFinanceOverview — classification overrides (ticket 04)", () => {
+  // normalizeMerchantKey (subscription-detector.ts) strips reference-number
+  // tokens and non-alphanumerics, so "STREAMFLIX.COM 1111" normalizes to
+  // this, not the raw label — the whole point of keying on it.
+  const merchantKey = "STREAMFLIX COM";
+
+  afterAll(() => {
+    clearClassificationOverride(merchantKey);
+  });
+
+  it("detects Streamflix as `sub` with no correction stored", () => {
+    const overview = getFinanceOverview(new Date("2026-09-06T12:00:00Z"));
+    const streamflix = overview.recurringCharges.find((c) => c.merchantKey === merchantKey)!;
+    expect(streamflix.kind).toBe("sub");
+    expect(streamflix.overridden).toBe(false);
+  });
+
+  it("an override changes the recurring-charge kind AND the burn split's fixed/sub bucket immediately", () => {
+    setClassificationOverride(merchantKey, "fixed", "2026-09-06T00:00:00Z");
+    const overview = getFinanceOverview(new Date("2026-09-06T12:00:00Z"));
+    const streamflix = overview.recurringCharges.find((c) => c.merchantKey === merchantKey)!;
+    expect(streamflix.kind).toBe("fixed");
+    expect(streamflix.overridden).toBe(true);
+
+    const september = overview.months.find((m) => m.burn.month === "2026-09")!;
+    expect(september.burn.sub).toBeCloseTo(0, 2);
+    expect(september.burn.fixed).toBeCloseTo(13.49, 2);
+    // The bucket-sum invariant still holds cent-exactly with an override applied.
+    expect(september.burn.fixed + september.burn.sub + september.burn.variable).toBeCloseTo(september.burn.out, 2);
+  });
+
+  it("the correction survives a re-sync — inserting an already-seen transaction again changes nothing about it", () => {
+    upsertBankTransactions([out("n3", "2026-09-01", "13.49", "STREAMFLIX.COM 3333")]);
+    const overview = getFinanceOverview(new Date("2026-09-06T12:00:00Z"));
+    const streamflix = overview.recurringCharges.find((c) => c.merchantKey === merchantKey)!;
+    expect(streamflix.kind).toBe("fixed");
+  });
+
+  it("the correction applies to a brand-new transaction from the same counterparty (a future charge, not just past ones)", () => {
+    // ~30 days after the September occurrence, so it still confirms the same
+    // monthly cadence (CADENCE_TOLERANCE_DAYS.monthly is 5 days).
+    upsertBankTransactions([out("n4", "2026-10-01", "13.49", "STREAMFLIX.COM 9999")]);
+    const overview = getFinanceOverview(new Date("2026-10-02T12:00:00Z"));
+    const streamflix = overview.recurringCharges.find((c) => c.merchantKey === merchantKey)!;
+    expect(streamflix.kind).toBe("fixed");
+    expect(streamflix.occurrenceCount).toBe(4);
+  });
+
+  it("clearing the correction is reversible: the charge returns to the detected classification", () => {
+    clearClassificationOverride(merchantKey);
+    const overview = getFinanceOverview(new Date("2026-10-02T12:00:00Z"));
+    const streamflix = overview.recurringCharges.find((c) => c.merchantKey === merchantKey)!;
+    expect(streamflix.kind).toBe("sub");
+    expect(streamflix.overridden).toBe(false);
   });
 });

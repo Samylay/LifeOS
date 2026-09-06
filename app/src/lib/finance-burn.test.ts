@@ -530,6 +530,33 @@ describe("classify — fixed vs sub for a SEPA direct-debit cost of living (CAUS
     expect(burn.variable).toBeCloseTo(37.42, 2);
     expect(burn.fixed + burn.sub + burn.variable).toBeCloseTo(burn.out, 2);
   });
+
+  it("keeps the bucket-sum invariant cent-exactly with two overrides moving charges between buckets (ticket 04)", () => {
+    const transactions: BankTransactionLike[] = [
+      outNoCreditor({ transactionId: "rent1", amount: "845.14", date: "2026-01-04", remittance: "PRELEVEMENT EUROPEEN 1 DE: PLACEHOLDER PROPERTY CO ID: FR00ZZZ000099" }),
+      outNoCreditor({ transactionId: "rent2", amount: "845.14", date: "2026-02-04", remittance: "PRELEVEMENT EUROPEEN 2 DE: PLACEHOLDER PROPERTY CO ID: FR00ZZZ000099" }),
+      outNoCreditor({ transactionId: "rent3", amount: "845.14", date: "2026-03-04", remittance: "PRELEVEMENT EUROPEEN 3 DE: PLACEHOLDER PROPERTY CO ID: FR00ZZZ000099" }),
+      out({ transactionId: "n1", amount: "7.99", date: "2026-01-20", creditorName: "NETFLIX.COM 1111" }),
+      out({ transactionId: "n2", amount: "7.99", date: "2026-02-20", creditorName: "NETFLIX.COM 2222" }),
+      out({ transactionId: "n3", amount: "7.99", date: "2026-03-20", creditorName: "NETFLIX.COM 3333" }),
+      out({ transactionId: "g1", amount: "37.42", date: "2026-03-07", creditorName: "PLACEHOLDER GROCERY STORE" }),
+    ];
+    // Two corrections pulling in opposite directions: rent (detected fixed)
+    // corrected to variable, Netflix (detected sub) corrected to fixed.
+    const { burn } = monthlyBurn(transactions, "2026-03", {
+      "PLACEHOLDER PROPERTY CO": "variable",
+      "NETFLIX COM": "fixed",
+    });
+    expect(burn.fixed).toBeCloseTo(7.99, 2);
+    expect(burn.sub).toBe(0);
+    expect(burn.variable).toBeCloseTo(845.14 + 37.42, 2);
+    expect(burn.fixed + burn.sub + burn.variable).toBeCloseTo(burn.out, 2);
+    // Cent-exact, not merely close: the sum in integer cents must match `out`
+    // in integer cents exactly, the way the module's own doc comment promises.
+    const outCents = Math.round(burn.out * 100);
+    const bucketCents = Math.round(burn.fixed * 100) + Math.round(burn.sub * 100) + Math.round(burn.variable * 100);
+    expect(bucketCents).toBe(outCents);
+  });
 });
 
 describe("transfer bucket — self-transfers and internal moves excluded from spend (CAUSE 2)", () => {
