@@ -6,7 +6,7 @@
 import { useEffect, useState } from "react";
 import type { MonthlyBurnResult } from "./finance-burn";
 import type { ConnectedAccountRow } from "./bank-db";
-import type { ConsentWarning } from "./finance-overview";
+import type { CancellableGroup, ConsentWarning, RecurringChargeView } from "./finance-overview";
 
 export interface FinanceBurnOverview {
   months: MonthlyBurnResult[];
@@ -15,6 +15,10 @@ export interface FinanceBurnOverview {
   lastSyncedLabel: string;
   stale: boolean;
   consentWarnings: ConsentWarning[];
+  /** Every detected recurring charge (ticket 03) — same source as the burn
+   * split above, never a parallel computation. */
+  recurringCharges: RecurringChargeView[];
+  cancellable: CancellableGroup;
 }
 
 export function useFinanceBurn() {

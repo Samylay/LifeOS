@@ -16,12 +16,14 @@ import {
   Landmark,
   ArrowDownLeft,
   ArrowUpRight,
+  Sparkles,
 } from "lucide-react";
 import Link from "next/link";
 import { useFinance } from "@/lib/use-finance";
 import { useBankAccounts } from "@/lib/use-bank-accounts";
 import { useFinanceBurn, type FinanceBurnOverview } from "@/lib/use-finance-burn";
 import type { MonthlyBurnResult } from "@/lib/finance-burn";
+import type { CancellableGroup, RecurringChargeView } from "@/lib/finance-overview";
 import { useToast } from "@/components/toast";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Page, PageHeader } from "@/components/ui/page";
@@ -364,6 +366,90 @@ function MonthHistory({ months }: { months: MonthlyBurnResult[] }) {
   );
 }
 
+function formatChargeDate(date: string): string {
+  // bookingDate is a plain YYYY-MM-DD; pin it to UTC midnight so a reader in
+  // any timezone sees the same day the bank recorded, never one shifted by
+  // the browser's local offset.
+  return new Date(`${date}T00:00:00Z`).toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
+
+/**
+ * One detected recurring charge (ticket 03): what it is called, how often it
+ * hits, what it typically costs, when it started and when it last hit —
+ * "enough to recognise it without opening his bank" (spec.md), deliberately
+ * never the 0.6–0.95 confidence number finance-burn.ts computes. That figure
+ * is a rough proxy for "how many occurrences confirmed the cadence" and
+ * would read as more authoritative than it is; occurrence count + first/last
+ * date give Samy the same signal in a form he can actually judge.
+ */
+function RecurringChargeRow({ charge }: { charge: RecurringChargeView }) {
+  return (
+    <div className="flex items-center justify-between gap-3 border-b border-border/60 py-2 last:border-b-0">
+      <div className="min-w-0">
+        <p className="flex items-center gap-2 truncate text-sm font-medium text-foreground">
+          <span className="truncate">{charge.label}</span>
+          {charge.isNew && (
+            <Badge className="shrink-0 gap-1 text-[10px] font-medium">
+              <Sparkles size={10} /> New
+            </Badge>
+          )}
+        </p>
+        <p className="text-xs text-muted-foreground">
+          {CADENCE_LABEL[charge.cadence]} · seen {charge.occurrenceCount}× · {formatChargeDate(charge.firstSeen)} –{" "}
+          {formatChargeDate(charge.lastSeen)}
+        </p>
+      </div>
+      <span className="shrink-0 tabular-nums text-sm text-muted-foreground">{formatEuro(charge.amount)}</span>
+    </div>
+  );
+}
+
+/**
+ * Cancellable subscriptions called out on their own (ticket 03): "what could
+ * I stop paying for", dearest first, with the yearly total stated because a
+ * monthly figure understates what a subscription actually costs.
+ */
+function CancellableCard({ group }: { group: CancellableGroup }) {
+  if (group.charges.length === 0) return null;
+  return (
+    <Card className="enter gap-2 px-4 py-4">
+      <div className="flex items-baseline justify-between gap-2">
+        <p className="section-label">Cancellable</p>
+        <p className="text-xs tabular-nums text-muted-foreground">
+          {formatEuro(group.yearlyTotal, { decimals: false })} a year
+        </p>
+      </div>
+      <div>
+        {group.charges.map((c) => (
+          <RecurringChargeRow key={c.merchantKey} charge={c} />
+        ))}
+      </div>
+    </Card>
+  );
+}
+
+/**
+ * Every recurring charge the system found (ticket 03) — the full list Samy
+ * sanity-checks the fixed/sub split against, not just the cancellable ones.
+ */
+function RecurringChargesCard({ charges }: { charges: RecurringChargeView[] }) {
+  if (charges.length === 0) return null;
+  return (
+    <Card className="enter gap-2 px-4 py-4">
+      <p className="section-label">Recurring charges</p>
+      <div>
+        {charges.map((c) => (
+          <RecurringChargeRow key={c.merchantKey} charge={c} />
+        ))}
+      </div>
+    </Card>
+  );
+}
+
 /**
  * The derived-burn surface (ticket 02): the first thing on screen. Every
  * number here comes from synced transactions via finance-overview.ts / the
@@ -441,6 +527,9 @@ function BurnOverview() {
           </div>
         </Card>
       )}
+
+      <CancellableCard group={overview.cancellable} />
+      <RecurringChargesCard charges={overview.recurringCharges} />
     </div>
   );
 }
