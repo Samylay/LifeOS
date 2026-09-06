@@ -3,14 +3,12 @@
 import Link from "next/link";
 import { useState } from "react";
 import {
-  AlertTriangle, Bookmark, Calendar, CheckSquare, ChevronDown, Dumbbell, ExternalLink,
-  Link2, Mic, Rocket, Server, ShieldAlert, Square,
+  AlertTriangle, Bookmark, Calendar, CheckSquare, ChevronDown, ExternalLink,
+  Link2, ShieldAlert,
 } from "lucide-react";
 import type {
-  Brief, BriefCard, FuiteBody, HomelabBody, PromptBody,
-  ShipsBody, TriageBody, WorkBody, WorkoutBody,
+  Brief, BriefCard, FuiteBody, TriageBody, WorkBody,
 } from "@/lib/brief-types";
-import { TalkCard } from "./talk-card";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,13 +21,9 @@ const STATUS_COLOR: Record<string, string> = {
 };
 
 const TYPE_ICON: Record<string, React.ReactNode> = {
-  workout: <Dumbbell size={15} />,
   work: <CheckSquare size={15} />,
-  homelab: <Server size={15} />,
   fuite: <ShieldAlert size={15} />,
   quorky_digest: <Link2 size={15} />,
-  prompt: <Mic size={15} />,
-  ships: <Rocket size={15} />,
   planning: <Calendar size={15} />,
   triage: <Bookmark size={15} />,
 };
@@ -49,8 +43,6 @@ function destColor(dest: string): string {
 function oneLiner(card: BriefCard): string {
   if (card.error) return "unavailable";
   switch (card.type) {
-    case "homelab":
-      return (card.body as unknown as HomelabBody).summary || "all good";
     case "fuite": {
       const n = (card.body as unknown as FuiteBody).entries?.length ?? 0;
       return n === 0 ? "no new leaks" : `${n} ${n === 1 ? "entry" : "entries"}`;
@@ -147,45 +139,6 @@ function ErrorBody({ error }: { error: string }) {
   );
 }
 
-function WorkoutCard({ card, date }: { card: BriefCard; date: string }) {
-  const body = card.body as unknown as WorkoutBody;
-  const storageKey = `brief-workout-${date}`;
-  const [done, setDone] = useState<Record<string, boolean>>(() => {
-    if (typeof window === "undefined") return {};
-    try { return JSON.parse(localStorage.getItem(storageKey) || "{}"); } catch { return {}; }
-  });
-  const toggle = (name: string) => {
-    const next = { ...done, [name]: !done[name] };
-    setDone(next);
-    localStorage.setItem(storageKey, JSON.stringify(next));
-  };
-
-  if (body.rest) {
-    return <p className="text-sm text-muted-foreground">Rest day — recover well.</p>;
-  }
-  return (
-    <div className="space-y-1">
-      {body.day_label && (
-        <p className="text-xs mb-2 text-muted-foreground/70">{body.day_label}</p>
-      )}
-      {(body.exercises ?? []).map((ex) => (
-        <button key={ex.name} onClick={() => toggle(ex.name)}
-          className="w-full flex items-center gap-2.5 rounded-lg px-3 py-2 text-left bg-muted">
-          {done[ex.name]
-            ? <CheckSquare size={15} className="text-success" />
-            : <Square size={15} className="text-muted-foreground/70" />}
-          <span className={`text-sm ${done[ex.name] ? "text-muted-foreground/70 line-through" : "text-foreground"}`}>
-            {ex.name}
-          </span>
-          <span className="ml-auto text-xs font-mono text-muted-foreground/70">
-            {ex.sets}×{ex.reps}
-          </span>
-        </button>
-      ))}
-    </div>
-  );
-}
-
 const TODOIST_PRIORITY_COLOR: Record<number, string> = {
   4: "var(--destructive)",
   3: "var(--warning)",
@@ -251,29 +204,6 @@ function WorkCard({ card }: { card: BriefCard }) {
           </div>
         ))}
       </div>
-    </div>
-  );
-}
-
-function HomelabCard({ card }: { card: BriefCard }) {
-  const body = card.body as unknown as HomelabBody;
-  return (
-    <div className="space-y-2">
-      <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-        <span>{body.containers_up}/{body.containers_total} containers</span>
-        {body.disk_pct != null && <span>disk {body.disk_pct}%</span>}
-        <span>tailscale {body.tailscale_ok ? "✓" : "✗"}</span>
-        <span>ollama {body.ollama_ok ? "✓" : "✗"}</span>
-        {body.goals_enabled && (
-          <span>goals {body.goals_ok}/{body.goals_total} {body.goals_violated?.length ? "✗" : "✓"}</span>
-        )}
-      </div>
-      {(body.issues ?? []).map((issue, i) => (
-        <div key={i} className="flex items-start gap-2 text-sm rounded-lg px-3 py-2 bg-muted text-foreground">
-          <AlertTriangle size={14} className="shrink-0 mt-0.5" style={{ color: STATUS_COLOR[card.status] }} />
-          {issue}
-        </div>
-      ))}
     </div>
   );
 }
@@ -510,58 +440,14 @@ function TriageCard({ card }: { card: BriefCard }) {
   );
 }
 
-function ShipsCard({ card }: { card: BriefCard }) {
-  const b = card.body as unknown as ShipsBody;
-  return (
-    <div className="space-y-2">
-      {b.tripwire && (
-        <p className="text-xs rounded-lg p-3 bg-warning/10 text-warning">
-          No ships logged in the last 30 days — if something left the machine,
-          log it and this clears.
-        </p>
-      )}
-      {b.projects.length === 0 ? (
-        <p className="text-xs text-muted-foreground/70">No active projects.</p>
-      ) : (
-        <div className="space-y-1.5">
-          {b.projects.map((p) => (
-            <div key={p.title} className="flex items-baseline justify-between gap-3 text-sm">
-              <div className="min-w-0">
-                <span className="text-foreground">{p.title}</span>
-                {!p.shipping_event && (
-                  <span className="ml-2 text-xs text-muted-foreground/70">no ship logged</span>
-                )}
-              </div>
-              <span className="text-xs font-mono shrink-0 text-muted-foreground/70">
-                {p.never_shipped ? `${p.days}d old` : `last ship ${p.days}d ago`}
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
-      <p className="text-xs pt-1 text-muted-foreground/70">
-        {b.shipped_outward_30d} left the machine in 30 days
-        {b.shipped_30d > b.shipped_outward_30d && (
-          <span> · {b.shipped_30d} shipped incl. internal</span>
-        )}
-      </p>
-    </div>
-  );
-}
-
-function CardBody({ card, date }: { card: BriefCard; date: string }) {
+function CardBody({ card }: { card: BriefCard }) {
   if (card.error) return <ErrorBody error={card.error} />;
   switch (card.type) {
     case "planning": return <PlanningCard card={card} />;
     case "triage": return <TriageCard card={card} />;
-    case "ships": return <ShipsCard card={card} />;
-    case "workout": return <WorkoutCard card={card} date={date} />;
     case "work": return <WorkCard card={card} />;
-    case "homelab": return <HomelabCard card={card} />;
     case "fuite": return <FuiteCard card={card} />;
     case "quorky_digest": return <DigestCard card={card} />;
-    // "prompt" cards never reach CardBody individually — BriefCards merges
-    // them into one TalkCard (errored ones fall through to ErrorBody above).
     default:
       return (
         <p className="text-xs text-muted-foreground/70">
@@ -583,32 +469,13 @@ export function BriefCards({ brief }: { brief: Brief }) {
     return 0;
   });
 
-  // One list of things to talk about, one recorder: all healthy prompt cards
-  // (morning prompt + objective questions) collapse into a single TalkCard,
-  // rendered where the first of them would have appeared. Errored prompt
-  // cards keep their individual error display.
-  const talkPrompts = cards
-    .filter((c) => c.type === "prompt" && !c.error)
-    .map((c) => c.body as unknown as PromptBody);
-  const firstTalkId = cards.find((c) => c.type === "prompt" && !c.error)?.id;
-
   return (
     <div className="space-y-3">
-      {cards.map((card) => {
-        if (card.type === "prompt" && !card.error) {
-          if (card.id !== firstTalkId) return null;
-          return (
-            <CardShell key="talk" card={{ ...card, title: "Things to talk about" }}>
-              <TalkCard prompts={talkPrompts} date={brief.date} />
-            </CardShell>
-          );
-        }
-        return (
-          <CardShell key={card.id} card={card}>
-            <CardBody card={card} date={brief.date} />
-          </CardShell>
-        );
-      })}
+      {cards.map((card) => (
+        <CardShell key={card.id} card={card}>
+          <CardBody card={card} />
+        </CardShell>
+      ))}
     </div>
   );
 }

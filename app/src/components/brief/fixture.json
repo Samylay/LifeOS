@@ -17,58 +17,6 @@
       "error": null
     },
     {
-      "id": "workout",
-      "type": "workout",
-      "priority": "action",
-      "status": "neutral",
-      "title": "Full-body session",
-      "body": {
-        "rest": false,
-        "day_label": "Wednesday — Full body A",
-        "exercises": [
-          { "name": "Squat", "sets": 4, "reps": "6-8" },
-          { "name": "Bench press", "sets": 4, "reps": "6-8" },
-          { "name": "Barbell row", "sets": 3, "reps": "8-10" },
-          { "name": "Overhead press", "sets": 3, "reps": "8-10" },
-          { "name": "Plank", "sets": 3, "reps": "60s" }
-        ]
-      },
-      "link": null,
-      "error": null
-    },
-    {
-      "id": "homelab",
-      "type": "homelab",
-      "priority": "state",
-      "status": "red",
-      "title": "Homelab",
-      "body": {
-        "summary": "1 container down · disk 62%",
-        "containers_up": 10,
-        "containers_total": 11,
-        "disk_pct": 62,
-        "tailscale_ok": true,
-        "ollama_ok": true,
-        "issues": ["container flux-db-1 is not running (exited)"]
-      },
-      "link": "/status",
-      "error": null
-    },
-    {
-      "id": "prompt",
-      "type": "prompt",
-      "priority": "action",
-      "status": "neutral",
-      "title": "Morning prompt",
-      "body": {
-        "prompt_text": "In spoken English: what's the one thing that would make today a win, and why?",
-        "category": "spoken-english",
-        "inbox_note": "01-Inbox/voice/2026-07-02.md"
-      },
-      "link": null,
-      "error": null
-    },
-    {
       "id": "work",
       "type": "work",
       "priority": "action",
@@ -84,23 +32,6 @@
         ]
       },
       "link": null,
-      "error": null
-    },
-    {
-      "id": "ft_headlines",
-      "type": "ft_headlines",
-      "priority": "state",
-      "status": "amber",
-      "title": "FT front page",
-      "body": {
-        "edition_date": "2026-07-02",
-        "headlines": [
-          { "text": "Chip export controls tighten as AI race accelerates", "topics": ["tech/AI"] },
-          { "text": "Yen slides after BoJ holds rates", "topics": ["Japan", "markets"] },
-          { "text": "EU cyber agency warns of supply-chain attacks", "topics": ["cybersecurity", "Europe"] }
-        ]
-      },
-      "link": "https://www.tomorrowspapers.co.uk/financial-times-front-page-2026-07-02/",
       "error": null
     },
     {
