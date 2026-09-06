@@ -10,20 +10,17 @@ import {
   Check,
   Download,
   AlertTriangle,
-  Wand2,
-  FileText,
-  Copy,
-  Loader2,
   ArrowRight,
 } from "lucide-react";
 import { useContentIdeas } from "@/lib/use-content";
-import { useShipLog } from "@/lib/use-ship-log";
 import { useToast } from "@/components/toast";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Page, PageHeader } from "@/components/ui/page";
 import { Skeleton } from "@/components/skeleton";
 import type { ContentIdea, ContentIdeaStatus, ContentPillar } from "@/lib/types";
-import { PILLARS, PILLAR_META, HOOK_FORMULAS } from "@/lib/content-os";
+import { useContentCatalog } from "@/lib/use-catalog";
+import { countByType, resolveType, type ContentType, type HookFormula } from "@/lib/content/catalog";
+import { Playbook } from "@/components/content/playbook";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -31,57 +28,31 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { IDEA_STATUSES, NEXT_STATUS, migrateStatus } from "@/lib/content/idea-status";
+import { IdeaBody } from "@/components/content/idea-body";
 
-const STATUSES: { status: ContentIdeaStatus; label: string; color: string }[] = [
-  { status: "idea", label: "Idea", color: "var(--muted-foreground)" },
-  { status: "scripted", label: "Scripted", color: "var(--primary)" },
-  { status: "recorded", label: "Recorded", color: "var(--chart-4)" },
-  { status: "edited", label: "Edited", color: "var(--warning)" },
-  { status: "posted", label: "Posted", color: "var(--success)" },
-];
+const STATUSES = IDEA_STATUSES;
 
 const STATUS_META = Object.fromEntries(STATUSES.map((s) => [s.status, s])) as Record<
   ContentIdeaStatus,
   (typeof STATUSES)[number]
 >;
 
-// One advance button per card: the label names the next step in the pipeline.
-const NEXT_STEP: Partial<Record<ContentIdeaStatus, { next: ContentIdeaStatus; label: string }>> = {
-  idea: { next: "scripted", label: "Script it" },
-  scripted: { next: "recorded", label: "Recorded" },
-  recorded: { next: "edited", label: "Edited" },
-  edited: { next: "posted", label: "Posted" },
-};
+// Rendering normalizes the stored status instead of trusting it. The database
+// migration runs in an effect, which is AFTER first paint — so a card holding
+// a legacy status renders before its row is rewritten. Indexing STATUS_META
+// with the raw value crashed the whole list on the one `scripted` idea, which
+// in turn stopped the migration effect from ever running. Derive, don't trust.
+const statusOf = (idea: ContentIdea): ContentIdeaStatus => migrateStatus(idea.status as string);
+
+// One advance button per card: the label names what Samy actually does next.
+const NEXT_STEP = NEXT_STATUS;
 
 /** Translucent tint of a color (hex or CSS var) for chip backgrounds. */
 const tint = (color: string, pct: number) => `color-mix(in srgb, ${color} ${pct}%, transparent)`;
 
-/** Copy-to-clipboard for script/caption — you record from a script, usually
-    on the phone, so getting the text out in one tap is the whole point. */
-function CopyButton({ text, label }: { text: string; label: string }) {
-  const [copied, setCopied] = useState(false);
-  return (
-    <button
-      onClick={async () => {
-        try {
-          await navigator.clipboard.writeText(text);
-          setCopied(true);
-          setTimeout(() => setCopied(false), 1500);
-        } catch {
-          // Clipboard blocked (non-secure context) — select-all is the fallback.
-        }
-      }}
-      title={`Copy ${label}`}
-      className="flex items-center gap-1 text-xs text-muted-foreground/70 hover:text-foreground transition-colors duration-150 active:scale-[0.95]"
-    >
-      {copied ? <Check size={12} className="text-success" /> : <Copy size={12} />}
-      {copied ? "Copied" : label}
-    </button>
-  );
-}
-
-function PillarBadge({ pillar }: { pillar: ContentPillar | "" }) {
-  const meta = pillar ? PILLAR_META[pillar] : undefined;
+function PillarBadge({ pillar, types }: { pillar: ContentPillar | ""; types: ContentType[] }) {
+  const meta = resolveType(pillar, types);
   if (!meta) {
     return (
       <Badge
@@ -103,7 +74,7 @@ function PillarBadge({ pillar }: { pillar: ContentPillar | "" }) {
   );
 }
 
-function HookBadge({ n }: { n?: number }) {
+function HookBadge({ n, hooks }: { n?: number; hooks: HookFormula[] }) {
   if (!n) {
     return (
       <Badge
@@ -115,7 +86,7 @@ function HookBadge({ n }: { n?: number }) {
       </Badge>
     );
   }
-  const f = HOOK_FORMULAS.find((h) => h.n === n);
+  const f = hooks.find((h) => h.n === n);
   return (
     <Badge
       variant="secondary"
@@ -136,10 +107,14 @@ function IdeaEditor({
   initial,
   onSave,
   onCancel,
+  types,
+  hooks,
 }: {
   initial?: ContentIdea;
   onSave: (d: IdeaDraft) => void;
   onCancel: () => void;
+  types: ContentType[];
+  hooks: HookFormula[];
 }) {
   const [d, setD] = useState<IdeaDraft>(initial ? { ...initial } : { ...EMPTY_IDEA });
   const set = (patch: Partial<IdeaDraft>) => setD((prev) => ({ ...prev, ...patch }));
@@ -158,14 +133,14 @@ function IdeaEditor({
         <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">
           Pillar
         </span>
-        {PILLARS.map((p) => (
+        {types.map((p) => (
           <button
-            key={p.pillar}
-            onClick={() => set({ pillar: p.pillar })}
+            key={p.key}
+            onClick={() => set({ pillar: p.key as ContentPillar })}
             className="text-xs font-medium rounded-full px-3 py-1.5 transition-colors duration-150 active:scale-[0.95]"
             style={{
-              color: d.pillar === p.pillar ? p.color : "var(--muted-foreground)",
-              background: d.pillar === p.pillar ? tint(p.color, 20) : "var(--muted)",
+              color: d.pillar === p.key ? p.color : "var(--muted-foreground)",
+              background: d.pillar === p.key ? tint(p.color, 20) : "var(--muted)",
             }}
           >
             {p.label}
@@ -203,7 +178,7 @@ function IdeaEditor({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="none">— none —</SelectItem>
-              {HOOK_FORMULAS.map((h) => (
+              {hooks.map((h) => (
                 <SelectItem key={h.n} value={String(h.n)}>
                   {h.n} · {h.name}
                 </SelectItem>
@@ -248,9 +223,8 @@ function IdeaEditor({
 }
 
 function IdeaBank() {
-  const { ideas, loading, createIdea, updateIdea, deleteIdea, seedIdeas, scriptIdea, scriptWeeklyBatch } =
+  const { ideas, loading, createIdea, updateIdea, deleteIdea, seedIdeas } =
     useContentIdeas();
-  const { logShip } = useShipLog();
   const { toast } = useToast();
   const [creating, setCreating] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -258,96 +232,25 @@ function IdeaBank() {
   const [pillarFilter, setPillarFilter] = useState<ContentPillar | "all">("all");
   const [hidePosted, setHidePosted] = useState(false);
   const [seeding, setSeeding] = useState(false);
-  const [scriptingId, setScriptingId] = useState<string | null>(null);
-  const [batchProgress, setBatchProgress] = useState<{ done: number; total: number } | null>(null);
-  const [openScriptIds, setOpenScriptIds] = useState<Set<string>>(new Set());
   const [showAll, setShowAll] = useState(false);
-  // Per-idea batch failure reasons, rendered inline on the card (not a toast storm).
-  const [failReasons, setFailReasons] = useState<Record<string, string>>({});
-  const busy = scriptingId !== null || batchProgress !== null;
+  const { types, hooks, addType, updateType, addHook, updateHook } = useContentCatalog();
+  const typeCounts = countByType(ideas, types);
+  const [showPlaybook, setShowPlaybook] = useState(false);
 
-  // Posting is a ship: the moment an idea flips to "posted", it left the
-  // machine — write it to the same ship log the projects surface keeps score in.
+  // No ship-logging step: the ship log is being retired, and this surface
+  // must not write to a collection on its way out.
   const setIdeaStatus = async (idea: ContentIdea, status: ContentIdeaStatus) => {
     await updateIdea(idea.id, { status });
-    if (status === "posted" && idea.status !== "posted") {
-      await logShip({ date: new Date(), what: idea.title, toWhom: "public", tags: ["content"] });
-      toast("Posted — logged to the ship log");
-    }
+    if (status === "posted" && idea.status !== "posted") toast("Posted");
   };
 
-  const toggleScript = (id: string) =>
-    setOpenScriptIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
 
-  const runScriptIdea = async (id: string) => {
-    setScriptingId(id);
-    try {
-      await scriptIdea(id);
-      setOpenScriptIds((prev) => new Set(prev).add(id));
-      setFailReasons((prev) => {
-        const next = { ...prev };
-        delete next[id];
-        return next;
-      });
-      toast("Script drafted — review, read aloud, cut 15%");
-    } catch (e) {
-      toast(e instanceof Error ? e.message : "Script draft failed", "error");
-    } finally {
-      setScriptingId(null);
-    }
-  };
-
-  const runBatch = async () => {
-    setBatchProgress({ done: 0, total: 0 });
-    try {
-      const result = await scriptWeeklyBatch((done, total) => setBatchProgress({ done, total }));
-      if (result.scripted.length > 0) {
-        setOpenScriptIds((prev) => {
-          const next = new Set(prev);
-          for (const i of result.scripted) next.add(i.id);
-          return next;
-        });
-        toast(`Drafted ${result.scripted.length} script${result.scripted.length === 1 ? "" : "s"} — Monday block done, review before Tuesday`);
-      }
-      // Failures land inline on each card instead of a toast per idea.
-      setFailReasons((prev) => {
-        const next = { ...prev };
-        for (const i of result.scripted) delete next[i.id];
-        for (const f of result.failed) next[f.idea.id] = f.error;
-        return next;
-      });
-      if (result.failed.length > 0) {
-        toast(`${result.failed.length} draft${result.failed.length === 1 ? "" : "s"} failed — reasons on the cards`, "error");
-      }
-      if (result.blocked.length > 0) {
-        const floorBlocked = result.blocked.filter((b) => b.reason.startsWith("bank floor"));
-        if (floorBlocked.length > 0) {
-          toast(
-            `${floorBlocked.length} held back — bank floor is 12 unscripted ideas (${result.unscripted} in bank). Brainstorm first.`,
-            "warning"
-          );
-        }
-        for (const b of result.blocked.filter((x) => !x.reason.startsWith("bank floor"))) {
-          toast(b.reason, "warning");
-        }
-      }
-    } catch (e) {
-      toast(e instanceof Error ? e.message : "Batch draft failed", "error");
-    } finally {
-      setBatchProgress(null);
-    }
-  };
 
   const visible = ideas.filter(
-    (i) => (pillarFilter === "all" || i.pillar === pillarFilter) && (!hidePosted || i.status !== "posted")
+    (i) => (pillarFilter === "all" || i.pillar === pillarFilter) && (!hidePosted || statusOf(i) !== "posted")
   );
   const shown = showAll ? visible : visible.slice(0, 25);
-  const unscripted = ideas.filter((i) => i.status === "idea").length;
+  const unscripted = ideas.filter((i) => statusOf(i) === "idea").length;
 
   return (
     <div className="space-y-4">
@@ -361,46 +264,46 @@ function IdeaBank() {
           >
             All ({ideas.length})
           </button>
-          {PILLARS.map((p) => (
-            <button
-              key={p.pillar}
-              onClick={() => setPillarFilter(p.pillar)}
-              className="text-xs font-medium rounded-full px-3 py-1.5 transition-colors duration-150 active:scale-[0.95]"
-              style={{
-                color: pillarFilter === p.pillar ? p.color : "var(--muted-foreground)",
-                background: pillarFilter === p.pillar ? tint(p.color, 20) : "var(--muted)",
-              }}
-            >
-              {p.label} ({ideas.filter((i) => i.pillar === p.pillar).length})
-            </button>
-          ))}
+          {typeCounts.map((c) => {
+            const color = types.find((t) => t.key === c.key)?.color ?? "var(--muted-foreground)";
+            const active = pillarFilter === c.key;
+            return (
+              <button
+                key={c.key || "unsorted"}
+                onClick={() => setPillarFilter(c.key as ContentPillar)}
+                className="text-xs font-medium rounded-full px-3 py-1.5 transition-colors duration-150 active:scale-[0.95]"
+                style={{
+                  color: active ? color : "var(--muted-foreground)",
+                  background: active ? tint(color, 20) : "var(--muted)",
+                }}
+              >
+                {c.label} ({c.count})
+              </button>
+            );
+          })}
           <label className="flex items-center gap-1.5 text-xs ml-2 text-muted-foreground/70">
             <Checkbox checked={hidePosted} onCheckedChange={(v) => setHidePosted(v === true)} />
             hide posted
           </label>
+          <button
+            onClick={() => setShowPlaybook((v) => !v)}
+            className="ml-auto text-xs font-medium text-muted-foreground transition-transform duration-[var(--dur-fast)] ease-[var(--ease-out-custom)] hover:text-foreground active:scale-[0.97]"
+          >
+            {showPlaybook ? "Hide" : "Playbook"}
+          </button>
         </div>
+      {showPlaybook && (
+        <Playbook
+          types={types}
+          hooks={hooks}
+          counts={typeCounts}
+          onAddType={addType}
+          onUpdateType={updateType}
+          onAddHook={addHook}
+          onUpdateHook={updateHook}
+        />
+      )}
         <div className="flex items-center gap-2">
-          {ideas.length > 0 && (
-            <Button
-              onClick={runBatch}
-              disabled={busy}
-              title="Monday block: draft 2 Concept + 1 Built-It + 1 Gotcha from the bank (never drains unscripted ideas below 12)"
-              variant="secondary"
-              size="sm"
-              className="gap-1.5 text-sm font-medium"
-            >
-              {batchProgress ? (
-                <>
-                  <Loader2 size={15} className="animate-spin" />
-                  Drafting{batchProgress.total > 0 ? ` ${batchProgress.done}/${batchProgress.total}` : "…"}
-                </>
-              ) : (
-                <>
-                  <Wand2 size={15} /> Draft week&rsquo;s batch
-                </>
-              )}
-            </Button>
-          )}
           {!creating && (
             <Button
               onClick={() => setCreating(true)}
@@ -428,6 +331,8 @@ function IdeaBank() {
 
       {creating && (
         <IdeaEditor
+          types={types}
+          hooks={hooks}
           onSave={(d) => {
             createIdea(d);
             setCreating(false);
@@ -472,6 +377,8 @@ function IdeaBank() {
         {shown.map((idea) =>
           editingId === idea.id ? (
             <IdeaEditor
+              types={types}
+              hooks={hooks}
               key={idea.id}
               initial={idea}
               onSave={(d) => {
@@ -485,13 +392,13 @@ function IdeaBank() {
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
                   <div className="flex items-center gap-1.5 flex-wrap">
-                    <PillarBadge pillar={idea.pillar} />
+                    <PillarBadge pillar={idea.pillar} types={types} />
                     {idea.episode != null && (
                       <Badge variant="secondary" className="text-[10px] font-bold">
                         Ep {idea.episode}
                       </Badge>
                     )}
-                    <HookBadge n={idea.hookFormula} />
+                    <HookBadge n={idea.hookFormula} hooks={hooks} />
                   </div>
                   <p className="text-sm font-medium mt-1.5 text-foreground">
                     {idea.title}
@@ -503,33 +410,6 @@ function IdeaBank() {
                   )}
                 </div>
                 <div className="flex items-center shrink-0">
-                  {idea.status === "idea" && (
-                    <button
-                      onClick={() => runScriptIdea(idea.id)}
-                      disabled={busy || !idea.hookFormula}
-                      title={
-                        !idea.hookFormula
-                          ? "Assign a hook formula first — a topic isn't a post"
-                          : "Draft script + caption with Claude"
-                      }
-                      className="h-11 w-11 flex items-center justify-center rounded-lg disabled:opacity-40 text-primary transition-transform duration-150 active:scale-[0.9]"
-                    >
-                      {scriptingId === idea.id ? (
-                        <Loader2 size={15} className="animate-spin" />
-                      ) : (
-                        <Wand2 size={15} />
-                      )}
-                    </button>
-                  )}
-                  {idea.script && (
-                    <button
-                      onClick={() => toggleScript(idea.id)}
-                      title={openScriptIds.has(idea.id) ? "Hide script" : "Show script"}
-                      className={`h-11 w-11 flex items-center justify-center rounded-lg transition-transform duration-150 active:scale-[0.9] ${openScriptIds.has(idea.id) ? "text-primary" : "text-muted-foreground/70"}`}
-                    >
-                      <FileText size={15} />
-                    </button>
-                  )}
                   <button
                     onClick={() => setEditingId(idea.id)}
                     title="Edit"
@@ -546,71 +426,40 @@ function IdeaBank() {
                   </button>
                 </div>
               </div>
-              {failReasons[idea.id] && (
-                <p className="mt-2 text-xs text-destructive">
-                  Draft failed: {failReasons[idea.id]}
-                </p>
-              )}
               {/* One advance button, labeled with the next step; the full
                   status row lives in the editor for corrections. */}
               <div className="mt-2 flex items-center gap-2 flex-wrap">
                 <span
                   className="text-[11px] font-medium rounded-full px-2.5 py-1"
                   style={{
-                    color: STATUS_META[idea.status].color,
-                    background: tint(STATUS_META[idea.status].color, 20),
+                    color: STATUS_META[statusOf(idea)].color,
+                    background: tint(STATUS_META[statusOf(idea)].color, 20),
                   }}
                 >
-                  {STATUS_META[idea.status].label}
+                  {STATUS_META[statusOf(idea)].label}
                 </span>
-                {NEXT_STEP[idea.status] && (
+                {NEXT_STEP[statusOf(idea)] && (
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => setIdeaStatus(idea, NEXT_STEP[idea.status]!.next)}
+                    onClick={() => setIdeaStatus(idea, NEXT_STEP[statusOf(idea)]!.next)}
                     className="gap-1 text-xs"
                   >
-                    {NEXT_STEP[idea.status]!.label} <ArrowRight size={13} />
+                    {NEXT_STEP[statusOf(idea)]!.label} <ArrowRight size={13} />
                   </Button>
                 )}
-                {idea.status === "idea" && !idea.hookFormula && (
-                  <button
-                    onClick={() => setEditingId(idea.id)}
-                    className="text-xs text-muted-foreground/70 hover:text-foreground transition-colors duration-150"
-                    title="The draft button stays disabled until the idea has a hook formula"
-                  >
-                    pick a hook formula to enable drafting →
-                  </button>
-                )}
               </div>
-              {idea.script && openScriptIds.has(idea.id) && (
-                <div className="mt-3 space-y-3 rounded-lg p-3 bg-muted">
-                  <div>
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="section-label">
-                        Script — read aloud once, cut 15%
-                      </p>
-                      <CopyButton text={idea.script} label="Copy" />
-                    </div>
-                    <p className="text-sm whitespace-pre-wrap text-muted-foreground">
-                      {idea.script}
-                    </p>
-                  </div>
-                  {idea.caption && (
-                    <div>
-                      <div className="flex items-center justify-between gap-2">
-                        <p className="section-label">
-                          Caption
-                        </p>
-                        <CopyButton text={idea.caption} label="Copy" />
-                      </div>
-                      <p className="text-sm whitespace-pre-wrap text-muted-foreground">
-                        {idea.caption}
-                      </p>
-                    </div>
-                  )}
-                </div>
-              )}
+              {/* Samy's own writing. The legacy generated script on the one
+                  previously-scripted idea is deliberately NOT rendered: the
+                  premise of this rework is that he never sees a postable
+                  draft. The data is kept, just not shown. */}
+              <div className="mt-3">
+                <IdeaBody
+                  key={idea.id}
+                  value={idea.body ?? ""}
+                  onSave={(body) => updateIdea(idea.id, { body })}
+                />
+              </div>
             </Card>
           )
         )}

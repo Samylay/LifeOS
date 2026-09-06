@@ -11,8 +11,7 @@
 //    a subscription.
 // 2. The LLM LAYER handles what a regex can't: turning "SUMUP *CAFE 12" into
 //    "coffee", and turning a list of detected series into a couple of habit
-//    sentences. The model call is injected (same shape as
-//    content-scripting.ts's `draftScriptForIdea`) rather than imported
+//    sentences. The model call is injected rather than imported
 //    directly, so a test can stub it with a plain function and never needs
 //    GEN_PROVIDER set, a running CLI, or a module mock.
 //
@@ -221,8 +220,7 @@ export function toSubscriptionProposal(series: RecurringSeries): DetectedSubscri
 }
 
 // --- LLM layer ----------------------------------------------------------
-// Everything below calls a model. `generate` is injected (mirrors
-// content-scripting.ts's `draftScriptForIdea`) — nothing here imports
+// Everything below calls a model. `generate` is injected — nothing here imports
 // claude-cli.ts directly, so a caller wires in `generateJson` from there and
 // a test wires in a stub. Neither this section nor the detector above ever
 // needs GEN_PROVIDER to be set to be unit-tested.

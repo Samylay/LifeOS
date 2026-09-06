@@ -783,7 +783,9 @@ export type ContentPillar = "build-log" | "workflow-win" | "under-the-hood";
 
 // Production pipeline, matching the weekly batch SOP (script Mon → record
 // Tue → edit Wed → publish Thu–Sun).
-export type ContentIdeaStatus = "idea" | "scripted" | "recorded" | "edited" | "posted";
+// Three states, not five (T-content-rework-02). `scripted`/`recorded`/`edited`
+// are gone; migrateStatus in lib/content/idea-status.ts maps legacy rows.
+export type ContentIdeaStatus = "idea" | "ready" | "posted";
 
 export interface ContentIdea {
   id: string;
@@ -792,8 +794,15 @@ export interface ContentIdea {
   hookFormula?: number; // 1–12 from the hook library; unset = topic, not script-ready
   episode?: number; // Build Log serial number
   notes?: string;
-  script?: string; // full draft script to the pillar's skeleton (Monday scripting block output)
-  caption?: string; // caption + hashtags per the publishing conventions in 05
+  // Samy's own writing: the hook and beats, in his words. This is the point of
+  // the record — what he posts is his.
+  body?: string;
+  /** @deprecated Output of the deleted script generator. Kept so no row loses
+   *  data, never rendered: showing him a postable script is the thing this
+   *  vertical was rebuilt to stop doing. */
+  script?: string;
+  /** @deprecated As `script`. */
+  caption?: string;
   status: ContentIdeaStatus;
   createdAt: Date;
   updatedAt: Date;
