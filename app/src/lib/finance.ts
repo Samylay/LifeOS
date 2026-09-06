@@ -209,8 +209,12 @@ const CADENCE_PATTERNS: [RegExp, FlowCadence][] = [
 const INCOME_WORDS = /\brentr[ée]e?s?\b|\brevenu\w*|\bsalaire\b|\bbourse\b|\bincome\b|\bsalary\b|\bpaie\b|\bapl\b|\bcaf\b|\baide\w*\b/i;
 const DORMANT_WORDS = /\bdormant\b|\binutilis[ée]\w*|\bunused\b|\bpas utilis[ée]\w*|\bjamais utilis[ée]\w*/i;
 
-const FIXED_WORDS = /\bloyer\b|\brent\b|\bcharges?\b|\bassurance\w*|\binsurance\b|\bmutuelle\b|\bforfait\b|\bmobile\b|\bt[ée]l[ée]phone\b|\bphone\b|\binternet\b|\bbox\b|\b[ée]lectricit[ée]\b|\belectricity\b|\bnavigo\b|\bimagine ?r\b|\btransport\b|\bpr[êe]t\b|\bloan\b|\bcr[ée]dit\b|\bscolarit[ée]\b|\btuition\b|\b[ée]pita\b/i;
-const SUB_WORDS = /\bnetflix\b|\bspotify\b|\byoutube\b|\bprime\b|\bdisney\b|\bcrunchyroll\b|\bgithub\b|\bclaude\b|\bchatgpt\b|\bopenai\b|\bnotion\b|\bfigma\b|\bicloud\b|\bgoogle one\b|\bdropbox\b|\badobe\b|\bsalle\b|\bgym\b|\bfitness\b|\bbasic ?fit\b|\bmusculation\b|\bvpn\b|\bdomaine\b|\bdomain\b|\bhosting\b|\bh[ée]bergement\b|\babonnement\b|\bsubscription\b/i;
+// "Cotisation" (membership/account dues) is a generic French banking term
+// for a bank-card fee, an insurance premium or an association due — never a
+// specific merchant — so it belongs alongside the other cost-of-living
+// keywords without naming who charges it.
+const FIXED_WORDS = /\bloyer\b|\brent\b|\bcharges?\b|\bassurance\w*|\binsurance\b|\bmutuelle\b|\bforfait\b|\bmobile\b|\bt[ée]l[ée]phone\b|\bphone\b|\binternet\b|\bbox\b|\b[ée]lectricit[ée]\b|\belectricity\b|\bnavigo\b|\bimagine ?r\b|\btransport\b|\bpr[êe]t\b|\bloan\b|\bcr[ée]dit\b|\bscolarit[ée]\b|\btuition\b|\b[ée]pita\b|\bcotisation\w*\b/i;
+const SUB_WORDS = /\bnetflix\b|\bspotify\b|\byoutube\b|\bprime\b|\bdisney\b|\bcrunchyroll\b|\bgithub\b|\bclaude\b|\bchatgpt\b|\bopenai\b|\bnotion\b|\bfigma\b|\bicloud\b|\bgoogle one\b|\bapple\.com\b|\bdropbox\b|\badobe\b|\bsalle\b|\bgym\b|\bfitness\b|\bbasic ?fit\b|\bmusculation\b|\bvpn\b|\bdomaine\b|\bdomain\b|\bhosting\b|\bh[ée]bergement\b|\babonnement\b|\bsubscription\b/i;
 const VARIABLE_WORDS = /\bcourses\b|\bgroceries\b|\bresto\w*|\brestaurant\w*|\bbouffe\b|\bfood\b|\bcaf[ée]\b|\bcoffee\b|\bsorties?\b|\bgoing out\b|\bbar\b|\bshopping\b|\bv[êe]tements\b|\bclothes\b|\buber\b|\bdeliveroo\b|\bloisirs?\b|\bfun\b/i;
 
 /** "13,49" / "13.49" / "1 250" / "€25" / "25€" — first money-looking token wins. */
@@ -228,14 +232,30 @@ export interface ParsedLine {
  * hand-typed line — a detected subscription and a pasted one should never
  * disagree about what counts as "sub" vs "fixed" vs "variable".
  */
-export function inferKind(label: string, direction: FlowDirection, cadence: FlowCadence): FlowKind {
-  if (direction === "in") return "fixed";
+/**
+ * Keyword-only guess, with no notion of direction or cadence — exported so a
+ * caller that has a stronger signal than a label (finance-burn.ts's SEPA
+ * direct-debit / amount-magnitude read on a detected bank series) can check
+ * "did a keyword actually fire" before falling back to its own default,
+ * instead of guessing blind the way `inferKind`'s bare fallback does.
+ * Returns null, never a guess, when nothing matches.
+ */
+export function keywordKind(label: string): FlowKind | null {
   if (FIXED_WORDS.test(label)) return "fixed";
   if (SUB_WORDS.test(label)) return "sub";
   if (VARIABLE_WORDS.test(label)) return "variable";
+  return null;
+}
+
+export function inferKind(label: string, direction: FlowDirection, cadence: FlowCadence): FlowKind {
+  if (direction === "in") return "fixed";
+  const keyword = keywordKind(label);
+  if (keyword) return keyword;
   // Unknown recurring outgoing is far more often a subscription than not, and
   // the subscriptions list is the one he is meant to prune. Erring that way
-  // puts it in front of him; erring the other way hides it.
+  // puts it in front of him; erring the other way hides it. (A caller with a
+  // transaction-type or amount signal — see finance-burn.ts's `classify` —
+  // should use `keywordKind` directly rather than lean on this default.)
   return cadence === "oneoff" ? "variable" : "sub";
 }
 
