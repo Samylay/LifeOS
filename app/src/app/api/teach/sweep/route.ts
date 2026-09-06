@@ -7,7 +7,6 @@
 import { NextResponse } from "next/server";
 import { dueTopics, retryTodoistSchedules, sweepStaleSessions } from "@/lib/teach";
 import { sweepStaleChatSessions } from "@/lib/chat-log";
-import { sweepStaleCaptures } from "@/lib/voicepal";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -16,11 +15,12 @@ export async function POST() {
   try {
     const result = await sweepStaleSessions();
     const chat = sweepStaleChatSessions();
-    // VoicePal captures (standalone capture surface) ride the same sweep so an
-    // abandoned capture still reaches the vault — no new cron caller needed.
-    const voicepal = await sweepStaleCaptures();
+    // T-voice-rework-02: the VoicePal capture-session model (start/end,
+    // abandon-and-sweep) is gone — the new capture hub commits in one step,
+    // so there is nothing left to abandon and nothing for this sweep to
+    // retry. sweepStaleCaptures() and voicepal.ts were removed together.
     const todoist = await retryTodoistSchedules();
-    return NextResponse.json({ ...result, chat, voicepal, todoist });
+    return NextResponse.json({ ...result, chat, todoist });
   } catch (e) {
     return NextResponse.json(
       { error: e instanceof Error ? e.message : "sweep failed" },

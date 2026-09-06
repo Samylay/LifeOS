@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { appendToInbox } from "@/lib/voice-inbox";
 import { applyTriageReply } from "@/lib/brief/triage-apply";
 import { confirmPending } from "@/lib/voice-stash";
+import { route } from "@/lib/voice-routing";
 
 // Commits the (possibly human-edited) transcript from /api/voice to the
 // dated vault inbox note. Kept separate from transcription so the client can
@@ -31,6 +32,23 @@ export async function POST(req: NextRequest) {
       const result = applyTriageReply(transcript);
       if (pendingId && result.ok) confirmPending(pendingId, { category, triage: result });
       return NextResponse.json({ transcript, triage: result });
+    }
+
+    // T-voice-rework-02: the one-step capture hub. The routing module
+    // (voice-routing.ts, ticket 01) decides the destination, but this ticket
+    // wires only the safest one — the vault note, unchanged in layout from
+    // every other appendToInbox caller. Todoist, the idea bank, and /decide
+    // are real destinations the classifier can already name (tickets 03-04
+    // give them writers); until then every capture still commits to the
+    // vault so nothing spoken is ever lost. A spoken destination prefix
+    // ("note:", "task:", …) is still recognised and stripped here so it
+    // never leaks into the words that land in the note.
+    if (category === "capture") {
+      const routed = route(transcript);
+      const note = appendToInbox(date, prompt, "capture", routed.text || transcript);
+      const destination = "vault" as const;
+      if (pendingId) confirmPending(pendingId, { category, destination, note });
+      return NextResponse.json({ transcript, note, destination });
     }
 
     const note = appendToInbox(date, prompt, category, transcript);
