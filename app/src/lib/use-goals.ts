@@ -157,10 +157,6 @@ export function useGoals() {
     [goals, updateGoal]
   );
 
-  // Sessions are no longer logged by hand — ships on a goal's projects ARE the
-  // sessions (folded in via withShipActivity). Manual "Log session" rewarded
-  // meta-work and was cut 2026-07-29.
-
   // --- AI prefill via claude -p ---
 
   const draftPlan = useCallback(

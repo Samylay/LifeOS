@@ -1,4 +1,4 @@
-// Daily body-measurements sync, mirroring ships-vault-scheduler: run at
+// Daily body-measurements sync, mirroring the news scheduler: run at
 // RUN_HOUR in BRIEF_TZ with catch-up on boot. 22:00 sits after both the
 // day's Garmin weigh-in and MyFitnessPal logging are normally done, so the
 // day being synced is complete when the job fires.
