@@ -16,6 +16,7 @@ import { recentMonths } from "./finance-months";
 import { isSyncStale, formatLastSynced } from "./finance-freshness";
 import { findExpiringConsents } from "./bank-consent-tripwire";
 import { yearlyAmount } from "./finance";
+import { listClassificationOverrides } from "./finance-overrides-db";
 
 /** How many months of burn history the surface shows — the spec's "six
  * months of history are already there... useful the moment it opens". */
@@ -123,14 +124,16 @@ export function getFinanceOverview(now: Date = new Date()): FinanceOverview {
     ...listOwnAccountIdentifiers(),
     ...(process.env.FINANCE_ACCOUNT_HOLDER_NAME ? [process.env.FINANCE_ACCOUNT_HOLDER_NAME] : []),
   ];
-  const burnMonths = months.map((month) => monthlyBurn(transactions, month, {}, ownAccountIdentifiers));
+  // Ticket 04: corrections, keyed by normalized counterparty, read fresh on
+  // every call — the same store `monthlyBurn` and `detectRecurring` are both
+  // handed below, so a burn month's fixed/sub/variable split and the
+  // recurring-charges list are always the same underlying classification,
+  // never a parallel computation.
+  const overrides = listClassificationOverrides();
+  const burnMonths = months.map((month) => monthlyBurn(transactions, month, overrides, ownAccountIdentifiers));
 
-  // Corrections (ticket 04) aren't wired up yet — {} is the "no overrides"
-  // default `classify` already accepts, so this list agrees with
-  // `burnMonths`' classification today and needs no change when ticket 04
-  // lands an override store; only this `{}` becomes a real lookup.
   const currentMonth = months[months.length - 1];
-  const recurringCharges = markNewlyAppeared(detectRecurring(transactions, {}).charges, currentMonth);
+  const recurringCharges = markNewlyAppeared(detectRecurring(transactions, overrides).charges, currentMonth);
   const cancellable = groupCancellable(recurringCharges);
 
   const lastSyncAtRaw = getBankSyncState("last_sync_at");

@@ -18,6 +18,8 @@ import {
   ArrowUpRight,
   ArrowLeftRight,
   Sparkles,
+  Pencil,
+  Undo2,
 } from "lucide-react";
 import Link from "next/link";
 import { useFinance } from "@/lib/use-finance";
@@ -30,6 +32,7 @@ import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Page, PageHeader } from "@/components/ui/page";
 import {
   CADENCE_LABEL,
+  KIND_LABEL,
   formatEuro,
   monthlyAmount,
   parseFlowList,
@@ -45,6 +48,12 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { KpiCard, CategoryBar } from "@/components/charts";
 
@@ -378,6 +387,55 @@ function formatChargeDate(date: string): string {
   });
 }
 
+const KIND_ORDER: FlowKind[] = ["fixed", "sub", "variable"];
+
+/**
+ * The correction gesture (ticket 04): pick one of the three classifications
+ * from a menu, no typing, keyed to the charge's normalized counterparty —
+ * never a transaction. Rare by design (the detector gets this right in the
+ * overwhelming majority of cases now — see spec.md), so it's a small pencil
+ * affordance next to the amount rather than a permanent control on every
+ * row. An already-overridden charge gets an extra "Reset to detected" item
+ * that clears the correction outright.
+ */
+function CorrectChargeMenu({
+  charge,
+  onCorrect,
+  onClear,
+}: {
+  charge: RecurringChargeView;
+  onCorrect: (kind: FlowKind) => void;
+  onClear: () => void;
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          aria-label={`Correct classification for ${charge.label}`}
+          className="shrink-0 rounded-md p-1 text-muted-foreground transition-colors duration-150 hover:bg-accent hover:text-foreground active:scale-[0.97]"
+        >
+          <Pencil size={13} />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        {KIND_ORDER.map((kind) => (
+          <DropdownMenuItem key={kind} disabled={kind === charge.kind} onSelect={() => onCorrect(kind)}>
+            {kind === charge.kind && <Check size={14} />}
+            {KIND_LABEL[kind]}
+          </DropdownMenuItem>
+        ))}
+        {charge.overridden && (
+          <DropdownMenuItem onSelect={onClear}>
+            <Undo2 size={14} />
+            Reset to detected
+          </DropdownMenuItem>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 /**
  * One detected recurring charge (ticket 03): what it is called, how often it
  * hits, what it typically costs, when it started and when it last hit —
@@ -386,8 +444,19 @@ function formatChargeDate(date: string): string {
  * is a rough proxy for "how many occurrences confirmed the cadence" and
  * would read as more authoritative than it is; occurrence count + first/last
  * date give Samy the same signal in a form he can actually judge.
+ *
+ * `onCorrect`/`onClear` are optional so this row still renders in a context
+ * with no override plumbing (tests, a future read-only view).
  */
-function RecurringChargeRow({ charge }: { charge: RecurringChargeView }) {
+function RecurringChargeRow({
+  charge,
+  onCorrect,
+  onClear,
+}: {
+  charge: RecurringChargeView;
+  onCorrect?: (merchantKey: string, kind: FlowKind) => void;
+  onClear?: (merchantKey: string) => void;
+}) {
   return (
     <div className="flex items-center justify-between gap-3 border-b border-border/60 py-2 last:border-b-0">
       <div className="min-w-0">
@@ -398,13 +467,27 @@ function RecurringChargeRow({ charge }: { charge: RecurringChargeView }) {
               <Sparkles size={10} /> New
             </Badge>
           )}
+          {charge.overridden && (
+            <Badge variant="secondary" className="shrink-0 text-[10px] font-medium">
+              Corrected
+            </Badge>
+          )}
         </p>
         <p className="text-xs text-muted-foreground">
           {CADENCE_LABEL[charge.cadence]} · seen {charge.occurrenceCount}× · {formatChargeDate(charge.firstSeen)} –{" "}
           {formatChargeDate(charge.lastSeen)}
         </p>
       </div>
-      <span className="shrink-0 tabular-nums text-sm text-muted-foreground">{formatEuro(charge.amount)}</span>
+      <div className="flex shrink-0 items-center gap-2">
+        <span className="tabular-nums text-sm text-muted-foreground">{formatEuro(charge.amount)}</span>
+        {onCorrect && onClear && (
+          <CorrectChargeMenu
+            charge={charge}
+            onCorrect={(kind) => onCorrect(charge.merchantKey, kind)}
+            onClear={() => onClear(charge.merchantKey)}
+          />
+        )}
+      </div>
     </div>
   );
 }
@@ -414,7 +497,15 @@ function RecurringChargeRow({ charge }: { charge: RecurringChargeView }) {
  * I stop paying for", dearest first, with the yearly total stated because a
  * monthly figure understates what a subscription actually costs.
  */
-function CancellableCard({ group }: { group: CancellableGroup }) {
+function CancellableCard({
+  group,
+  onCorrect,
+  onClear,
+}: {
+  group: CancellableGroup;
+  onCorrect: (merchantKey: string, kind: FlowKind) => void;
+  onClear: (merchantKey: string) => void;
+}) {
   if (group.charges.length === 0) return null;
   return (
     <Card className="enter gap-2 px-4 py-4">
@@ -426,7 +517,7 @@ function CancellableCard({ group }: { group: CancellableGroup }) {
       </div>
       <div>
         {group.charges.map((c) => (
-          <RecurringChargeRow key={c.merchantKey} charge={c} />
+          <RecurringChargeRow key={c.merchantKey} charge={c} onCorrect={onCorrect} onClear={onClear} />
         ))}
       </div>
     </Card>
@@ -437,14 +528,22 @@ function CancellableCard({ group }: { group: CancellableGroup }) {
  * Every recurring charge the system found (ticket 03) — the full list Samy
  * sanity-checks the fixed/sub split against, not just the cancellable ones.
  */
-function RecurringChargesCard({ charges }: { charges: RecurringChargeView[] }) {
+function RecurringChargesCard({
+  charges,
+  onCorrect,
+  onClear,
+}: {
+  charges: RecurringChargeView[];
+  onCorrect: (merchantKey: string, kind: FlowKind) => void;
+  onClear: (merchantKey: string) => void;
+}) {
   if (charges.length === 0) return null;
   return (
     <Card className="enter gap-2 px-4 py-4">
       <p className="section-label">Recurring charges</p>
       <div>
         {charges.map((c) => (
-          <RecurringChargeRow key={c.merchantKey} charge={c} />
+          <RecurringChargeRow key={c.merchantKey} charge={c} onCorrect={onCorrect} onClear={onClear} />
         ))}
       </div>
     </Card>
@@ -457,7 +556,26 @@ function RecurringChargesCard({ charges }: { charges: RecurringChargeView[] }) {
  * pure finance-burn.ts module — nothing here asks Samy to type anything.
  */
 function BurnOverview() {
-  const { overview, loading } = useFinanceBurn();
+  const { overview, loading, correctCharge, clearCorrection } = useFinanceBurn();
+  const { toast } = useToast();
+
+  const handleCorrect = async (merchantKey: string, kind: FlowKind) => {
+    try {
+      await correctCharge(merchantKey, kind);
+      toast(`Moved to ${KIND_LABEL[kind]}`, "success");
+    } catch {
+      toast("Couldn't save the correction", "error");
+    }
+  };
+
+  const handleClear = async (merchantKey: string) => {
+    try {
+      await clearCorrection(merchantKey);
+      toast("Back to detected classification", "success");
+    } catch {
+      toast("Couldn't clear the correction", "error");
+    }
+  };
 
   if (loading && !overview) {
     return (
@@ -538,8 +656,8 @@ function BurnOverview() {
         </Card>
       )}
 
-      <CancellableCard group={overview.cancellable} />
-      <RecurringChargesCard charges={overview.recurringCharges} />
+      <CancellableCard group={overview.cancellable} onCorrect={handleCorrect} onClear={handleClear} />
+      <RecurringChargesCard charges={overview.recurringCharges} onCorrect={handleCorrect} onClear={handleClear} />
     </div>
   );
 }
