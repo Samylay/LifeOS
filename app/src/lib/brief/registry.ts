@@ -36,27 +36,24 @@ export interface RegisteredFetcher {
   meta: FetcherMeta; // fallback used to build the error card when fetch throws
 }
 
-import * as workout from "./fetchers/workout";
 import * as work from "./fetchers/work";
-import * as prompt from "./fetchers/prompt";
-import * as objectives from "./fetchers/objectives";
-import * as homelab from "./fetchers/homelab";
 import * as fuite from "./fetchers/fuite";
 import * as ft from "./fetchers/ft";
 import * as digest from "./fetchers/digest";
-import * as ships from "./fetchers/ships";
 import * as planning from "./fetchers/planning";
 import * as triage from "./fetchers/triage";
 
+// Surviving set (today-brief-rework 01): planning, work, triage, then the
+// digest cards. Removed: ships (data source destroyed by the /projects
+// rework), workout and objectives (dropped on Samy's call), prompt
+// (superseded by /prime leading the delivery), homelab (relocated to
+// /status, which already owns getStandingGoals()). This order is the
+// contract registry.test.ts asserts — add/remove a card here and nowhere
+// else.
 export const REGISTRY: RegisteredFetcher[] = [
   { fetch: planning.fetch, meta: { id: "planning", type: "planning", priority: "action", title: "Today's plan" } },
-  { fetch: triage.fetch, meta: { id: "triage", type: "triage", priority: "action", title: "Triage" } },
-  { fetch: ships.fetch, meta: { id: "ships", type: "ships", priority: "action", title: "Exit velocity" } },
-  { fetch: workout.fetch, meta: { id: "workout", type: "workout", priority: "action", title: "Workout" } },
   { fetch: work.fetch, meta: { id: "work", type: "work", priority: "action", title: "Today's work" } },
-  { fetch: prompt.fetch, meta: { id: "prompt", type: "prompt", priority: "action", title: "Morning prompt" } },
-  { fetch: objectives.fetch, meta: { id: "objectives", type: "prompt", priority: "action", title: "Objectives" } },
-  { fetch: homelab.fetch, meta: { id: "homelab", type: "homelab", priority: "state", title: "Homelab" } },
+  { fetch: triage.fetch, meta: { id: "triage", type: "triage", priority: "action", title: "Triage" } },
   { fetch: fuite.fetch, meta: { id: "fuite", type: "fuite", priority: "state", title: "Fuite du jour" } },
   { fetch: ft.fetch, meta: { id: "ft_headlines", type: "ft_headlines", priority: "state", title: "FT headlines" } },
   { fetch: digest.fetch, meta: { id: "quorky_digest", type: "quorky_digest", priority: "state", title: "Quorky Digest" } },

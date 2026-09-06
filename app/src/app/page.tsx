@@ -10,16 +10,13 @@ import {
   RefreshCw,
   Sunrise,
   BellRing,
-  Rocket,
   Flag,
 } from "lucide-react";
 import Link from "next/link";
 import { useHabits, toggledHabitState } from "@/lib/use-habits";
 import { useReminders } from "@/lib/use-reminders";
 import { useNotifications } from "@/lib/use-notifications";
-import { useShipLog } from "@/lib/use-ship-log";
 import { useTeachProgress } from "@/lib/use-teach-progress";
-import { CountUp } from "@/components/count-up";
 import { Celebration } from "@/components/celebration";
 import { GoalsCard } from "@/components/goals-card";
 import { BriefCards } from "@/components/brief/brief-cards";
@@ -27,7 +24,7 @@ import { Skeleton } from "@/components/skeleton";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import type { Brief } from "@/lib/brief-types";
-import { calendarDaysBetween, localDayOf } from "@/lib/types";
+import { localDayOf } from "@/lib/types";
 
 interface BriefResponse {
   source: "live" | "fixture";
@@ -42,15 +39,10 @@ function greeting() {
   return "Good evening";
 }
 
-function daysSince(date: Date): number {
-  return calendarDaysBetween(date, new Date());
-}
-
 export default function Today() {
   const { habits, toggleToday } = useHabits();
   const { overdue: overdueReminders, dueToday: todayReminders } = useReminders();
   const { messages } = useNotifications();
-  const { entries: ships } = useShipLog();
   const teachProgress = useTeachProgress();
 
   const [now] = useState(() => new Date());
@@ -117,15 +109,6 @@ export default function Today() {
 
   const nextReminder = [...overdueReminders, ...todayReminders][0];
   const pagerUnread = messages.filter((m) => !m.readAt).length;
-
-  // Ship momentum
-  // rolling 30×24h window (elapsed time), unlike the calendar-day prose below
-  const shipped30d = ships.filter((s) => s.date && now.getTime() - new Date(s.date).getTime() <= 30 * 86400_000).length;
-  const lastShip = ships
-    .map((s) => (s.date ? new Date(s.date) : null))
-    .filter((d): d is Date => d !== null)
-    .sort((a, b) => b.getTime() - a.getTime())[0];
-  const daysSinceShip = lastShip ? daysSince(lastShip) : null;
 
   return (
     // Phone is a feed, desktop is a cockpit: one scrolling column on mobile;
@@ -226,8 +209,10 @@ export default function Today() {
       {/* Right rail on desktop; below the brief on mobile */}
       <div className="flex flex-col gap-4 lg:col-start-2 lg:row-start-1 min-w-0">
 
-      {/* Quick loop: Prime entry + ship momentum */}
-      <div className="grid grid-cols-2 gap-3 enter" style={{ ["--enter-delay" as string]: "30ms" }}>
+      {/* Quick loop: Prime entry. Ship momentum lived here until
+          today-brief-rework 01 dropped it — the read moved out, the ship log
+          and its write path are untouched (deferred /projects rework). */}
+      <div className="enter" style={{ ["--enter-delay" as string]: "30ms" }}>
         <Link href="/prime" className="block">
           <Card className="flex-row items-center gap-3 p-4 hover-lift">
             <div className="flex h-9 w-9 items-center justify-center rounded-lg shrink-0 bg-accent">
@@ -236,22 +221,6 @@ export default function Today() {
             <div className="min-w-0">
               <p className="text-sm font-medium text-foreground">Daily Prime</p>
               <p className="text-xs text-muted-foreground/70">Start the ritual →</p>
-            </div>
-          </Card>
-        </Link>
-        <Link href="/projects" className="block">
-          <Card className="flex-row items-center gap-3 p-4 hover-lift">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg shrink-0 bg-accent">
-              <Rocket size={18} className="text-accent-foreground" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-foreground">
-                <CountUp value={shipped30d} className="text-xl font-semibold leading-none tracking-tight" />
-                <span className="text-sm font-normal ml-1 text-muted-foreground/70">shipped / 30d</span>
-              </p>
-              <p className="text-xs mt-1 text-muted-foreground/70">
-                {daysSinceShip === null ? "No ships logged yet" : `Last ship ${daysSinceShip}d ago`}
-              </p>
             </div>
           </Card>
         </Link>
