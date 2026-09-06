@@ -1,5 +1,5 @@
-// Leads ingest — the persistent home for website-build demand found by
-// scout/demand_scout.py (Codeur.com RSS today; more sources later) and for
+// Leads ingest + surface — the persistent home for website-build demand found
+// by scout/demand_scout.py (Codeur.com RSS today; more sources later) and for
 // pain points kept in the /decide Pain deck. Unlike the ephemeral /pager,
 // leads live in `users/local/leads` and carry a status the user drives from
 // /leads. Ingest is idempotent: a lead is keyed by (source, extId), so
@@ -11,11 +11,49 @@
 //   POST { leads: [{ source, extId, title, url, budget, budgetFloor,
 //                     categories, brief, postedAt }] }
 //        -> { inserted, skipped }
+//
+//   GET -> { leads: [...admitted, each carrying `admissionReason`],
+//            cap, lastDeliveredAt }
+//
+// GET is the *only* sanctioned way to read leads for display. It exists
+// specifically because the generic `/api/data/users/local/leads` passthrough
+// (used by every other collection) returns every row with no cap — reading
+// leads through it would defeat the one thing this ticket builds: a surface
+// that cannot hold more than a handful. `selectAdmittedLeads` (lib/leads/surface.ts)
+// enforces the cap here, at the fetch boundary, before anything reaches a
+// client that could otherwise widen it.
 import { NextRequest, NextResponse } from "next/server";
-import { enqueueLead, type LeadInput } from "@/lib/leads-ingest";
+import { enqueueLead, LEADS_COLLECTION, type LeadInput } from "@/lib/leads-ingest";
+import { listDocs } from "@/lib/server-db";
+import { ADMISSION_CAP } from "@/lib/leads/admission";
+import { selectAdmittedLeads, lastDeliveredAt, type RawLeadDoc } from "@/lib/leads/surface";
+import { getLeadsAvailability } from "@/lib/leads/availability-settings";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+export async function GET() {
+  const rows = listDocs(LEADS_COLLECTION) as RawLeadDoc[];
+  const now = new Date();
+  const availability = getLeadsAvailability();
+  const admitted = selectAdmittedLeads(rows, now, availability, ADMISSION_CAP);
+
+  const byId = new Map(rows.map((r) => [r.id, r]));
+  const leads = admitted
+    .map((a) => {
+      const row = byId.get(a.id);
+      return row ? { ...row, admissionReason: a.reason } : null;
+    })
+    .filter((r): r is RawLeadDoc & { admissionReason: string } => r !== null);
+
+  const delivered = lastDeliveredAt(rows);
+
+  return NextResponse.json({
+    leads,
+    cap: ADMISSION_CAP,
+    lastDeliveredAt: delivered ? delivered.toISOString() : null,
+  });
+}
 
 export async function POST(req: NextRequest) {
   let body: { leads?: unknown };
