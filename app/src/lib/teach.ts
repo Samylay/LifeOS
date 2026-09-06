@@ -251,8 +251,7 @@ export function lastTaughtDate(topic: Pick<TeachTopic, "learningRecords">): stri
 
 /** The most recent learning-record narrative across ALL topics — the one line
  * Today shows (map 08). No score, no aggregation: just the latest prose the
- * tutor wrote, verbatim. Null when nothing has been taught yet. Never touches
- * `shipLog` — a learning session is input, not a ship (map 08). */
+ * tutor wrote, verbatim. Null when nothing has been taught yet. */
 export function latestProgress(): { topic: string; date: string; text: string } | null {
   const topics = (listDocs(TOPICS) as unknown as Array<{ id: string } & Record<string, unknown>>).map((raw) =>
     normalizeTopic(raw.id, raw)

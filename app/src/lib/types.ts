@@ -59,33 +59,14 @@ export interface Project {
   // Kills are allowed and healthy, but they're a logged decision, not drift.
   killReason?: string;
   // Quarterly goal this project serves. Projects and goals share one surface:
-  // a project without a goal is "unaligned" and gets nudged, and ships logged
-  // against the project count as activity on the goal.
+  // a project without a goal is "unaligned" and gets nudged.
   goalId?: string;
   linkedTaskIds: string[];
   createdAt: Date;
-  // Last time any field was edited (status, next action, tasks, etc.). Distinct
-  // from ship-log recency: a project can be actively worked without shipping.
+  // Last time any field was edited (status, next action, tasks, etc.).
   // Stamped on every write in use-projects.ts; backfilled from createdAt for
   // legacy docs via fallbackDates.
   updatedAt: Date;
-}
-
-// One row per thing that left the machine.
-export interface ShipLogEntry {
-  id: string;
-  date: Date;
-  projectId?: string;
-  what: string;
-  toWhom: string;
-  // Normalized kebab-case labels ("lifeos", "content", "infra") — filterable
-  // here, and the routing key for a future vault/Hermes sync of ships.
-  tags?: string[];
-  // Legacy predicted-vs-actual pair — cut from the UI 2026-07-14 (Samy: noisy,
-  // unused). Kept optional so old docs and log-ship.sh payloads stay valid.
-  predictedReaction?: string;
-  actualReaction?: string;
-  createdAt: Date;
 }
 
 /** Normalize a user-typed tag: lowercase kebab, no leading '#'. */
@@ -662,27 +643,13 @@ export function localDayOf(d: Date): string {
 
 /**
  * Calendar-day difference (b - a) using each Date's local civil day, not
- * elapsed 24h periods — a ship at 23:00 yesterday is 1 calendar day ago at
+ * elapsed 24h periods — an event at 23:00 yesterday is 1 calendar day ago at
  * any time today, not 0 until a full 24h has passed.
  */
 export function calendarDaysBetween(a: Date, b: Date): number {
   const [ay, am, ad] = localDayOf(a).split("-").map(Number);
   const [by, bm, bd] = localDayOf(b).split("-").map(Number);
   return Math.round((Date.UTC(by, bm - 1, bd) - Date.UTC(ay, am - 1, ad)) / 86_400_000);
-}
-
-/**
- * A goal with ship-log activity folded into its sessions. Ships logged against
- * a project that serves this goal ARE work on the goal, so every session-based
- * readout (plan state, staleness, sparkline, "last worked") sees them without
- * double bookkeeping. Pure — never persisted back.
- */
-export function withShipActivity(goal: Goal, shipDates: string[]): Goal {
-  if (shipDates.length === 0) return goal;
-  return {
-    ...goal,
-    sessions: [...goal.sessions, ...shipDates.map((date) => ({ date, note: "ship" }))],
-  };
 }
 
 // --- Daily Prime (morning priming ritual) ---
