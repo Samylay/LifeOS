@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { appendToInbox } from "@/lib/voice-inbox";
 import { applyTriageReply } from "@/lib/brief/triage-apply";
+import { createIdeaBankEntry } from "@/lib/content/idea-bank";
+import { createTodoistTask } from "@/lib/todoist-client";
 import { confirmPending } from "@/lib/voice-stash";
 import { route } from "@/lib/voice-routing";
 
@@ -34,18 +36,60 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ transcript, triage: result });
     }
 
-    // T-voice-rework-02: the one-step capture hub. The routing module
-    // (voice-routing.ts, ticket 01) decides the destination, but this ticket
-    // wires only the safest one — the vault note, unchanged in layout from
-    // every other appendToInbox caller. Todoist, the idea bank, and /decide
-    // are real destinations the classifier can already name (tickets 03-04
-    // give them writers); until then every capture still commits to the
-    // vault so nothing spoken is ever lost. A spoken destination prefix
-    // ("note:", "task:", …) is still recognised and stripped here so it
-    // never leaks into the words that land in the note.
+    // T-voice-rework-03: the one-step capture hub gets real destinations.
+    // The routing module (voice-routing.ts, ticket 01) decides where a
+    // transcript lands; this ticket wires the idea bank and Todoist writers
+    // it can already name, each reusing the writer that already owns that
+    // collection (spec.md "Reused writers, all existing" — no destination
+    // gets a new write path). /decide (ticket 04) isn't wired yet, so a
+    // spoken decision still falls through to the vault, same as before this
+    // ticket — that keeps story 5 ("nothing spoken is ever lost") true
+    // without inventing a decide writer ahead of its own ticket.
+    //
+    // A write failure here must be loud, not silent: this route returns a
+    // non-2xx and never calls confirmPending, so the pending row stays
+    // "pending" (recoverable — voice-stash.ts) and the client's review
+    // screen stays open with the transcript still in it rather than
+    // reporting a landing that didn't happen.
     if (category === "capture") {
       const routed = route(transcript);
-      const note = appendToInbox(date, prompt, "capture", routed.text || transcript);
+      const text = routed.text || transcript;
+
+      if (routed.destination === "idea-bank") {
+        let id: string;
+        try {
+          // routed.params.pillar is a free-text hint (voice-routing.ts never
+          // actually sets one today) rather than a validated ContentPillar,
+          // so it isn't forwarded — an idea lands unsorted, exactly like one
+          // filed by bookmark triage, and gets its pillar on the content
+          // surface during review.
+          id = createIdeaBankEntry({ title: text, content: text });
+        } catch (e) {
+          return NextResponse.json(
+            { error: `couldn't file to the idea bank: ${e instanceof Error ? e.message : "write failed"}` },
+            { status: 502 }
+          );
+        }
+        if (pendingId) confirmPending(pendingId, { category, destination: "idea-bank", ideaId: id });
+        return NextResponse.json({ transcript, destination: "idea-bank", ideaId: id });
+      }
+
+      if (routed.destination === "todoist") {
+        const result = await createTodoistTask({ content: text, due_string: routed.params.due });
+        if (!result.ok) {
+          return NextResponse.json(
+            { error: `couldn't file to Todoist: ${result.error}` },
+            { status: 502 }
+          );
+        }
+        if (pendingId) {
+          confirmPending(pendingId, { category, destination: "todoist", taskId: result.taskId });
+        }
+        return NextResponse.json({ transcript, destination: "todoist", taskId: result.taskId });
+      }
+
+      // "vault" and "decide" (not yet wired — ticket 04) both land here.
+      const note = appendToInbox(date, prompt, "capture", text);
       const destination = "vault" as const;
       if (pendingId) confirmPending(pendingId, { category, destination, note });
       return NextResponse.json({ transcript, note, destination });

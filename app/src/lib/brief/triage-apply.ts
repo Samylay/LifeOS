@@ -5,7 +5,8 @@
 // so any channel (text reply, voice, a future Telegram thread) reuses it.
 import fs from "node:fs";
 import path from "node:path";
-import { listDocs, updateDoc, createDoc } from "@/lib/server-db";
+import { listDocs, updateDoc } from "@/lib/server-db";
+import { createIdeaBankEntry } from "@/lib/content/idea-bank";
 import { appendBacklogItem, type BacklogCentre } from "@/lib/backlog";
 import { mergeFrontmatterTags } from "@/lib/frontmatter";
 import { parseTriageReply, normalizeCentre, type TriageAction } from "./triage-reply";
@@ -62,13 +63,11 @@ function fileToVault(url: string, source: string, p: QProposal, previewImage?: s
 }
 
 function fileToIdeaBank(url: string, p: QProposal): void {
-  createDoc("users/local/contentIdeas", {
-    title: (p.summary ?? url).slice(0, 120),
-    pillar: "", // unsorted — assigned during review; hookFormula/episode omitted (numbers, unset)
-    status: "idea",
+  // hookFormula/episode are left unset (numbers, no sane default) — assigned
+  // during review on the content surface, same as every other unsorted idea.
+  createIdeaBankEntry({
+    title: p.summary ?? url,
     content: `${p.why_relevant ?? ""}\n\nSource: ${url}`.trim(),
-    createdAt: { __date: new Date().toISOString() },
-    updatedAt: { __date: new Date().toISOString() },
   });
 }
 

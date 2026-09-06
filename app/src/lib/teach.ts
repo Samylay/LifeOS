@@ -11,6 +11,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { createDoc, getDoc, listDocs, updateDoc } from "./server-db";
+import { createTodoistTask } from "./todoist-client";
 import { generateJson } from "./claude-cli";
 import { TRIAGE_COLLECTION } from "./triage-ingest";
 import type { TriageItem } from "./triage";
@@ -187,32 +188,19 @@ export function isTagTombstoned(tag: string): boolean {
   return existing.some((t) => t.neverPropose);
 }
 
-const TODOIST_TASKS_URL = "https://api.todoist.com/api/v1/tasks";
-
 /** One Todoist task per scheduled topic — never a daily recurring task, never
  * a mirror of the queue (map 03, T60). Fail soft: a Todoist outage must not
  * lose the schedule, so the local `status: "scheduled"` write always lands
- * first and stands regardless of what the POST does. */
+ * first and stands regardless of what the POST does. Uses the shared client
+ * (todoist-client.ts) rather than its own fetch — see that module's header
+ * for why. */
 async function writeTodoistTask(topic: string, date: string): Promise<string | null> {
-  const token = process.env.TODOIST_API_TOKEN;
-  if (!token) {
-    console.error("teach: TODOIST_API_TOKEN not set — schedule task not written, will retry");
+  const result = await createTodoistTask({ content: `Learn: ${topic}`, due_date: date });
+  if (!result.ok) {
+    console.error("teach: Todoist task write failed, will retry", result.error);
     return null;
   }
-  try {
-    const r = await globalThis.fetch(TODOIST_TASKS_URL, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ content: `Learn: ${topic}`, due_date: date }),
-      signal: AbortSignal.timeout(20_000),
-    });
-    if (!r.ok) throw new Error(`todoist ${r.status}`);
-    const created = (await r.json()) as { id?: string };
-    return created.id ?? null;
-  } catch (e) {
-    console.error("teach: Todoist task write failed, will retry", e);
-    return null;
-  }
+  return result.taskId ?? null;
 }
 
 /** Scheduling is the commitment act: also writes ONE Todoist task. The local
