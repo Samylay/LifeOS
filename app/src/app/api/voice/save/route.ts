@@ -3,6 +3,7 @@ import { appendToInbox } from "@/lib/voice-inbox";
 import { applyTriageReply } from "@/lib/brief/triage-apply";
 import { confirmPending } from "@/lib/voice-stash";
 import { route } from "@/lib/voice-routing";
+import { fileVoiceDecision } from "@/lib/decide/voice-decide";
 
 // Commits the (possibly human-edited) transcript from /api/voice to the
 // dated vault inbox note. Kept separate from transcription so the client can
@@ -35,16 +36,30 @@ export async function POST(req: NextRequest) {
     }
 
     // T-voice-rework-02: the one-step capture hub. The routing module
-    // (voice-routing.ts, ticket 01) decides the destination, but this ticket
-    // wires only the safest one — the vault note, unchanged in layout from
-    // every other appendToInbox caller. Todoist, the idea bank, and /decide
-    // are real destinations the classifier can already name (tickets 03-04
-    // give them writers); until then every capture still commits to the
-    // vault so nothing spoken is ever lost. A spoken destination prefix
-    // ("note:", "task:", …) is still recognised and stripped here so it
-    // never leaks into the words that land in the note.
+    // (voice-routing.ts, ticket 01) decides the destination. A spoken
+    // destination prefix ("note:", "task:", "decide:", …) is recognised and
+    // stripped by route() before any writer sees the text, so it never leaks
+    // into what lands at the destination.
     if (category === "capture") {
       const routed = route(transcript);
+
+      // T-voice-rework-04: /decide gets its real writer. The card carries an
+      // action id from the closed set with typed parameters — never the
+      // transcript as an instruction (lib/decide/voice-decide.ts is the
+      // trust-boundary note for exactly this). A write that throws here is
+      // NOT caught locally: it falls through to the route's own catch below,
+      // which returns an error WITHOUT calling confirmPending, so the
+      // pending row stays "pending" and the capture is never reported as
+      // landed (spec.md story 22, issue 04's last checklist item).
+      if (routed.destination === "decide") {
+        const { id } = fileVoiceDecision(routed.text || transcript);
+        if (pendingId) confirmPending(pendingId, { category, destination: "decide", itemId: id });
+        return NextResponse.json({ transcript, destination: "decide", itemId: id });
+      }
+
+      // Todoist and the idea bank are ticket 03's writers — not yet wired.
+      // Until then every other capture still commits to the vault note so
+      // nothing spoken is ever lost (spec.md story 5, a hard rule).
       const note = appendToInbox(date, prompt, "capture", routed.text || transcript);
       const destination = "vault" as const;
       if (pendingId) confirmPending(pendingId, { category, destination, note });

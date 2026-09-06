@@ -197,10 +197,15 @@ export function TriageCard({
 
       <Field label="Why you:" value={p.why_relevant} />
 
-      <a href={item.url} target="_blank" rel="noreferrer"
-        className="inline-flex items-center gap-1 text-xs font-medium text-primary transition-transform duration-[var(--dur-fast)] ease-[var(--ease-out-custom)] active:scale-[0.97]">
-        <ExternalLink size={12} /> open original
-      </a>
+      {/* A voice-decide card's "url" is an internal id, not a real link
+          (lib/decide/voice-decide.ts) — showing "open original" for it would
+          be a dead link, so only real http(s) sources get it. */}
+      {/^https?:\/\//.test(item.url) && (
+        <a href={item.url} target="_blank" rel="noreferrer"
+          className="inline-flex items-center gap-1 text-xs font-medium text-primary transition-transform duration-[var(--dur-fast)] ease-[var(--ease-out-custom)] active:scale-[0.97]">
+          <ExternalLink size={12} /> open original
+        </a>
+      )}
     </div>
   );
 }

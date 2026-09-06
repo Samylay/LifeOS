@@ -2,7 +2,12 @@
 // canonicalization + source inference are unit-testable; the ingest route
 // (api/triage/ingest) and the nightly study step both build on these.
 
-export type TriageSource = "x" | "instagram" | "other";
+// "voice" (T-voice-rework-04): a spoken decision filed straight into this
+// collection by the voice hub (lib/decide/voice-decide.ts) rather than
+// discovered by a grabber. It never runs through inferSource/canonicalizeUrl
+// below — there is no URL to infer from — so it is not in VALID_SOURCES in
+// triage-ingest.ts.
+export type TriageSource = "x" | "instagram" | "other" | "voice";
 // "done" = an approved (filed) item that has been handed to Claude to act on
 // (dispatched from the Approved view); it drops off that page, which lists only
 // `filed`. Set programmatically in dispatchQueuedPrompts — never a swipe verdict.
