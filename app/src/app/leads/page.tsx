@@ -14,13 +14,15 @@
 // Emptiness is a real, finished answer here, not a loading or error state:
 // see EmptySurface below.
 import { useState } from "react";
-import { Radar, ExternalLink, Check, Trophy, X, Trash2, Copy } from "lucide-react";
-import { useLeads, type Lead, type LeadStatus } from "@/lib/use-leads";
+import { Radar, ExternalLink, Check, Trophy, ThumbsDown, X, Trash2, Copy } from "lucide-react";
+import { useLeads, type Lead } from "@/lib/use-leads";
 import { buildCopyContext } from "@/lib/leads/copy-context";
+import { PASS_REASONS, PASS_REASON_LABELS, type LeadOutcome, type PassReason } from "@/lib/leads/outcomes";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Page, PageHeader } from "@/components/ui/page";
 import { Button } from "@/components/ui/button";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Skeleton } from "@/components/skeleton";
 import { useToast } from "@/components/toast";
@@ -53,7 +55,7 @@ function timeAgo(d: Date): string {
 const pressable = "pressable active:scale-[0.97]";
 
 export default function LeadsPage() {
-  const { leads, loading, cap, lastDeliveredAt, setStatus, remove } = useLeads();
+  const { leads, loading, cap, lastDeliveredAt, setOutcome, pass, remove } = useLeads();
 
   return (
     <Page narrow>
@@ -78,7 +80,7 @@ export default function LeadsPage() {
       ) : (
         <div className="space-y-3">
           {leads.map((lead) => (
-            <LeadCard key={lead.id} lead={lead} onStatus={setStatus} onRemove={remove} />
+            <LeadCard key={lead.id} lead={lead} onOutcome={setOutcome} onPass={pass} onRemove={remove} />
           ))}
         </div>
       )}
@@ -106,11 +108,13 @@ function EmptySurface({ lastDeliveredAt }: { lastDeliveredAt: Date | null }) {
 
 function LeadCard({
   lead,
-  onStatus,
+  onOutcome,
+  onPass,
   onRemove,
 }: {
   lead: Lead;
-  onStatus: (id: string, s: LeadStatus) => void;
+  onOutcome: (id: string, outcome: LeadOutcome) => void;
+  onPass: (id: string, reason: PassReason) => void;
   onRemove: (id: string) => void;
 }) {
   const [briefOpen, setBriefOpen] = useState(false);
@@ -230,23 +234,45 @@ function LeadCard({
           <Copy size={14} /> Copy context
         </button>
         <ActionButton
-          onClick={() => onStatus(lead.id, "contacted")}
+          onClick={() => onOutcome(lead.id, "contacted")}
           color="var(--warning)"
           icon={<Check size={14} />}
           label="Contacted"
         />
         <ActionButton
-          onClick={() => onStatus(lead.id, "won")}
+          onClick={() => onOutcome(lead.id, "won")}
           color="var(--success)"
           icon={<Trophy size={14} />}
           label="Won"
         />
         <ActionButton
-          onClick={() => onStatus(lead.id, "passed")}
-          color="var(--muted-foreground)"
-          icon={<X size={14} />}
-          label="Pass"
+          onClick={() => onOutcome(lead.id, "lost")}
+          color="var(--destructive)"
+          icon={<ThumbsDown size={14} />}
+          label="Lost"
         />
+        {/* One gesture (open) plus one choice from the closed set — never a
+            second screen, never free text (spec.md: a free-text reason box
+            is data entry, an unbounded list teaches the filter nothing). */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="outline"
+              size="sm"
+              className={`gap-1.5 text-xs font-medium ${pressable}`}
+              style={{ color: "var(--muted-foreground)", borderColor: tint("var(--muted-foreground)", 40) }}
+            >
+              <X size={14} /> Pass
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start">
+            {PASS_REASONS.map((reason) => (
+              <DropdownMenuItem key={reason} onSelect={() => onPass(lead.id, reason)}>
+                {PASS_REASON_LABELS[reason]}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
         <button
           onClick={() => setConfirmDelete(true)}
           className={`ml-auto h-11 w-11 flex items-center justify-center rounded-lg text-muted-foreground/70 ${pressable}`}
