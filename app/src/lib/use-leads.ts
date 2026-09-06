@@ -13,12 +13,16 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth, LOCAL_USER } from "./auth-context";
 import { updateDocument, deleteDocument } from "./firestore";
 import { ADMISSION_CAP } from "./leads/admission";
+import { buildOutcomeUpdate, buildPassUpdate, isPassReason, type LeadOutcome, type PassReason } from "./leads/outcomes";
 import type { RelatedWorkNote } from "./leads/related-work";
 
 const LEADS_PATH = "leads";
 const POLL_MS = 4000;
 
-export const LEAD_STATUSES = ["new", "contacted", "won", "passed"] as const;
+// "lost" (ticket 04) sits alongside "won" as the other resolution a contacted
+// lead can reach — recorded so the filter can eventually be judged against
+// money, never shown anywhere as a status a lead starts in.
+export const LEAD_STATUSES = ["new", "contacted", "won", "lost", "passed"] as const;
 export type LeadStatus = (typeof LEAD_STATUSES)[number];
 
 export interface Lead {
@@ -35,6 +39,14 @@ export interface Lead {
   status: LeadStatus;
   // Stamped the first time a lead is marked contacted (rendered as "contacted Nd ago").
   contactedAt?: Date;
+  // Stamped once, the moment each outcome is recorded (ticket 04, story 11) —
+  // never touched again, so "when" stays truthful even if status is somehow
+  // re-read later.
+  wonAt?: Date;
+  lostAt?: Date;
+  /** Set only when status is "passed" — one of the closed PASS_REASONS, never free text. */
+  passReason?: PassReason;
+  passedAt?: Date;
   createdAt: Date;
   updatedAt: Date;
   /** Why admission let this one through — the one line every card shows. */
@@ -60,6 +72,10 @@ interface ApiLead {
   postedAt?: unknown;
   status?: LeadStatus;
   contactedAt?: unknown;
+  wonAt?: unknown;
+  lostAt?: unknown;
+  passReason?: unknown;
+  passedAt?: unknown;
   createdAt?: unknown;
   updatedAt?: unknown;
   admissionReason: string;
@@ -95,6 +111,10 @@ function reviveLead(raw: ApiLead): Lead {
     postedAt: toDate(raw.postedAt),
     status: raw.status ?? "new",
     contactedAt: toOptionalDate(raw.contactedAt),
+    wonAt: toOptionalDate(raw.wonAt),
+    lostAt: toOptionalDate(raw.lostAt),
+    passReason: isPassReason(raw.passReason) ? raw.passReason : undefined,
+    passedAt: toOptionalDate(raw.passedAt),
     createdAt: toDate(raw.createdAt),
     updatedAt: toDate(raw.updatedAt),
     admissionReason: raw.admissionReason,
@@ -141,14 +161,21 @@ export function useLeads() {
 
   // Optimistic: an acted-on lead leaves the surface immediately rather than
   // waiting out the next poll (house doctrine — optimistic UI on frequent
-  // mutations), then a refetch reconciles against the server.
-  const setStatus = (id: string, status: LeadStatus) => {
+  // mutations), then a refetch reconciles against the server. Every mutation
+  // below only ever removes a lead from the visible list, never adds one —
+  // the cap can't be grown from here.
+  const setOutcome = (id: string, outcome: LeadOutcome) => {
     setLeads((prev) => prev.filter((l) => l.id !== id));
-    updateDocument(uid, LEADS_PATH, id, {
-      status,
-      updatedAt: new Date(),
-      ...(status === "contacted" ? { contactedAt: new Date() } : {}),
-    }).finally(fetchLeads);
+    const update = buildOutcomeUpdate(outcome, new Date());
+    updateDocument(uid, LEADS_PATH, id, { ...update, updatedAt: new Date() }).finally(fetchLeads);
+  };
+
+  // One gesture (the tap that opens the closed set) plus one choice (the
+  // reason itself) — never a second screen, never free text.
+  const pass = (id: string, reason: PassReason) => {
+    setLeads((prev) => prev.filter((l) => l.id !== id));
+    const update = buildPassUpdate(reason, new Date());
+    updateDocument(uid, LEADS_PATH, id, { ...update, updatedAt: new Date() }).finally(fetchLeads);
   };
 
   const remove = (id: string) => {
@@ -156,5 +183,5 @@ export function useLeads() {
     deleteDocument(uid, LEADS_PATH, id).finally(fetchLeads);
   };
 
-  return { leads, loading, cap, lastDeliveredAt, setStatus, remove };
+  return { leads, loading, cap, lastDeliveredAt, setOutcome, pass, remove };
 }

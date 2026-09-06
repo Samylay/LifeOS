@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { useGarmin } from "@/lib/use-garmin";
 import { PushSettings } from "@/components/push-settings";
+import { LeadsAvailabilityCard } from "@/components/leads-availability-card";
 import { DevRequestsCard } from "@/components/dev-requests-card";
 import { BankAccountsCard } from "@/components/bank-accounts-card";
 import { Button } from "@/components/ui/button";
@@ -318,6 +319,11 @@ export default function SettingsPage() {
               Send test
             </Button>
           </div>
+        </Section>
+
+        {/* Leads availability switch (ticket 04) */}
+        <Section title="Leads" sub="Whether scout's demand surface is allowed to show you anything.">
+          <LeadsAvailabilityCard />
         </Section>
 
         {/* Dev requests (T29) */}
