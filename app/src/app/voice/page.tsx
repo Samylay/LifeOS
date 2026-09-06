@@ -14,11 +14,11 @@
 // card and the Assistant's capture tool already do.
 //
 // On commit the routing module (voice-routing.ts, ticket 01) decides the
-// destination. The vault note is byte-for-byte the same layout
-// appendToInbox has always produced; Todoist and the idea bank (ticket 03)
-// each reuse the writer that already owns that collection. /decide gets its
-// writer in ticket 04 — until then a spoken decision still lands in the
-// vault, same as every capture did before this ticket.
+// destination. All four are real now: the vault note is byte-for-byte the
+// layout appendToInbox has always produced, Todoist and the idea bank each
+// reuse the writer that already owns that collection, and /decide files a
+// card into the same deck as everything else — never free text handed to an
+// agent.
 import { useCallback, useEffect, useState } from "react";
 import { Check, FileText, Loader2, Mic, Square, X } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -55,9 +55,9 @@ function timeAgo(v: unknown): string {
 }
 
 // Keyed off what actually happened, not what the classifier guessed — a
-// route() call can name "decide" (no writer until ticket 04) but the save
-// route only ever reports a destination it actually wrote to, so a
-// not-yet-wired guess never claims a landing that didn't happen.
+// save route only ever reports a destination it actually wrote to, so the
+// label can never claim a landing that did not happen. An unrecognised name
+// falls through to the raw string rather than a confident-sounding label.
 function destinationLabel(destination: string): string {
   switch (destination) {
     case "vault":
@@ -66,6 +66,8 @@ function destinationLabel(destination: string): string {
       return "Idea bank";
     case "todoist":
       return "Todoist";
+    case "decide":
+      return "Decide card";
     default:
       return destination;
   }

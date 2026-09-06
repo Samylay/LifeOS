@@ -5,6 +5,7 @@ import { createIdeaBankEntry } from "@/lib/content/idea-bank";
 import { createTodoistTask } from "@/lib/todoist-client";
 import { confirmPending } from "@/lib/voice-stash";
 import { route } from "@/lib/voice-routing";
+import { fileVoiceDecision } from "@/lib/decide/voice-decide";
 
 // Commits the (possibly human-edited) transcript from /api/voice to the
 // dated vault inbox note. Kept separate from transcription so the client can
@@ -36,33 +37,43 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ transcript, triage: result });
     }
 
-    // T-voice-rework-03: the one-step capture hub gets real destinations.
-    // The routing module (voice-routing.ts, ticket 01) decides where a
-    // transcript lands; this ticket wires the idea bank and Todoist writers
-    // it can already name, each reusing the writer that already owns that
-    // collection (spec.md "Reused writers, all existing" — no destination
-    // gets a new write path). /decide (ticket 04) isn't wired yet, so a
-    // spoken decision still falls through to the vault, same as before this
-    // ticket — that keeps story 5 ("nothing spoken is ever lost") true
-    // without inventing a decide writer ahead of its own ticket.
+    // T-voice-rework-02/03/04: the one-step capture hub with real
+    // destinations. route() (voice-routing.ts, ticket 01) decides where a
+    // transcript lands and strips any spoken destination prefix ("note:",
+    // "task:", "decide:") before a writer ever sees the text, so the prefix
+    // never leaks into what gets filed.
     //
-    // A write failure here must be loud, not silent: this route returns a
-    // non-2xx and never calls confirmPending, so the pending row stays
-    // "pending" (recoverable — voice-stash.ts) and the client's review
-    // screen stays open with the transcript still in it rather than
-    // reporting a landing that didn't happen.
+    // Every destination reuses the writer that already owns its collection —
+    // no destination gets a new write path, so a spoken idea and a typed one
+    // are the same record.
+    //
+    // A write failure must be loud, not silent: each branch returns a non-2xx
+    // WITHOUT calling confirmPending, so the pending row stays "pending"
+    // (recoverable via voice-stash.ts) and the client's review screen stays
+    // open with the transcript still in it. A spoken thought that vanishes
+    // because Todoist was down is what stops someone trusting the button.
     if (category === "capture") {
       const routed = route(transcript);
       const text = routed.text || transcript;
 
+      // The card carries no destination key at all, so proposedAction()
+      // resolves to null and the deck's existing "Pick an action" state asks
+      // Samy to choose. The transcript lands only as inert display text and
+      // never reaches legacyDestinationToAction or parseActionRequest — a
+      // spoken sentence must not be able to become an agent instruction.
+      if (routed.destination === "decide") {
+        const { id } = fileVoiceDecision(text);
+        if (pendingId) confirmPending(pendingId, { category, destination: "decide", itemId: id });
+        return NextResponse.json({ transcript, destination: "decide", itemId: id });
+      }
+
       if (routed.destination === "idea-bank") {
         let id: string;
         try {
-          // routed.params.pillar is a free-text hint (voice-routing.ts never
-          // actually sets one today) rather than a validated ContentPillar,
-          // so it isn't forwarded — an idea lands unsorted, exactly like one
-          // filed by bookmark triage, and gets its pillar on the content
-          // surface during review.
+          // routed.params.pillar is a free-text hint rather than a validated
+          // ContentPillar, so it isn't forwarded — the idea lands unsorted,
+          // exactly like one filed by bookmark triage, and gets its type on
+          // the content surface during review.
           id = createIdeaBankEntry({ title: text, content: text });
         } catch (e) {
           return NextResponse.json(
@@ -88,7 +99,6 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ transcript, destination: "todoist", taskId: result.taskId });
       }
 
-      // "vault" and "decide" (not yet wired — ticket 04) both land here.
       const note = appendToInbox(date, prompt, "capture", text);
       const destination = "vault" as const;
       if (pendingId) confirmPending(pendingId, { category, destination, note });
