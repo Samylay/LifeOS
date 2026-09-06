@@ -39,6 +39,20 @@ function income(over: { transactionId: string; amount: string; date: string; deb
   };
 }
 
+// Société Générale sends outgoing rows with NULL creditor_name — the
+// counterparty lives only in the free-text remittance field. Shapes below
+// mirror the live payload verified 2026-09-06 (CAUSE 1); a placeholder
+// account-holder name stands in for Samy's real one.
+function outNoCreditor(over: { transactionId: string; amount: string; date: string; remittance: string }): BankTransactionLike {
+  return {
+    transactionId: over.transactionId,
+    bookingDate: over.date,
+    amount: over.amount,
+    creditorName: null,
+    raw: { credit_debit_indicator: "DBIT", remittance_information: [over.remittance] },
+  };
+}
+
 describe("deriveDirection", () => {
   // The whole reason this module exists: the indicator lives only in the raw
   // payload, verified against the live data 2026-09-06, not in a column.
@@ -104,6 +118,7 @@ describe("monthlyBurn — arithmetic", () => {
       fixed: 0,
       sub: 0,
       variable: 0,
+      transfer: 0,
       txCount: 0,
     });
     expect(recurring).toEqual([]);
@@ -266,5 +281,154 @@ describe("detectRecurring — cadence, tolerance and reporting (thin wrapper ove
     ];
     const { undetermined } = detectRecurring(transactions);
     expect(undetermined.map((u) => u.transactionId).sort()).toEqual(["u1", "u2"]);
+  });
+});
+
+describe("merchant fallback from remittance_information (CAUSE 1)", () => {
+  it("derives a real merchant key from the SEPA direct-debit 'DE:' label when creditor_name is null", () => {
+    const transactions: BankTransactionLike[] = [
+      outNoCreditor({
+        transactionId: "rent1",
+        amount: "845.14",
+        date: "2026-03-04",
+        remittance: "PRELEVEMENT EUROPEEN 3816317483 DE: NEXITY STUDEA ID: FR00ZZZ000001 MOTIF: QUITTANCE 01/03",
+      }),
+      outNoCreditor({
+        transactionId: "rent2",
+        amount: "845.14",
+        date: "2026-04-04",
+        remittance: "PRELEVEMENT EUROPEEN 9912384710 DE: NEXITY STUDEA ID: FR00ZZZ000001 MOTIF: QUITTANCE 01/04",
+      }),
+      outNoCreditor({
+        transactionId: "rent3",
+        amount: "845.14",
+        date: "2026-05-04",
+        remittance: "PRELEVEMENT EUROPEEN 1123958123 DE: NEXITY STUDEA ID: FR00ZZZ000001 MOTIF: QUITTANCE 01/05",
+      }),
+    ];
+    const { charges } = detectRecurring(transactions);
+    expect(charges).toHaveLength(1);
+    expect(charges[0].label).toContain("NEXITY STUDEA");
+    expect(charges[0].amount).toBeCloseTo(845.14, 2);
+    expect(charges[0].cadence).toBe("monthly");
+  });
+
+  it("falls back to the whole remittance text when there is no DE:/POUR: label (a bank-fee line)", () => {
+    const transactions: BankTransactionLike[] = [
+      outNoCreditor({ transactionId: "f1", amount: "3.50", date: "2026-03-15", remittance: "COTISATION MENSUELLE SOBRIO" }),
+      outNoCreditor({ transactionId: "f2", amount: "3.50", date: "2026-04-15", remittance: "COTISATION MENSUELLE SOBRIO" }),
+      outNoCreditor({ transactionId: "f3", amount: "3.50", date: "2026-05-15", remittance: "COTISATION MENSUELLE SOBRIO" }),
+    ];
+    const { charges } = detectRecurring(transactions);
+    expect(charges).toHaveLength(1);
+    expect(charges[0].label).toBe("COTISATION MENSUELLE SOBRIO");
+  });
+
+  it("never leaves a null-creditor row as UNKNOWN when remittance_information is present", () => {
+    const transactions: BankTransactionLike[] = [
+      outNoCreditor({
+        transactionId: "single1",
+        amount: "12.99",
+        date: "2026-04-10",
+        remittance: "PRELEVEMENT EUROPEEN 1234567890 DE: ORANGE ID: FR00ZZZ000002 MOTIF: FACTURE",
+      }),
+      outNoCreditor({
+        transactionId: "single2",
+        amount: "12.99",
+        date: "2026-05-10",
+        remittance: "PRELEVEMENT EUROPEEN 2234567891 DE: ORANGE ID: FR00ZZZ000002 MOTIF: FACTURE",
+      }),
+      outNoCreditor({
+        transactionId: "single3",
+        amount: "12.99",
+        date: "2026-06-10",
+        remittance: "PRELEVEMENT EUROPEEN 3234567892 DE: ORANGE ID: FR00ZZZ000002 MOTIF: FACTURE",
+      }),
+    ];
+    const { charges } = detectRecurring(transactions);
+    expect(charges).toHaveLength(1);
+    expect(charges[0].merchantKey).not.toBe("UNKNOWN");
+    expect(charges[0].label).toContain("ORANGE");
+  });
+
+  it("only falls back to remittance_information when creditor_name/debtor_name is genuinely empty", () => {
+    const withName = out({ transactionId: "n1", amount: "9.99", date: "2026-04-01", creditorName: "REAL MERCHANT NAME" });
+    // Attach remittance info too — the named field must still win.
+    (withName.raw as { remittance_information?: string[] }).remittance_information = ["DE: DIFFERENT MERCHANT"];
+    const { charges } = detectRecurring([
+      withName,
+      out({ transactionId: "n2", amount: "9.99", date: "2026-05-01", creditorName: "REAL MERCHANT NAME" }),
+      out({ transactionId: "n3", amount: "9.99", date: "2026-06-01", creditorName: "REAL MERCHANT NAME" }),
+    ]);
+    expect(charges).toHaveLength(1);
+    expect(charges[0].label).toBe("REAL MERCHANT NAME");
+  });
+});
+
+describe("transfer bucket — self-transfers and internal moves excluded from spend (CAUSE 2)", () => {
+  it("routes a transfer to another account Samy holds into `transfer`, not `variable`", () => {
+    const transactions: BankTransactionLike[] = [
+      out({
+        transactionId: "t1",
+        amount: "4500.00",
+        date: "2026-04-12",
+        creditorName: "VIR EUROPEEN EMIS POUR: PLACEHOLDER HOLDER NAME",
+      }),
+      out({ transactionId: "g1", amount: "40.00", date: "2026-04-13", creditorName: "CARREFOUR CITY" }),
+    ];
+    const { burn } = monthlyBurn(transactions, "2026-04", {}, ["PLACEHOLDER HOLDER NAME"]);
+    expect(burn.transfer).toBeCloseTo(4500.0, 2);
+    expect(burn.variable).toBeCloseTo(40.0, 2);
+    expect(burn.out).toBeCloseTo(40.0, 2);
+    // The invariant: fixed + sub + variable === out, and it excludes transfer.
+    expect(burn.fixed + burn.sub + burn.variable).toBeCloseTo(burn.out, 2);
+  });
+
+  it("routes a Revolut internal pocket move ('To Robo portfolio') into `transfer` with no own-identifier configured", () => {
+    const transactions: BankTransactionLike[] = [
+      out({ transactionId: "r1", amount: "2.13", date: "2026-04-01", creditorName: "To Robo portfolio" }),
+      out({ transactionId: "r2", amount: "1.87", date: "2026-04-05", creditorName: "To Robo portfolio" }),
+      out({ transactionId: "g1", amount: "25.00", date: "2026-04-06", creditorName: "CARREFOUR CITY" }),
+    ];
+    const { burn } = monthlyBurn(transactions, "2026-04");
+    expect(burn.transfer).toBeCloseTo(2.13 + 1.87, 2);
+    expect(burn.variable).toBeCloseTo(25.0, 2);
+    expect(burn.out).toBeCloseTo(25.0, 2);
+  });
+
+  it("never lets a self-transfer amount leak into `out`, `in`, or the recurring-charge list", () => {
+    const transactions: BankTransactionLike[] = [
+      out({
+        transactionId: "s1",
+        amount: "9000.00",
+        date: "2026-04-02",
+        creditorName: "VIR EUROPEEN EMIS POUR: PLACEHOLDER HOLDER NAME",
+      }),
+    ];
+    const { burn, recurring } = monthlyBurn(transactions, "2026-04", {}, ["PLACEHOLDER HOLDER NAME"]);
+    expect(burn.out).toBe(0);
+    expect(burn.in).toBe(0);
+    expect(burn.variable).toBe(0);
+    expect(recurring).toEqual([]);
+  });
+
+  it("keeps the bucket invariant in integer cents across a mixed month", () => {
+    const transactions: BankTransactionLike[] = [
+      out({ transactionId: "rent", amount: "845.14", date: "2026-04-04", creditorName: "LOYER APPARTEMENT" }),
+      out({
+        transactionId: "transfer1",
+        amount: "4500.00",
+        date: "2026-04-05",
+        creditorName: "VIR EUROPEEN EMIS POUR: PLACEHOLDER HOLDER NAME",
+      }),
+      out({ transactionId: "roundup1", amount: "1.23", date: "2026-04-06", creditorName: "To Robo portfolio" }),
+      out({ transactionId: "shop1", amount: "37.42", date: "2026-04-07", creditorName: "CARREFOUR CITY" }),
+      income({ transactionId: "salary", amount: "2200.00", date: "2026-04-03", debtorName: "EMPLOYER SAS" }),
+    ];
+    const { burn } = monthlyBurn(transactions, "2026-04", {}, ["PLACEHOLDER HOLDER NAME"]);
+    expect(burn.fixed + burn.sub + burn.variable).toBeCloseTo(burn.out, 2);
+    expect(burn.out).toBeCloseTo(845.14 + 37.42, 2);
+    expect(burn.transfer).toBeCloseTo(4500.0 + 1.23, 2);
+    expect(burn.in).toBeCloseTo(2200.0, 2);
   });
 });

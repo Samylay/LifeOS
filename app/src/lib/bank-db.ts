@@ -222,6 +222,53 @@ export function listConnectedAccounts(): ConnectedAccountRow[] {
   }));
 }
 
+const OWN_IDENTIFIER_KEY = /iban|holder|owner|psu|account.?name|^name$/i;
+
+function collectOwnIdentifiers(value: unknown, out: Set<string>, depth = 0): void {
+  if (depth > 6 || value == null) return;
+  if (Array.isArray(value)) {
+    for (const item of value) collectOwnIdentifiers(item, out, depth + 1);
+    return;
+  }
+  if (typeof value === "object") {
+    for (const [key, val] of Object.entries(value as Record<string, unknown>)) {
+      if (typeof val === "string" && val.trim() && OWN_IDENTIFIER_KEY.test(key)) {
+        out.add(val.trim());
+      } else {
+        collectOwnIdentifiers(val, out, depth + 1);
+      }
+    }
+  }
+}
+
+/**
+ * Identifiers (an IBAN, an account nickname/holder name) that mark a
+ * counterparty as one of Samy's OWN linked accounts — read at runtime so
+ * finance-burn.ts's self-transfer detection (CAUSE 2) never needs a
+ * hardcoded name or account number in source (this repo's remote is
+ * public). `bank_accounts.raw_json` is the aggregator's account object,
+ * unparsed and schema-unverified (see the table's own comment), so this
+ * walks it generically rather than assuming a field name: any string value
+ * found under a key that looks like an IBAN or an account/holder name.
+ * Read-only — never mutates a row, only strings pulled out of one.
+ */
+export function listOwnAccountIdentifiers(): string[] {
+  const rows = getBankDb()
+    .prepare(`SELECT raw_json FROM bank_accounts WHERE raw_json IS NOT NULL`)
+    .all() as { raw_json: string }[];
+  const identifiers = new Set<string>();
+  for (const row of rows) {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(row.raw_json);
+    } catch {
+      continue;
+    }
+    collectOwnIdentifiers(parsed, identifiers);
+  }
+  return [...identifiers];
+}
+
 export interface RecentBankTransactionRow {
   transactionId: string;
   accountUid: string;

@@ -16,6 +16,7 @@ import {
   Landmark,
   ArrowDownLeft,
   ArrowUpRight,
+  ArrowLeftRight,
 } from "lucide-react";
 import Link from "next/link";
 import { useFinance } from "@/lib/use-finance";
@@ -399,9 +400,9 @@ function BurnOverview() {
           <span className="text-xs text-muted-foreground">{overview.lastSyncedLabel}</span>
         </div>
 
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className={cn("grid grid-cols-2 gap-3", current.burn.transfer > 0 ? "sm:grid-cols-5" : "sm:grid-cols-4")}>
           <KpiCard
-            label="Out"
+            label="Spend"
             value={formatEuro(current.burn.out, { decimals: false })}
             icon={<TrendingDown size={13} />}
             delta={
@@ -413,7 +414,16 @@ function BurnOverview() {
           <KpiCard label="Fixed" value={formatEuro(current.burn.fixed, { decimals: false })} icon={<Landmark size={13} />} />
           <KpiCard label="Subs" value={formatEuro(current.burn.sub, { decimals: false })} icon={<PiggyBank size={13} />} />
           <KpiCard label="Variable" value={formatEuro(current.burn.variable, { decimals: false })} icon={<Wallet size={13} />} />
+          {current.burn.transfer > 0 && (
+            <KpiCard label="Transfers" value={formatEuro(current.burn.transfer, { decimals: false })} icon={<ArrowLeftRight size={13} />} />
+          )}
         </div>
+        {current.burn.transfer > 0 && (
+          <p className="text-xs text-muted-foreground">
+            {formatEuro(current.burn.transfer, { decimals: false })} moved between your own accounts this month — not
+            counted as spend.
+          </p>
+        )}
 
         <MonthHistory months={months} />
       </Card>
