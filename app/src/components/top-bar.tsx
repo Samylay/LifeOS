@@ -11,7 +11,6 @@ const ROUTE_TITLES: Array<[string, string]> = [
   ["/decide", "Decide"],
   ["/projects", "Projects"],
   ["/content", "Content"],
-  ["/pager", "Pager"],
   ["/voice", "Voice"],
   ["/knowledge", "Knowledge"],
   ["/feed", "Feed"],

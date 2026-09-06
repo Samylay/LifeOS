@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Page, PageHeader, SectionHeader } from "@/components/ui/page";
 import { Skeleton } from "@/components/ui/skeleton";
+import { AlertInbox } from "@/components/status/alert-inbox";
 
 const GRAFANA_BASE = process.env.NEXT_PUBLIC_GRAFANA_URL?.replace(/\/$/, "");
 const GRAFANA_URL = GRAFANA_BASE ? `${GRAFANA_BASE}/d/homelab/homelab` : null;
@@ -278,6 +279,10 @@ export default function StatusPage() {
           </p>
         </section>
       )}
+
+      {/* Alerts live with health now — one surface answers "is anything
+          wrong". /pager is gone; POST /api/notify is untouched. */}
+      <AlertInbox />
 
       {error && !data && (
         <Card className="p-4 text-sm text-destructive">

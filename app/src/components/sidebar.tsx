@@ -16,7 +16,6 @@ import {
   Brain,
   Gauge,
   Clapperboard,
-  BellRing,
   Layers,
   Radar,
   Newspaper,
@@ -42,7 +41,6 @@ const NAV_ITEMS = [
   { href: "/decide", label: "Decide", icon: Layers },
   { href: "/projects", label: "Projects", icon: FolderKanban },
   { href: "/content", label: "Content", icon: Clapperboard },
-  { href: "/pager", label: "Pager", icon: BellRing },
 ];
 
 const MORE_ITEMS = [

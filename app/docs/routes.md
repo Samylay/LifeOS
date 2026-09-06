@@ -1,6 +1,6 @@
 # LifeOS — Routes
 
-Every route below exists on disk under `src/app/` (verified 2026-09-04). No phantom routes.
+Every route below exists on disk under `src/app/` (verified 2026-09-06). No phantom routes.
 
 | Route | Page | Status | Description |
 |-------|------|--------|-------------|
@@ -17,13 +17,13 @@ Every route below exists on disk under `src/app/` (verified 2026-09-04). No phan
 | `/leads` | Leads | **Live** | Lead lifecycle tracking |
 | `/news` | News | **Live** | News aggregator digest |
 | `/news/feeds` | Feed Manager | **Live** | Manage news feed sources |
-| `/pager` | Pager | **Live** | Notify/pager messages and actions |
+| `/pager` | — | **Redirect** | Redirects to `/status`; kept because `/api/notify` stamps it as the default deep link and 214 stored notifications carry it |
 | `/prime` | Prime | **Live** | Daily affirmations / priming |
 | `/prime/manage` | Prime Manager | **Live** | Create and manage affirmations |
 | `/projects` | Projects | **Live** | Projects and shipped work |
 | `/recipes` | Recipes | **Live** | Recipe collection and planning |
 | `/settings` | Settings | **Live** | Integrations, LLM toggle, app settings |
-| `/status` | Status | **Live** | Life-status dashboard with headline stat tiles |
+| `/status` | Status | **Live** | Operational surface: problems first (failing goals, down containers, host, delivery), then the alert inbox, then metrics |
 | `/terminal` | Terminal | **Live** | In-app terminal surface |
 | `/voice` | Voice | **Live** | VoicePal voice notes list |
 | `/voice/[id]` | Voice Note | **Live** | Voice note detail/transcript |

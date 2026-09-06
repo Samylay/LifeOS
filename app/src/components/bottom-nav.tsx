@@ -5,8 +5,8 @@ import { usePathname } from "next/navigation";
 import { useRef } from "react";
 import {
   LayoutDashboard,
-  BellRing,
   Clapperboard,
+  Gauge,
   FolderKanban,
   Layers,
   Menu,
@@ -18,10 +18,13 @@ import { NavIndicator } from "@/components/nav-indicator";
 
 // /decide added 2026-07-11 (ux-audit H1): the decision deck is built for the
 // phone — it can't live two taps deep behind "More". 6 items still fit 360px.
+// /status replaces /pager here (2026-09-06): the alert inbox moved onto the
+// operational surface, so the unread badge follows it rather than pointing at
+// a route that no longer exists.
 const TABS = [
   { href: "/", label: "Home", icon: LayoutDashboard },
   { href: "/decide", label: "Decide", icon: Layers },
-  { href: "/pager", label: "Pager", icon: BellRing },
+  { href: "/status", label: "Status", icon: Gauge },
   { href: "/content", label: "Content", icon: Clapperboard },
   { href: "/projects", label: "Projects", icon: FolderKanban },
 ];
@@ -30,7 +33,7 @@ export function BottomNav() {
   const pathname = usePathname();
   const { setMobileSidebarOpen } = useAppStore();
   const { messages } = useNotifications();
-  const pagerUnread = messages.filter((m) => !m.readAt).length;
+  const unreadAlerts = messages.filter((m) => !m.readAt).length;
 
   const isActive = (href: string) => {
     if (href === "/") return pathname === "/";
@@ -51,7 +54,7 @@ export function BottomNav() {
       {TABS.map((tab) => {
         const Icon = tab.icon;
         const active = isActive(tab.href);
-        const showBadge = tab.href === "/pager" && pagerUnread > 0;
+        const showBadge = tab.href === "/status" && unreadAlerts > 0;
         return (
           <Link
             key={tab.href}
@@ -65,7 +68,7 @@ export function BottomNav() {
               <Icon size={22} strokeWidth={active ? 2.5 : 2} />
               {showBadge && (
                 <span className="absolute -top-1.5 -right-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold text-primary-foreground">
-                  {pagerUnread}
+                  {unreadAlerts}
                 </span>
               )}
             </div>
