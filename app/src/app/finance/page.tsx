@@ -20,6 +20,8 @@ import {
 import Link from "next/link";
 import { useFinance } from "@/lib/use-finance";
 import { useBankAccounts } from "@/lib/use-bank-accounts";
+import { useFinanceBurn, type FinanceBurnOverview } from "@/lib/use-finance-burn";
+import type { MonthlyBurnResult } from "@/lib/finance-burn";
 import { useToast } from "@/components/toast";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Page, PageHeader } from "@/components/ui/page";
@@ -293,6 +295,156 @@ function FlowRow({
   );
 }
 
+function formatMonthLabel(month: string): string {
+  const [year, m] = month.split("-").map(Number);
+  return new Date(Date.UTC(year, m - 1, 1)).toLocaleDateString("en-GB", { month: "short" });
+}
+
+function formatSyncedDate(iso: string): string {
+  return new Date(iso).toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
+}
+
+/**
+ * Stale-sync and consent-expiry banners (ticket 02): a surface showing
+ * months-old numbers as current is the failure this rework exists to
+ * prevent, so this renders above every number rather than being inferred.
+ */
+function BurnBanner({ overview }: { overview: FinanceBurnOverview }) {
+  if (!overview.stale && overview.consentWarnings.length === 0) return null;
+  return (
+    <div className="enter flex flex-col gap-1.5 rounded-lg border border-destructive/40 bg-destructive/5 px-3 py-2.5">
+      {overview.stale && (
+        <p className="flex items-center gap-1.5 text-sm font-medium text-destructive">
+          <AlertTriangle size={14} className="shrink-0" />
+          Data may be out of date — {overview.lastSyncedLabel.toLowerCase()}.
+        </p>
+      )}
+      {overview.consentWarnings.map((w) => {
+        const days = Math.ceil(w.daysRemaining);
+        return (
+          <p key={w.sessionId} className="flex items-center gap-1.5 text-sm font-medium text-destructive">
+            <AlertTriangle size={14} className="shrink-0" />
+            {w.aspspName ?? "A linked bank"} consent {days <= 0 ? "has expired" : `expires in ${days} day${days === 1 ? "" : "s"}`}.
+          </p>
+        );
+      })}
+    </div>
+  );
+}
+
+/** Six-month burn-out comparison, oldest to current, so a rise or fall reads
+ * at a glance rather than requiring him to read a statement. */
+function MonthHistory({ months }: { months: MonthlyBurnResult[] }) {
+  const maxOut = Math.max(...months.map((m) => m.burn.out), 1);
+  return (
+    <div className="flex items-end gap-2 overflow-x-auto pb-1">
+      {months.map((m, i) => {
+        const isCurrent = i === months.length - 1;
+        const heightPx = m.burn.out > 0 ? Math.max(4, (m.burn.out / maxOut) * 64) : 2;
+        return (
+          <div key={m.burn.month} className="flex min-w-[3.25rem] flex-col items-center gap-1">
+            <div className="flex h-16 w-full items-end justify-center" title={formatEuro(m.burn.out)}>
+              <div
+                className={cn("w-6 rounded-t-sm", isCurrent ? "bg-primary" : "bg-muted")}
+                style={{ height: `${heightPx}px` }}
+              />
+            </div>
+            <span
+              className={cn(
+                "text-[10px] tabular-nums",
+                isCurrent ? "font-semibold text-foreground" : "text-muted-foreground"
+              )}
+            >
+              {formatMonthLabel(m.burn.month)}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/**
+ * The derived-burn surface (ticket 02): the first thing on screen. Every
+ * number here comes from synced transactions via finance-overview.ts / the
+ * pure finance-burn.ts module — nothing here asks Samy to type anything.
+ */
+function BurnOverview() {
+  const { overview, loading } = useFinanceBurn();
+
+  if (loading && !overview) {
+    return (
+      <div className="space-y-2">
+        <Skeleton className="h-32 w-full rounded-xl" />
+      </div>
+    );
+  }
+  if (!overview || overview.months.length === 0) return null;
+
+  const months = overview.months;
+  const current = months[months.length - 1];
+  const previous = months.length > 1 ? months[months.length - 2] : null;
+  const deltaPct =
+    previous && previous.burn.out > 0
+      ? Math.round(((current.burn.out - previous.burn.out) / previous.burn.out) * 100)
+      : null;
+
+  return (
+    <div className="space-y-3">
+      <BurnBanner overview={overview} />
+
+      <Card className="enter gap-3 px-4 py-4">
+        <div className="flex items-baseline justify-between gap-2">
+          <p className="section-label">This month&rsquo;s burn</p>
+          <span className="text-xs text-muted-foreground">{overview.lastSyncedLabel}</span>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <KpiCard
+            label="Out"
+            value={formatEuro(current.burn.out, { decimals: false })}
+            icon={<TrendingDown size={13} />}
+            delta={
+              deltaPct !== null
+                ? { value: `${Math.abs(deltaPct)}%`, direction: deltaPct > 0 ? "up" : deltaPct < 0 ? "down" : "flat" }
+                : undefined
+            }
+          />
+          <KpiCard label="Fixed" value={formatEuro(current.burn.fixed, { decimals: false })} icon={<Landmark size={13} />} />
+          <KpiCard label="Subs" value={formatEuro(current.burn.sub, { decimals: false })} icon={<PiggyBank size={13} />} />
+          <KpiCard label="Variable" value={formatEuro(current.burn.variable, { decimals: false })} icon={<Wallet size={13} />} />
+        </div>
+
+        <MonthHistory months={months} />
+      </Card>
+
+      {overview.accounts.length > 0 && (
+        <Card className="enter gap-2 px-4 py-4">
+          <p className="section-label">Accounts</p>
+          <div>
+            {overview.accounts.map((a) => (
+              <div
+                key={a.accountUid}
+                className="flex items-center justify-between gap-3 border-b border-border/60 py-2 last:border-b-0"
+              >
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-foreground">{a.aspspName ?? "Bank"}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {a.balanceSyncedAt ? `Balance as of ${formatSyncedDate(a.balanceSyncedAt)}` : "No balance synced yet"}
+                  </p>
+                </div>
+                <span className="shrink-0 tabular-nums text-sm font-medium text-foreground">
+                  {a.balanceAmount ? formatEuro(Number(a.balanceAmount)) : "—"}
+                </span>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+    </div>
+  );
+}
+
 /**
  * The bank-fed half (T71): only the bank's *content* lives here now — recent
  * synced activity, kept visibly separate from the hand-kept flows above per
@@ -401,6 +553,8 @@ export default function FinancePage() {
           </>
         ) : undefined}
       />
+
+      <BurnOverview />
 
       {mode === "paste" && (
         <PasteBox

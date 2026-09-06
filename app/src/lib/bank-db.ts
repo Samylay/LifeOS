@@ -320,6 +320,52 @@ export function upsertBankTransactions(transactions: BankTransactionInput[], now
   return tx(transactions);
 }
 
+export interface BankTransactionForBurn {
+  transactionId: string;
+  bookingDate: string | null;
+  amount: string;
+  creditorName: string | null;
+  debtorName: string | null;
+  /** Parsed `raw_json` — finance-burn.ts reads `credit_debit_indicator` off
+   * this, since direction is not a column (see that module's doc comment). */
+  raw: unknown;
+}
+
+/**
+ * Transactions with a booking date in `[fromMonth, toMonth]` (inclusive,
+ * "YYYY-MM" or "YYYY-MM-DD" — a string prefix match against `booking_date`),
+ * oldest first. Backs the /finance burn read (ticket 02): a month, or a
+ * range of months, read cheaply off the existing `idx_bank_transactions_booking_date`
+ * index rather than scanning the whole table. Rows with a null booking date
+ * are never returned here — they are the "undetermined" case finance-burn.ts
+ * already has a documented path for, and an unbounded date can't be range-matched.
+ */
+export function listBankTransactionsInRange(fromMonth: string, toMonth: string): BankTransactionForBurn[] {
+  const rows = getBankDb()
+    .prepare(
+      `SELECT transaction_id, booking_date, amount, creditor_name, debtor_name, raw_json
+       FROM bank_transactions
+       WHERE booking_date IS NOT NULL AND booking_date >= ? AND booking_date < ?
+       ORDER BY booking_date ASC`
+    )
+    .all(fromMonth, toMonth) as {
+    transaction_id: string;
+    booking_date: string | null;
+    amount: string;
+    creditor_name: string | null;
+    debtor_name: string | null;
+    raw_json: string;
+  }[];
+  return rows.map((r) => ({
+    transactionId: r.transaction_id,
+    bookingDate: r.booking_date,
+    amount: r.amount,
+    creditorName: r.creditor_name,
+    debtorName: r.debtor_name,
+    raw: JSON.parse(r.raw_json),
+  }));
+}
+
 export function countBankTransactions(): number {
   const row = getBankDb().prepare("SELECT COUNT(*) as c FROM bank_transactions").get() as { c: number };
   return row.c;
