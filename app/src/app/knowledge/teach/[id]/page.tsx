@@ -11,6 +11,7 @@ import { ArrowLeft, GraduationCap, Loader2, Mic, Square } from "lucide-react";
 import { useVoiceRecorder } from "@/lib/use-voice-recorder";
 import { useToast } from "@/components/toast";
 import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 
 interface Turn {
@@ -21,6 +22,15 @@ interface Turn {
   followUps?: string[];
 }
 
+// Mirrors `SessionProgress` in `src/lib/teach.ts`. `turnBudget` undefined ⇒
+// an open-ended session (started before ticket 02) — no progress to show.
+interface SessionProgress {
+  turnBudget?: number;
+  turnsUsed: number;
+  turnsRemaining?: number;
+  budgetSpent: boolean;
+}
+
 export default function TeachSessionPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
@@ -29,6 +39,10 @@ export default function TeachSessionPage({ params }: { params: Promise<{ id: str
   const [status, setStatus] = useState<"live" | "ended" | "routed" | "loading">("loading");
   const [turns, setTurns] = useState<Turn[]>([]);
   const [ending, setEnding] = useState(false);
+  // Reopening an interrupted session lands here with the remaining budget
+  // intact: `progress` always comes from the server's re-derivation over the
+  // persisted turns (GET), never from client-side counting.
+  const [progress, setProgress] = useState<SessionProgress | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
   const load = useCallback(async () => {
@@ -42,6 +56,7 @@ export default function TeachSessionPage({ params }: { params: Promise<{ id: str
     setTopic(data.session.topic);
     setStatus(data.session.status);
     setTurns(data.turns);
+    setProgress(data.progress ?? null);
   }, [id, router, toast]);
 
   useEffect(() => {
@@ -66,6 +81,15 @@ export default function TeachSessionPage({ params }: { params: Promise<{ id: str
           followUps: (data.followUps as string[]) || [],
         },
       ]);
+      if (data.progress) setProgress(data.progress as SessionProgress);
+      // Budget spent: the server already ended and routed the session
+      // (learnerTurn) — this is a completion, not the abandonment path, so
+      // land him back on /knowledge the same way a manual "End session" does.
+      if (data.ended) {
+        setStatus("routed");
+        toast("Session complete — filed to the vault", "success");
+        setTimeout(() => router.push("/knowledge"), 1200);
+      }
     },
     onTranscript: () => {},
     onError: (m) => toast(m, "error"),
@@ -106,7 +130,10 @@ export default function TeachSessionPage({ params }: { params: Promise<{ id: str
         <GraduationCap size={18} className="text-primary" />
         <div className="min-w-0 flex-1">
           <h1 className="truncate text-sm font-semibold text-foreground">{topic || "…"}</h1>
-          <p className="text-xs text-muted-foreground/70">Teaching session · {status}</p>
+          <p className="text-xs text-muted-foreground/70">
+            Teaching session · {status}
+            {progress?.turnBudget ? ` · exchange ${Math.min(progress.turnsUsed + 1, progress.turnBudget)} of ${progress.turnBudget}` : ""}
+          </p>
         </div>
         {status === "live" && (
           <Button
@@ -120,6 +147,14 @@ export default function TeachSessionPage({ params }: { params: Promise<{ id: str
           </Button>
         )}
       </div>
+
+      {status === "live" && progress?.turnBudget != null && (
+        <Progress
+          value={Math.min(100, (progress.turnsUsed / progress.turnBudget) * 100)}
+          aria-label={`${progress.turnsUsed} of ${progress.turnBudget} exchanges used`}
+          className="h-1"
+        />
+      )}
 
       <div className="flex-1 space-y-3 overflow-y-auto py-2">
         {turns.map((t) => (

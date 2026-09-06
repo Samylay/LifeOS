@@ -81,6 +81,12 @@ export interface TeachSession {
   // Undefined ⇒ open-ended, unbounded material (pre-T59 sessions, or a
   // caller that didn't ask).
   minutesAvailable?: number;
+  // Ticket 02: the session's declared length, in exchanges (Samy's turns).
+  // Shown before the session starts and as progress on every turn; the
+  // session ends itself once spent (see sessionProgress/learnerTurn).
+  // Undefined ⇒ open-ended — every session started before this change has
+  // no budget and must keep opening, resuming and ending without error.
+  turnBudget?: number;
   startedAt?: unknown;
   lastActivityAt?: unknown;
   endedAt?: unknown;
@@ -403,28 +409,78 @@ function materialBrief(items: TriageItem[]): string {
     .join("\n");
 }
 
+// --- Turn budget (ticket 02: a session Samy can finish) ---------------------
+
+/** The choices offered before a session starts — a fixed count of exchanges,
+ * stated up front, never a time estimate for an open conversation. This is
+ * the fix for the failure mode that produced one session ever, `routed`,
+ * never completed: starting became an honest decision only once the length
+ * was visible before he committed to it. */
+export const TURN_BUDGET_OPTIONS = [4, 8, 12] as const;
+
+/** Minutes handed to `selectMaterialForBudget` when only a turn budget is
+ * given, so the existing time-scaled material bound (T59) keeps working from
+ * a quantity Samy never has to see or reason about — he only ever declares
+ * and watches the turn count. */
+const MINUTES_PER_TURN = 3;
+
+export interface SessionProgress {
+  turnBudget?: number;
+  turnsUsed: number;
+  turnsRemaining?: number;
+  budgetSpent: boolean;
+}
+
+/** Pure — no I/O, testable over fixtures. Progress against a session's
+ * declared budget, counting only learner turns (Samy speaking); the tutor's
+ * replies don't spend it. A session with no `turnBudget` (every session
+ * started before this ticket) is open-ended by construction: it never
+ * reports spent, so it keeps opening and ending exactly as it always did. */
+export function sessionProgress(
+  session: Pick<TeachSession, "turnBudget">,
+  turns: Pick<TeachTurn, "role">[]
+): SessionProgress {
+  const turnsUsed = turns.filter((t) => t.role === "learner").length;
+  if (!session.turnBudget) {
+    return { turnBudget: undefined, turnsUsed, turnsRemaining: undefined, budgetSpent: false };
+  }
+  return {
+    turnBudget: session.turnBudget,
+    turnsUsed,
+    turnsRemaining: Math.max(0, session.turnBudget - turnsUsed),
+    budgetSpent: turnsUsed >= session.turnBudget,
+  };
+}
+
 // --- Sessions ---------------------------------------------------------------
 
 /** `minutesAvailable`: Samy's stated available time for this session — the
- * only bound on material (map 04, T59). Undefined ⇒ open-ended session. */
+ * only bound on material (map 04, T59). `turnBudget`: the declared exchange
+ * count shown to him before he starts and as progress throughout (ticket
+ * 02); when given without an explicit `minutesAvailable`, it also scales the
+ * material bound so the two stay proportionate. Both undefined ⇒ open-ended
+ * session, preserved for pre-ticket-02 callers. */
 export function startSession(
   topicId: string,
-  minutesAvailable?: number
+  minutesAvailable?: number,
+  turnBudget?: number
 ): { sessionId: string; opening: Promise<string> } {
   const topic = getTopic(topicId);
   if (!topic) throw new Error("unknown topic");
+  const effectiveMinutes = minutesAvailable ?? (turnBudget ? turnBudget * MINUTES_PER_TURN : undefined);
   const sessionId = createDoc(SESSIONS, {
     topicId,
     topic: topic.topic,
     status: "live",
-    minutesAvailable,
+    minutesAvailable: effectiveMinutes,
+    turnBudget,
     lastActivityAt: new Date(),
     startedAt: new Date(),
   });
   updateDoc(TOPICS, topicId, { status: "active" });
-  const material = selectMaterialForBudget(attachedItems(topicId), minutesAvailable);
+  const material = selectMaterialForBudget(attachedItems(topicId), effectiveMinutes);
   // Opening tutor turn: greet, ground in mission, first probing question.
-  const opening = tutorReply(sessionId, topic, [], "", minutesAvailable, material).then((r) => r.text);
+  const opening = tutorReply(sessionId, topic, [], "", effectiveMinutes, material).then((r) => r.text);
   return { sessionId, opening };
 }
 
@@ -449,12 +505,17 @@ export function saveAudio(sessionId: string, idx: number, audio: Buffer, mime: s
 
 /** Persist the learner's turn immediately, then get the tutor's reply.
  * The learner turn survives even if the model call fails or the client
- * disappears — no-loss by construction. */
+ * disappears — no-loss by construction.
+ *
+ * Ticket 02: once this turn spends the declared budget, the session ends
+ * itself right here and routes like any other finished session (`abandoned:
+ * false`) — the budget-spent exit is a completion, never the sweep's
+ * abandonment path. A session with no `turnBudget` never triggers this. */
 export async function learnerTurn(
   sessionId: string,
   transcript: string,
   audioPath?: string
-): Promise<{ text: string; followUps: string[] }> {
+): Promise<{ text: string; followUps: string[]; progress: SessionProgress; ended: boolean }> {
   const found = getSession(sessionId);
   if (!found) throw new Error("unknown session");
   const { session, turns } = found;
@@ -465,7 +526,15 @@ export async function learnerTurn(
   const topic = getTopic(session.topicId);
   const material = selectMaterialForBudget(attachedItems(session.topicId), session.minutesAvailable);
   const reply = await tutorReply(sessionId, topic, turns, transcript, session.minutesAvailable, material);
-  return reply;
+
+  const after = getSession(sessionId);
+  const progress = sessionProgress(session, after?.turns ?? []);
+  let ended = false;
+  if (progress.budgetSpent && after?.session.status === "live") {
+    await endSession(sessionId, false);
+    ended = true;
+  }
+  return { ...reply, progress, ended };
 }
 
 async function tutorReply(
