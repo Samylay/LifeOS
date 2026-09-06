@@ -47,4 +47,26 @@ describe("GET /api/voice/recent", () => {
     ]);
     expect(data.captures[0].destination).toBe("vault");
   });
+
+  it("also surfaces pending and failed takes as recoverable, discarded ones excluded (T-voice-rework-05)", async () => {
+    createDoc(PENDING, { status: "pending", transcript: "abandoned mid-review" });
+    createDoc(PENDING, { status: "failed", transcript: "", error: "whisper timed out" });
+    createDoc(PENDING, { status: "discarded", transcript: "dropped on purpose" });
+
+    const res = await GET();
+    const data = await res.json();
+    const transcripts = data.recoverable.map((r: { transcript: string; status: string }) => ({
+      transcript: r.transcript,
+      status: r.status,
+    }));
+    expect(transcripts).toEqual(
+      expect.arrayContaining([
+        { transcript: "abandoned mid-review", status: "pending" },
+        { transcript: "", status: "failed" },
+      ]),
+    );
+    expect(transcripts).not.toEqual(
+      expect.arrayContaining([{ transcript: "dropped on purpose", status: "discarded" }]),
+    );
+  });
 });

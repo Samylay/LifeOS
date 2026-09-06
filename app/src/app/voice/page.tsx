@@ -20,7 +20,7 @@
 // card into the same deck as everything else — never free text handed to an
 // agent.
 import { useCallback, useEffect, useState } from "react";
-import { Check, FileText, Loader2, Mic, Square, X } from "lucide-react";
+import { AlertTriangle, Check, FileText, Loader2, Mic, RotateCcw, Square, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useVoiceRecorder } from "@/lib/use-voice-recorder";
 import { useToast } from "@/components/toast";
@@ -36,6 +36,29 @@ interface RecentCapture {
   vaultPath?: string;
   createdAt?: unknown;
 }
+
+// T-voice-rework-05 — a take that hasn't landed anywhere yet: either it
+// never got past review (status "pending", or a destination write failed
+// without confirming — /api/voice/save deliberately leaves the row pending
+// on a write failure) or the transcription itself failed (status "failed",
+// only the audio is recoverable). Fetched alongside `captures` from the same
+// GET so the recent list can render both as one merged, sorted list — the
+// spec's "the same list is where failed and interrupted takes come back."
+interface RecoverableTake {
+  id: string;
+  status: "pending" | "failed";
+  transcript: string;
+  error?: string;
+  hasAudio: boolean;
+  createdAt?: unknown;
+}
+
+const ALL_DESTINATIONS = [
+  { value: "vault", label: "Vault note" },
+  { value: "idea-bank", label: "Idea bank" },
+  { value: "todoist", label: "Todoist" },
+  { value: "decide", label: "Decide" },
+] as const;
 
 function timeAgo(v: unknown): string {
   const ms =
@@ -85,18 +108,98 @@ export default function VoiceHome() {
   const [reviewing, setReviewing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [recent, setRecent] = useState<RecentCapture[]>([]);
+  const [recoverable, setRecoverable] = useState<RecoverableTake[]>([]);
   const [loadingRecent, setLoadingRecent] = useState(true);
   const [elapsed, setElapsed] = useState(0);
+  // Which row's destination picker is expanded — one at a time, keyed by id.
+  const [openMover, setOpenMover] = useState<string | null>(null);
+  // ids currently mid-flight for a reroute/retry/discard, so the row can show
+  // its own spinner instead of freezing the whole list.
+  const [busyIds, setBusyIds] = useState<Set<string>>(new Set());
 
   const loadRecent = useCallback(async () => {
     try {
       const res = await fetch("/api/voice/recent");
       const data = await res.json();
       setRecent(data.captures || []);
+      setRecoverable(data.recoverable || []);
     } finally {
       setLoadingRecent(false);
     }
   }, []);
+
+  const withBusy = useCallback(async (id: string, fn: () => Promise<void>) => {
+    setBusyIds((prev) => new Set(prev).add(id));
+    try {
+      await fn();
+    } finally {
+      setBusyIds((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+    }
+  }, []);
+
+  // A wrong guess costs one tap: reroute works for both a landed capture
+  // (the old copy is best-effort retracted by the API) and a never-landed
+  // pending take (this is simply its first filing). Same endpoint either
+  // way — the recent list never needs to know which case it is.
+  const moveTo = useCallback(
+    (id: string, destination: string) =>
+      withBusy(id, async () => {
+        setOpenMover(null);
+        try {
+          const res = await fetch(`/api/voice/recent/${id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action: "reroute", destination }),
+          });
+          const data = await res.json();
+          if (!res.ok || data.error) throw new Error(data.error || `HTTP ${res.status}`);
+          toast(`Filed to ${destinationLabel(destination).toLowerCase()}`, "success");
+          loadRecent();
+        } catch (e) {
+          toast(e instanceof Error ? e.message : "couldn't move that capture", "error");
+        }
+      }),
+    [withBusy, toast, loadRecent],
+  );
+
+  const retryTranscription = useCallback(
+    (id: string) =>
+      withBusy(id, async () => {
+        try {
+          const res = await fetch(`/api/voice/recent/${id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action: "retry-transcription" }),
+          });
+          const data = await res.json();
+          if (!res.ok || data.error) throw new Error(data.error || `HTTP ${res.status}`);
+          toast("Transcribed — pick a destination below", "success");
+          loadRecent();
+        } catch (e) {
+          toast(e instanceof Error ? e.message : "still couldn't transcribe that one", "error");
+        }
+      }),
+    [withBusy, toast, loadRecent],
+  );
+
+  const discardTake = useCallback(
+    (id: string) =>
+      withBusy(id, async () => {
+        try {
+          const res = await fetch(`/api/voice/recent/${id}`, { method: "DELETE" });
+          const data = await res.json();
+          if (!res.ok || data.error) throw new Error(data.error || `HTTP ${res.status}`);
+          setRecoverable((prev) => prev.filter((r) => r.id !== id));
+        } catch (e) {
+          toast(e instanceof Error ? e.message : "couldn't discard that one", "error");
+        }
+      }),
+    [withBusy, toast],
+  );
 
   useEffect(() => {
     loadRecent();
@@ -250,41 +353,146 @@ export default function VoiceHome() {
         </div>
       )}
 
-      {/* Recent captures */}
+      {/* Recent — landed captures and anything still recoverable, one list
+          with an exit for every entry (spec.md ticket 05): a wrong guess
+          moves in a tap, a failed take retries, nothing sits here forever. */}
       <div className="mt-8 flex-1 overflow-y-auto">
-        <SectionHeader title="Recent" description="Where the last few captures landed." />
+        <SectionHeader title="Recent" description="Where the last few captures landed — or tap to fix one." />
         {loadingRecent ? (
           <div className="space-y-2">
             {[0, 1, 2].map((i) => (
               <div key={i} className="shimmer h-14 rounded-xl bg-card" />
             ))}
           </div>
-        ) : recent.length === 0 ? (
+        ) : recent.length === 0 && recoverable.length === 0 ? (
           <p className="px-1 py-8 text-center text-sm text-muted-foreground">
             Nothing captured yet — tap the mic and start a thought.
           </p>
         ) : (
           <ul className="space-y-2">
-            {recent.map((c, i) => (
-              <li
-                key={c.id}
-                className="hover-lift enter flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3"
-                style={{ "--enter-delay": `${Math.min(i, 8) * 30}ms` } as React.CSSProperties}
-              >
-                <span className="shrink-0 text-primary">
-                  <FileText size={18} />
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-medium text-foreground">
-                    {c.transcript}
-                  </span>
-                  <span className="text-xs text-muted-foreground">
-                    {destinationLabel(c.destination)}
-                    {timeAgo(c.createdAt) ? ` · ${timeAgo(c.createdAt)}` : ""}
-                  </span>
-                </span>
-              </li>
-            ))}
+            {recoverable.map((r, i) => {
+              const isBusy = busyIds.has(r.id);
+              const isOpen = openMover === r.id;
+              return (
+                <li
+                  key={r.id}
+                  className="enter overflow-hidden rounded-xl border border-dashed border-border bg-card px-4 py-3"
+                  style={{ "--enter-delay": `${Math.min(i, 8) * 30}ms` } as React.CSSProperties}
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="shrink-0 text-amber-500">
+                      <AlertTriangle size={18} />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-medium text-foreground">
+                        {r.transcript || "(transcription failed)"}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {r.status === "failed" ? r.error || "Transcription failed" : "Never filed — pick a destination"}
+                        {timeAgo(r.createdAt) ? ` · ${timeAgo(r.createdAt)}` : ""}
+                      </span>
+                    </span>
+                    {r.status === "failed" ? (
+                      <button
+                        onClick={() => retryTranscription(r.id)}
+                        disabled={isBusy || !r.hasAudio}
+                        aria-label="Retry transcription"
+                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border text-foreground transition-transform active:scale-[0.92] disabled:opacity-40"
+                        style={EASE}
+                      >
+                        {isBusy ? <Loader2 size={14} className="animate-spin" /> : <RotateCcw size={14} />}
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => setOpenMover(isOpen ? null : r.id)}
+                        disabled={isBusy}
+                        className="shrink-0 rounded-full border border-border px-3 py-1 text-xs font-medium text-foreground transition-transform active:scale-[0.95] disabled:opacity-40"
+                        style={EASE}
+                      >
+                        {isBusy ? <Loader2 size={14} className="animate-spin" /> : "File it"}
+                      </button>
+                    )}
+                    <button
+                      onClick={() => discardTake(r.id)}
+                      disabled={isBusy}
+                      aria-label="Discard this take"
+                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-transform active:scale-[0.92] disabled:opacity-40"
+                      style={EASE}
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                  {isOpen && (
+                    <div
+                      className="enter mt-3 flex flex-wrap gap-1.5"
+                      style={{ "--enter-delay": "0ms" } as React.CSSProperties}
+                    >
+                      {ALL_DESTINATIONS.map((d) => (
+                        <button
+                          key={d.value}
+                          onClick={() => moveTo(r.id, d.value)}
+                          className="rounded-full bg-secondary px-3 py-1 text-xs font-medium text-secondary-foreground transition-transform active:scale-[0.95]"
+                          style={EASE}
+                        >
+                          {d.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </li>
+              );
+            })}
+            {recent.map((c, i) => {
+              const isBusy = busyIds.has(c.id);
+              const isOpen = openMover === c.id;
+              const otherDestinations = ALL_DESTINATIONS.filter((d) => d.value !== c.destination);
+              return (
+                <li
+                  key={c.id}
+                  className="hover-lift enter overflow-hidden rounded-xl border border-border bg-card px-4 py-3"
+                  style={{ "--enter-delay": `${Math.min(i, 8) * 30}ms` } as React.CSSProperties}
+                >
+                  <button
+                    onClick={() => setOpenMover(isOpen ? null : c.id)}
+                    disabled={isBusy}
+                    className="flex w-full items-center gap-3 text-left disabled:opacity-60"
+                  >
+                    <span className="shrink-0 text-primary">
+                      <FileText size={18} />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-medium text-foreground">
+                        {c.transcript}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {destinationLabel(c.destination)}
+                        {timeAgo(c.createdAt) ? ` · ${timeAgo(c.createdAt)}` : ""}
+                      </span>
+                    </span>
+                    {isBusy && <Loader2 size={14} className="shrink-0 animate-spin text-muted-foreground" />}
+                  </button>
+                  {isOpen && (
+                    <div
+                      className="enter mt-3 flex flex-wrap gap-1.5 border-t border-border pt-3"
+                      style={{ "--enter-delay": "0ms" } as React.CSSProperties}
+                    >
+                      <span className="w-full text-xs text-muted-foreground">Move to:</span>
+                      {otherDestinations.map((d) => (
+                        <button
+                          key={d.value}
+                          onClick={() => moveTo(c.id, d.value)}
+                          disabled={isBusy}
+                          className="rounded-full bg-secondary px-3 py-1 text-xs font-medium text-secondary-foreground transition-transform active:scale-[0.95] disabled:opacity-40"
+                          style={EASE}
+                        >
+                          {d.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         )}
       </div>

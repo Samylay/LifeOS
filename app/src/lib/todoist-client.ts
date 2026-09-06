@@ -57,3 +57,29 @@ export async function createTodoistTask(
     return { ok: false, error: e instanceof Error ? e.message : String(e) };
   }
 }
+
+/** Deletes one Todoist task by id (T-voice-rework-05's "move" — retracting a
+ * voice capture from the destination it left). Never throws, same fail-soft
+ * shape as createTodoistTask; a 404 counts as success since the end state
+ * (no task with this id) is what the caller wants either way. */
+export async function deleteTodoistTask(
+  taskId: string,
+  opts: { transport?: TodoistTransport } = {}
+): Promise<TodoistWriteResult> {
+  const token = process.env.TODOIST_API_TOKEN;
+  if (!token) {
+    return { ok: false, error: "TODOIST_API_TOKEN not set" };
+  }
+  const transport = opts.transport ?? globalThis.fetch.bind(globalThis);
+  try {
+    const res = await transport(`${TASKS_URL}/${taskId}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+      signal: AbortSignal.timeout(20_000),
+    });
+    if (!res.ok && res.status !== 404) throw new Error(`todoist ${res.status}`);
+    return { ok: true, taskId };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) };
+  }
+}
