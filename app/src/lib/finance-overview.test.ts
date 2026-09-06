@@ -4,11 +4,12 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import fs from "fs";
 import os from "os";
 import path from "path";
+import type { RecurringCharge } from "./finance-burn";
 
 const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "lifeos-finance-overview-test-"));
 process.env.LIFEOS_DB_PATH = path.join(tmpDir, "test.db");
 
-const { getFinanceOverview } = await import("./finance-overview");
+const { getFinanceOverview, markNewlyAppeared, groupCancellable } = await import("./finance-overview");
 const { saveBankSession, upsertBankTransactions, saveAccountBalance, setBankSyncState } = await import("./bank-db");
 
 afterAll(() => {
@@ -27,6 +28,69 @@ function out(id: string, date: string, amount: string, creditorName: string) {
   };
 }
 
+// Fixture builder for the pure ticket-03 helpers — never a real bank fixture,
+// this repo's remote is public.
+function charge(over: Partial<RecurringCharge>): RecurringCharge {
+  return {
+    merchantKey: "MERCHANT",
+    label: "Merchant",
+    direction: "out",
+    cadence: "monthly",
+    amount: 10,
+    kind: "sub",
+    firstSeen: "2026-06-01",
+    lastSeen: "2026-08-01",
+    confidence: 0.6,
+    occurrenceCount: 3,
+    overridden: false,
+    ...over,
+  };
+}
+
+describe("markNewlyAppeared", () => {
+  it("marks a charge new when its first occurrence falls in the given month", () => {
+    const [c] = markNewlyAppeared([charge({ firstSeen: "2026-09-03" })], "2026-09");
+    expect(c.isNew).toBe(true);
+  });
+
+  it("does not mark a long-running charge new just because it recurred this month", () => {
+    const [c] = markNewlyAppeared([charge({ firstSeen: "2026-06-01", lastSeen: "2026-09-01" })], "2026-09");
+    expect(c.isNew).toBe(false);
+  });
+
+  it("stops marking a charge new once its first occurrence ages out of the current month", () => {
+    // Same charge, a month later — the label clears on its own, nothing to dismiss.
+    const charges = [charge({ firstSeen: "2026-09-03" })];
+    expect(markNewlyAppeared(charges, "2026-09")[0].isNew).toBe(true);
+    expect(markNewlyAppeared(charges, "2026-10")[0].isNew).toBe(false);
+  });
+});
+
+describe("groupCancellable", () => {
+  it("keeps only sub-classified charges, dearest first by yearly cost", () => {
+    const views = markNewlyAppeared(
+      [
+        charge({ merchantKey: "gym", kind: "sub", amount: 30, cadence: "monthly" }),
+        charge({ merchantKey: "rent", kind: "fixed", amount: 650, cadence: "monthly" }),
+        charge({ merchantKey: "streaming", kind: "sub", amount: 13.49, cadence: "monthly" }),
+        charge({ merchantKey: "domain", kind: "sub", amount: 40, cadence: "yearly" }),
+      ],
+      "2026-09"
+    );
+    const group = groupCancellable(views);
+    expect(group.charges.map((c) => c.merchantKey)).toEqual(["gym", "streaming", "domain"]);
+    // 30*12 + 13.49*12 + 40 = 360 + 161.88 + 40
+    expect(group.yearlyTotal).toBeCloseTo(561.88, 2);
+  });
+
+  it("returns an empty group and a zero total when nothing is cancellable", () => {
+    const views = markNewlyAppeared([charge({ kind: "fixed" })], "2026-09");
+    const group = groupCancellable(views);
+    expect(group.charges).toEqual([]);
+    expect(group.yearlyTotal).toBe(0);
+  });
+});
+
 describe("getFinanceOverview — before any sync or seeded data", () => {
   it("returns a zeroed overview with no accounts and no sync", () => {
     const overview = getFinanceOverview(new Date("2026-09-06T12:00:00Z"));
@@ -37,6 +101,8 @@ describe("getFinanceOverview — before any sync or seeded data", () => {
     expect(overview.lastSyncAt).toBeNull();
     expect(overview.stale).toBe(true);
     expect(overview.consentWarnings).toEqual([]);
+    expect(overview.recurringCharges).toEqual([]);
+    expect(overview.cancellable).toEqual({ charges: [], yearlyTotal: 0 });
   });
 });
 
@@ -54,6 +120,12 @@ describe("getFinanceOverview — with seeded data", () => {
     upsertBankTransactions([
       out("t1", "2026-08-10", "42.17", "CARREFOUR CITY"),
       out("t2", "2026-09-01", "50.00", "CARREFOUR CITY"),
+      // A steady monthly subscription across 3 months, evenly spaced ~30
+      // days apart (subscription-detector.ts's monthly tolerance is 5 days)
+      // — enough to confirm the cadence.
+      out("n1", "2026-07-01", "13.49", "STREAMFLIX.COM 1111"),
+      out("n2", "2026-08-01", "13.49", "STREAMFLIX.COM 2222"),
+      out("n3", "2026-09-01", "13.49", "STREAMFLIX.COM 3333"),
     ]);
     setBankSyncState("last_sync_at", String(Date.parse("2026-09-01T00:00:00Z")));
   });
@@ -62,8 +134,10 @@ describe("getFinanceOverview — with seeded data", () => {
     const overview = getFinanceOverview(new Date("2026-09-06T12:00:00Z"));
     const august = overview.months.find((m) => m.burn.month === "2026-08")!;
     const september = overview.months.find((m) => m.burn.month === "2026-09")!;
-    expect(august.burn.out).toBeCloseTo(42.17, 2);
-    expect(september.burn.out).toBeCloseTo(50.0, 2);
+    // Plus the 13.49/month subscription seeded above, which lands in both
+    // months (2026-08-15 and 2026-09-01).
+    expect(august.burn.out).toBeCloseTo(42.17 + 13.49, 2);
+    expect(september.burn.out).toBeCloseTo(50.0 + 13.49, 2);
   });
 
   it("carries account balances and the bank name through", () => {
@@ -83,6 +157,29 @@ describe("getFinanceOverview — with seeded data", () => {
   it("does not report a consent expiring in 2027 as a current warning", () => {
     const overview = getFinanceOverview(new Date("2026-09-06T12:00:00Z"));
     expect(overview.consentWarnings).toEqual([]);
+  });
+
+  it("lists the detected recurring charge, matching the sub total the burn split reports", () => {
+    const overview = getFinanceOverview(new Date("2026-09-06T12:00:00Z"));
+    expect(overview.recurringCharges).toHaveLength(1);
+    const streamflix = overview.recurringCharges[0];
+    expect(streamflix.kind).toBe("sub");
+    expect(streamflix.occurrenceCount).toBe(3);
+    expect(streamflix.firstSeen).toBe("2026-07-01");
+    expect(streamflix.lastSeen).toBe("2026-09-01");
+    // Not "new": its first occurrence (July) is well before the current
+    // month (September) on screen.
+    expect(streamflix.isNew).toBe(false);
+
+    const september = overview.months.find((m) => m.burn.month === "2026-09")!;
+    expect(september.burn.sub).toBeCloseTo(13.49, 2);
+  });
+
+  it("groups the same charge into `cancellable` with its yearly cost", () => {
+    const overview = getFinanceOverview(new Date("2026-09-06T12:00:00Z"));
+    expect(overview.cancellable.charges).toHaveLength(1);
+    expect(overview.cancellable.charges[0].merchantKey).toBe(overview.recurringCharges[0].merchantKey);
+    expect(overview.cancellable.yearlyTotal).toBeCloseTo(13.49 * 12, 2);
   });
 
   it("reports a consent expiring within the warning window", () => {
