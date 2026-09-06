@@ -10,7 +10,7 @@
 // queryable for a future retention/ageing pass.
 import fs from "node:fs";
 import path from "node:path";
-import { createDoc, updateDoc } from "./server-db";
+import { createDoc, listDocs, updateDoc } from "./server-db";
 
 const PENDING = "users/local/voicePending";
 
@@ -76,4 +76,40 @@ export function confirmPending(pendingId: string, outcome: Record<string, unknow
   } catch {
     // A bad/unknown id must never fail the save that triggered it.
   }
+}
+
+// --- Recent captures (T-voice-rework-02) ------------------------------------
+//
+// The capture hub's "recent" list reads this same pending store rather than a
+// new collection: every capture already lands here durably at transcription
+// time, and `confirmPending` already records which category/destination it
+// committed to. Only the hub's own category is surfaced — talk-session and
+// assistant-braindump entries use this store too, but they are not captures
+// from this surface and would just be noise here.
+export interface RecentCapture {
+  id: string;
+  transcript: string;
+  destination: string;
+  vaultPath?: string;
+  createdAt?: unknown;
+}
+
+export function listRecentCaptures(limit = 8): RecentCapture[] {
+  const rows = listDocs(PENDING, { orderBy: ["createdAt", "desc"] }) as unknown as Array<{
+    id: string;
+    status: string;
+    transcript: string;
+    outcome?: { category?: string; destination?: string; note?: string };
+    createdAt?: unknown;
+  }>;
+  return rows
+    .filter((r) => r.status === "confirmed" && r.outcome?.category === "capture")
+    .slice(0, limit)
+    .map((r) => ({
+      id: r.id,
+      transcript: r.transcript,
+      destination: r.outcome?.destination || "vault",
+      vaultPath: r.outcome?.note,
+      createdAt: r.createdAt,
+    }));
 }
