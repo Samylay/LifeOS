@@ -80,12 +80,18 @@ export interface RecurringCharge {
 
 export interface BurnMonth {
   month: string; // YYYY-MM
-  out: number; // total money out that month
-  in: number; // total money in that month
+  out: number; // real spend this month — fixed + sub + variable, EXCLUDES transfer
+  in: number; // real income this month — EXCLUDES transfer
   fixed: number; // recurring, hard to cancel
   sub: number; // recurring, cancellable
   variable: number; // everything else
-  txCount: number; // transactions counted into `out` + `in` this month
+  /** Money moved between Samy's own accounts (a transfer to another account
+   * he holds) or into a Revolut internal pocket/round-up ("To Robo
+   * portfolio") — real money movement, but neither spend nor income, so it
+   * is never folded into `out`/`in`/`variable`. Tracked here instead of
+   * being silently dropped. */
+  transfer: number;
+  txCount: number; // transactions counted into `out` + `in` this month (never transfers)
 }
 
 export interface MonthlyBurnResult {
@@ -121,14 +127,75 @@ export function deriveDirection(raw: unknown): FlowDirection | null {
   return null;
 }
 
+// --- Merchant fallback (CAUSE 1) -------------------------------------------
+//
+// Verified against the live data 2026-09-06: creditor_name/debtor_name is
+// NULL on 53% of outgoing rows, and on 100% of Société Générale rows — every
+// one of those collapsed into a single "UNKNOWN" merchant, which then failed
+// subscription-detector.ts's amount-tolerance check (correctly — €0-9,000
+// isn't one merchant). The counterparty is not missing, it is inside
+// `remittance_information`, e.g.
+//   "PRELEVEMENT EUROPEEN 3816317483 DE: NEXITY STUDEA ID: ... MOTIF: ..."
+//   "VIR EUROPEEN EMIS ... POUR: M. SAMY LAYAIDA"
+//   "COTISATION MENSUELLE SOBRIO"
+
+function remittanceText(raw: unknown): string | null {
+  if (raw && typeof raw === "object" && "remittance_information" in raw) {
+    const value = (raw as { remittance_information?: unknown }).remittance_information;
+    if (Array.isArray(value) && value.every((v) => typeof v === "string") && value.length > 0) {
+      return (value as string[]).join(" ").trim() || null;
+    }
+  }
+  return null;
+}
+
+/**
+ * "DE: X" (SEPA direct debit, incoming-to-the-biller framing even though
+ * money moves out of the account) and "POUR: X" (outgoing SEPA transfer
+ * beneficiary) are this bank's two counterparty labels inside the free-text
+ * remittance field. Falls back to the whole remittance text (a bank-fee line
+ * like "COTISATION MENSUELLE SOBRIO" or a Revolut label like "To Robo
+ * portfolio" carries the merchant as its only content) — normalizeMerchantKey
+ * already strips reference numbers, so this doesn't need to be exact.
+ */
+function deriveMerchantFromRemittance(raw: unknown): string | null {
+  const text = remittanceText(raw);
+  if (!text) return null;
+  const labeled = text.match(/\bDE\s*:\s*(.+?)(?:\s+(?:ID|MOTIF|REF)\s*:|$)/i) ?? text.match(/\bPOUR\s*:\s*(.+?)(?:\s+(?:ID|MOTIF|REF)\s*:|$)/i);
+  const captured = labeled?.[1]?.trim();
+  return captured || text;
+}
+
+// --- Self-transfer / internal-move detection (CAUSE 2) --------------------
+//
+// April's headline burn included €9,230 across two transfers to Samy's OWN
+// accounts and €251 across 126 Revolut "To Robo portfolio" round-ups —
+// neither is spend. Revolut's own product labels for an internal pocket move
+// are generic ("To Robo portfolio", "To EUR", ...) and safe to match
+// literally; a transfer to another account Samy holds is recognised by the
+// caller-supplied `ownAccountIdentifiers` (an IBAN or the account holder's
+// name, read at runtime from bank_accounts / config — never hardcoded here,
+// since this module stays pure and this repo's remote is public).
+const REVOLUT_INTERNAL_MOVE = /\b(to|from)\s+(robo portfolio|eur|usd|gbp|savings|vault|pocket)\b/i;
+
+function isSelfTransfer(merchant: string, remittance: string | null, ownAccountIdentifiers: string[]): boolean {
+  if (REVOLUT_INTERNAL_MOVE.test(merchant) || (remittance && REVOLUT_INTERNAL_MOVE.test(remittance))) return true;
+  if (ownAccountIdentifiers.length === 0) return false;
+  const haystack = `${merchant} ${remittance ?? ""}`.toUpperCase();
+  return ownAccountIdentifiers.some((id) => id.trim() && haystack.includes(id.trim().toUpperCase()));
+}
+
 interface Converted {
   detectorTx: DetectorTransaction;
+  /** True when this row is money moving between Samy's own accounts/pockets
+   * rather than spend or income — routed to `BurnMonth.transfer` instead. */
+  isTransfer: boolean;
 }
 interface NotConverted {
   undetermined: UndeterminedTransaction;
 }
 
-function convert(tx: BankTransactionLike): Converted | NotConverted {
+function convert(tx: BankTransactionLike, ownAccountIdentifiers: string[]): Converted | NotConverted {
   const direction = deriveDirection(tx.raw);
   if (!direction) {
     return {
@@ -158,30 +225,45 @@ function convert(tx: BankTransactionLike): Converted | NotConverted {
   // (who received it) — same convention subscription-detector.ts's
   // DetectorTransaction already documents. Always positive; direction is the
   // only carrier of sign, per finance.ts's house rule.
-  const merchant = (direction === "out" ? tx.creditorName : tx.debtorName)?.trim();
+  const namedMerchant = (direction === "out" ? tx.creditorName : tx.debtorName)?.trim();
+  const remittance = remittanceText(tx.raw);
+  const merchant = namedMerchant || deriveMerchantFromRemittance(tx.raw) || "UNKNOWN";
   return {
     detectorTx: {
       transactionId: tx.transactionId,
-      merchant: merchant || "UNKNOWN",
+      merchant,
       amount: Math.abs(amount),
       direction,
       date: tx.bookingDate,
     },
+    isTransfer: isSelfTransfer(merchant, remittance, ownAccountIdentifiers),
   };
 }
 
-function splitTransactions(transactions: BankTransactionLike[]): {
+function splitTransactions(
+  transactions: BankTransactionLike[],
+  ownAccountIdentifiers: string[]
+): {
   detectorTxs: DetectorTransaction[];
+  /** Self-transfers/internal moves — summed into `BurnMonth.transfer` only,
+   * never fed to the recurring-charge detector and never counted as spend
+   * or income. */
+  transferTxs: DetectorTransaction[];
   undetermined: UndeterminedTransaction[];
 } {
   const detectorTxs: DetectorTransaction[] = [];
+  const transferTxs: DetectorTransaction[] = [];
   const undetermined: UndeterminedTransaction[] = [];
   for (const tx of transactions) {
-    const result = convert(tx);
-    if ("detectorTx" in result) detectorTxs.push(result.detectorTx);
-    else undetermined.push(result.undetermined);
+    const result = convert(tx, ownAccountIdentifiers);
+    if ("detectorTx" in result) {
+      if (result.isTransfer) transferTxs.push(result.detectorTx);
+      else detectorTxs.push(result.detectorTx);
+    } else {
+      undetermined.push(result.undetermined);
+    }
   }
-  return { detectorTxs, undetermined };
+  return { detectorTxs, transferTxs, undetermined };
 }
 
 // --- Recurrence + classification ------------------------------------------
@@ -233,9 +315,12 @@ export interface DetectRecurringResult {
  */
 export function detectRecurring(
   transactions: BankTransactionLike[],
-  overrides: ClassificationOverrides = {}
+  overrides: ClassificationOverrides = {},
+  /** Own-account identifiers (IBAN, holder name) so a self-transfer never
+   * gets mistaken for a recurring charge. See `monthlyBurn`'s doc comment. */
+  ownAccountIdentifiers: string[] = []
 ): DetectRecurringResult {
-  const { detectorTxs, undetermined } = splitTransactions(transactions);
+  const { detectorTxs, undetermined } = splitTransactions(transactions, ownAccountIdentifiers);
   const series = detectRecurringSeries(detectorTxs);
   return { charges: series.map((s) => toRecurringCharge(s, overrides)), undetermined };
 }
@@ -259,14 +344,22 @@ function toCents(amount: number): number {
  * Sums run in integer cents throughout, converting back to euros only once
  * at the end, so fixed + sub + variable is guaranteed to equal `out` exactly
  * — float accumulation over dozens of transactions is exactly where a naive
- * euros-as-floats sum would drift by a cent.
+ * euros-as-floats sum would drift by a cent. `transfer` is summed
+ * separately and is never part of that invariant, nor of `in`: it is real
+ * money movement (a transfer to another of Samy's own accounts, a Revolut
+ * round-up into a pocket) but neither spend nor income (CAUSE 2).
  */
 export function monthlyBurn(
   transactions: BankTransactionLike[],
   month: string,
-  overrides: ClassificationOverrides = {}
+  overrides: ClassificationOverrides = {},
+  /** Own-account identifiers (IBAN, holder name) read at runtime from
+   * bank_accounts / config by the caller — this module stays pure, so it
+   * never queries the DB itself. Empty by default: only Revolut's own
+   * internal-move labels are recognised with no identifiers supplied. */
+  ownAccountIdentifiers: string[] = []
 ): MonthlyBurnResult {
-  const { detectorTxs, undetermined } = splitTransactions(transactions);
+  const { detectorTxs, transferTxs, undetermined } = splitTransactions(transactions, ownAccountIdentifiers);
   const series = detectRecurringSeries(detectorTxs);
   const charges = series.map((s) => toRecurringCharge(s, overrides));
   // Recurring detection groups by direction + normalized merchant (see
@@ -279,6 +372,7 @@ export function monthlyBurn(
   let fixedCents = 0;
   let subCents = 0;
   let variableCents = 0;
+  let transferCents = 0;
   let txCount = 0;
   const chargeKeysSeenThisMonth = new Set<string>();
 
@@ -302,6 +396,11 @@ export function monthlyBurn(
     }
   }
 
+  for (const tx of transferTxs) {
+    if (!tx.date.startsWith(month)) continue;
+    transferCents += toCents(tx.amount);
+  }
+
   const undeterminedThisMonth = undetermined.filter((u) => (u.bookingDate ?? "").startsWith(month));
 
   return {
@@ -312,6 +411,7 @@ export function monthlyBurn(
       fixed: fixedCents / 100,
       sub: subCents / 100,
       variable: variableCents / 100,
+      transfer: transferCents / 100,
       txCount,
     },
     recurring: charges.filter((c) => chargeKeysSeenThisMonth.has(c.merchantKey)),

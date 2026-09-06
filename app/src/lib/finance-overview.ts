@@ -7,6 +7,7 @@ import {
   listConnectedAccounts,
   listBankSessions,
   getBankSyncState,
+  listOwnAccountIdentifiers,
   type ConnectedAccountRow,
   type BankTransactionForBurn,
 } from "./bank-db";
@@ -115,7 +116,14 @@ export function getFinanceOverview(now: Date = new Date()): FinanceOverview {
     .slice(0, 10);
 
   const transactions = listBankTransactionsInRange(fromMonth, toExclusive).map(toBankTransactionLike);
-  const burnMonths = months.map((month) => monthlyBurn(transactions, month));
+  // Own-account identifiers (IBAN, account nickname) plus, when set, the
+  // account holder's own name — kept out of source (public remote) and read
+  // from a gitignored .env instead, same as any other repo-local secret.
+  const ownAccountIdentifiers = [
+    ...listOwnAccountIdentifiers(),
+    ...(process.env.FINANCE_ACCOUNT_HOLDER_NAME ? [process.env.FINANCE_ACCOUNT_HOLDER_NAME] : []),
+  ];
+  const burnMonths = months.map((month) => monthlyBurn(transactions, month, {}, ownAccountIdentifiers));
 
   // Corrections (ticket 04) aren't wired up yet — {} is the "no overrides"
   // default `classify` already accepts, so this list agrees with
