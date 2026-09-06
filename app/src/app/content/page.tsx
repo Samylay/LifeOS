@@ -21,6 +21,9 @@ import type { ContentIdea, ContentIdeaStatus, ContentPillar } from "@/lib/types"
 import { useContentCatalog } from "@/lib/use-catalog";
 import { countByType, resolveType, type ContentType, type HookFormula } from "@/lib/content/catalog";
 import { Playbook } from "@/components/content/playbook";
+import { BrainstormPanel } from "@/components/content/brainstorm-panel";
+import type { Brainstorm } from "@/lib/content/brainstorm";
+import { post } from "@/lib/decide/post";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -236,6 +239,33 @@ function IdeaBank() {
   const { types, hooks, addType, updateType, addHook, updateHook } = useContentCatalog();
   const typeCounts = countByType(ideas, types);
   const [showPlaybook, setShowPlaybook] = useState(false);
+  // Per-idea brainstorm request state. Output is persisted on the idea, so
+  // this only tracks the in-flight ask and its failure.
+  const [asking, setAsking] = useState<string | null>(null);
+  const [askError, setAskError] = useState<Record<string, string>>({});
+
+  const askForAngles = async (idea: ContentIdea) => {
+    setAsking(idea.id);
+    setAskError((e) => ({ ...e, [idea.id]: "" }));
+    try {
+      const d = await post("/api/content/brainstorm", {
+        title: idea.title,
+        body: idea.body ?? "",
+        contentType: idea.pillar ?? "",
+      });
+      const b = d.brainstorm as Brainstorm;
+      // Stored beside his writing, never merged into it.
+      await updateIdea(idea.id, { brainstorm: { ...b, at: new Date() } });
+    } catch (e) {
+      // A rejected or failed response tells him it failed and shows nothing.
+      setAskError((prev) => ({
+        ...prev,
+        [idea.id]: e instanceof Error ? e.message : "brainstorm failed",
+      }));
+    } finally {
+      setAsking(null);
+    }
+  };
 
   // No ship-logging step: the ship log is being retired, and this surface
   // must not write to a collection on its way out.
@@ -458,6 +488,20 @@ function IdeaBank() {
                   key={idea.id}
                   value={idea.body ?? ""}
                   onSave={(body) => updateIdea(idea.id, { body })}
+                />
+                <BrainstormPanel
+                  brainstorm={idea.brainstorm ?? null}
+                  busy={asking === idea.id}
+                  error={askError[idea.id] || null}
+                  types={types}
+                  currentType={idea.pillar ?? ""}
+                  onAsk={() => askForAngles(idea)}
+                  onDismiss={() => {
+                    setAskError((e) => ({ ...e, [idea.id]: "" }));
+                    if (idea.brainstorm) void updateIdea(idea.id, { brainstorm: undefined });
+                  }}
+                  onAcceptType={(key) =>
+                    updateIdea(idea.id, { pillar: key as ContentPillar })}
                 />
               </div>
             </Card>

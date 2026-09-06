@@ -797,6 +797,16 @@ export interface ContentIdea {
   // Samy's own writing: the hook and beats, in his words. This is the point of
   // the record — what he posts is his.
   body?: string;
+  // Brainstorm output, stored SEPARATELY from `body` and never merged into it
+  // (T-content-rework-04). Keeping them in different fields is what makes
+  // "which words are mine" answerable rather than a matter of memory.
+  brainstorm?: {
+    angles: string[];
+    questions: string[];
+    contentType: string | null;
+    hooks: number[];
+    at: Date;
+  };
   /** @deprecated Output of the deleted script generator. Kept so no row loses
    *  data, never rendered: showing him a postable script is the thing this
    *  vertical was rebuilt to stop doing. */
