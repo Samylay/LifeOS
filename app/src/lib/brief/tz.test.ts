@@ -17,6 +17,20 @@ describe("isPastHourInTz", () => {
     const now = new Date("2026-01-14T21:00:00Z");
     expect(isPastHourInTz(6, "Asia/Tokyo", now)).toBe(true);
   });
+
+  it("is false just before hour:minute, true just after, when minute is given", () => {
+    // 05:14 UTC == 06:14 Paris (winter, UTC+1) — not yet past 06:15
+    const before = new Date("2026-01-15T05:14:00Z");
+    expect(isPastHourInTz(6, "Europe/Paris", before, 15)).toBe(false);
+    // 05:16 UTC == 06:16 Paris — past 06:15
+    const after = new Date("2026-01-15T05:16:00Z");
+    expect(isPastHourInTz(6, "Europe/Paris", after, 15)).toBe(true);
+  });
+
+  it("defaults the minute to :00 when omitted", () => {
+    const now = new Date("2026-01-15T05:16:00Z");
+    expect(isPastHourInTz(5, "Europe/Paris", now)).toBe(isPastHourInTz(5, "Europe/Paris", now, 0));
+  });
 });
 
 describe("msUntilNextRun", () => {
@@ -36,6 +50,25 @@ describe("msUntilNextRun", () => {
     const now = new Date("2026-01-31T23:30:00Z");
     const ms = msUntilNextRun(6, "Asia/Tokyo", now);
     expect(ms).toBeGreaterThan(0);
+  });
+
+  it("defaults the minute to :00 when omitted", () => {
+    const now = new Date("2026-01-15T05:00:00Z");
+    expect(msUntilNextRun(15, "Asia/Tokyo", now)).toBe(msUntilNextRun(15, "Asia/Tokyo", now, 0));
+  });
+
+  it("targets hour:minute, not just the hour, in a non-UTC tz", () => {
+    // 05:00 UTC == 06:00 Paris (winter, UTC+1)
+    const now = new Date("2026-01-15T05:00:00Z");
+    const ms = msUntilNextRun(6, "Europe/Paris", now, 15); // next 06:15 Paris
+    expect(ms).toBe(new Date("2026-01-15T05:15:00Z").getTime() - now.getTime());
+  });
+
+  it("rolls over to tomorrow when today's hour:minute has already passed", () => {
+    // 05:20 UTC == 06:20 Paris, past 06:15
+    const now = new Date("2026-01-15T05:20:00Z");
+    const ms = msUntilNextRun(6, "Europe/Paris", now, 15);
+    expect(ms).toBe(new Date("2026-01-16T05:15:00Z").getTime() - now.getTime());
   });
 });
 
