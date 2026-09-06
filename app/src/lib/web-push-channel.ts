@@ -14,6 +14,31 @@ export const CONFIG_COLLECTION = "users/local/webPushConfig";
 export const CONFIG_DOC_ID = "vapid";
 export const SUBS_COLLECTION = "users/local/pushSubs";
 
+// Delivery health (T-status-rework-02). Nothing recorded that a push had ever
+// actually ARRIVED, so "attempted: 0 and no error" was indistinguishable from
+// a working pipeline — which is how six weeks of dark delivery went unnoticed.
+// One stamped doc turns that into an observable fact.
+export const DELIVERY_COLLECTION = "users/local/pushDelivery";
+const DELIVERY_DOC = "last";
+
+export function markDelivered(at: Date = new Date()): void {
+  setDoc(DELIVERY_COLLECTION, DELIVERY_DOC, { at: { __date: at.toISOString() } });
+}
+
+export function lastDeliveredAt(): string | null {
+  const doc = getDoc(DELIVERY_COLLECTION, DELIVERY_DOC) as { at?: { __date?: string } } | null;
+  return doc?.at?.__date ?? null;
+}
+
+export interface DeliveryHealth {
+  subscriptions: number;
+  lastDeliveredAt: string | null;
+}
+
+export function getDeliveryHealth(): DeliveryHealth {
+  return { subscriptions: listPushSubs().length, lastDeliveredAt: lastDeliveredAt() };
+}
+
 const VAPID_SUBJECT = "mailto:layaida.samy@gmail.com";
 
 interface VapidKeys {
@@ -153,5 +178,8 @@ export async function sendPushToAll(payload: {
       }
     })
   );
+  // Only a real delivery stamps this — attempted-but-undelivered must never
+  // look like success.
+  if (result.delivered > 0) markDelivered();
   return result;
 }

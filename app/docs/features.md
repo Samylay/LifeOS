@@ -26,11 +26,10 @@ Personal life-ops app. Next.js 16 (App Router) + better-sqlite3 local DB (`data/
 | Leads (`/leads`) | Lead lifecycle tracking |
 | Workouts (`/workouts`) | Training log synced from Strava |
 | Recipes (`/recipes`) | Recipe collection and meal planning |
-| Pager (`/pager`) | Notify messages and quick actions |
+| Status (`/status`) | Operational surface: what is wrong first, failing standing goals, delivery health, and the alert inbox |
 | Prime (`/prime`, `/prime/manage`) | Daily affirmations and their management |
 | Projects (`/projects`) | Projects and shipped work |
 | Settings (`/settings`) | Integrations, LLM backend toggle, app config |
-| Status (`/status`) | Life-status dashboard with stat tiles |
 | Content (`/content`) | Content pipeline management |
 | Terminal (`/terminal`), Diagrams (`/diagrams`) | Utility surfaces |
 

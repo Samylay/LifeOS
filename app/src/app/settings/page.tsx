@@ -272,7 +272,7 @@ export default function SettingsPage() {
       });
       if (res.ok) {
         sonnerToast.success("Test sent — check your phone (push)", {
-          action: { label: "Open pager", onClick: () => { window.location.href = "/pager"; } },
+          action: { label: "Open status", onClick: () => { window.location.href = "/status"; } },
         });
       } else {
         toast("Send failed", "error");

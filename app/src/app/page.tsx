@@ -151,7 +151,7 @@ export default function Today() {
         </div>
         <div className="flex flex-wrap items-center gap-2 text-xs">
           <Link
-            href="/pager"
+            href="/status"
             className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 font-medium pressable active:scale-[0.97] ${
               pagerUnread > 0 ? "bg-accent text-accent-foreground" : "bg-muted text-muted-foreground"
             }`}

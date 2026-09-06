@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   Activity,
+  AlertTriangle,
   Boxes,
   Cpu,
   ExternalLink,
@@ -17,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Page, PageHeader, SectionHeader } from "@/components/ui/page";
 import { Skeleton } from "@/components/ui/skeleton";
+import { AlertInbox } from "@/components/status/alert-inbox";
 
 const GRAFANA_BASE = process.env.NEXT_PUBLIC_GRAFANA_URL?.replace(/\/$/, "");
 const GRAFANA_URL = GRAFANA_BASE ? `${GRAFANA_BASE}/d/homelab/homelab` : null;
@@ -47,9 +49,39 @@ interface Container {
   status: string;
 }
 
+interface StandingGoals {
+  enabled: boolean;
+  total: number;
+  ok: number;
+  violated: string[];
+  flapped24h: string[];
+  lastRunAgeSeconds: number | null;
+}
+
+interface Problem {
+  kind: "goal" | "goal-unknown" | "container" | "host" | "delivery";
+  severity: "down" | "warn";
+  title: string;
+  detail: string;
+}
+
 interface StatusData {
   containers: { ok: boolean; containers: Container[]; reason?: string };
   host: HostMetrics;
+  goals?: StandingGoals;
+  delivery?: { subscriptions: number; lastDeliveredAt: string | null };
+  problems?: Problem[];
+  verdict?: "clear" | "problems" | "unknown";
+}
+
+function since(iso: string | null | undefined): string {
+  if (!iso) return "never";
+  const ms = Date.now() - new Date(iso).getTime();
+  if (Number.isNaN(ms)) return "unknown";
+  const h = Math.floor(ms / 3_600_000);
+  if (h < 1) return "under an hour ago";
+  if (h < 48) return `${h}h ago`;
+  return `${Math.floor(h / 24)}d ago`;
 }
 
 function gb(bytes: number | null): string {
@@ -198,6 +230,59 @@ export default function StatusPage() {
           Updated {ageSeconds}s ago{error ? " · last refresh failed" : ""}
         </p>
       )}
+
+      {/* Problems ARE the content; health is their absence. When nothing is
+          wrong this collapses to one line, which is the point of the surface:
+          a five-second phone check that owes a verdict, not dashboards. */}
+      {data && (
+        <section className="space-y-2">
+          {(data.problems?.length ?? 0) === 0 ? (
+            <p className="rounded-xl border border-border bg-card px-4 py-3 text-sm text-success">
+              {data.verdict === "unknown"
+                ? "Nothing reported as broken — but the goal watchdog signal is missing, so this is not a clean bill of health."
+                : "All clear — no failing goals, every container up, delivery working."}
+            </p>
+          ) : (
+            <ul className="space-y-1.5">
+              {data.problems!.map((p) => (
+                <li
+                  key={`${p.kind}:${p.title}`}
+                  className="flex items-start gap-2 rounded-lg border px-3 py-2"
+                  style={{
+                    borderColor: p.severity === "down" ? "var(--destructive)" : "var(--warning)",
+                    background: `color-mix(in srgb, ${p.severity === "down" ? "var(--destructive)" : "var(--warning)"} 8%, transparent)`,
+                  }}
+                >
+                  <AlertTriangle
+                    size={14}
+                    className="mt-0.5 shrink-0"
+                    style={{ color: p.severity === "down" ? "var(--destructive)" : "var(--warning)" }}
+                    aria-hidden
+                  />
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-foreground">{p.title}</p>
+                    <p className="text-xs text-muted-foreground">{p.detail}</p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          <p className="text-xs text-muted-foreground">
+            {data.goals?.enabled
+              ? `${data.goals.ok}/${data.goals.total} standing goals passing`
+              : "standing goals: unknown"}
+            {data.goals?.lastRunAgeSeconds != null &&
+              ` · watchdog ran ${Math.floor(data.goals.lastRunAgeSeconds / 3600)}h ago`}
+            {data.delivery &&
+              ` · ${data.delivery.subscriptions} push subscription${data.delivery.subscriptions === 1 ? "" : "s"}, last delivery ${since(data.delivery.lastDeliveredAt)}`}
+          </p>
+        </section>
+      )}
+
+      {/* Alerts live with health now — one surface answers "is anything
+          wrong". /pager is gone; POST /api/notify is untouched. */}
+      <AlertInbox />
 
       {error && !data && (
         <Card className="p-4 text-sm text-destructive">
