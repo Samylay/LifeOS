@@ -1,17 +1,18 @@
 import { localDayOf, type Goal } from "./types";
+import { createTodoistTask, type TodoistTransport } from "./todoist-client";
 
 // T27 — goals→grilling pipeline plumbing. A goal flagged `needsGrilling` gets
 // exactly ONE "Grilling session: <goal>" Todoist task (due today); the actual
 // interactive session decomposes it into granular todos later. Until that
 // happens the pipeline degrades gracefully to a pending reminder — never
 // guilt-styled (STYLE.md principle 5).
+//
+// The write itself goes through the shared client (todoist-client.ts) rather
+// than its own fetch — see that module's header for why. `GrillingTransport`
+// is kept as a named export (re-exporting the shared transport type) so
+// existing test imports keep working.
 
-const TODOIST_TASKS_URL = "https://api.todoist.com/api/v1/tasks";
-
-export type GrillingTransport = (
-  url: string,
-  init: RequestInit
-) => Promise<Response>;
+export type GrillingTransport = TodoistTransport;
 
 /** "Grilling session: <goal title>". */
 export function grillingTodoTitle(goal: Pick<Goal, "title">): string {
@@ -50,24 +51,12 @@ export async function enqueueGrillingTodo(
   if (!shouldEnqueueGrilling(goal)) {
     return { queued: false, error: "grilling todo already handled or not requested" };
   }
-  const token = process.env.TODOIST_API_TOKEN;
-  if (!token) {
-    console.error("grilling: TODOIST_API_TOKEN not set — task not written, will retry");
-    return { queued: false, error: "TODOIST_API_TOKEN not set" };
+  const result = await createTodoistTask(grillingTodoBody(goal, opts.now), {
+    transport: opts.transport,
+  });
+  if (!result.ok) {
+    console.error("grilling: Todoist task write failed, will retry", result.error);
+    return { queued: false, error: result.error };
   }
-  const transport = opts.transport ?? globalThis.fetch.bind(globalThis);
-  try {
-    const res = await transport(TODOIST_TASKS_URL, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-      body: JSON.stringify(grillingTodoBody(goal, opts.now)),
-      signal: AbortSignal.timeout(20_000),
-    });
-    if (!res.ok) throw new Error(`todoist ${res.status}`);
-    const created = (await res.json()) as { id?: string };
-    return { queued: true, taskId: created.id ?? null };
-  } catch (e) {
-    console.error("grilling: Todoist task write failed, will retry", e);
-    return { queued: false, error: e instanceof Error ? e.message : String(e) };
-  }
+  return { queued: true, taskId: result.taskId };
 }

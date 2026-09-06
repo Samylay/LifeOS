@@ -14,10 +14,11 @@
 // card and the Assistant's capture tool already do.
 //
 // On commit the routing module (voice-routing.ts, ticket 01) decides the
-// destination; this ticket wires only the safest of the four it can name —
-// the vault note, byte-for-byte the same layout appendToInbox has always
-// produced. Todoist, the idea bank, and /decide get real writers in tickets
-// 03-04.
+// destination. The vault note is byte-for-byte the same layout
+// appendToInbox has always produced; Todoist and the idea bank (ticket 03)
+// each reuse the writer that already owns that collection. /decide gets its
+// writer in ticket 04 — until then a spoken decision still lands in the
+// vault, same as every capture did before this ticket.
 import { useCallback, useEffect, useState } from "react";
 import { Check, FileText, Loader2, Mic, Square, X } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -53,13 +54,18 @@ function timeAgo(v: unknown): string {
   return mins > 0 ? `${mins}m ago` : "just now";
 }
 
-// Keyed off what actually happened, not what the classifier guessed — only
-// "vault" has a real writer until tickets 03-04 land, so a wrong or
-// not-yet-wired guess must never claim a landing that didn't happen.
+// Keyed off what actually happened, not what the classifier guessed — a
+// route() call can name "decide" (no writer until ticket 04) but the save
+// route only ever reports a destination it actually wrote to, so a
+// not-yet-wired guess never claims a landing that didn't happen.
 function destinationLabel(destination: string): string {
   switch (destination) {
     case "vault":
       return "Vault note";
+    case "idea-bank":
+      return "Idea bank";
+    case "todoist":
+      return "Todoist";
     default:
       return destination;
   }
