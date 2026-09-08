@@ -3,7 +3,9 @@
 // backlog line) are NOT reverted — restoring only re-opens the decision;
 // duplicate artifacts from a rare vault-then-undo are cheap and visible.
 import { NextRequest, NextResponse } from "next/server";
-import { getDoc, updateDoc } from "@/lib/server-db";
+import { getDoc, updateDoc, runInTransaction } from "@/lib/server-db";
+
+import { undoHomelabAction } from "@/lib/homelab-resources";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -21,13 +23,22 @@ export async function POST(req: NextRequest) {
   if (item.status !== "filed" && item.status !== "discarded" && item.status !== "deferred") {
     return NextResponse.json({ error: `item is ${item.status}, nothing to undo` }, { status: 409 });
   }
-  updateDoc("users/local/triageQueue", body.id, {
-    status: "proposed",
-    filedAs: null,
-    filedAt: null,
-    deferUntil: null,
-    deferredAt: null,
-    restoredAt: { __date: new Date().toISOString() },
-  });
+  try {
+    runInTransaction(() => {
+      undoHomelabAction(item);
+      updateDoc("users/local/triageQueue", body.id!, {
+        homelabPromptId: null,
+        homelabResourceId: null,
+        status: "proposed",
+        filedAs: null,
+        filedAt: null,
+        deferUntil: null,
+        deferredAt: null,
+        restoredAt: { __date: new Date().toISOString() },
+      });
+    });
+  } catch (error) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Could not restore item" }, { status: 409 });
+  }
   return NextResponse.json({ ok: true });
 }

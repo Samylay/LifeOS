@@ -74,7 +74,7 @@ function CardShell({ card, children }: { card: BriefCard; children: React.ReactN
   }
 
   return (
-    <Card className="gap-0 py-0 rounded-xl transition-[background,border-color]">
+    <Card className="gap-0 py-0 rounded-xl transition-[transform,opacity]">
       <div className="flex items-center">
         <button
           onClick={() =>
@@ -85,6 +85,7 @@ function CardShell({ card, children }: { card: BriefCard; children: React.ReactN
             }))
           }
           disabled={!collapsible}
+          aria-expanded={collapsible ? !collapsed : undefined}
           className="min-w-0 flex-1 flex items-center gap-2.5 px-4 py-3 text-left"
           style={{ cursor: collapsible ? "pointer" : "default" }}
         >
@@ -117,6 +118,7 @@ function CardShell({ card, children }: { card: BriefCard; children: React.ReactN
         {card.link && !collapsed && (
           <a
             href={card.link}
+            aria-label={`Open ${card.title}`}
             target={card.link.startsWith("/") ? undefined : "_blank"}
             rel="noreferrer"
             className="shrink-0 p-2 mr-2 text-muted-foreground/70 pressable active:scale-[0.97]"
@@ -348,6 +350,7 @@ function PlanningCard({ card }: { card: BriefCard }) {
 
       <div className="flex items-center gap-2">
         <Input
+          aria-label="Adjust today's plan"
           type="text" value={reply}
           onChange={(e) => setReply(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter") sendReply(); }}
@@ -404,7 +407,7 @@ function TriageCard({ card }: { card: BriefCard }) {
           }}>
           {it.destination}
         </span>
-        <a href={it.url} target="_blank" rel="noreferrer" className="ml-1.5 inline-flex align-middle p-2 -m-2 text-muted-foreground/70">
+        <a href={it.url} aria-label={`Open saved source ${it.n}`} target="_blank" rel="noreferrer" className="ml-1.5 inline-flex align-middle p-2 -m-2 text-muted-foreground/70">
           <ExternalLink size={11} />
         </a>
       </div>
@@ -413,6 +416,15 @@ function TriageCard({ card }: { card: BriefCard }) {
 
   return (
     <div className="space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm text-muted-foreground">{b.keep.length + b.drop.length} saved items in this brief.</p>
+        <Button asChild variant="outline" size="sm"><Link href="/decide">Open decisions</Link></Button>
+      </div>
+      <details className="group/snapshot">
+        <summary className="flex min-h-9 items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground">
+          <ChevronDown size={12} className="pressable group-open/snapshot:rotate-180" />Read daily snapshot
+        </summary>
+        <div className="space-y-3 pt-2">
       <div className="space-y-1.5">{b.keep.map(row)}</div>
       {b.keep.length === 0 && (
         <p className="text-xs text-muted-foreground/70">Nothing worth filing — {b.drop.length} to discard.</p>
@@ -427,7 +439,7 @@ function TriageCard({ card }: { card: BriefCard }) {
       )}
       <p className="text-xs text-muted-foreground/70">{b.hint}</p>
       <div className="flex items-center gap-2">
-        <Input type="text" value={reply} onChange={(e) => setReply(e.target.value)}
+        <Input aria-label="Triage decisions" type="text" value={reply} onChange={(e) => setReply(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter") send(); }}
           placeholder='e.g. "1 approve, 4 to idea-bank, 2 skip"'
           className="flex-1 h-auto text-xs rounded-lg px-3 py-2" />
@@ -436,6 +448,8 @@ function TriageCard({ card }: { card: BriefCard }) {
         </Button>
       </div>
       {feedback && <p className="text-xs text-primary">{feedback}</p>}
+        </div>
+      </details>
     </div>
   );
 }

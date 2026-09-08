@@ -92,7 +92,7 @@ function NoteRow({
         if (full) openNote(full);
         else toast("Could not open note");
       }}
-      className="w-full text-left rounded-xl border border-border bg-card p-4 transition-colors hover:bg-muted active:scale-[0.99] duration-150"
+      className="w-full text-left rounded-xl border border-border bg-card p-4 transition-transform hover:bg-muted active:scale-[0.99] duration-150"
     >
       <div className="flex items-start gap-3">
         <div className="shrink-0 flex h-9 w-9 items-center justify-center rounded-lg bg-muted">
@@ -162,7 +162,7 @@ export default function KnowledgePage() {
       <PageHeader
         kicker="Vault"
         title="Knowledge"
-        description="Search your Obsidian vault, review Hermes enrichment, and keep teaching sessions moving."
+        description="Find a note or continue learning."
         icon={Brain}
         actions={
           enabled ? (
@@ -200,7 +200,7 @@ export default function KnowledgePage() {
             <button
               onClick={() => setQuery("")}
               aria-label="Clear knowledge search"
-              className="grid h-8 w-8 place-items-center rounded-md text-muted-foreground/70 transition-colors hover:bg-muted hover:text-foreground"
+              className="grid h-8 w-8 place-items-center rounded-md text-muted-foreground/70 transition-transform hover:bg-muted hover:text-foreground"
             >
               <X size={14} />
             </button>

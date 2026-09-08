@@ -11,6 +11,8 @@
 // kind of small betrayal that stops someone opening a tool again.
 import { useEffect, useRef, useState } from "react";
 import { Check, Loader2 } from "lucide-react";
+import { Authorship } from "@/components/ui/decision-context";
+import { Textarea } from "@/components/ui/textarea";
 
 const SAVE_DEBOUNCE_MS = 700;
 
@@ -49,7 +51,9 @@ export function IdeaBody({
 
   return (
     <div className="space-y-1">
-      <textarea
+      <label className="flex items-center justify-between"><Authorship /><span className="sr-only">Content draft</span></label>
+      <Textarea
+        aria-label="Your content draft"
         value={draft}
         onChange={(e) => change(e.target.value)}
         rows={6}

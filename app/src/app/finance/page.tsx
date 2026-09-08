@@ -83,7 +83,7 @@ const CADENCES: FlowCadence[] = ["monthly", "weekly", "quarterly", "yearly", "on
 /** Segmented pill. Press feedback per house doctrine; colors only, no layout. */
 const pillClass = (active: boolean) =>
   cn(
-    "pressable rounded-full px-3 py-1 text-xs font-medium transition-colors duration-[var(--dur-fast)] active:scale-[0.97]",
+    "pressable rounded-full px-3 py-1 text-xs font-medium transition-transform duration-[var(--dur-fast)] active:scale-[0.97]",
     active ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:text-foreground"
   );
 
@@ -413,7 +413,7 @@ function CorrectChargeMenu({
         <button
           type="button"
           aria-label={`Correct classification for ${charge.label}`}
-          className="shrink-0 rounded-md p-1 text-muted-foreground transition-colors duration-150 hover:bg-accent hover:text-foreground active:scale-[0.97]"
+          className="shrink-0 rounded-md p-1 text-muted-foreground transition-transform duration-150 hover:bg-accent hover:text-foreground active:scale-[0.97]"
         >
           <Pencil size={13} />
         </button>
@@ -757,7 +757,7 @@ export default function FinancePage() {
       <PageHeader
         kicker="Money"
         title="Finance"
-        description="Rentrées, sorties, and the recurring costs that deserve a decision."
+        description="Income, spending, and recurring costs."
         icon={Wallet}
         actions={mode === "none" && !empty ? (
           <>

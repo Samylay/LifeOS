@@ -7,7 +7,7 @@
 import { useState } from "react";
 import { Layers, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { actionKey, actionLabel, type Action } from "@/lib/decide/actions";
+import { actionKey, actionLabel, type Action } from "@/lib/decide/homelab-actions";
 
 export interface BulkTarget<T> {
   action: Action;

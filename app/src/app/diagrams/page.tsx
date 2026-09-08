@@ -163,7 +163,7 @@ export default function DiagramsPage() {
                 key={k}
                 type="button"
                 onClick={() => setKind(k)}
-                className={`rounded-full border px-2.5 py-0.5 text-xs transition-colors active:scale-[0.97] ${
+                className={`rounded-full border px-2.5 py-0.5 text-xs transition-transform active:scale-[0.97] ${
                   kind === k
                     ? "border-primary bg-primary/10 text-primary"
                     : "border-border text-muted-foreground hover:text-foreground"
@@ -222,7 +222,7 @@ export default function DiagramsPage() {
               key={d.id}
               type="button"
               onClick={() => setCurrent(d)}
-              className={`group flex items-center justify-between gap-2 rounded-lg border px-3 py-2 text-left text-sm transition-colors active:scale-[0.99] ${
+              className={`group flex items-center justify-between gap-2 rounded-lg border px-3 py-2 text-left text-sm transition-transform active:scale-[0.99] ${
                 current?.id === d.id ? "border-primary/50 bg-primary/5" : "border-border hover:bg-accent-ui"
               }`}
             >

@@ -23,6 +23,9 @@ import { Loader2, RefreshCw, Send, Terminal, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Page, PageHeader } from "@/components/ui/page";
 import { post } from "@/lib/decide/post";
+import { Provenance } from "@/components/ui/decision-context";
+import { CompactText } from "@/components/ui/compact-text";
+import type { HomelabResource } from "@/lib/homelab-resources";
 import { queueBodyFor } from "@/lib/decide/dispatch";
 
 interface QueuedPrompt {
@@ -46,6 +49,19 @@ export default function DispatchPage() {
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [references, setReferences] = useState<HomelabResource[]>([]);
+  const referenceQuery = [...queued.map((q) => q.prompt ?? ""), ...Object.values(drafts)].join(" ").slice(0, 4000);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => {
+      fetch(`/api/homelab/resources?q=${encodeURIComponent(referenceQuery)}`, { signal: controller.signal })
+        .then((r) => r.ok ? r.json() : { items: [] })
+        .then((data) => { if (!controller.signal.aborted) setReferences(data.items ?? []); })
+        .catch(() => { if (!controller.signal.aborted) setReferences([]); });
+    }, 250);
+    return () => { window.clearTimeout(timer); controller.abort(); };
+  }, [referenceQuery]);
   // null from a fetch = it failed. A dead API must never render as "nothing
   // queued" — the same guard the approvals surface carries.
   const [failed, setFailed] = useState(false);
@@ -116,7 +132,7 @@ export default function DispatchPage() {
       <PageHeader
         kicker="Hand work over"
         title="Send to Claude"
-        description="Queue instructions, then send them as one brief. Queuing never starts a session."
+        description="Review queued instructions before sending."
         icon={Terminal}
       />
       <Link
@@ -185,6 +201,14 @@ export default function DispatchPage() {
             )}
           </section>
 
+          {references.length > 0 && <section className="space-y-3 rounded-lg border border-border bg-card p-4">
+            <h2 className="text-sm font-semibold">Saved for this kind of work</h2>
+            <p className="text-xs text-muted-foreground">UI references matching your instructions.</p>
+            {references.map((reference) => <div key={reference.id} className="space-y-1">
+              <Provenance label={reference.title} href={reference.url} />
+              <CompactText text={reference.summary} limit={120} className="text-muted-foreground" />
+            </div>)}
+          </section>}
           <section className="space-y-3">
             <h2 className="text-sm font-semibold text-foreground">Filed in the last {windowDays} days</h2>
             {candidates.length === 0 ? (

@@ -72,7 +72,7 @@ export function GoalsCard() {
                         setOptimistic((o) => ({ ...o, [c.id]: !done }));
                         toggleCommitment(goal.id, c.id);
                       }}
-                      className="flex items-center gap-2 w-full text-left rounded-lg px-2 py-1.5 -mx-2 transition-colors duration-[var(--dur-fast)] ease-[var(--ease-out-custom)] hover:bg-muted active:scale-[0.99]"
+                      className="flex items-center gap-2 w-full text-left rounded-lg px-2 py-1.5 -mx-2 transition-transform duration-[var(--dur-fast)] ease-[var(--ease-out-custom)] hover:bg-muted active:scale-[0.99]"
                     >
                       <span className={done ? "shrink-0 text-primary" : "shrink-0 text-muted-foreground/70"}>
                         {done ? <CheckCircle2 size={15} /> : <Circle size={15} />}
@@ -100,7 +100,7 @@ export function GoalsCard() {
             {grillingPending.slice(0, 3).map((g) => (
               <li key={g.id} className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Circle size={13} className="shrink-0 text-primary/60" />
-                <Link href="/projects" className="truncate hover:text-foreground transition-colors duration-[var(--dur-fast)] ease-[var(--ease-out-custom)]">
+                <Link href="/projects" className="truncate hover:text-foreground transition-transform duration-[var(--dur-fast)] ease-[var(--ease-out-custom)]">
                   {g.title}
                 </Link>
               </li>

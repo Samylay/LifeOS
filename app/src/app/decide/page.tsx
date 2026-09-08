@@ -16,7 +16,7 @@ import { TriageBulkBar, bulkTarget } from "@/components/decide/triage-bulk-bar";
 import { cn } from "@/lib/utils";
 import { CardStack, type DeckAction } from "@/components/decide/card-stack";
 import { TriageCard, type TriageQueueItem } from "@/components/decide/triage-card";
-import { proposedAction, type Action } from "@/lib/decide/actions";
+import { isPerformable, proposedAction, type Action } from "@/lib/decide/homelab-actions";
 import { post } from "@/lib/decide/post";
 import { ProposalCard } from "@/components/decide/proposal-card";
 import type { Proposal } from "@/lib/proposals";
@@ -119,7 +119,10 @@ function DecideInner() {
   // The action a card would commit: Samy's correction if he made one, else
   // the study step's proposal.
   const actionFor = useCallback(
-    (item: TriageQueueItem): Action | null => overrides[item.id] ?? proposedAction(item),
+    (item: TriageQueueItem): Action | null => {
+      const action = overrides[item.id] ?? proposedAction(item);
+      return action && isPerformable(action) ? action : null;
+    },
     [overrides],
   );
 
@@ -143,11 +146,11 @@ function DecideInner() {
   ];
 
   return (
-    <Page narrow className="max-w-lg">
+    <Page narrow className="max-w-xl">
       <PageHeader
         kicker="Attention queue"
         title="Decide"
-        description="Clear the next card. Each one names the action approving it commits."
+        description="Choose where each saved item goes."
         icon={Layers}
       />
       <FilterBar
@@ -157,9 +160,9 @@ function DecideInner() {
         {/* overflow-x-auto: keeps the switcher scrollable instead of
             overflowing the viewport on narrow phones (scrollbar hidden). */}
           {tabs.map((t) => (
-            <button key={t.id} onClick={() => setDeck(t.id)}
+            <button key={t.id} aria-pressed={deck === t.id} onClick={() => setDeck(t.id)}
               className={cn(
-                "shrink-0 rounded-lg px-3 py-2 text-sm font-medium transition-[color,background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-out-custom)] active:scale-[0.97] max-lg:[min-height:44px]",
+                "shrink-0 rounded-lg px-3 py-2 text-sm font-medium transition-transform duration-[var(--dur-fast)] ease-[var(--ease-out-custom)] active:scale-[0.97] max-lg:[min-height:44px]",
                 deck === t.id
                   ? "bg-surface-3 text-foreground shadow-card"
                   : "text-muted-foreground hover:text-foreground"
@@ -170,7 +173,7 @@ function DecideInner() {
           {/* Approvals is a separate surface, one tap away and never buried. */}
           <Link
             href="/decide/approvals"
-            className="ml-auto inline-flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-[color,transform] duration-[var(--dur-fast)] ease-[var(--ease-out-custom)] hover:text-foreground active:scale-[0.97] max-lg:[min-height:44px]"
+            className="ml-auto inline-flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-transform duration-[var(--dur-fast)] ease-[var(--ease-out-custom)] hover:text-foreground active:scale-[0.97] max-lg:[min-height:44px]"
           >
             <Inbox size={14} aria-hidden /> Approvals
             {approvalCount > 0 && <span className="text-xs text-primary">{approvalCount}</span>}
@@ -178,9 +181,9 @@ function DecideInner() {
           <Link
             href="/decide/dispatch"
             aria-label="Send to Claude"
-            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-[color,transform] duration-[var(--dur-fast)] ease-[var(--ease-out-custom)] hover:text-foreground active:scale-[0.97] max-lg:[min-height:44px]"
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-transform duration-[var(--dur-fast)] ease-[var(--ease-out-custom)] hover:text-foreground active:scale-[0.97] max-lg:[min-height:44px]"
           >
-            <Terminal size={14} aria-hidden />
+            <Terminal size={14} aria-hidden /> Send
           </Link>
       </FilterBar>
 

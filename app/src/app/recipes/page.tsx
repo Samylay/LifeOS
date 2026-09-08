@@ -328,7 +328,7 @@ export default function RecipesPage() {
           <button
             onClick={() => setTagFilter("all")}
             aria-pressed={tagFilter === "all"}
-            className={`rounded-lg px-3 py-2 text-xs font-medium transition-[color,background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-out-custom)] active:scale-[0.97] ${
+            className={`rounded-lg px-3 py-2 text-xs font-medium transition-[transform,opacity] duration-[var(--dur-fast)] ease-[var(--ease-out-custom)] active:scale-[0.97] ${
               tagFilter === "all" ? "bg-surface-3 text-foreground shadow-card" : "text-muted-foreground hover:text-foreground"
             }`}
           >
@@ -339,7 +339,7 @@ export default function RecipesPage() {
               key={t}
               onClick={() => setTagFilter(t)}
               aria-pressed={tagFilter === t}
-              className={`rounded-lg px-3 py-2 text-xs font-medium transition-[color,background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-out-custom)] active:scale-[0.97] ${
+              className={`rounded-lg px-3 py-2 text-xs font-medium transition-[transform,opacity] duration-[var(--dur-fast)] ease-[var(--ease-out-custom)] active:scale-[0.97] ${
                 tagFilter === t ? "bg-surface-3 text-foreground shadow-card" : "text-muted-foreground hover:text-foreground"
               }`}
             >

@@ -7,8 +7,11 @@
 //
 // A card is only rendered for a decidable item (proposedAction() resolves).
 // The deck withholds the rest rather than showing an undecidable card.
-import { Archive, ExternalLink, Lightbulb, ListTodo, Map, Trash2, HelpCircle } from "lucide-react";
+import { Fragment } from "react";
+import { Wrench, Bookmark, Archive, Lightbulb, ListTodo, Map, Trash2, HelpCircle } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { CompactText } from "@/components/ui/compact-text";
+import { ContextDetails, Provenance } from "@/components/ui/decision-context";
 import { Badge } from "@/components/ui/badge";
 import { categoryMeta } from "@/components/decide/category-colors";
 import { cn } from "@/lib/utils";
@@ -16,10 +19,10 @@ import {
   actionKey,
   actionLabel,
   describeEffect,
-  selectableActions,
+  selectableDecideActions,
   type Action,
   type ActionId,
-} from "@/lib/decide/actions";
+} from "@/lib/decide/homelab-actions";
 import type { TriageCategory } from "@/lib/triage";
 
 export interface TriageQueueItem {
@@ -40,6 +43,8 @@ export interface TriageQueueItem {
 }
 
 const ACTION_ICONS: Record<ActionId, LucideIcon> = {
+  "homelab-skill": Wrench,
+  "homelab-reference": Bookmark,
   "file-vault": Archive,
   "file-idea-bank": Lightbulb,
   "file-backlog": ListTodo,
@@ -100,7 +105,7 @@ export function TriageCard({
   const currentKey = action ? actionKey(action) : "";
   // The card's own action is always among the chips, so a card that arrived
   // with no resolvable action still has somewhere to go.
-  const alternatives = onChangeAction ? selectableActions(item, action) : [];
+  const alternatives = onChangeAction ? selectableDecideActions(item, action) : [];
   const confidenceColor =
     CONFIDENCE_COLORS[(p.confidence ?? "").toLowerCase()] ?? "var(--muted-foreground)";
   const verdictColor = VERDICT_COLORS[(a?.verdict ?? "").split(/\W/)[0].toLowerCase()] ?? "var(--muted-foreground)";
@@ -121,7 +126,7 @@ export function TriageCard({
         {p.title ?? p.summary ?? item.url}
       </h2>
       {p.title && p.summary && (
-        <p className="text-sm leading-relaxed text-muted-foreground">{p.summary}</p>
+        <CompactText text={p.summary} limit={160} className="text-muted-foreground" />
       )}
 
       {(action || alternatives.length > 0) && (
@@ -142,8 +147,8 @@ export function TriageCard({
           </div>
           <p className="text-sm leading-relaxed text-muted-foreground">
             {action
-              ? describeEffect(action, item)
-              : "No action was proposed for this one. Choose where it goes, then approve."}
+              ? describeEffect(action, item, { compact: true })
+              : "Choose a destination, then approve."}
           </p>
           {alternatives.length > 0 && (
             // One tap re-aims the card. The chips sit inside the banner so
@@ -154,13 +159,14 @@ export function TriageCard({
                 const AltIcon = ACTION_ICONS[alt.id];
                 const isCurrent = key === currentKey;
                 return (
+                  <Fragment key={key}>
+                  {alt.id === "homelab-skill" && <span className="w-full pt-1 text-[11px] font-medium text-muted-foreground">Homelab</span>}
                   <button
-                    key={key}
                     type="button"
                     aria-pressed={isCurrent}
                     onClick={() => onChangeAction?.(alt)}
                     className={cn(
-                      "inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-medium transition-transform duration-[var(--dur-fast)] ease-[var(--ease-out-custom)] active:scale-[0.97] max-lg:[min-height:32px]",
+                      "inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-medium transition-transform duration-[var(--dur-fast)] ease-[var(--ease-out-custom)] active:scale-[0.97] min-h-9 max-lg:[min-height:44px]",
                       isCurrent
                         ? "border-primary/50 bg-primary/10 text-foreground"
                         : "border-border text-muted-foreground hover:text-foreground",
@@ -168,6 +174,7 @@ export function TriageCard({
                   >
                     <AltIcon size={11} aria-hidden /> {actionLabel(alt)}
                   </button>
+                  </Fragment>
                 );
               })}
             </div>
@@ -175,6 +182,8 @@ export function TriageCard({
         </div>
       )}
 
+      {a?.payoff && <CompactText text={`Payoff: ${a.payoff}`} limit={120} className="text-muted-foreground" />}
+      <ContextDetails label="Why this recommendation">
       {a && (
         // Why that action, not a rating of the item.
         <div className="space-y-2 rounded-lg bg-muted p-3">
@@ -195,17 +204,11 @@ export function TriageCard({
         </div>
       )}
 
-      <Field label="Why you:" value={p.why_relevant} />
+      <Field label="For you:" value={p.why_relevant} />
+      {p.rationale && <Field label="Reason:" value={p.rationale} />}
+      </ContextDetails>
 
-      {/* A voice-decide card's "url" is an internal id, not a real link
-          (lib/decide/voice-decide.ts) — showing "open original" for it would
-          be a dead link, so only real http(s) sources get it. */}
-      {/^https?:\/\//.test(item.url) && (
-        <a href={item.url} target="_blank" rel="noreferrer"
-          className="inline-flex items-center gap-1 text-xs font-medium text-primary transition-transform duration-[var(--dur-fast)] ease-[var(--ease-out-custom)] active:scale-[0.97]">
-          <ExternalLink size={12} /> open original
-        </a>
-      )}
+      {/^https?:\/\//.test(item.url) && <Provenance label="Open source" href={item.url} />}
     </div>
   );
 }

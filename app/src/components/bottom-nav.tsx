@@ -1,101 +1,29 @@
 "use client";
-
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useRef } from "react";
-import {
-  LayoutDashboard,
-  Clapperboard,
-  Gauge,
-  FolderKanban,
-  Layers,
-  Menu,
-} from "lucide-react";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { useSidebar } from "@/components/ui/mira/sidebar";
+import { MOBILE_ITEMS, Menu01Icon, activeDestination } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
-import { useAppStore } from "@/lib/store";
-import { useNotifications } from "@/lib/use-notifications";
-import { NavIndicator } from "@/components/nav-indicator";
-
-// /decide added 2026-07-11 (ux-audit H1): the decision deck is built for the
-// phone — it can't live two taps deep behind "More". 6 items still fit 360px.
-// /status replaces /pager here (2026-09-06): the alert inbox moved onto the
-// operational surface, so the unread badge follows it rather than pointing at
-// a route that no longer exists.
-const TABS = [
-  { href: "/", label: "Home", icon: LayoutDashboard },
-  { href: "/decide", label: "Decide", icon: Layers },
-  { href: "/status", label: "Status", icon: Gauge },
-  { href: "/content", label: "Content", icon: Clapperboard },
-  { href: "/projects", label: "Projects", icon: FolderKanban },
-];
 
 export function BottomNav() {
   const pathname = usePathname();
-  const { setMobileSidebarOpen } = useAppStore();
-  const { messages } = useNotifications();
-  const unreadAlerts = messages.filter((m) => !m.readAt).length;
-
-  const isActive = (href: string) => {
-    if (href === "/") return pathname === "/";
-    return pathname.startsWith(href);
-  };
-
-  // U5: sliding active pill across the tabs (transform only). -1 when the
-  // active route isn't a tab — the indicator is simply not rendered then.
-  const tabListRef = useRef<HTMLElement>(null);
-  const activeIndex = TABS.findIndex((t) => isActive(t.href));
-
+  const { openMobile, setOpenMobile } = useSidebar();
+  const destination = activeDestination(pathname);
+  const active = pathname.startsWith("/decide/") ? "/decide" : destination?.href;
+  const inMenu = !MOBILE_ITEMS.some((item) => item.href === active);
   return (
-    <nav
-      ref={tabListRef}
-      className="glass-panel fixed bottom-0 left-0 right-0 z-40 flex h-[4.25rem] items-center justify-around border-x-0 border-b-0 px-1 pb-[env(safe-area-inset-bottom,0px)] lg:hidden"
-      aria-label="Primary"
-    >
-      {TABS.map((tab) => {
-        const Icon = tab.icon;
-        const active = isActive(tab.href);
-        const showBadge = tab.href === "/status" && unreadAlerts > 0;
-        return (
-          <Link
-            key={tab.href}
-            href={tab.href}
-            className={cn(
-              "relative z-10 flex min-w-12 flex-col items-center justify-center gap-0.5 rounded-lg px-1.5 py-1 pressable active:scale-[0.92]",
-              active ? "text-primary" : "text-muted-foreground"
-            )}
-          >
-            <div className="relative">
-              <Icon size={22} strokeWidth={active ? 2.5 : 2} />
-              {showBadge && (
-                <span className="absolute -top-1.5 -right-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold text-primary-foreground">
-                  {unreadAlerts}
-                </span>
-              )}
-            </div>
-            <span className="text-[10px] font-semibold">{tab.label}</span>
-          </Link>
-        );
-      })}
-      {/* "More" — opens mobile sidebar */}
-      <button
-        onClick={() => setMobileSidebarOpen(true)}
-        className="relative z-10 flex min-w-12 flex-col items-center justify-center gap-0.5 rounded-lg px-1.5 py-1 text-muted-foreground pressable active:scale-[0.92]"
-        aria-label="More"
-      >
-        <Menu size={22} strokeWidth={2} />
-        <span className="text-[10px] font-semibold">More</span>
+    <nav aria-label="Quick navigation" className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t border-border bg-card/95 px-2 pt-1.5 pb-[max(0.5rem,env(safe-area-inset-bottom))] backdrop-blur-md lg:hidden">
+      {MOBILE_ITEMS.map((item) => (
+        <Link key={item.href} href={item.href} aria-current={item.href === active ? "page" : undefined}
+          className={cn("flex min-h-12 flex-col items-center justify-center gap-1 rounded-lg text-[11px] pressable active:scale-[0.97]", item.href === active ? "bg-accent text-foreground font-semibold" : "text-muted-foreground")}>
+          <HugeiconsIcon icon={item.icon} size={20} strokeWidth={1.7} />{item.label}
+        </Link>
+      ))}
+      <button type="button" aria-label="Open navigation" aria-expanded={openMobile} onClick={() => setOpenMobile(true)}
+        className={cn("flex min-h-12 flex-col items-center justify-center gap-1 rounded-lg text-[11px] pressable active:scale-[0.97]", inMenu ? "bg-accent text-foreground font-semibold" : "text-muted-foreground")}>
+        <HugeiconsIcon icon={Menu01Icon} size={20} strokeWidth={1.7} />{inMenu ? destination?.label ?? "Menu" : "Menu"}
       </button>
-      {/* U5 sliding pill — rendered after the tabs so it doesn't shift the
-          container.children indices the indicator measures; -z-10 keeps it
-          behind the tab content. */}
-      {activeIndex >= 0 && (
-        <NavIndicator
-          containerRef={tabListRef}
-          activeIndex={activeIndex}
-          orientation="horizontal"
-          className=""
-        />
-      )}
     </nav>
   );
 }

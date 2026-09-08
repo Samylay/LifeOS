@@ -21,6 +21,9 @@ import { PASS_REASONS, PASS_REASON_LABELS, type LeadOutcome, type PassReason } f
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Page, PageHeader } from "@/components/ui/page";
+import { EmptyState } from "@/components/empty-state";
+import { CompactText } from "@/components/ui/compact-text";
+import { Provenance } from "@/components/ui/decision-context";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { ConfirmDialog } from "@/components/confirm-dialog";
@@ -62,7 +65,7 @@ export default function LeadsPage() {
       <PageHeader
         kicker="Pipeline"
         title="Leads"
-        description="A handful worth contacting today. Nothing more."
+        description="People to contact, with the context you need."
         icon={Radar}
         actions={leads.length > 0 ? (
           <Badge className="text-xs font-semibold">
@@ -100,8 +103,7 @@ function EmptySurface({ lastDeliveredAt }: { lastDeliveredAt: Date | null }) {
 
   return (
     <Card className="p-6 text-center enter">
-      <p className="text-sm font-medium text-foreground mb-1">Nothing worth your attention right now.</p>
-      <p className="text-xs text-muted-foreground/70">{deliveredText}</p>
+      <EmptyState icon={Radar} title="No leads to act on" hint={deliveredText} success compact />
     </Card>
   );
 }
@@ -117,7 +119,6 @@ function LeadCard({
   onPass: (id: string, reason: PassReason) => void;
   onRemove: (id: string) => void;
 }) {
-  const [briefOpen, setBriefOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [now] = useState(() => Date.now());
   const { toast } = useToast();
@@ -176,7 +177,7 @@ function LeadCard({
       {lead.requirement && <p className="text-sm mb-1 text-foreground">{lead.requirement}</p>}
 
       {/* The one line that answers "why is this here" — story 14. */}
-      <p className="text-xs mb-1.5 text-primary">{lead.admissionReason}</p>
+      <Provenance label={lead.admissionReason} />
 
       {/* Samy's own relevant prior work — quiet when there is none, never
           padded with something loosely related (ticket 03). */}
@@ -196,26 +197,7 @@ function LeadCard({
         </div>
       )}
 
-      {lead.brief && (
-        <button
-          onClick={() => setBriefOpen((o) => !o)}
-          aria-expanded={briefOpen}
-          className={`text-sm mb-3 break-words text-left text-muted-foreground ${pressable}`}
-          style={
-            briefOpen
-              ? undefined
-              : {
-                  display: "-webkit-box",
-                  WebkitLineClamp: 3,
-                  WebkitBoxOrient: "vertical",
-                  overflow: "hidden",
-                }
-          }
-          title={briefOpen ? "Collapse brief" : "Show full brief"}
-        >
-          {lead.brief}
-        </button>
-      )}
+      {lead.brief && <CompactText text={lead.brief} limit={190} className="mb-3 text-muted-foreground" />}
 
       <div className="flex items-center gap-2 flex-wrap">
         <a

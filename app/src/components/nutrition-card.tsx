@@ -145,7 +145,7 @@ export function NutritionCard() {
               onClick={() => setBlocks(blocksCompleted === n ? n - 1 : n)}
               aria-pressed={n <= blocksCompleted}
               aria-label={`block ${n}`}
-              className={`h-6 flex-1 rounded-sm transition-[background-color] duration-[var(--dur-fast)] ease-[var(--ease-out-custom)] active:scale-[0.97] ${
+              className={`h-6 flex-1 rounded-sm transition-[transform,opacity] duration-[var(--dur-fast)] ease-[var(--ease-out-custom)] active:scale-[0.97] ${
                 n <= blocksCompleted ? "bg-primary" : "bg-muted"
               }`}
             />

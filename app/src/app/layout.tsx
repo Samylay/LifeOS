@@ -24,7 +24,7 @@ export const viewport: Viewport = {
   // `visualViewport` via useVisualViewport() to stay correct there too.
   interactiveWidget: "resizes-content",
   // Dark-only app: browser chrome always matches the dark ground.
-  themeColor: "#080A10",
+  themeColor: "#141416",
 };
 
 export default function RootLayout({

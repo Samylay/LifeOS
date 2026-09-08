@@ -99,7 +99,7 @@ export function AlertInbox() {
               key={s}
               onClick={() => setStream(s)}
               className={cn(
-                "rounded-full px-2.5 py-1 text-xs font-medium transition-colors duration-[var(--dur-fast)]",
+                "rounded-full px-2.5 py-1 text-xs font-medium transition-transform duration-[var(--dur-fast)]",
                 stream === s ? "bg-surface-3 text-foreground" : "bg-muted text-muted-foreground",
               )}
             >

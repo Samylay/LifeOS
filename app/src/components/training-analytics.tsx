@@ -193,7 +193,7 @@ export default function TrainingAnalytics() {
         <button
           onClick={handleSync}
           disabled={syncing}
-          className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-primary transition-colors hover:opacity-80"
+          className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-primary transition-transform hover:opacity-80"
         >
           {syncing ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
           Sync Strava
@@ -258,7 +258,7 @@ export default function TrainingAnalytics() {
               <button
                 key={m}
                 onClick={() => setTrendMetric(m)}
-                className={`rounded-full px-2 py-1 transition-colors ${
+                className={`rounded-full px-2 py-1 transition-transform ${
                   trendMetric === m
                     ? "bg-primary text-primary-foreground"
                     : "bg-muted text-muted-foreground"

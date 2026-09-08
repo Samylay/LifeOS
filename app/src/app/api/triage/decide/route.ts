@@ -10,7 +10,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDoc } from "@/lib/server-db";
 import { performAction } from "@/lib/brief/triage-apply";
-import { parseActionRequest } from "@/lib/decide/actions";
+import { parseDecideAction, isHomelabAction } from "@/lib/decide/homelab-actions";
+import { performHomelabAction } from "@/lib/homelab-resources";
 import { isOpenForVerdict } from "@/lib/decide/queue";
 
 export const runtime = "nodejs";
@@ -27,7 +28,7 @@ export async function POST(req: NextRequest) {
   if (typeof id !== "string" || !id) {
     return NextResponse.json({ error: "id required" }, { status: 400 });
   }
-  const action = parseActionRequest(body);
+  const action = parseDecideAction(body);
   if (!action) {
     return NextResponse.json({ error: "not a performable action" }, { status: 400 });
   }
@@ -39,7 +40,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: `item is ${item.status}, not open` }, { status: 409 });
   }
   try {
-    const result = performAction(item, action);
+    const result = isHomelabAction(action) ? performHomelabAction(item, action) : performAction(item, action);
     return NextResponse.json({ ok: true, result });
   } catch (e) {
     return NextResponse.json(

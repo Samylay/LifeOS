@@ -140,7 +140,7 @@ function IdeaEditor({
           <button
             key={p.key}
             onClick={() => set({ pillar: p.key as ContentPillar })}
-            className="text-xs font-medium rounded-full px-3 py-1.5 transition-colors duration-150 active:scale-[0.95]"
+            className="text-xs font-medium rounded-full px-3 py-1.5 transition-transform duration-150 active:scale-[0.95]"
             style={{
               color: d.pillar === p.key ? p.color : "var(--muted-foreground)",
               background: d.pillar === p.key ? tint(p.color, 20) : "var(--muted)",
@@ -159,7 +159,7 @@ function IdeaEditor({
           <button
             key={s.status}
             onClick={() => set({ status: s.status })}
-            className="text-xs font-medium rounded-full px-3 py-1.5 transition-colors duration-150 active:scale-[0.95]"
+            className="text-xs font-medium rounded-full px-3 py-1.5 transition-transform duration-150 active:scale-[0.95]"
             style={{
               color: d.status === s.status ? s.color : "var(--muted-foreground)",
               background: d.status === s.status ? tint(s.color, 20) : "var(--muted)",
@@ -288,7 +288,7 @@ function IdeaBank() {
         <div className="flex items-center gap-1.5 flex-wrap">
           <button
             onClick={() => setPillarFilter("all")}
-            className={`text-xs font-medium rounded-full px-3 py-1 transition-colors ${
+            className={`text-xs font-medium rounded-full px-3 py-1 transition-transform ${
               pillarFilter === "all" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
             }`}
           >
@@ -301,7 +301,7 @@ function IdeaBank() {
               <button
                 key={c.key || "unsorted"}
                 onClick={() => setPillarFilter(c.key as ContentPillar)}
-                className="text-xs font-medium rounded-full px-3 py-1.5 transition-colors duration-150 active:scale-[0.95]"
+                className="text-xs font-medium rounded-full px-3 py-1.5 transition-transform duration-150 active:scale-[0.95]"
                 style={{
                   color: active ? color : "var(--muted-foreground)",
                   background: active ? tint(color, 20) : "var(--muted)",
@@ -536,7 +536,7 @@ export default function ContentPage() {
       <PageHeader
         kicker="Publish"
         title="Content OS"
-        description="Move ideas toward a published artifact. The playbook in the vault remains the source of truth."
+        description="Your ideas, from first thought to published."
         icon={Clapperboard}
       />
 

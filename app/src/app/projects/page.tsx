@@ -204,7 +204,7 @@ export default function ProjectsPage() {
       <PageHeader
         kicker="Derived from your repos"
         title="Projects"
-        description="What stalled, and what to pick up. Nothing here is typed in."
+        description="See what needs a decision or a next step."
         icon={FolderKanban}
       />
 

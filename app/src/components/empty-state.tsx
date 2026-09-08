@@ -19,9 +19,10 @@ export interface EmptyStateProps {
   /** Compact variant for inline slots inside cards (no vertical padding). */
   compact?: boolean;
   className?: string;
+  success?: boolean;
 }
 
-export function EmptyState({ icon: Icon, title, hint, action, compact = false, className }: EmptyStateProps) {
+export function EmptyState({ icon: Icon, title, hint, action, compact = false, success = false, className }: EmptyStateProps) {
   return (
     <div
       className={cn(
@@ -31,7 +32,7 @@ export function EmptyState({ icon: Icon, title, hint, action, compact = false, c
       )}
     >
       <span
-        className="flex items-center justify-center rounded-full text-muted-foreground"
+        className={cn("flex items-center justify-center rounded-full", success ? "text-success" : "text-muted-foreground")}
         style={{
           width: compact ? 36 : 48,
           height: compact ? 36 : 48,

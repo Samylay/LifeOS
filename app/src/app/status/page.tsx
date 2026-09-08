@@ -326,7 +326,7 @@ export default function StatusPage() {
       <section className="space-y-3">
         <SectionHeader
           title="Containers"
-          description="Failures rise to the top. Status uses text and color so it remains readable without hue."
+          description="Failures first."
           action={<span className="font-mono text-xs text-muted-foreground tabular-nums">{running}/{containers.length}</span>}
         />
         {data && sorted.length === 0 ? (

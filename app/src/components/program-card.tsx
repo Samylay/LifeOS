@@ -22,7 +22,7 @@ const btnGhost =
 const btnPrimary =
   "flex items-center gap-1 rounded-lg bg-primary px-2.5 py-1 text-[11px] font-medium text-primary-foreground transition-transform duration-150 active:scale-[0.97]";
 const btnTab =
-  "shrink-0 rounded-full px-3 py-1 text-xs font-medium transition-colors duration-150";
+  "shrink-0 rounded-full px-3 py-1 text-xs font-medium transition-transform duration-150";
 
 function ExerciseRow({ ex }: { ex: ProgramExercise }) {
   const { adjustWeight, logSession, undoLastLog } = useProgram();

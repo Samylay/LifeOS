@@ -270,7 +270,7 @@ export default function VoiceHome() {
       <PageHeader
         kicker="Voice"
         title="Voice"
-        description="Tap, talk, and it's already filed."
+        description="Speak a thought. See where it lands."
         icon={Mic}
       />
 
@@ -357,7 +357,7 @@ export default function VoiceHome() {
           with an exit for every entry (spec.md ticket 05): a wrong guess
           moves in a tap, a failed take retries, nothing sits here forever. */}
       <div className="mt-8 flex-1 overflow-y-auto">
-        <SectionHeader title="Recent" description="Where the last few captures landed — or tap to fix one." />
+        <SectionHeader title="Recent" description="Recent captures. Tap to correct a destination." />
         {loadingRecent ? (
           <div className="space-y-2">
             {[0, 1, 2].map((i) => (

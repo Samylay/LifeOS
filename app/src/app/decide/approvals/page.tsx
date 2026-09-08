@@ -54,11 +54,11 @@ export default function ApprovalsPage() {
   }, [refresh]);
 
   return (
-    <Page narrow className="max-w-lg">
+    <Page narrow className="max-w-xl">
       <PageHeader
         kicker="Agents asking permission"
         title="Approvals"
-        description="NEEDS-USER asks from every ROADMAP. Your verdict is written back to the project."
+        description="Review requests and give your answer."
         icon={Inbox}
       />
       <Link
@@ -104,7 +104,7 @@ export default function ApprovalsPage() {
               const d = await post("/api/decide/interpret", { id: item.id, transcript });
               return String(d.reply || d.result || "");
             }}
-            emptyLabel="Nothing needs your call — NEEDS-USER asks land here on the nightly scan."
+            emptyLabel="No requests need your answer."
           />
         </div>
       )}

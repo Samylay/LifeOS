@@ -330,7 +330,7 @@ export function PushSettings() {
               <button
                 onClick={() => removeDevice(d)}
                 aria-label={`Remove ${d.userAgent}`}
-                className="shrink-0 rounded p-1 text-muted-foreground transition-[color,transform] duration-150 hover:text-destructive active:scale-[0.9]"
+                className="shrink-0 rounded p-1 text-muted-foreground transition-[transform,opacity] duration-150 hover:text-destructive active:scale-[0.9]"
               >
                 <X size={12} />
               </button>

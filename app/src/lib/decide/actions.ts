@@ -160,7 +160,17 @@ function itemTitle(item: ActionSubject): string {
 // The plain-language sentence shown before approval. Must never return an
 // empty string — describeEffect always has a title fallback and a case for
 // every ActionId in the closed set.
-export function describeEffect(action: Action, item: ActionSubject): string {
+export function describeEffect(action: Action, item: ActionSubject, options?: { compact?: boolean }): string {
+  if (options?.compact) {
+    switch (action.id) {
+      case "file-vault": return "Save as a reference note in your vault.";
+      case "file-idea-bank": return "Create a content idea in your idea bank.";
+      case "file-backlog": return `Add a task to ${action.params.centre}.`;
+      case "file-roadmap": return `Add a task to ${action.params.project} ROADMAP.`;
+      case "discard": return "Discard this item. The triage log keeps a record.";
+      case "hold-for-review": return "No action. Choose a destination first.";
+    }
+  }
   const title = itemTitle(item);
   switch (action.id) {
     case "file-vault":

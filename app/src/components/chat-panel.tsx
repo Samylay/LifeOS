@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useRef, useEffect, KeyboardEvent } from "react";
+import { Dialog } from "@base-ui/react/dialog";
+import { useIsMobile } from "@/hooks/use-shell-mobile";
 import {
   X,
   Send,
@@ -41,6 +43,7 @@ function ActionBadge({ result }: { result: ActionResult }) {
 
 export function ChatPanel() {
   const { chatPanelOpen, setChatPanelOpen } = useAppStore();
+  const isMobile = useIsMobile();
   const { messages, loading, statusText, sendMessage, clearMessages, stop, retryLast } =
     useChat();
   // The soft keyboard shrinks the visual viewport only, so a 100vh panel would
@@ -89,12 +92,6 @@ export function ChatPanel() {
     }
   }, [input]);
 
-  // Focus textarea when panel opens
-  useEffect(() => {
-    if (chatPanelOpen) {
-      setTimeout(() => textareaRef.current?.focus(), 300);
-    }
-  }, [chatPanelOpen]);
 
   const handleSend = () => {
     if (!input.trim() || loading) return;
@@ -139,34 +136,26 @@ export function ChatPanel() {
   });
 
   return (
-    <>
-      {/* Backdrop */}
-      {chatPanelOpen && (
-        <div
-          className="fixed inset-0 z-[45] bg-black/40 lg:hidden"
-          onClick={() => setChatPanelOpen(false)}
-        />
-      )}
-
-      {/* Panel */}
-      <aside
-        className="fixed right-0 z-[46] flex flex-col border-l border-border bg-card transition-transform"
+    <Dialog.Root open={chatPanelOpen} onOpenChange={setChatPanelOpen} modal={isMobile} disablePointerDismissal={!isMobile}>
+      <Dialog.Portal>
+        {isMobile && <Dialog.Backdrop className="fixed inset-0 z-50 bg-black/55 transition-opacity duration-[var(--dur-base)] ease-[var(--ease-out-custom)] data-starting-style:opacity-0 data-ending-style:opacity-0" />}
+        <Dialog.Popup
+          initialFocus={textareaRef}
+          aria-label="Assistant"
+          className="fixed right-0 z-50 flex flex-col border-l border-border bg-card transition-[transform,opacity] duration-[var(--dur-slow)] ease-[var(--ease-drawer)] data-starting-style:translate-x-full data-ending-style:translate-x-full"
         style={{
           width: "min(400px, 100vw)",
           // Follow the visible area so the composer stays above the keyboard.
           // `100dvh` is the pre-measurement fallback (also correct on desktop).
           top: viewport.ready ? viewport.offsetTop : 0,
           height: viewport.ready ? viewport.height : "100dvh",
-          transitionDuration: "var(--dur-slow)",
-          transitionTimingFunction: "var(--ease-drawer)",
-          transform: chatPanelOpen ? "translateX(0)" : "translateX(100%)",
         }}
       >
         {/* Header */}
         <div className="flex h-14 shrink-0 items-center justify-between border-b border-border px-4">
           <div className="flex items-center gap-2">
             <Bot size={18} className="text-primary" />
-            <span className="text-sm font-semibold text-foreground">Assistant</span>
+            <Dialog.Title className="text-sm font-semibold text-foreground">Assistant</Dialog.Title>
           </div>
           <div className="flex items-center gap-1">
             {messages.length > 0 && (
@@ -181,14 +170,9 @@ export function ChatPanel() {
                 <Trash2 size={16} />
               </Button>
             )}
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              onClick={() => setChatPanelOpen(false)}
-              className="text-muted-foreground"
-            >
+            <Dialog.Close render={<Button variant="ghost" size="icon-sm" aria-label="Close assistant" className="text-muted-foreground" />}>
               <X size={18} />
-            </Button>
+            </Dialog.Close>
           </div>
         </div>
 
@@ -208,15 +192,15 @@ export function ChatPanel() {
                 <Bot size={24} className="text-primary" />
               </div>
               <p className="text-center text-sm font-medium text-foreground">
-                Paste your notes or ask me anything
+                Ask a question or paste a thought
               </p>
               <p className="text-center text-xs text-muted-foreground">
-                I&apos;ll extract tasks, habits, and more from your text.
+                Review the result here.
               </p>
               <div className="mt-2 flex w-full flex-col gap-1.5">
                 {[
                   "Paste my Notion page",
-                  "Launch the stuff queued in the approve page",
+                  "Review queued instructions",
                   "How's the homelab doing?",
                 ].map((ex, i) => (
                   <button
@@ -225,7 +209,7 @@ export function ChatPanel() {
                       setInput(ex);
                       textareaRef.current?.focus();
                     }}
-                    className="rounded-lg bg-muted px-3 py-2 text-left text-xs text-muted-foreground transition-colors duration-150 hover:bg-muted/70"
+                    className="rounded-lg bg-muted px-3 py-2 text-left text-xs text-muted-foreground transition-transform duration-150 hover:bg-muted/70"
                   >
                     {ex}
                   </button>
@@ -393,7 +377,8 @@ export function ChatPanel() {
             </Button>
           )}
         </div>
-      </aside>
-    </>
+        </Dialog.Popup>
+      </Dialog.Portal>
+    </Dialog.Root>
   );
 }

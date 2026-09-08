@@ -229,7 +229,7 @@ export default function PrimePage() {
                 <button
                   key={a.id}
                   onClick={() => acknowledgeAffirmation(a.id)}
-                  className={`w-full text-left rounded-lg px-4 py-3 flex items-start gap-3 transition-colors border active:scale-[0.99] ${
+                  className={`w-full text-left rounded-lg px-4 py-3 flex items-start gap-3 transition-transform border active:scale-[0.99] ${
                     a.acknowledged ? "bg-accent border-primary" : "bg-muted border-border"
                   }`}
                 >

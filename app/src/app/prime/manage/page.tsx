@@ -72,7 +72,7 @@ export default function PrimeManagePage() {
               <button
                 key={f}
                 onClick={() => updateTimerFloor(f)}
-                className={`text-sm font-medium rounded-lg px-3 py-1.5 transition-colors ${
+                className={`text-sm font-medium rounded-lg px-3 py-1.5 transition-transform ${
                   timerFloorSec === f ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
                 }`}
               >
@@ -127,7 +127,7 @@ export default function PrimeManagePage() {
                   <button
                     onClick={() => { setAffDraft(a.text); setEditingAffId(a.id); }}
                     title="Click to edit text"
-                    className={`min-w-0 flex-1 truncate text-left transition-colors duration-150 hover:text-foreground ${a.active ? "text-muted-foreground" : "text-muted-foreground/70"}`}
+                    className={`min-w-0 flex-1 truncate text-left transition-transform duration-150 hover:text-foreground ${a.active ? "text-muted-foreground" : "text-muted-foreground/70"}`}
                   >
                     {a.text}
                   </button>

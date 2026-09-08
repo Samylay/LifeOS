@@ -20,10 +20,11 @@
 //   displacement sign. Velocity is measured over the last ≤120ms of motion,
 //   not the whole gesture. Everything else springs back.
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { Loader2, Mic, Square } from "lucide-react";
+import { Check, Loader2, Mic, Square } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/empty-state";
 import { useVoiceRecorder } from "@/lib/use-voice-recorder";
 import type { LucideIcon } from "lucide-react";
 
@@ -57,9 +58,7 @@ interface CardStackProps<T extends { id: string }> {
   /** Voice: interpret + apply a transcript server-side; resolves to the reply. */
   interpret?: (item: T, transcript: string) => Promise<string>;
   emptyLabel: string;
-  /** Height reserved for the stack. Cards are absolutely positioned, so a card
-   *  taller than this paints over the action row — decks with taller cards
-   *  (Pain) raise it and cap their card to match. */
+  /** Optional minimum height. The active card grows to fit its content. */
   minHeight?: number | string;
 }
 
@@ -94,7 +93,7 @@ interface Gesture {
 
 export function CardStack<T extends { id: string }>({
   items, renderCard, actions, swipeLeftId, swipeRightId,
-  perform, onResolved, undo, onRestore, guard, confirmIds, interpret, emptyLabel, minHeight = 420,
+  perform, onResolved, undo, onRestore, guard, confirmIds, interpret, emptyLabel, minHeight = 0,
 }: CardStackProps<T>) {
   const [drag, setDrag] = useState<{ dx: number; dy: number } | null>(null);
   const [exiting, setExiting] = useState<{ item: T; dir: "left" | "right" | "none" } | null>(null);
@@ -185,7 +184,9 @@ export function CardStack<T extends { id: string }>({
       // Typing in a field (e.g. the proposal mission textarea) must never
       // fire a verdict.
       const t = e.target as HTMLElement | null;
-      if (t && t.closest("input, textarea, select, [contenteditable]")) return;
+      if (e.defaultPrevented || e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+      if (document.querySelector('[role="dialog"]')) return;
+      if (t && t.closest("input, textarea, select, button, summary, a, [contenteditable], [role=tab]")) return;
       if (e.key === "ArrowRight") decide(top, swipeRightId, "right");
       else if (e.key === "ArrowLeft") decide(top, swipeLeftId, "left");
     };
@@ -197,7 +198,7 @@ export function CardStack<T extends { id: string }>({
   const onPointerDown = (e: React.PointerEvent) => {
     if (busy || !top) return;
     // Let links/buttons inside the card work untouched.
-    if ((e.target as HTMLElement).closest("a,button")) return;
+    if ((e.target as HTMLElement).closest("a,button,input,textarea,select,summary,[contenteditable]")) return;
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     cardWidthRef.current = (e.currentTarget as HTMLElement).offsetWidth || 360;
     gestureRef.current = {
@@ -300,26 +301,26 @@ export function CardStack<T extends { id: string }>({
 
   if (items.length === 0 && !exiting) {
     return (
-      <div className="rounded-xl border border-border bg-card p-10 text-center text-sm text-muted-foreground">
-        {emptyLabel}
-      </div>
+      <EmptyState icon={Check} title="All caught up" hint={emptyLabel} success className="work-canvas" />
     );
   }
 
   return (
     <div className="space-y-4">
-      <div className="relative" style={{ minHeight }}>
+      <div className="relative pb-6" style={{ minHeight }}>
         {/* Under-cards first so the top card paints above them. */}
         {items.slice(0, 3).map((item, i) => (
           <div
             key={item.id}
-            className="hover-lift absolute inset-x-0 top-0 select-none rounded-xl border border-border bg-card"
+            className={cn("inset-x-0 top-0 rounded-xl border border-border bg-card", i === 0 ? "relative" : "absolute")}
+            aria-hidden={i > 0 || undefined}
+            inert={i > 0}
             style={{
               zIndex: 10 - i,
               ...cardStyle(i),
             }}
             {...(i === 0
-              ? { onPointerDown, onPointerMove, onPointerUp, onPointerCancel: onPointerUp }
+              ? { onPointerDown, onPointerMove, onPointerUp, onPointerCancel: () => { gestureRef.current = null; setDrag(null); } }
               : {})}
           >
             {i === 0 && swipeTarget && Math.abs(dx) > SLOP_PX && (
@@ -351,7 +352,7 @@ export function CardStack<T extends { id: string }>({
         {exiting && (
           <div
             key={`exit-${exiting.item.id}`}
-            className="absolute inset-x-0 top-0 rounded-xl border border-border bg-card"
+            aria-hidden="true" inert className="absolute inset-x-0 top-0 rounded-xl border border-border bg-card"
             style={{
               zIndex: 30,
               ...exitStyle(exiting.dir),
@@ -362,24 +363,25 @@ export function CardStack<T extends { id: string }>({
         )}
       </div>
 
-      <div className="flex flex-wrap items-center justify-center gap-2">
+      <div className="decision-actions flex items-center justify-center gap-1 sm:gap-2">
         {actions.map((a) => {
           const Icon = a.icon;
           const isArmed = armed === a.id;
           return (
-            <button
+            <Button
+              variant={a.tone === "success" ? "default" : "ghost"}
               key={a.id}
               disabled={!top || busy}
               onClick={() => top && decide(top, a.id, a.direction)}
               aria-label={isArmed ? `Confirm: ${a.label.toLowerCase()}` : a.label}
               className={cn(
-                "flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-transform duration-150 active:scale-[0.97] disabled:opacity-40 max-lg:[min-height:44px]",
-                TONE[a.tone],
+                "flex min-w-0 flex-1 flex-col items-center gap-1 rounded-lg px-1 py-2 text-[11px] font-medium transition-transform duration-150 ease-[var(--ease-out-custom)] active:scale-[0.97] disabled:opacity-40 max-lg:[min-height:44px] sm:flex-none sm:flex-row sm:gap-1.5 sm:px-3 sm:text-sm",
+                a.tone === "danger" && "text-destructive",
                 isArmed && "ring-1 ring-current"
               )}
             >
-              <Icon size={15} /> {isArmed ? `${a.label} — sure?` : a.label}
-            </button>
+              <Icon size={15} /> {isArmed ? `Confirm ${a.label.toLowerCase()}` : a.label}
+            </Button>
           );
         })}
         {interpret && (
@@ -390,10 +392,10 @@ export function CardStack<T extends { id: string }>({
               <span className="h-2 w-2 animate-pulse rounded-full bg-white" />
             </Button>
           ) : (
-            <button onClick={startVoice} disabled={!top || busy}
-              className="flex items-center gap-1.5 rounded-lg bg-accent px-3 py-2 text-sm font-medium text-accent-foreground transition-transform duration-150 active:scale-[0.97] disabled:opacity-40 max-lg:[min-height:44px]">
+            <button aria-label="Use voice to decide" title="Use voice to decide" onClick={startVoice} disabled={!top || busy}
+              className="flex min-w-11 items-center justify-center gap-1.5 rounded-lg bg-accent px-3 py-2 text-sm font-medium text-accent-foreground transition-transform duration-150 active:scale-[0.97] disabled:opacity-40 max-lg:[min-height:44px]">
               {voice === "transcribing" ? <Loader2 size={15} className="animate-spin" /> : <Mic size={15} />}
-              Voice
+              <span className="hidden sm:inline">Voice</span>
             </button>
           )
         )}
@@ -402,8 +404,7 @@ export function CardStack<T extends { id: string }>({
         {voice === "recording" ? "recording…" : voice === "transcribing" ? "thinking…" : ""}
       </p>
       <p className="text-center text-xs text-muted-foreground">
-        {items.length} to decide · swipe or use the buttons
-        {interpret ? " — voice for anything nuanced" : ""}
+        {items.length} remaining · ← {actions.find((a) => a.id === swipeLeftId)?.label} · {actions.find((a) => a.id === swipeRightId)?.label} →
       </p>
     </div>
   );
