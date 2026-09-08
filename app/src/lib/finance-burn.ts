@@ -158,7 +158,7 @@ function remittanceText(raw: unknown): string | null {
  * portfolio" carries the merchant as its only content) — normalizeMerchantKey
  * already strips reference numbers, so this doesn't need to be exact.
  */
-function deriveMerchantFromRemittance(raw: unknown): string | null {
+export function deriveMerchantFromRemittance(raw: unknown): string | null {
   const text = remittanceText(raw);
   if (!text) return null;
   const labeled = text.match(/\bDE\s*:\s*(.+?)(?:\s+(?:ID|MOTIF|REF)\s*:|$)/i) ?? text.match(/\bPOUR\s*:\s*(.+?)(?:\s+(?:ID|MOTIF|REF)\s*:|$)/i);
@@ -257,6 +257,16 @@ function convert(tx: BankTransactionLike, ownAccountIdentifiers: string[]): Conv
     isTransfer: isSelfTransfer(merchant, remittance, ownAccountIdentifiers),
     isDirectDebit: isDirectDebit(tx.raw),
   };
+}
+
+/** Display uses the same direction and transfer rules as the spending totals. */
+export function bankTransactionIdentity(tx: BankTransactionLike, ownAccountIdentifiers: string[] = []) {
+  const direction = deriveDirection(tx.raw);
+  const label = (direction === "out" ? tx.creditorName : tx.debtorName)?.trim()
+    || deriveMerchantFromRemittance(tx.raw) || "Unknown merchant";
+  const converted = convert(tx, ownAccountIdentifiers);
+  return { label, direction, isTransfer: "isTransfer" in converted && converted.isTransfer,
+    included: "detectorTx" in converted };
 }
 
 function splitTransactions(

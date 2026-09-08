@@ -10,13 +10,8 @@
 // `getBankSyncState("last_sync_at")` is a millisecond epoch string (see
 // bank-sync.ts); callers parse it to a number before calling in here.
 
-/**
- * Sync here is manual-trigger only (T69's deliberate scope — no scheduler),
- * so "stale" can't mean "missed a scheduled run". 48 hours is chosen as the
- * point past which numbers are more likely wrong than right for someone
- * checking burn day-to-day, while not nagging him for skipping a single day.
- */
-export const SYNC_STALE_AFTER_MS = 48 * 60 * 60 * 1000;
+/** One five-hour interval plus an hour of grace for a slow bank. */
+export const SYNC_STALE_AFTER_MS = 6 * 60 * 60 * 1000;
 
 /** No recorded sync at all is the most stale a surface can be — never reads
  * as "current" by omission. */

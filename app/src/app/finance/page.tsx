@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import {
   Wallet,
+  RefreshCw,
   Plus,
   Trash2,
   ClipboardPaste,
@@ -23,10 +24,8 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useFinance } from "@/lib/use-finance";
-import { useBankAccounts } from "@/lib/use-bank-accounts";
 import { useFinanceBurn, type FinanceBurnOverview } from "@/lib/use-finance-burn";
-import type { MonthlyBurnResult } from "@/lib/finance-burn";
-import type { CancellableGroup, RecurringChargeView } from "@/lib/finance-overview";
+import type { RecurringChargeView } from "@/lib/finance-overview";
 import { useToast } from "@/components/toast";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Page, PageHeader } from "@/components/ui/page";
@@ -56,6 +55,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { KpiCard, CategoryBar } from "@/components/charts";
+import { MonthHistory, monthLabel } from "@/components/finance/month-history";
+import { ActivityLedger } from "@/components/finance/activity-ledger";
+import { formatMoney } from "@/lib/finance-activity";
 
 // A placeholder, so the box is never a blank wall. Invented round numbers and
 // generic labels on purpose: this repo's remote is public, and a realistic
@@ -307,11 +309,6 @@ function FlowRow({
   );
 }
 
-function formatMonthLabel(month: string): string {
-  const [year, m] = month.split("-").map(Number);
-  return new Date(Date.UTC(year, m - 1, 1)).toLocaleDateString("en-GB", { month: "short" });
-}
-
 function formatSyncedDate(iso: string): string {
   return new Date(iso).toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
 }
@@ -338,38 +335,6 @@ function BurnBanner({ overview }: { overview: FinanceBurnOverview }) {
             <AlertTriangle size={14} className="shrink-0" />
             {w.aspspName ?? "A linked bank"} consent {days <= 0 ? "has expired" : `expires in ${days} day${days === 1 ? "" : "s"}`}.
           </p>
-        );
-      })}
-    </div>
-  );
-}
-
-/** Six-month burn-out comparison, oldest to current, so a rise or fall reads
- * at a glance rather than requiring him to read a statement. */
-function MonthHistory({ months }: { months: MonthlyBurnResult[] }) {
-  const maxOut = Math.max(...months.map((m) => m.burn.out), 1);
-  return (
-    <div className="flex items-end gap-2 overflow-x-auto pb-1">
-      {months.map((m, i) => {
-        const isCurrent = i === months.length - 1;
-        const heightPx = m.burn.out > 0 ? Math.max(4, (m.burn.out / maxOut) * 64) : 2;
-        return (
-          <div key={m.burn.month} className="flex min-w-[3.25rem] flex-col items-center gap-1">
-            <div className="flex h-16 w-full items-end justify-center" title={formatEuro(m.burn.out)}>
-              <div
-                className={cn("w-6 rounded-t-sm", isCurrent ? "bg-primary" : "bg-muted")}
-                style={{ height: `${heightPx}px` }}
-              />
-            </div>
-            <span
-              className={cn(
-                "text-[10px] tabular-nums",
-                isCurrent ? "font-semibold text-foreground" : "text-muted-foreground"
-              )}
-            >
-              {formatMonthLabel(m.burn.month)}
-            </span>
-          </div>
         );
       })}
     </div>
@@ -462,6 +427,7 @@ function RecurringChargeRow({
       <div className="min-w-0">
         <p className="flex items-center gap-2 truncate text-sm font-medium text-foreground">
           <span className="truncate">{charge.label}</span>
+          <Badge variant="secondary">{KIND_LABEL[charge.kind]}</Badge>
           {charge.isNew && (
             <Badge className="shrink-0 gap-1 text-[10px] font-medium">
               <Sparkles size={10} /> New
@@ -489,38 +455,6 @@ function RecurringChargeRow({
         )}
       </div>
     </div>
-  );
-}
-
-/**
- * Cancellable subscriptions called out on their own (ticket 03): "what could
- * I stop paying for", dearest first, with the yearly total stated because a
- * monthly figure understates what a subscription actually costs.
- */
-function CancellableCard({
-  group,
-  onCorrect,
-  onClear,
-}: {
-  group: CancellableGroup;
-  onCorrect: (merchantKey: string, kind: FlowKind) => void;
-  onClear: (merchantKey: string) => void;
-}) {
-  if (group.charges.length === 0) return null;
-  return (
-    <Card className="enter gap-2 px-4 py-4">
-      <div className="flex items-baseline justify-between gap-2">
-        <p className="section-label">Cancellable</p>
-        <p className="text-xs tabular-nums text-muted-foreground">
-          {formatEuro(group.yearlyTotal, { decimals: false })} a year
-        </p>
-      </div>
-      <div>
-        {group.charges.map((c) => (
-          <RecurringChargeRow key={c.merchantKey} charge={c} onCorrect={onCorrect} onClear={onClear} />
-        ))}
-      </div>
-    </Card>
   );
 }
 
@@ -556,178 +490,73 @@ function RecurringChargesCard({
  * pure finance-burn.ts module — nothing here asks Samy to type anything.
  */
 function BurnOverview() {
-  const { overview, loading, correctCharge, clearCorrection } = useFinanceBurn();
+  const { overview, loading, error, correctCharge, clearCorrection, refresh } = useFinanceBurn();
   const { toast } = useToast();
+  const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
+  const [syncing, setSyncing] = useState(false);
+  const [syncError, setSyncError] = useState<string | null>(null);
 
+  const sync = async () => {
+    setSyncing(true); setSyncError(null);
+    try {
+      const response = await fetch("/api/finance/sync", { method: "POST" });
+      const result = await response.json();
+      await refresh();
+      if (!response.ok || !result.ok) throw new Error(result.reason || "Bank sync failed. Please retry.");
+      toast(`Synced. ${result.totalInserted} new transactions.`, "success");
+    } catch (error) { setSyncError(error instanceof Error ? error.message : "Bank sync failed. Please retry."); }
+    finally { setSyncing(false); }
+  };
   const handleCorrect = async (merchantKey: string, kind: FlowKind) => {
-    try {
-      await correctCharge(merchantKey, kind);
-      toast(`Moved to ${KIND_LABEL[kind]}`, "success");
-    } catch {
-      toast("Couldn't save the correction", "error");
-    }
+    try { await correctCharge(merchantKey, kind); toast(`Moved to ${KIND_LABEL[kind]}`, "success"); }
+    catch { toast("Couldn't save the correction", "error"); }
   };
-
   const handleClear = async (merchantKey: string) => {
-    try {
-      await clearCorrection(merchantKey);
-      toast("Back to detected classification", "success");
-    } catch {
-      toast("Couldn't clear the correction", "error");
-    }
+    try { await clearCorrection(merchantKey); toast("Back to detected classification", "success"); }
+    catch { toast("Couldn't clear the correction", "error"); }
   };
-
-  if (loading && !overview) {
-    return (
-      <div className="space-y-2">
-        <Skeleton className="h-32 w-full rounded-xl" />
-      </div>
-    );
-  }
-  if (!overview || overview.months.length === 0) return null;
-
+  if (loading && !overview) return <Skeleton className="h-64 w-full rounded-xl" />;
+  if (!overview || !overview.months.length) return <Card className="gap-2 p-4"><p>Bank overview could not load.</p><Button variant="outline" onClick={() => void refresh()}>Retry</Button></Card>;
   const months = overview.months;
-  const current = months[months.length - 1];
-  const previous = months.length > 1 ? months[months.length - 2] : null;
-  const deltaPct =
-    previous && previous.burn.out > 0
-      ? Math.round(((current.burn.out - previous.burn.out) / previous.burn.out) * 100)
-      : null;
+  const current = months.find((month) => month.burn.month === selectedMonth) ?? months.at(-1)!;
+  const month = current.burn.month;
+  const linked = overview.accounts.length > 0;
+  const nextSync = overview.nextSyncAt ? new Date(overview.nextSyncAt).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }) : null;
 
-  return (
-    <div className="space-y-3">
-      <BurnBanner overview={overview} />
-
-      <Card className="enter gap-3 px-4 py-4">
-        <div className="flex items-baseline justify-between gap-2">
-          <p className="section-label">This month&rsquo;s burn</p>
-          <span className="text-xs text-muted-foreground">{overview.lastSyncedLabel}</span>
+  return <div className="space-y-4">
+    <Card className="gap-2 p-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div><h2 className="text-sm font-semibold">Connected banks</h2><p className="mt-1 text-xs text-muted-foreground">{overview.lastSyncedLabel} · {linked && overview.configured ? "Automatic sync every 5 hours" : "Automatic sync starts after connection"}{nextSync ? ` · Next around ${nextSync}` : ""}</p></div>
+        <div className="flex flex-wrap gap-2">
+          <Button onClick={() => void sync()} disabled={syncing || !overview.configured || !linked}><RefreshCw size={14} className={syncing ? "animate-spin" : ""} />{syncing ? "Syncing…" : "Sync now"}</Button>
+          {!linked && <Button asChild variant="outline"><Link href="/settings">Connect a bank</Link></Button>}
         </div>
-
-        <div className={cn("grid grid-cols-2 gap-3", current.burn.transfer > 0 ? "sm:grid-cols-5" : "sm:grid-cols-4")}>
-          <KpiCard
-            label="Spend"
-            value={formatEuro(current.burn.out, { decimals: false })}
-            icon={<TrendingDown size={13} />}
-            delta={
-              deltaPct !== null
-                ? { value: `${Math.abs(deltaPct)}%`, direction: deltaPct > 0 ? "up" : deltaPct < 0 ? "down" : "flat" }
-                : undefined
-            }
-          />
-          <KpiCard label="Fixed" value={formatEuro(current.burn.fixed, { decimals: false })} icon={<Landmark size={13} />} />
-          <KpiCard label="Subs" value={formatEuro(current.burn.sub, { decimals: false })} icon={<PiggyBank size={13} />} />
-          <KpiCard label="Variable" value={formatEuro(current.burn.variable, { decimals: false })} icon={<Wallet size={13} />} />
-          {current.burn.transfer > 0 && (
-            <KpiCard label="Transfers" value={formatEuro(current.burn.transfer, { decimals: false })} icon={<ArrowLeftRight size={13} />} />
-          )}
-        </div>
-        {current.burn.transfer > 0 && (
-          <p className="text-xs text-muted-foreground">
-            {formatEuro(current.burn.transfer, { decimals: false })} moved between your own accounts this month — not
-            counted as spend.
-          </p>
-        )}
-
-        <MonthHistory months={months} />
-      </Card>
-
-      {overview.accounts.length > 0 && (
-        <Card className="enter gap-2 px-4 py-4">
-          <p className="section-label">Accounts</p>
-          <div>
-            {overview.accounts.map((a) => (
-              <div
-                key={a.accountUid}
-                className="flex items-center justify-between gap-3 border-b border-border/60 py-2 last:border-b-0"
-              >
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-foreground">{a.aspspName ?? "Bank"}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {a.balanceSyncedAt ? `Balance as of ${formatSyncedDate(a.balanceSyncedAt)}` : "No balance synced yet"}
-                  </p>
-                </div>
-                <span className="shrink-0 tabular-nums text-sm font-medium text-foreground">
-                  {a.balanceAmount ? formatEuro(Number(a.balanceAmount)) : "—"}
-                </span>
-              </div>
-            ))}
-          </div>
-        </Card>
-      )}
-
-      <CancellableCard group={overview.cancellable} onCorrect={handleCorrect} onClear={handleClear} />
-      <RecurringChargesCard charges={overview.recurringCharges} onCorrect={handleCorrect} onClear={handleClear} />
-    </div>
-  );
-}
-
-/**
- * The bank-fed half (T71): only the bank's *content* lives here now — recent
- * synced activity, kept visibly separate from the hand-kept flows above per
- * T83's D4 boundary (this never merges into `financeFlows`). Connecting a bank
- * and syncing moved to Settings, next to the other integrations.
- */
-function RecentBankActivity() {
-  const { accounts, recentTransactions, loading } = useBankAccounts();
-
-  if (loading && recentTransactions.length === 0) {
-    return <Skeleton className="h-24 w-full rounded-xl" />;
-  }
-
-  if (recentTransactions.length === 0) {
-    return (
-      <Card className="enter gap-2 px-4 py-4">
-        <p className="flex items-center gap-1.5 text-sm font-medium text-foreground">
-          <Landmark size={15} className="text-muted-foreground" /> Bank activity
-        </p>
-        <p className="text-sm text-muted-foreground">
-          {accounts.length === 0 ? (
-            <>
-              No bank connected yet — the numbers above stay hand-kept.{" "}
-              <Link href="/settings" className="underline underline-offset-2">
-                Connect one in Settings
-              </Link>
-              .
-            </>
-          ) : (
-            "Connected, but nothing synced yet."
-          )}
-        </p>
-      </Card>
-    );
-  }
-
-  return (
-    <Card className="enter gap-2 px-4 py-4">
-      <p className="section-label">Recent bank activity</p>
-      <div>
-        {recentTransactions.map((t) => {
-          const amount = Number(t.amount);
-          const isIn = amount >= 0;
-          return (
-            <div
-              key={t.transactionId}
-              className="flex items-center justify-between gap-3 border-b border-border/60 py-2 last:border-b-0"
-            >
-              <div className="flex min-w-0 items-center gap-2">
-                {isIn ? (
-                  <ArrowDownLeft size={14} className="shrink-0 text-primary" />
-                ) : (
-                  <ArrowUpRight size={14} className="shrink-0 text-muted-foreground" />
-                )}
-                <p className="truncate text-sm text-foreground">{t.creditorName ?? t.debtorName ?? "Unlabelled"}</p>
-                <Badge variant="outline" className="shrink-0 text-[10px] font-medium text-muted-foreground">
-                  synced
-                </Badge>
-              </div>
-              <span className="shrink-0 tabular-nums text-sm text-muted-foreground">{formatEuro(amount)}</span>
-            </div>
-          );
-        })}
       </div>
+      {!overview.configured && <p className="text-sm text-muted-foreground">Bank connection setup is incomplete. Your saved history is still available.</p>}
+      {(syncError || overview.syncError || error) && <p role="alert" className="text-sm text-destructive">{syncError || overview.syncError || "Could not refresh this overview. Showing the last loaded data."}</p>}
     </Card>
-  );
+    {linked && <BurnBanner overview={overview} />}
+    <Card className="gap-4 p-4 sm:p-5">
+      <div className="flex flex-wrap items-baseline justify-between gap-2"><h2 className="text-lg font-semibold">{monthLabel(month)}</h2><span className="text-xs text-muted-foreground">EUR only{month === months.at(-1)?.burn.month ? " · Month in progress" : ""}</span></div>
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <KpiCard label="Spent" value={formatMoney(current.burn.out)} icon={<TrendingDown size={13} />} />
+        <KpiCard label="Income" value={formatMoney(current.burn.in)} icon={<TrendingUp size={13} />} />
+        <KpiCard label="Net cash flow" value={formatMoney(current.burn.in - current.burn.out)} icon={<PiggyBank size={13} />} />
+      </div>
+      <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4 text-sm">
+        {[["Fixed bills", current.burn.fixed], ["Subscriptions", current.burn.sub], ["Other spending", current.burn.variable], ["Transfers", current.burn.transfer]].map(([label, value]) => <div key={label}><dt className="text-xs text-muted-foreground">{label}</dt><dd className="mt-1 font-medium tabular-nums">{formatMoney(Number(value))}</dd></div>)}
+      </dl>
+      <p className="text-xs text-muted-foreground">Transfers between your accounts are excluded from spending and income. Other currencies appear in transactions.</p>
+      {current.undetermined.length > 0 && <p className="text-xs text-warning">{current.undetermined.length} transactions need review and are excluded from these totals.</p>}
+      <MonthHistory months={months} selected={month} onSelect={setSelectedMonth} />
+    </Card>
+    <ActivityLedger key={month} activity={overview.activity ?? []} month={month} refresh={refresh} />
+    {linked && <Card className="gap-2 p-4"><h2 className="text-sm font-semibold">Account balances</h2>{overview.accounts.map((account) => <div key={account.accountUid} className="flex items-center justify-between gap-3 border-b border-border py-2 last:border-0">
+      <div className="min-w-0"><p className="text-sm font-medium">{account.aspspName || "Bank"} · {account.accountUid.slice(-4)}</p><p className="text-xs text-muted-foreground">{account.balanceSyncedAt ? `Balance updated ${formatSyncedDate(account.balanceSyncedAt)}` : "No balance available"}</p></div>
+      <span className="text-sm font-medium tabular-nums">{account.balanceAmount !== null ? formatMoney(Number(account.balanceAmount), account.balanceCurrency || "EUR") : "—"}</span>
+    </div>)}</Card>}
+    <RecurringChargesCard charges={overview.recurringCharges} onCorrect={handleCorrect} onClear={handleClear} />
+  </div>;
 }
 
 export default function FinancePage() {
@@ -803,14 +632,12 @@ export default function FinancePage() {
       )}
 
       {empty && mode === "none" && (
-        <Card className="flex-col items-center justify-center py-16 text-center">
-          <Wallet size={48} className="mb-4 text-muted-foreground/70" />
-          <p className="text-lg font-medium text-foreground">Nothing tracked yet</p>
+        <Card className="gap-2 p-4">
+          <p className="text-sm font-semibold text-foreground">Manual budget (optional)</p>
           <p className="mb-4 mt-1 max-w-sm text-sm text-muted-foreground">
-            Paste your rentrées / sorties list. It takes one go, and the subscriptions and habits below build
-            themselves from it.
+            Add planned income or costs your connected banks do not cover.
           </p>
-          <Button size="sm" onClick={() => setMode("paste")} className="gap-1.5 text-sm">
+          <Button size="sm" onClick={() => setMode("paste")} className="w-fit gap-1.5 text-sm">
             <ClipboardPaste size={15} /> Paste list
           </Button>
         </Card>
@@ -829,7 +656,6 @@ export default function FinancePage() {
         </div>
       )}
 
-      <RecentBankActivity />
 
       {flows.length > 0 && (
         <>

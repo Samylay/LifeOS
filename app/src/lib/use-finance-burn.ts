@@ -3,13 +3,18 @@
 // Client hook for the /finance burn-on-open surface (ticket 02). Mirrors
 // use-bank-accounts.ts's shape (read-only, fetch-on-mount) but reads
 // GET /api/finance/burn, the new derived-burn read.
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { MonthlyBurnResult } from "./finance-burn";
 import type { ConnectedAccountRow } from "./bank-db";
 import type { CancellableGroup, ConsentWarning, RecurringChargeView } from "./finance-overview";
 import type { FlowKind } from "./finance";
+import type { FinanceActivity } from "./finance-activity";
 
 export interface FinanceBurnOverview {
+  activity: FinanceActivity[];
+  configured: boolean;
+  nextSyncAt: number | null;
+  syncError: string | null;
   months: MonthlyBurnResult[];
   accounts: ConnectedAccountRow[];
   lastSyncAt: number | null;
@@ -26,23 +31,30 @@ export function useFinanceBurn() {
   const [overview, setOverview] = useState<FinanceBurnOverview | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const requestVersion = useRef(0);
 
   const load = useCallback(async () => {
+    const version = ++requestVersion.current;
     try {
       const res = await fetch("/api/finance/burn");
       if (!res.ok) throw new Error(`status ${res.status}`);
       const data = (await res.json()) as FinanceBurnOverview;
+      if (version !== requestVersion.current) return;
       setOverview(data);
       setError(null);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Failed to load burn");
+      if (version === requestVersion.current) setError(err instanceof Error ? err.message : "Failed to load burn");
     } finally {
-      setLoading(false);
+      if (version === requestVersion.current) setLoading(false);
     }
   }, []);
 
   useEffect(() => {
     load();
+    const onVisible = () => { if (document.visibilityState === "visible") void load(); };
+    const timer = window.setInterval(onVisible, 60_000);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => { requestVersion.current++; window.clearInterval(timer); document.removeEventListener("visibilitychange", onVisible); };
   }, [load]);
 
   // Ticket 04: the one mutation this surface has. Both correct a
@@ -75,5 +87,5 @@ export function useFinanceBurn() {
     [load]
   );
 
-  return { overview, loading, error, correctCharge, clearCorrection };
+  return { overview, loading, error, correctCharge, clearCorrection, refresh: load };
 }

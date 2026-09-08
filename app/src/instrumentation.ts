@@ -12,5 +12,7 @@ export async function register() {
     startFeedScheduler();
     const { startBodyMeasurementsScheduler } = await import("@/lib/body-measurements-scheduler");
     startBodyMeasurementsScheduler();
+    const { startBankSyncScheduler } = await import("@/lib/bank-sync-scheduler");
+    startBankSyncScheduler();
   }
 }

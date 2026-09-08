@@ -17,6 +17,10 @@ import { isSyncStale, formatLastSynced } from "./finance-freshness";
 import { findExpiringConsents } from "./bank-consent-tripwire";
 import { yearlyAmount } from "./finance";
 import { listClassificationOverrides } from "./finance-overrides-db";
+import { financeActivity, type FinanceActivity } from "./finance-activity";
+import { listMerchantLabels } from "./finance-labels-db";
+import { nextBankSyncAt } from "./bank-sync-schedule";
+import { isEnableBankingConfigured } from "./enable-banking";
 
 /** How many months of burn history the surface shows — the spec's "six
  * months of history are already there... useful the moment it opens". */
@@ -71,6 +75,10 @@ export function groupCancellable(charges: RecurringChargeView[]): CancellableGro
 }
 
 export interface FinanceOverview {
+  activity: FinanceActivity[];
+  configured: boolean;
+  nextSyncAt: number | null;
+  syncError: string | null;
   /** Oldest first, HISTORY_MONTHS entries, the last one being `now`'s month. */
   months: MonthlyBurnResult[];
   accounts: ConnectedAccountRow[];
@@ -116,7 +124,9 @@ export function getFinanceOverview(now: Date = new Date()): FinanceOverview {
     .toISOString()
     .slice(0, 10);
 
-  const transactions = listBankTransactionsInRange(fromMonth, toExclusive).map(toBankTransactionLike);
+  const rows = listBankTransactionsInRange(fromMonth, toExclusive);
+  // No exchange rate is available. Never add different currencies as euros.
+  const transactions = rows.filter((row) => row.currency === "EUR").map(toBankTransactionLike);
   // Own-account identifiers (IBAN, account nickname) plus, when set, the
   // account holder's own name — kept out of source (public remote) and read
   // from a gitignored .env instead, same as any other repo-local secret.
@@ -139,6 +149,8 @@ export function getFinanceOverview(now: Date = new Date()): FinanceOverview {
   const lastSyncAtRaw = getBankSyncState("last_sync_at");
   const lastSyncAt = lastSyncAtRaw !== null && lastSyncAtRaw !== "" ? Number(lastSyncAtRaw) : null;
   const nowMs = now.getTime();
+  const accounts = listConnectedAccounts();
+  const configured = isEnableBankingConfigured();
 
   const consentWarnings = findExpiringConsents(listBankSessions(), now.toISOString()).map((entry) => ({
     sessionId: entry.session.sessionId,
@@ -147,8 +159,12 @@ export function getFinanceOverview(now: Date = new Date()): FinanceOverview {
   }));
 
   return {
+    activity: financeActivity(rows, ownAccountIdentifiers, listMerchantLabels()),
+    configured,
+    nextSyncAt: configured && accounts.length ? nextBankSyncAt(Number(getBankSyncState("last_sync_attempt_at")), lastSyncAt, nowMs) : null,
+    syncError: getBankSyncState("last_sync_error") || getBankSyncState("last_balance_error") || null,
     months: burnMonths,
-    accounts: listConnectedAccounts(),
+    accounts,
     lastSyncAt,
     lastSyncedLabel: formatLastSynced(lastSyncAt, nowMs),
     stale: isSyncStale(lastSyncAt, nowMs),

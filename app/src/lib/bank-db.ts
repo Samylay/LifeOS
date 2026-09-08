@@ -383,6 +383,8 @@ export function upsertBankTransactions(transactions: BankTransactionInput[], now
 
 export interface BankTransactionForBurn {
   transactionId: string;
+  accountUid: string;
+  currency: string;
   bookingDate: string | null;
   amount: string;
   creditorName: string | null;
@@ -404,13 +406,15 @@ export interface BankTransactionForBurn {
 export function listBankTransactionsInRange(fromMonth: string, toMonth: string): BankTransactionForBurn[] {
   const rows = getBankDb()
     .prepare(
-      `SELECT transaction_id, booking_date, amount, creditor_name, debtor_name, raw_json
+      `SELECT transaction_id, account_uid, currency, booking_date, amount, creditor_name, debtor_name, raw_json
        FROM bank_transactions
        WHERE booking_date IS NOT NULL AND booking_date >= ? AND booking_date < ?
        ORDER BY booking_date ASC`
     )
     .all(fromMonth, toMonth) as {
     transaction_id: string;
+    account_uid: string;
+    currency: string;
     booking_date: string | null;
     amount: string;
     creditor_name: string | null;
@@ -419,6 +423,8 @@ export function listBankTransactionsInRange(fromMonth: string, toMonth: string):
   }[];
   return rows.map((r) => ({
     transactionId: r.transaction_id,
+    accountUid: r.account_uid,
+    currency: r.currency,
     bookingDate: r.booking_date,
     amount: r.amount,
     creditorName: r.creditor_name,
