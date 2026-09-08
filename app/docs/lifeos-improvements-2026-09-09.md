@@ -80,3 +80,25 @@ the first three pages and reported as partial.
 This is an implementation audit, not a claim of complete accessibility
 certification or guaranteed OCR/model accuracy. All screenshot artifacts
 remain local because read-only review can still contain personal information.
+
+## Deployment record
+
+Deployed on 2026-09-09 (Europe/Paris). LifeOS is serving the verified image
+`sha256:e9e5b2bc9d35f9cb5776a063232aed12031659690e74c6928a10f9eeee14b4fd`
+through the existing Compose topology. All 21 checked app routes and the
+tailnet HTTPS origin returned 200. The live Decide browser check passed
+direct navigation, Homelab actions, mobile reflow, and drawer interaction.
+A final GET-only live check passed Today, Finance, and Content at 1440px
+and 320px, with no overflow or browser exceptions after correcting two
+long Today labels. The bank scheduler startup was confirmed; the live overview is configured,
+contains six months of history, has no sync warning, and reports its next
+five-hour refresh. No manual production sync was invoked by a test.
+
+The saved-post source changes are pushed as `homelab-services@1275541`;
+the capture changes are pushed as `reels-reader@e474e95`. The capture unit
+was restarted after verifying its queue was empty. It returned healthy with
+zero queued jobs and a new process ID. Scheduled triage reads the updated
+host scripts on its next run. Existing saved posts were not backfilled.
+
+The isolated preview was removed. The previous production image remains
+available as `lifeos:rollback-before-finance-20260909`.
