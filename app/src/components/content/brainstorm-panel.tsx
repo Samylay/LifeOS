@@ -68,7 +68,16 @@ export function BrainstormPanel({
         </p>
       )}
 
-      {error && <p className="text-sm text-destructive">{error}</p>}
+      {error && <div className="flex items-center gap-2 text-sm text-destructive" role="alert">
+        <span>{error}</span>
+        <button
+          type="button"
+          onClick={onAsk}
+          className="font-medium underline-offset-4 hover:underline pressable active:scale-[0.97]"
+        >
+          Retry
+        </button>
+      </div>}
 
       {brainstorm && (
         <div className="space-y-2.5">

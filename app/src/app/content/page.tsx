@@ -8,6 +8,7 @@ import {
   Trash2,
   X,
   Check,
+  Loader2,
   Download,
   AlertTriangle,
   ArrowRight,
@@ -114,13 +115,26 @@ function IdeaEditor({
   hooks,
 }: {
   initial?: ContentIdea;
-  onSave: (d: IdeaDraft) => void;
+  onSave: (d: IdeaDraft) => Promise<void>;
   onCancel: () => void;
   types: ContentType[];
   hooks: HookFormula[];
 }) {
   const [d, setD] = useState<IdeaDraft>(initial ? { ...initial } : { ...EMPTY_IDEA });
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const set = (patch: Partial<IdeaDraft>) => setD((prev) => ({ ...prev, ...patch }));
+  const save = async () => {
+    if (!d.title.trim() || saving) return;
+    setSaving(true);
+    setSaveError(null);
+    try {
+      await onSave({ ...d, title: d.title.trim(), notes: d.notes?.trim() || undefined });
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : "Couldn't save the idea.");
+      setSaving(false);
+    }
+  };
 
   return (
     <Card className="p-4 gap-3">
@@ -209,18 +223,19 @@ function IdeaEditor({
         className="w-full text-sm rounded-lg px-3 py-2 resize-none"
       />
       <div className="flex items-center gap-2 justify-end">
-        <Button onClick={onCancel} variant="secondary" size="sm" className="gap-1.5 text-xs font-medium">
+        <Button onClick={onCancel} disabled={saving} variant="secondary" size="sm" className="gap-1.5 text-xs font-medium">
           <X size={14} /> Cancel
         </Button>
         <Button
-          onClick={() => d.title.trim() && onSave({ ...d, title: d.title.trim(), notes: d.notes?.trim() || undefined })}
-          disabled={!d.title.trim()}
+          onClick={save}
+          disabled={!d.title.trim() || saving}
           size="sm"
           className="gap-1.5 text-sm font-medium"
         >
-          <Check size={14} /> Save
+          {saving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />} {saving ? "Saving…" : "Save"}
         </Button>
       </div>
+      {saveError && <p className="text-sm text-destructive" role="alert">{saveError}</p>}
     </Card>
   );
 }
@@ -363,8 +378,8 @@ function IdeaBank() {
         <IdeaEditor
           types={types}
           hooks={hooks}
-          onSave={(d) => {
-            createIdea(d);
+          onSave={async (d) => {
+            await createIdea(d);
             setCreating(false);
             toast("Idea banked");
           }}
@@ -411,8 +426,8 @@ function IdeaBank() {
               hooks={hooks}
               key={idea.id}
               initial={idea}
-              onSave={(d) => {
-                updateIdea(idea.id, d);
+              onSave={async (d) => {
+                await updateIdea(idea.id, d);
                 setEditingId(null);
               }}
               onCancel={() => setEditingId(null)}
@@ -443,6 +458,7 @@ function IdeaBank() {
                   <button
                     onClick={() => setEditingId(idea.id)}
                     title="Edit"
+                    aria-label={`Edit ${idea.title}`}
                     className="h-11 w-11 flex items-center justify-center rounded-lg text-muted-foreground/70 transition-transform duration-150 active:scale-[0.9]"
                   >
                     <Pencil size={15} />
@@ -450,6 +466,7 @@ function IdeaBank() {
                   <button
                     onClick={() => setConfirmId(idea.id)}
                     title="Delete"
+                    aria-label={`Delete ${idea.title}`}
                     className="h-11 w-11 flex items-center justify-center rounded-lg text-muted-foreground/70 transition-transform duration-150 active:scale-[0.9]"
                   >
                     <Trash2 size={15} />
@@ -486,6 +503,7 @@ function IdeaBank() {
               <div className="mt-3">
                 <IdeaBody
                   key={idea.id}
+                  ideaId={idea.id}
                   value={idea.body ?? ""}
                   onSave={(body) => updateIdea(idea.id, { body })}
                 />
