@@ -30,6 +30,7 @@ function when(d?: { __date: string }): string {
 export default function DiagramsPage() {
   const { toast } = useToast();
   const [history, setHistory] = useState<Diagram[] | null>(null);
+  const [historyError, setHistoryError] = useState(false);
   const [current, setCurrent] = useState<Diagram | null>(null);
   const [prompt, setPrompt] = useState("");
   const [kind, setKind] = useState<(typeof KINDS)[number]>("auto");
@@ -45,11 +46,17 @@ export default function DiagramsPage() {
   });
 
   const load = useCallback(async () => {
-    const res = await fetch("/api/diagrams");
-    if (!res.ok) return;
-    const { diagrams } = await res.json();
-    setHistory(diagrams);
-    setCurrent((cur) => cur ?? diagrams[0] ?? null);
+    setHistoryError(false);
+    try {
+      const res = await fetch("/api/diagrams");
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const { diagrams } = await res.json();
+      setHistory(diagrams);
+      setCurrent((cur) => cur ?? diagrams[0] ?? null);
+    } catch {
+      setHistoryError(true);
+      setHistory([]);
+    }
   }, []);
 
   useEffect(() => {
@@ -81,11 +88,16 @@ export default function DiagramsPage() {
 
   const remove = useCallback(
     async (id: string) => {
-      await fetch(`/api/diagrams?id=${encodeURIComponent(id)}`, { method: "DELETE" });
-      setHistory((h) => (h ?? []).filter((d) => d.id !== id));
-      setCurrent((cur) => (cur?.id === id ? null : cur));
+      try {
+        const res = await fetch(`/api/diagrams?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        setHistory((h) => (h ?? []).filter((d) => d.id !== id));
+        setCurrent((cur) => (cur?.id === id ? null : cur));
+      } catch {
+        toast("Couldn't remove that diagram", "error");
+      }
     },
-    [],
+    [toast],
   );
 
   const copyMermaid = useCallback(async () => {
@@ -214,31 +226,40 @@ export default function DiagramsPage() {
 
       {history === null ? (
         <Skeleton className="h-24 w-full rounded-lg" />
+      ) : historyError ? (
+        <Card className="items-center gap-3 p-6 text-center">
+          <p className="text-sm text-muted-foreground">Couldn&apos;t load diagram history.</p>
+          <Button onClick={() => void load()} size="sm" variant="secondary">Retry</Button>
+        </Card>
       ) : history.length > 0 ? (
         <div className="flex flex-col gap-1">
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">History</p>
           {history.map((d) => (
-            <button
+            <div
               key={d.id}
-              type="button"
-              onClick={() => setCurrent(d)}
-              className={`group flex items-center justify-between gap-2 rounded-lg border px-3 py-2 text-left text-sm transition-transform active:scale-[0.99] ${
+              className={`group flex items-center gap-2 rounded-lg border p-1 text-sm ${
                 current?.id === d.id ? "border-primary/50 bg-primary/5" : "border-border hover:bg-accent-ui"
               }`}
             >
-              <span className="min-w-0 truncate">{d.title}</span>
-              <span className="flex shrink-0 items-center gap-2 text-xs text-muted-foreground">
-                {d.kind} · {when(d.createdAt)}
-                <Trash2
-                  size={13}
-                  className="opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    void remove(d.id);
-                  }}
-                />
-              </span>
-            </button>
+              <button
+                type="button"
+                onClick={() => setCurrent(d)}
+                className="min-w-0 flex-1 truncate rounded px-2 py-1 text-left transition-transform active:scale-[0.99]"
+                aria-current={current?.id === d.id ? "true" : undefined}
+              >
+                <span>{d.title}</span>
+                <span className="ml-2 text-xs text-muted-foreground">{d.kind} · {when(d.createdAt)}</span>
+              </button>
+              <button
+                  type="button"
+                  aria-label={`Remove ${d.title}`}
+                  title="Remove diagram"
+                  className="rounded p-1 opacity-0 transition-opacity hover:text-destructive focus:opacity-100 group-hover:opacity-100"
+                  onClick={() => void remove(d.id)}
+                >
+                  <Trash2 size={13} />
+              </button>
+            </div>
           ))}
         </div>
       ) : (

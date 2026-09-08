@@ -1,12 +1,14 @@
 "use client";
 
-import { Activity, Check, GraduationCap, Plus, Undo2 } from "lucide-react";
+import { useState } from "react";
+import { Activity, Check, GraduationCap, Loader2, Plus, Undo2 } from "lucide-react";
 import { useStrength } from "@/lib/use-strength";
 import { weekOfBuild, sessionsThisWeek, buildComplete, targetFreq } from "@/lib/types";
 import { Card } from "@/components/ui/card";
 import { ProgressBar } from "@/components/charts";
 import { EmptyState } from "@/components/empty-state";
 import { Skeleton } from "@/components/skeleton";
+import { useToast } from "@/components/toast";
 
 // Days since a logged session, for a quiet "last: 3d ago" readout.
 function daysSince(date: Date): number {
@@ -23,6 +25,20 @@ export function StrengthCard() {
     building, maintaining, queued, loading,
     logSession, undoLastSession, graduate, seedDefaults,
   } = useStrength();
+  const { toast } = useToast();
+  const [pendingAction, setPendingAction] = useState<string | null>(null);
+
+  const runAction = async (key: string, action: () => Promise<unknown> | undefined) => {
+    if (pendingAction) return;
+    setPendingAction(key);
+    try {
+      await action();
+    } catch {
+      toast("Couldn’t update strength training.", "error");
+    } finally {
+      setPendingAction(null);
+    }
+  };
 
   if (loading) {
     return (
@@ -51,8 +67,8 @@ export function StrengthCard() {
           icon={Activity}
           hint="No active build-then-maintain focus."
           action={
-            <button onClick={() => seedDefaults()} className={btnPrimary}>
-              <Plus size={14} /> Set up focus queue
+            <button onClick={() => void runAction("seed", seedDefaults)} disabled={pendingAction !== null} className={btnPrimary}>
+              {pendingAction === "seed" ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />} Set up focus queue
             </button>
           }
         />
@@ -115,17 +131,18 @@ export function StrengthCard() {
 
           <div className="mt-3 flex items-center gap-2">
             {complete ? (
-              <button onClick={() => graduate(building.id)} className={btnPrimary}>
-                <GraduationCap size={14} /> Graduate — start the next focus
+              <button onClick={() => void runAction(`graduate:${building.id}`, () => graduate(building.id))} disabled={pendingAction !== null} className={btnPrimary}>
+                {pendingAction === `graduate:${building.id}` ? <Loader2 size={14} className="animate-spin" /> : <GraduationCap size={14} />} Graduate · start the next focus
               </button>
             ) : (
-              <button onClick={() => logSession(building.id)} className={btnPrimary}>
-                <Check size={14} /> Log session
+              <button onClick={() => void runAction(`log:${building.id}`, () => logSession(building.id))} disabled={pendingAction !== null} className={btnPrimary}>
+                {pendingAction === `log:${building.id}` ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />} Log session
               </button>
             )}
             {building.log.length > 0 && (
               <button
-                onClick={() => undoLastSession(building.id)}
+                onClick={() => void runAction(`undo:${building.id}`, () => undoLastSession(building.id))}
+                disabled={pendingAction !== null}
                 className={btnGhost}
                 title="Remove the most recent logged session"
               >
@@ -153,11 +170,11 @@ export function StrengthCard() {
             </div>
             <div className="mt-2 flex items-center gap-2">
               <ProgressBar value={mDone} max={mTarget} className="flex-1" color="var(--muted-foreground)" />
-              <button onClick={() => logSession(f.id)} className={btnGhost}>
-                <Check size={12} /> Log
+              <button onClick={() => void runAction(`log:${f.id}`, () => logSession(f.id))} disabled={pendingAction !== null} className={btnGhost}>
+                {pendingAction === `log:${f.id}` ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />} Log
               </button>
               {f.log.length > 0 && (
-                <button onClick={() => undoLastSession(f.id)} className={btnGhost} title="Undo last logged session">
+                <button onClick={() => void runAction(`undo:${f.id}`, () => undoLastSession(f.id))} disabled={pendingAction !== null} className={btnGhost} title="Undo last logged session">
                   <Undo2 size={12} />
                 </button>
               )}

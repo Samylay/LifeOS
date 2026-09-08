@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { createRequestGate, isAbortError } from "./knowledge-request";
 
 export interface NoteMeta {
   path: string;
@@ -21,31 +22,39 @@ export function useKnowledge() {
   const [message, setMessage] = useState<string | null>(null);
   const [enabled, setEnabled] = useState(true);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
+  const requestGate = useRef(createRequestGate());
 
-  const refresh = useCallback(async (q?: string) => {
+  const refresh = useCallback(async (q?: string, signal?: AbortSignal) => {
+    const request = requestGate.current.start();
     setLoading(true);
     try {
-      const res = await fetch(`/api/kb${q ? `?q=${encodeURIComponent(q)}` : ""}`);
+      const res = await fetch(`/api/kb${q ? `?q=${encodeURIComponent(q)}` : ""}`, { signal });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
+      if (signal?.aborted || !requestGate.current.isCurrent(request)) return;
       setEnabled(data.enabled !== false);
       setNotes(data.notes || []);
       setSuggestions(data.suggestions || []);
       setMessage(data.message || null);
-    } catch {
-      setEnabled(false);
-      setNotes([]);
-      setSuggestions([]);
-      setMessage(null);
+      setError(null);
+    } catch (e) {
+      if (isAbortError(e) || signal?.aborted || !requestGate.current.isCurrent(request)) return;
+      setError("Couldn’t load saved knowledge.");
     } finally {
-      setLoading(false);
+      if (!signal?.aborted && requestGate.current.isCurrent(request)) setLoading(false);
     }
   }, []);
 
   // Debounced search.
   useEffect(() => {
-    const t = setTimeout(() => refresh(query), query ? 250 : 0);
-    return () => clearTimeout(t);
+    const controller = new AbortController();
+    const t = setTimeout(() => void refresh(query, controller.signal), query ? 250 : 0);
+    return () => {
+      clearTimeout(t);
+      controller.abort();
+    };
   }, [query, refresh]);
 
   const readNote = useCallback(async (path: string): Promise<Note | null> => {
@@ -83,6 +92,7 @@ export function useKnowledge() {
     message,
     enabled,
     loading,
+    error,
     query,
     setQuery,
     refresh,

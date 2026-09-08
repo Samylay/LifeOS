@@ -31,8 +31,11 @@ interface BriefResponse {
   brief: Brief;
 }
 
-function greeting() {
-  const h = new Date().getHours();
+function greeting(now: Date | null) {
+  // The server cannot know the browser's local time. Keep the initial HTML
+  // deterministic, then switch to the local greeting after hydration.
+  if (!now) return "Welcome back";
+  const h = now.getHours();
   if (h < 5) return "Late night";
   if (h < 12) return "Good morning";
   if (h < 18) return "Good afternoon";
@@ -45,7 +48,11 @@ export default function Today() {
   const { messages } = useNotifications();
   const teachProgress = useTeachProgress();
 
-  const [now] = useState(() => new Date());
+  // Do not read the clock during the server render or the first client render:
+  // the two can have different time zones (or cross a minute boundary), which
+  // makes React discard the server tree. Refresh each minute so the date and
+  // greeting also roll over correctly at midnight.
+  const [now, setNow] = useState<Date | null>(null);
   const [brief, setBrief] = useState<BriefResponse | null>(null);
   const [briefErr, setBriefErr] = useState(false);
   const [briefRefreshing, setBriefRefreshing] = useState(false);
@@ -55,6 +62,13 @@ export default function Today() {
 
   // T38: celebrate a habit crossing a weekly streak milestone (7, 14, 21…).
   const [celebrating, setCelebrating] = useState(false);
+
+  useEffect(() => {
+    const updateClock = () => setNow(new Date());
+    updateClock();
+    const interval = window.setInterval(updateClock, 60_000);
+    return () => window.clearInterval(interval);
+  }, []);
 
   const loadBrief = useCallback(async () => {
     setBriefRefreshing(true);
@@ -120,11 +134,11 @@ export default function Today() {
       <div className="page-header flex-wrap enter">
         <div>
           <h1 className="flex items-center gap-2 text-foreground">
-            {now.getHours() < 18 ? <Sun size={20} className="text-primary" /> : <Moon size={20} className="text-primary" />}
-            {greeting()}, Samy
+            {!now || now.getHours() < 18 ? <Sun size={20} className="text-primary" /> : <Moon size={20} className="text-primary" />}
+            {greeting(now)}, Samy
           </h1>
           <p className="text-sm mt-0.5 text-muted-foreground/70">
-            {now.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
+            {now?.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" }) ?? "Today"}
           </p>
           {teachProgress && (
             <p className="text-xs mt-1 text-muted-foreground/70 truncate max-w-md">
@@ -201,8 +215,11 @@ export default function Today() {
           </Button>
         </div>
         {briefErr && !brief && (
-          <Card className="p-4 text-sm text-muted-foreground">
-            Couldn&apos;t load the brief.
+          <Card className="flex-row items-center justify-between gap-3 p-4 text-sm text-muted-foreground">
+            <span>Couldn&apos;t load the brief.</span>
+            <Button onClick={loadBrief} disabled={briefRefreshing} size="sm" variant="secondary" className="shrink-0">
+              <RefreshCw size={14} className={briefRefreshing ? "animate-spin" : undefined} /> Retry
+            </Button>
           </Card>
         )}
         {!brief && !briefErr && (

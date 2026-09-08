@@ -110,6 +110,7 @@ export default function VoiceHome() {
   const [recent, setRecent] = useState<RecentCapture[]>([]);
   const [recoverable, setRecoverable] = useState<RecoverableTake[]>([]);
   const [loadingRecent, setLoadingRecent] = useState(true);
+  const [recentError, setRecentError] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   // Which row's destination picker is expanded — one at a time, keyed by id.
   const [openMover, setOpenMover] = useState<string | null>(null);
@@ -118,11 +119,16 @@ export default function VoiceHome() {
   const [busyIds, setBusyIds] = useState<Set<string>>(new Set());
 
   const loadRecent = useCallback(async () => {
+    setLoadingRecent(true);
+    setRecentError(false);
     try {
       const res = await fetch("/api/voice/recent");
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       setRecent(data.captures || []);
       setRecoverable(data.recoverable || []);
+    } catch {
+      setRecentError(true);
     } finally {
       setLoadingRecent(false);
     }
@@ -363,6 +369,11 @@ export default function VoiceHome() {
             {[0, 1, 2].map((i) => (
               <div key={i} className="shimmer h-14 rounded-xl bg-card" />
             ))}
+          </div>
+        ) : recentError ? (
+          <div className="rounded-xl border border-border bg-card px-4 py-6 text-center">
+            <p className="text-sm text-muted-foreground">Couldn&apos;t load recent captures.</p>
+            <Button onClick={() => void loadRecent()} size="sm" variant="secondary" className="mt-3">Retry</Button>
           </div>
         ) : recent.length === 0 && recoverable.length === 0 ? (
           <p className="px-1 py-8 text-center text-sm text-muted-foreground">

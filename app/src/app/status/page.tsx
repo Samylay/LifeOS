@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Activity,
   AlertTriangle,
@@ -19,6 +19,7 @@ import { Card } from "@/components/ui/card";
 import { Page, PageHeader, SectionHeader } from "@/components/ui/page";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AlertInbox } from "@/components/status/alert-inbox";
+import { createRequestGate } from "@/lib/knowledge-request";
 
 const GRAFANA_BASE = process.env.NEXT_PUBLIC_GRAFANA_URL?.replace(/\/$/, "");
 const GRAFANA_URL = GRAFANA_BASE ? `${GRAFANA_BASE}/d/homelab/homelab` : null;
@@ -109,19 +110,24 @@ function useStatus() {
   const [refreshing, setRefreshing] = useState(false);
   const [updatedAt, setUpdatedAt] = useState<number | null>(null);
   const [now, setNow] = useState(() => Date.now());
+  const requestGate = useRef(createRequestGate());
 
   const load = useCallback(async () => {
+    const request = requestGate.current.start();
     setRefreshing(true);
     try {
       const response = await fetch("/api/status");
       if (!response.ok) throw new Error();
-      setData(await response.json());
+      const next = await response.json();
+      if (!requestGate.current.isCurrent(request)) return;
+      setData(next);
       setUpdatedAt(Date.now());
       setError(false);
     } catch {
+      if (!requestGate.current.isCurrent(request)) return;
       setError(true);
     } finally {
-      setRefreshing(false);
+      if (requestGate.current.isCurrent(request)) setRefreshing(false);
     }
   }, []);
 

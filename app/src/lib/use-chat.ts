@@ -43,14 +43,17 @@ export function useChat() {
   // while homelab tools run, so the panel never sits on a silent spinner.
   const [statusText, setStatusText] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  // A cleared conversation can be replaced before its aborted request settles.
+  // Only the current request may change loading state or append a reply.
+  const requestRef = useRef(0);
   // T45: conversation id — the server persists every exchange under it, and
   // clearing the panel finishes the session (routes it to the vault).
   const sessionRef = useRef<string>(newSessionId());
 
   const { tasks, createTask, updateTask } = useTasks();
   const { habits, createHabit } = useHabits();
-  const { notes, createNote } = useNotes();
-  const { reminders, createReminder } = useReminders();
+  const { createNote } = useNotes();
+  const { createReminder } = useReminders();
   const { projects, createProject } = useProjects();
 
   const executeActions = useCallback(
@@ -229,6 +232,7 @@ export function useChat() {
         };
         setMessages((prev) => [...prev, userMsg]);
       }
+      const request = ++requestRef.current;
       setLoading(true);
 
       try {
@@ -283,7 +287,7 @@ export function useChat() {
               buf = buf.slice(nl + 1);
               if (!line) continue;
               const evt = JSON.parse(line);
-              if (evt.type === "status") setStatusText(evt.text);
+              if (evt.type === "status" && request === requestRef.current) setStatusText(evt.text);
               else if (evt.type === "final") data = evt;
               else if (evt.type === "error") throw new Error(evt.message);
             }
@@ -292,12 +296,17 @@ export function useChat() {
           data = await res.json();
         }
 
+        // Clear may have replaced this conversation while the response was
+        // streaming. Never apply its actions or append its reply afterward.
+        if (request !== requestRef.current) return;
+
         // Execute client-side actions from AI tool calls
         let actionResults: ActionResult[] = data.serverResults ?? [];
         if (data.actions?.length) {
           setStatusText(null);
           actionResults = [...actionResults, ...(await executeActions(data.actions))];
         }
+        if (request !== requestRef.current) return;
 
         const assistantMsg: ChatMessage = {
           id: `msg-${++msgId}`,
@@ -308,6 +317,7 @@ export function useChat() {
         };
         setMessages((prev) => [...prev, assistantMsg]);
       } catch (err: unknown) {
+        if (request !== requestRef.current) return;
         if (err instanceof Error && err.name === "AbortError") {
           // User hit Stop mid-stream: leave a visible interrupted marker
           // (with a Retry affordance in the panel) instead of vanishing.
@@ -347,9 +357,11 @@ export function useChat() {
         };
         setMessages((prev) => [...prev, errorMsg]);
       } finally {
-        setLoading(false);
-        setStatusText(null);
-        abortRef.current = null;
+        if (request === requestRef.current) {
+          setLoading(false);
+          setStatusText(null);
+          abortRef.current = null;
+        }
       }
     },
     [loading, messages, tasks, habits, projects, executeActions]
@@ -370,6 +382,11 @@ export function useChat() {
     // the vault (fire-and-forget — the transcript is already persisted
     // server-side, so even a lost request only delays routing to the sweep).
     const sessionId = sessionRef.current;
+    requestRef.current += 1;
+    abortRef.current?.abort();
+    setLoading(false);
+    setStatusText(null);
+    abortRef.current = null;
     fetch("/api/chat/end", {
       method: "POST",
       headers: { "Content-Type": "application/json" },

@@ -90,6 +90,7 @@ function EditionSkeleton() {
 export default function NewsPage() {
   const [edition, setEdition] = useState<Edition | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [refreshArmed, setRefreshArmed] = useState(false);
   // generatedAt of the edition we had when generation started — polling stops
@@ -99,6 +100,7 @@ export default function NewsPage() {
 
   const fetchEdition = useCallback(async (): Promise<Edition | null> => {
     const r = await fetch("/api/news/run");
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
     const j = await r.json();
     return j.edition ?? null;
   }, []);
@@ -107,10 +109,21 @@ export default function NewsPage() {
     (async () => {
       try {
         setEdition(await fetchEdition());
+      } catch {
+        setLoadError(true);
       } finally {
         setLoading(false);
       }
     })();
+  }, [fetchEdition]);
+
+  const retryLoad = useCallback(() => {
+    setLoading(true);
+    setLoadError(false);
+    void fetchEdition()
+      .then(setEdition)
+      .catch(() => setLoadError(true))
+      .finally(() => setLoading(false));
   }, [fetchEdition]);
 
   // While generating, poll for the new edition every 20s.
@@ -184,6 +197,13 @@ export default function NewsPage() {
 
       {loading ? (
         <EditionSkeleton />
+      ) : loadError ? (
+        <Card className="flex-col items-center justify-center gap-3 py-16 text-center">
+          <p className="text-sm text-muted-foreground">Couldn&apos;t load today&apos;s edition.</p>
+          <Button onClick={retryLoad} size="sm" variant="secondary" className="gap-2 text-sm font-medium">
+            <RefreshCw size={15} /> Retry
+          </Button>
+        </Card>
       ) : !edition ? (
         <Card className="flex-col items-center justify-center gap-3 py-16 text-center">
           <p className="text-sm text-muted-foreground">

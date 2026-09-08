@@ -125,7 +125,7 @@ function NoteRow({
 // --- Page ---
 
 export default function KnowledgePage() {
-  const { notes, suggestions, message, enabled, loading, query, setQuery, readNote } = useKnowledge();
+  const { notes, suggestions, message, enabled, loading, error, query, setQuery, refresh, readNote } = useKnowledge();
   const { toggleChatPanel } = useAppStore();
   const { toast } = useToast();
   const [active, setActive] = useState<Note | null>(null);
@@ -173,7 +173,7 @@ export default function KnowledgePage() {
         }
       />
 
-      {!enabled && (
+      {!enabled && !error && (
         <Card className="gap-0 rounded-xl p-4 text-sm text-muted-foreground">
           The knowledge base isn&apos;t mounted. Set <code>KB_PATH</code> to the vault path and restart.
         </Card>
@@ -194,6 +194,7 @@ export default function KnowledgePage() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search notes…"
+            aria-label="Search saved knowledge"
             className="flex-1 bg-transparent text-sm outline-none text-foreground placeholder:text-muted-foreground"
           />
           {query && (
@@ -211,7 +212,12 @@ export default function KnowledgePage() {
       {/* List */}
       {enabled && (
         <div className="space-y-2">
-          {loading && notes.length === 0 ? (
+          {error ? (
+            <Card className="flex-row items-center justify-between gap-3 p-4 text-sm text-muted-foreground">
+              <span>{error}</span>
+              <Button onClick={() => void refresh(query)} size="sm" variant="secondary" className="shrink-0">Retry</Button>
+            </Card>
+          ) : loading && notes.length === 0 ? (
             <p className="text-sm text-muted-foreground/70">Loading…</p>
           ) : notes.length === 0 && query ? (
             <div className="space-y-3">
@@ -228,9 +234,12 @@ export default function KnowledgePage() {
           ) : notes.length === 0 ? (
             <p className="text-sm text-muted-foreground/70">No notes yet.</p>
           ) : (
-            (showAllNotes || query ? notes : notes.slice(0, 5)).map((n) => (
-              <NoteRow key={n.path} note={n} readNote={readNote} openNote={openNote} toast={toast} />
-            ))
+            <>
+              {query && <p className="px-1 text-xs text-muted-foreground">{notes.length} matching note{notes.length === 1 ? "" : "s"}</p>}
+              {(showAllNotes || query ? notes : notes.slice(0, 5)).map((n) => (
+                <NoteRow key={n.path} note={n} readNote={readNote} openNote={openNote} toast={toast} />
+              ))}
+            </>
           )}
           {!query && !showAllNotes && notes.length > 5 && (
             <button

@@ -72,6 +72,8 @@ export function TeachSection() {
   const { toast } = useToast();
   const [topics, setTopics] = useState<Topic[]>([]);
   const [sessions, setSessions] = useState<SessionRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [adding, setAdding] = useState(false);
   const [newTopic, setNewTopic] = useState("");
   const [newMission, setNewMission] = useState("");
@@ -83,24 +85,23 @@ export function TeachSection() {
   const isMobile = useIsMobile();
 
   const load = useCallback(async () => {
-    const data = await fetchTeachData();
-    if (!data) return;
-    setTopics(data.topics);
-    setSessions(data.sessions);
+    setLoading(true);
+    setLoadError(false);
+    try {
+      const data = await fetchTeachData();
+      if (!data) throw new Error("Unable to load learning topics");
+      setTopics(data.topics);
+      setSessions(data.sessions);
+    } catch {
+      setLoadError(true);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
-    let cancelled = false;
-    void fetchTeachData().then((data) => {
-      if (!cancelled && data) {
-        setTopics(data.topics);
-        setSessions(data.sessions);
-      }
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+    void load();
+  }, [load]);
 
   const post = async (body: Record<string, unknown>) => {
     const res = await fetch("/api/teach", {
@@ -281,6 +282,17 @@ export function TeachSection() {
         </DrawerContent>
       </Drawer>
 
+      {loading ? (
+        <div className="space-y-2" aria-label="Loading learning topics">
+          <div className="shimmer h-12 rounded-lg bg-muted" />
+          <div className="shimmer h-12 rounded-lg bg-muted" />
+        </div>
+      ) : loadError ? (
+        <div className="flex items-center justify-between gap-3 rounded-lg bg-muted px-3 py-3 text-sm text-muted-foreground">
+          <span>Couldn&apos;t load learning topics.</span>
+          <Button onClick={() => void load()} size="sm" variant="secondary" className="shrink-0">Retry</Button>
+        </div>
+      ) : (
       <ul className="space-y-2">
         {topics
           .filter((t) => t.status !== "done")
@@ -362,6 +374,7 @@ export function TeachSection() {
           </li>
         )}
       </ul>
+      )}
     </Card>
   );
 }
