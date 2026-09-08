@@ -75,13 +75,13 @@ Do not absolutely position the active card or impose a fixed content height.
 
 ## Decision text and shared patterns
 
-- `CompactText`: short excerpts from the original text, with an explicit
-  full-text control. Never rewrites stored content or silently drops text.
+- Decide uses `DecisionText` to show complete text immediately. No "Read
+  more" step. Other surfaces may use `CompactText` for optional previews.
 - `ActionEffect`: state the outcome before approval. Do not repeat a long
   title inside the effect sentence. Approval consequences and qualifiers stay
   complete and visible.
-- `ContextDetails`: secondary explanation and raw instructions. Critical
-  decision consequences do not belong here.
+- `ContextDetails`: secondary explanation and raw instructions, open by
+  default. Critical decision consequences remain above it.
 - `Provenance`: compact source label with a real external link when available.
 - `Authorship`: distinguish "Your words" from "AI structure".
 - `EmptyState`: explain why there is nothing to act on. `success` is available
@@ -89,6 +89,11 @@ Do not absolutely position the active card or impose a fixed content height.
 - Assistant replies default to 60 words. Decisions lead with recommendation
   and consequence, retaining material risks. More detail remains available
   when requested.
+
+Decide copy follows the `i-have-adhd` skill: action first, one concrete next
+step, short sentences, no duplicated benefit, and explicit risks. Existing
+text stays complete. New assessments and approval briefs use the shared
+`~/services/triage/decision-writing.md` rules in their generation prompts.
 
 Homelab choices are explicit: "Queue skill install" and "Save UI reference".
 The effect explains whether the next step queues an installation or saves a

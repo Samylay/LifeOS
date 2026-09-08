@@ -10,8 +10,7 @@
 import { Fragment } from "react";
 import { Wrench, Bookmark, Archive, Lightbulb, ListTodo, Map, Trash2, HelpCircle } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { CompactText } from "@/components/ui/compact-text";
-import { ContextDetails, Provenance } from "@/components/ui/decision-context";
+import { ContextDetails, DecisionText, Provenance } from "@/components/ui/decision-context";
 import { Badge } from "@/components/ui/badge";
 import { categoryMeta } from "@/components/decide/category-colors";
 import { cn } from "@/lib/utils";
@@ -38,6 +37,7 @@ export interface TriageQueueItem {
     assessment?: { verdict?: string; detail?: string; effort?: string; payoff?: string; apply?: string };
     destination?: string;
     confidence?: string;
+    extraction?: { quality?: string; detail?: string };
     rationale?: string;
   };
 }
@@ -77,7 +77,7 @@ function parseDate(v: TriageQueueItem["savedAt"]): string {
 function Field({ label, value }: { label: string; value?: string }) {
   if (!value || value === "none") return null;
   return (
-    <div className="text-sm leading-relaxed">
+    <div className="text-sm leading-relaxed [overflow-wrap:anywhere]">
       <span className="font-medium text-muted-foreground">{label} </span>
       <span className="text-foreground">{value}</span>
     </div>
@@ -122,12 +122,9 @@ export function TriageCard({
         <span className="ml-auto text-muted-foreground">{parseDate(item.savedAt)}</span>
       </div>
 
-      <h2 className="text-lg font-semibold leading-snug text-foreground">
+      <h2 className="text-lg font-semibold leading-snug text-foreground [overflow-wrap:anywhere]">
         {p.title ?? p.summary ?? item.url}
       </h2>
-      {p.title && p.summary && (
-        <CompactText text={p.summary} limit={160} className="text-muted-foreground" />
-      )}
 
       {(action || alternatives.length > 0) && (
         // The card's primary content: the action, then its effect in plain
@@ -182,8 +179,14 @@ export function TriageCard({
         </div>
       )}
 
-      {a?.payoff && <CompactText text={`Payoff: ${a.payoff}`} limit={120} className="text-muted-foreground" />}
-      <ContextDetails label="Why this recommendation">
+      {p.title && p.summary && <DecisionText className="text-muted-foreground">{p.summary}</DecisionText>}
+      {p.extraction?.quality && p.extraction.quality !== "usable" && (
+        <p className="rounded-lg border border-warning/30 bg-warning/10 p-3 text-sm leading-relaxed text-foreground [overflow-wrap:anywhere]">
+          <span className="font-medium">{p.extraction.quality === "unavailable" ? "Source could not be read." : "Only part of the source was read."}</span>{" "}
+          {p.extraction.detail} Check the source before acting.
+        </p>
+      )}
+      <ContextDetails label="Recommendation details">
       {a && (
         // Why that action, not a rating of the item.
         <div className="space-y-2 rounded-lg bg-muted p-3">
@@ -192,20 +195,20 @@ export function TriageCard({
               {a.verdict}
             </span>
             <span className="text-xs text-muted-foreground">
-              {isBiz ? "validity" : "worth it?"}
+              {isBiz ? "Opportunity" : "Suggested approach"}
             </span>
           </div>
-          <Field label={isBiz ? "The call:" : "What it is:"} value={a.detail} />
-          <div className="grid grid-cols-2 gap-x-3">
+          <Field label="Next step:" value={a.apply} />
+          <Field label={isBiz ? "Why:" : "How it works:"} value={a.detail} />
+          <div className="grid gap-2 sm:grid-cols-2 sm:gap-x-3">
             <Field label="Effort:" value={a.effort} />
-            <Field label="Payoff:" value={a.payoff} />
+            <Field label="Benefit:" value={a.payoff} />
           </div>
-          <Field label="First step:" value={a.apply} />
         </div>
       )}
 
       <Field label="For you:" value={p.why_relevant} />
-      {p.rationale && <Field label="Reason:" value={p.rationale} />}
+      {p.rationale && <Field label="Why this destination:" value={p.rationale} />}
       </ContextDetails>
 
       {/^https?:\/\//.test(item.url) && <Provenance label="Open source" href={item.url} />}

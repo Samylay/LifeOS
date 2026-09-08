@@ -22,10 +22,10 @@ export function ProposalCard({
       <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
         <TagIcon size={22} className="text-primary" />
         <p className="text-lg font-semibold text-foreground">
-          add tag <code className="font-mono">{item.tag}</code>?
+          Add tag <code className="font-mono [overflow-wrap:anywhere]">{item.tag}</code>?
         </p>
         <p className="text-xs text-muted-foreground">
-          study.py wants this in the controlled topic-tag list.
+          Use this tag to group related saves.
         </p>
       </div>
     );
@@ -36,30 +36,22 @@ export function ProposalCard({
       <div className="flex items-center gap-2">
         <Sparkles size={18} className="text-primary" />
         <p className="text-sm font-semibold text-foreground">
-          {item.source === "feed" ? (
-            <>
-              you kept {item.count} feed cards on <code className="font-mono">{item.tag}</code>
-            </>
-          ) : (
-            <>
-              {item.count} saved items cluster on <code className="font-mono">{item.tag}</code>
-            </>
-          )}
+          Create a topic for <code className="font-mono [overflow-wrap:anywhere]">{item.tag}</code>?
         </p>
       </div>
       <p className="text-xs text-muted-foreground">
         {item.source === "feed"
-          ? "The feed's explore lane found this interest. Make it a topic?"
-          : "No topic owns this tag yet. Make it a topic?"}
+          ? `You kept ${item.count} feed cards on this subject.`
+          : `${item.count} saved items share this tag.`}
       </p>
       <label className="mt-auto flex flex-col gap-1.5">
         <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          why (required to accept)
+          What do you want to learn? (required)
         </span>
         <Textarea
           value={mission}
           onChange={(e) => onMissionChange(e.target.value)}
-          placeholder="why do you want to learn this?"
+          placeholder="Name one question you want to answer."
           rows={3}
           className="text-sm"
         />

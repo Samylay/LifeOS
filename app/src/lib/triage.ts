@@ -34,6 +34,7 @@ export interface TriageProposal {
   why_relevant: string;
   destination: string; // "vault" | "idea-bank" | "backlog:<centre>" | "roadmap:<project>" | "discard"
   confidence: "high" | "medium" | "low";
+  extraction?: { quality: "usable" | "limited" | "unavailable"; detail: string };
   rationale: string;
   // Added with the /decide cards (2026-07-11); absent on older proposals.
   title?: string;

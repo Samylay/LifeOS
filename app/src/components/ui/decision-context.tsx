@@ -9,12 +9,16 @@ export function ActionEffect({ label, children, icon, className }: { label: stri
   </div>;
 }
 export function ContextDetails({ children, label = "Details" }: { children: ReactNode; label?: string }) {
-  return <details className="group/details border-t border-border pt-2">
+  return <details open className="group/details border-t border-border pt-2">
     <summary className="flex min-h-9 items-center gap-1.5 rounded-md text-xs font-medium text-muted-foreground hover:text-foreground pressable active:scale-[0.97]">
       <ChevronDown size={13} className="pressable group-open/details:rotate-180" />{label}
     </summary>
     <div className="space-y-3 py-2 text-sm [overflow-wrap:anywhere]">{children}</div>
   </details>;
+}
+/** Decide shows complete text immediately, without an expansion step. */
+export function DecisionText({ children, className }: { children: ReactNode; className?: string }) {
+  return <p className={cn("text-sm leading-relaxed whitespace-pre-wrap [overflow-wrap:anywhere]", className)}>{children}</p>;
 }
 export function Provenance({ label, href, children }: { label: string; href?: string; children?: ReactNode }) {
   return <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">

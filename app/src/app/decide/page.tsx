@@ -189,7 +189,7 @@ function DecideInner() {
 
       {loading ? (
         <div className="shimmer rounded-xl bg-card p-10 text-center text-sm text-muted-foreground">
-          loading decks…
+          Loading decisions…
         </div>
       ) : errors[deck] ? (
         // A failed fetch is not an empty deck — say so and offer a retry.
@@ -229,7 +229,7 @@ function DecideInner() {
           // meaning — spring it back and say what is missing.
           guard={(item, actionId) =>
             actionId === "approve" && !actionFor(item)
-              ? "pick where it goes first"
+              ? "Choose a destination first."
               : null}
           // The request carries the action id and its typed parameters only —
           // never the item's own text. Approving commits exactly the action
@@ -251,7 +251,7 @@ function DecideInner() {
             const d = await post("/api/triage/interpret", { id: item.id, transcript });
             return String(d.reply || d.result || "");
           }}
-          emptyLabel="Saved queue is clear — new captures get studied nightly at 00:30. Deferred cards come back on their date."
+          emptyLabel="No saved items to decide. Deferred cards return on their date."
         />
         </>
       ) : deck === "proposals" ? (
@@ -271,7 +271,7 @@ function DecideInner() {
           // up front instead of eating the card.
           guard={(item, actionId) =>
             actionId === "accept" && item.kind === "topic" && !(missionDrafts[item.id] || "").trim()
-              ? "write the why first — a topic needs its mission"
+              ? "Write what you want to learn, then accept."
               : null}
           // "Never" tombstones the tag permanently: two taps/swipes to commit.
           confirmIds={["never"]}
@@ -283,7 +283,7 @@ function DecideInner() {
             })).result ?? "")}
           onResolved={(item) => setProposals((xs) => xs.filter((x) => x.id !== item.id))}
           onRestore={(item) => setProposals((xs) => [item, ...xs.filter((x) => x.id !== item.id)])}
-          emptyLabel="No tag or topic proposals right now — they surface as your saves cluster."
+          emptyLabel="No new tags or topics to decide."
         />
       ) : null}
     </Page>

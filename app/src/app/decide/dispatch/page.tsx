@@ -23,8 +23,7 @@ import { Loader2, RefreshCw, Send, Terminal, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Page, PageHeader } from "@/components/ui/page";
 import { post } from "@/lib/decide/post";
-import { Provenance } from "@/components/ui/decision-context";
-import { CompactText } from "@/components/ui/compact-text";
+import { DecisionText, Provenance } from "@/components/ui/decision-context";
 import type { HomelabResource } from "@/lib/homelab-resources";
 import { queueBodyFor } from "@/lib/decide/dispatch";
 
@@ -171,12 +170,12 @@ export default function DispatchPage() {
                     <li key={q.id} className="rounded-lg border border-border bg-card p-3">
                       <div className="flex items-start gap-2">
                         <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-medium text-foreground">
+                          <p className="text-sm font-medium text-foreground [overflow-wrap:anywhere]">
                             {q.title || "untitled"}
                           </p>
-                          <p className="mt-0.5 line-clamp-3 text-xs leading-relaxed text-muted-foreground">
+                          <DecisionText className="mt-0.5 text-xs text-muted-foreground">
                             {q.prompt}
-                          </p>
+                          </DecisionText>
                         </div>
                         <button
                           onClick={() => remove(q.id)}
@@ -206,7 +205,7 @@ export default function DispatchPage() {
             <p className="text-xs text-muted-foreground">UI references matching your instructions.</p>
             {references.map((reference) => <div key={reference.id} className="space-y-1">
               <Provenance label={reference.title} href={reference.url} />
-              <CompactText text={reference.summary} limit={120} className="text-muted-foreground" />
+              <DecisionText className="text-muted-foreground">{reference.summary}</DecisionText>
             </div>)}
           </section>}
           <section className="space-y-3">
@@ -222,7 +221,7 @@ export default function DispatchPage() {
                     <p className="text-sm font-medium leading-snug text-foreground">{item.title}</p>
                     {item.url && (
                       <a href={item.url} target="_blank" rel="noreferrer"
-                        className="block truncate text-xs text-primary">
+                        className="block text-xs text-primary [overflow-wrap:anywhere]">
                         {item.url}
                       </a>
                     )}
