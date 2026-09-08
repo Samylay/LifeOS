@@ -396,9 +396,9 @@ function TriageCard({ card }: { card: BriefCard }) {
   const row = (it: TriageBody["keep"][number]) => (
     <div key={it.id} className="flex items-baseline gap-2 text-sm">
       <span className="font-mono text-xs shrink-0 text-muted-foreground/70" style={{ minWidth: 16 }}>{it.n}</span>
-      <div className="min-w-0">
+      <div className="min-w-0 [overflow-wrap:anywhere]">
         <span className="text-foreground">{it.summary || it.url}</span>
-        <span className="ml-2 text-xs px-1.5 py-0.5 rounded-full whitespace-nowrap"
+        <span className="inline-block max-w-full text-xs px-1.5 py-0.5 rounded-full align-middle [overflow-wrap:anywhere]"
           style={{
             // color-mix, not a hex+"20" alpha suffix: the tokens are CSS vars,
             // and a 12% hex alpha was invisible on the dark ground anyway.

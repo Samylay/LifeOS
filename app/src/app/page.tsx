@@ -132,7 +132,7 @@ export default function Today() {
       {celebrating && <Celebration onDone={() => setCelebrating(false)} />}
       {/* Header */}
       <div className="page-header flex-wrap enter">
-        <div>
+        <div className="min-w-0 max-w-full">
           <h1 className="flex items-center gap-2 text-foreground">
             {!now || now.getHours() < 18 ? <Sun size={20} className="text-primary" /> : <Moon size={20} className="text-primary" />}
             {greeting(now)}, Samy

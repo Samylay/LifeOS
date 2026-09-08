@@ -51,3 +51,11 @@ These changes use existing Mira `Button` and `Card` components. New feedback sta
 - Isolated browser smoke at `http://127.0.0.1:3105` covered 17 non-Finance/Decide routes at 1440px and 390px. Every route rendered exactly one `main`; no route had horizontal overflow. The harness intercepted every non-GET API request and supplied only local synthetic GET responses. It also verified failed-request recovery for Today brief, Voice recent captures, Knowledge, News edition, and Diagram history. No mutation request was allowed or attempted after populated catalog and Prime fixtures were added.
 - An earlier smoke found a Today hydration exception: production React error `#418` with `HTML` arguments. The direct `new Date()` calls in Today’s first render were the concrete server/client mismatch. The final rebuilt preview passed the same isolated smoke with no browser errors after the clock-free first render fix.
 - Re-run script: `.scratch/mira-redesign/surface-smoke-20260909.mjs`. Screenshots and JSON results are ignored under `.scratch/mira-redesign/`; no model-generation, mutation API, database, vault, environment, service, or live-browser writes were run.
+
+## Final live-content correction
+
+A GET-only production check at 320px found two additional overflow sources
+that the synthetic fixtures did not expose: the Today header inherited a
+448px minimum width from a long learning-progress line, and a saved-item
+destination badge used `whitespace-nowrap`. The header now permits shrinking
+and the destination wraps without changing its text. No content was edited.
