@@ -54,7 +54,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
-import { KpiCard, CategoryBar } from "@/components/charts";
+import { KpiCard } from "@/components/charts";
 import { MonthHistory, monthLabel } from "@/components/finance/month-history";
 import { ActivityLedger } from "@/components/finance/activity-ledger";
 import { formatMoney } from "@/lib/finance-activity";
@@ -271,7 +271,7 @@ function FlowRow({
   return (
     <div className="flex items-center justify-between gap-3 border-b border-border/60 py-2 last:border-b-0">
       <div className="min-w-0">
-        <p className="truncate text-sm font-medium text-foreground">
+        <p className="break-words text-sm font-medium text-foreground">
           {flow.label}
           {flow.dormant && (
             <Badge variant="outline" className="ml-2 gap-1 text-[10px] font-medium">
@@ -280,7 +280,7 @@ function FlowRow({
           )}
         </p>
         <p className="text-xs text-muted-foreground">
-          {formatEuro(flow.amount)} {CADENCE_LABEL[flow.cadence]}
+          {flow.direction === "in" ? "Income" : "Cost"} · {formatMoney(flow.amount)} {CADENCE_LABEL[flow.cadence]}
           {flow.cadence !== "monthly" && flow.cadence !== "oneoff" && (
             <span> · {formatEuro(monthlyAmount(flow))} a month</span>
           )}
@@ -296,12 +296,13 @@ function FlowRow({
             size="icon-sm"
             onClick={onToggleDormant}
             title={flow.dormant ? "Mark as used" : "Mark as unused"}
+            aria-label={`${flow.dormant ? "Mark as used" : "Mark as unused"}: ${flow.label}`}
             className={flow.dormant ? "text-primary" : "text-muted-foreground"}
           >
             <MoonStar size={15} />
           </Button>
         )}
-        <Button variant="ghost" size="icon-sm" onClick={onDelete} className="text-muted-foreground" title="Delete">
+        <Button variant="ghost" size="icon-sm" onClick={onDelete} className="text-muted-foreground" title="Delete" aria-label={`Delete manual entry ${flow.label}`}>
           <Trash2 size={15} />
         </Button>
       </div>
@@ -563,12 +564,6 @@ export default function FinancePage() {
   const {
     flows,
     loading,
-    totals,
-    subs,
-    spend,
-    habits,
-    income,
-    outgoings,
     addFlow,
     addFlows,
     updateFlow,
@@ -578,9 +573,6 @@ export default function FinancePage() {
   const [mode, setMode] = useState<"none" | "paste" | "quick">("none");
   const [pendingDelete, setPendingDelete] = useState<FinanceFlow | null>(null);
 
-  const subsYearly = subs.reduce((sum, f) => sum + yearlyAmount(f), 0);
-  const empty = flows.length === 0 && !loading;
-
   return (
     <Page>
       <PageHeader
@@ -588,157 +580,41 @@ export default function FinancePage() {
         title="Finance"
         description="Income, spending, and recurring costs."
         icon={Wallet}
-        actions={mode === "none" && !empty ? (
-          <>
-            <Button size="sm" variant="outline" onClick={() => setMode("paste")} className="gap-1.5 text-sm">
-              <ClipboardPaste size={15} /> Paste list
-            </Button>
-            <Button size="sm" onClick={() => setMode("quick")} className="gap-1.5 text-sm">
-              <Plus size={15} /> Add
-            </Button>
-          </>
-        ) : undefined}
       />
 
       <BurnOverview />
 
-      {mode === "paste" && (
-        <PasteBox
-          onCancel={() => setMode("none")}
-          onImport={async (drafts) => {
-            setMode("none");
-            await addFlows(drafts);
-            toast(`${drafts.length} row${drafts.length === 1 ? "" : "s"} added`);
-          }}
-        />
-      )}
-
-      {mode === "quick" && (
-        <QuickAdd
-          onCancel={() => setMode("none")}
-          onAdd={async (draft) => {
-            setMode("none");
-            await addFlow(draft);
-            toast("Added");
-          }}
-        />
-      )}
-
-      {loading && flows.length === 0 && (
-        <div className="space-y-2">
-          <Skeleton className="h-24 w-full rounded-xl" />
-          <Skeleton className="h-40 w-full rounded-xl" />
-        </div>
-      )}
-
-      {empty && mode === "none" && (
-        <Card className="gap-2 p-4">
-          <p className="text-sm font-semibold text-foreground">Manual budget (optional)</p>
-          <p className="mb-4 mt-1 max-w-sm text-sm text-muted-foreground">
-            Add planned income or costs your connected banks do not cover.
-          </p>
-          <Button size="sm" onClick={() => setMode("paste")} className="w-fit gap-1.5 text-sm">
-            <ClipboardPaste size={15} /> Paste list
-          </Button>
-        </Card>
-      )}
-
-      {flows.length > 0 && (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 enter">
-          <KpiCard label="In" value={formatEuro(totals.monthlyIn, { decimals: false })} icon={<TrendingUp size={13} />} />
-          <KpiCard label="Out" value={formatEuro(totals.monthlyOut, { decimals: false })} icon={<TrendingDown size={13} />} />
-          <KpiCard
-            label="Left over"
-            value={formatEuro(totals.monthlyLeft, { decimals: false })}
-            icon={<PiggyBank size={13} />}
-            className={totals.monthlyLeft < 0 ? "border-destructive/50" : undefined}
-          />
-        </div>
-      )}
-
-
-      {flows.length > 0 && (
-        <>
-          {/* Habits: behaviour, not a ledger. */}
-          {habits.length > 0 && (
-            <Card className="gap-2 px-4 py-4">
-              <p className="section-label">Where it goes</p>
-              {spend.length > 0 && (
-                <CategoryBar
-                  data={spend.map((s) => ({ label: s.label, value: s.monthly }))}
-                  showLegend
-                  valueFormatter={(v) => formatEuro(v, { decimals: false })}
-                />
-              )}
-              <ul className="mt-1 space-y-1">
-                {habits.map((line) => (
-                  <li key={line} className="text-sm text-muted-foreground">
-                    {line}
-                  </li>
-                ))}
-              </ul>
-            </Card>
-          )}
-
-          {/* Subscriptions: the list he is meant to prune. */}
-          <Card className="gap-2 px-4 py-4">
-            <div className="flex items-baseline justify-between gap-2">
-              <p className="section-label">Subscriptions</p>
-              <p className="text-xs tabular-nums text-muted-foreground">
-                {formatEuro(totals.monthlySubs)} a month · {formatEuro(subsYearly, { decimals: false })} a year
-              </p>
+      <section aria-labelledby="manual-entries-heading" className="space-y-3">
+        <Card className="gap-3 p-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0">
+              <h2 id="manual-entries-heading" className="text-sm font-semibold">Manual entries</h2>
+              <p className="mt-1 text-sm text-muted-foreground">Optional notes for planned income and costs. Separate from your bank totals.</p>
             </div>
-            {totals.dormantYearly > 0 && (
-              <p className="text-xs text-destructive">
-                {formatEuro(totals.dormantYearly, { decimals: false })} a year of that is marked unused.
-              </p>
-            )}
-            {subs.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No cancellable subscriptions tracked.</p>
-            ) : (
-              <div>
-                {subs.map((f) => (
-                  <FlowRow
-                    key={f.id}
-                    flow={f}
-                    onToggleDormant={() => updateFlow(f.id, { dormant: !f.dormant })}
-                    onDelete={() => setPendingDelete(f)}
-                  />
-                ))}
-              </div>
-            )}
-          </Card>
-
-          {/* The raw list, last — it is reference, not the point. */}
-          <div className="grid gap-3 md:grid-cols-2">
-            <Card className="gap-2 px-4 py-4">
-              <p className="section-label">Rentrées</p>
-              {income.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Nothing coming in is tracked.</p>
-              ) : (
-                <div>
-                  {income.map((f) => (
-                    <FlowRow key={f.id} flow={f} onDelete={() => setPendingDelete(f)} />
-                  ))}
-                </div>
-              )}
-            </Card>
-            <Card className="gap-2 px-4 py-4">
-              <p className="text-sm font-medium text-foreground">Sorties</p>
-              <div>
-                {outgoings.map((f) => (
-                  <FlowRow
-                    key={f.id}
-                    flow={f}
-                    onToggleDormant={f.kind === "sub" ? () => updateFlow(f.id, { dormant: !f.dormant }) : undefined}
-                    onDelete={() => setPendingDelete(f)}
-                  />
-                ))}
-              </div>
-            </Card>
+            {mode === "none" && <div className="flex flex-wrap gap-2">
+              <Button size="sm" variant="outline" onClick={() => setMode("paste")} className="gap-1.5"><ClipboardPaste size={15} /> Paste list</Button>
+              <Button size="sm" variant="secondary" onClick={() => setMode("quick")} className="gap-1.5"><Plus size={15} /> Add entry</Button>
+            </div>}
           </div>
-        </>
-      )}
+          {loading && flows.length === 0 ? <Skeleton className="h-16 w-full rounded-lg" /> : flows.length > 0 ? (
+            <div>
+              {flows.map((flow) => <FlowRow key={flow.id} flow={flow}
+                onToggleDormant={flow.kind === "sub" && flow.direction === "out" ? () => updateFlow(flow.id, { dormant: !flow.dormant }) : undefined}
+                onDelete={() => setPendingDelete(flow)} />)}
+            </div>
+          ) : <p className="text-xs text-muted-foreground">No manual entries. Connected banks update the overview above.</p>}
+        </Card>
+        {mode === "paste" && <PasteBox onCancel={() => setMode("none")} onImport={async (drafts) => {
+          setMode("none");
+          await addFlows(drafts);
+          toast(`${drafts.length} row${drafts.length === 1 ? "" : "s"} added`);
+        }} />}
+        {mode === "quick" && <QuickAdd onCancel={() => setMode("none")} onAdd={async (draft) => {
+          setMode("none");
+          await addFlow(draft);
+          toast("Added");
+        }} />}
+      </section>
 
       <ConfirmDialog
         open={pendingDelete !== null}
