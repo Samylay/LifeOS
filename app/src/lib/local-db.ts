@@ -181,7 +181,8 @@ type Unsubscribe = () => void;
 /** Realtime listener replacement: fetch now + poll. */
 export function onSnapshot(
   target: CollectionRef | QueryRef | DocRef,
-  callback: (snap: QuerySnap & DocSnap) => void
+  callback: (snap: QuerySnap & DocSnap) => void,
+  onError?: (error: Error) => void,
 ): Unsubscribe {
   let cancelled = false;
 
@@ -189,7 +190,8 @@ export function onSnapshot(
     try {
       if (target.__type === "doc") {
         const res = await fetch(`/api/data/${target.path}`);
-        if (!res.ok || cancelled) return;
+        if (cancelled) return;
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const { doc } = await res.json();
         const snap = {
           id: target.path.split("/").pop() ?? "",
@@ -202,7 +204,8 @@ export function onSnapshot(
         const qs =
           target.__type === "query" ? buildQueryString(target.constraints) : "";
         const res = await fetch(`/api/data/${target.path}${qs}`);
-        if (!res.ok || cancelled) return;
+        if (cancelled) return;
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const { docs } = await res.json();
         const snap = {
           docs: (docs as Record<string, unknown>[]).map((d) => ({
@@ -213,8 +216,9 @@ export function onSnapshot(
         } as unknown as QuerySnap & DocSnap;
         callback(snap);
       }
-    } catch {
+    } catch (error) {
       // Server unreachable — leave last state in place.
+      if (!cancelled) onError?.(error instanceof Error ? error : new Error("Could not load records"));
     }
   };
 

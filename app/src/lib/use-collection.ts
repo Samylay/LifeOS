@@ -54,6 +54,7 @@ export function useCollection<T extends { id: string }>(
   const uid = (useAuth().user ?? LOCAL_USER).uid;
   const [items, setItems] = useState<T[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const ref = collection(db, `users/${uid}/${collectionName}`);
@@ -68,6 +69,10 @@ export function useCollection<T extends { id: string }>(
           return { ...defaults, ...d, id: doc.id } as T;
         })
       );
+      setLoading(false);
+      setError(null);
+    }, (error) => {
+      setError(error.message);
       setLoading(false);
     });
     // fallbackDates/defaults are config literals; identity changes are noise.
@@ -91,5 +96,5 @@ export function useCollection<T extends { id: string }>(
     [uid, collectionName]
   );
 
-  return { items, loading, create, update, remove };
+  return { items, loading, error, create, update, remove };
 }

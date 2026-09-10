@@ -83,6 +83,10 @@ export interface Habit {
   id: string;
   name: string;
   frequency: "daily" | "weekly";
+  /** Optional fields keep existing habits active and in their current order. */
+  daysOfWeek?: number[]; // 0 = Sunday; empty means every day / once per week.
+  status?: "active" | "paused" | "archived";
+  order?: number;
   streak: number;
   history: { date: string; completed: boolean }[];
 }
@@ -784,5 +788,4 @@ export interface ContentIdea {
   createdAt: Date;
   updatedAt: Date;
 }
-
 

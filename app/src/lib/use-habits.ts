@@ -1,9 +1,10 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import { useCollection } from "./use-collection";
-import { localDayOf } from "./types";
 import type { Habit, AreaId } from "./types";
+import { notifyWrite } from "./local-db";
+import { scheduledToggle, sortHabits } from "./habit-schedule";
 
 export interface HabitWithArea extends Habit {
   area?: AreaId;
@@ -25,56 +26,51 @@ export function toggledHabitState(
   history: HabitEntry[],
   now: Date = new Date()
 ): { history: HabitEntry[]; streak: number } {
-  const today = localDayOf(now);
-  const todayEntry = history.find((h) => h.date === today);
-  const newHistory = todayEntry
-    ? history.map((h) => (h.date === today ? { ...h, completed: !h.completed } : h))
-    : [...history, { date: today, completed: true }];
-
-  // Count consecutive completed days backwards from today.
-  const completedDates = new Set(
-    newHistory.filter((h) => h.completed).map((h) => h.date)
-  );
-  let streak = 0;
-  const cursor = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  while (completedDates.has(localDayOf(cursor))) {
-    streak++;
-    cursor.setDate(cursor.getDate() - 1);
-  }
-
-  return { history: newHistory, streak };
+  return scheduledToggle({ history, frequency: "daily" }, now);
 }
 
 export function useHabits() {
-  const { items: habits, loading, create, update, remove } =
+  const { items, loading, error } =
     useCollection<HabitWithArea>("habits", { fallbackDates: [] });
+  const habits = useMemo(() => sortHabits(items), [items]);
+
+  const write = useCallback(async (method: string, id?: string, data?: unknown) => {
+    const path = `users/local/habits${id ? `/${encodeURIComponent(id)}` : ""}`;
+    const res = await fetch(`/api/data/${path}`, {
+      method, headers: { "Content-Type": "application/json" }, body: data === undefined ? undefined : JSON.stringify(data),
+    });
+    const result = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(result.error ?? "Could not save the habit. Try again.");
+    notifyWrite(path);
+    return result;
+  }, []);
 
   const createHabit = useCallback(
     async (data: Omit<HabitWithArea, "id">) => {
-      return await create(data);
+      return String((await write("POST", undefined, data)).id);
     },
-    [create]
+    [write]
   );
 
   const updateHabit = useCallback(
     async (id: string, data: Partial<HabitWithArea>) => {
-      await update(id, data);
+      await write("PATCH", id, data);
     },
-    [update]
+    [write]
   );
 
-  const deleteHabit = useCallback(async (id: string) => remove(id), [remove]);
+  const deleteHabit = useCallback(async (id: string) => { await write("DELETE", id); }, [write]);
 
   const toggleToday = useCallback(
     async (id: string) => {
       const habit = habits.find((h) => h.id === id);
       if (!habit) return;
 
-      const { history, streak } = toggledHabitState(habit.history);
+      const { history, streak } = scheduledToggle(habit);
       await updateHabit(id, { history, streak });
     },
     [habits, updateHabit]
   );
 
-  return { habits, loading, createHabit, updateHabit, deleteHabit, toggleToday };
+  return { habits, loading, error, createHabit, updateHabit, deleteHabit, toggleToday };
 }

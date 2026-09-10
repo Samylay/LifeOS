@@ -13,7 +13,9 @@ import {
   Flag,
 } from "lucide-react";
 import Link from "next/link";
-import { useHabits, toggledHabitState } from "@/lib/use-habits";
+import { useHabits } from "@/lib/use-habits";
+import { habitCompleted, habitDue, scheduledToggle } from "@/lib/habit-schedule";
+import { toast } from "sonner";
 import { useReminders } from "@/lib/use-reminders";
 import { useNotifications } from "@/lib/use-notifications";
 import { useTeachProgress } from "@/lib/use-teach-progress";
@@ -24,7 +26,6 @@ import { Skeleton } from "@/components/skeleton";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import type { Brief } from "@/lib/brief-types";
-import { localDayOf } from "@/lib/types";
 
 interface BriefResponse {
   source: "live" | "fixture";
@@ -59,6 +60,7 @@ export default function Today() {
 
   // Optimistic overlay for habit ticks — flips instantly, server catches up.
   const [optimistic, setOptimistic] = useState<Record<string, boolean>>({});
+  const [habitSaving, setHabitSaving] = useState<Record<string, boolean>>({});
 
   // T38: celebrate a habit crossing a weekly streak milestone (7, 14, 21…).
   const [celebrating, setCelebrating] = useState(false);
@@ -88,21 +90,21 @@ export default function Today() {
     loadBrief();
   }, [loadBrief]);
 
-  // Same civil-day key `toggledHabitState` writes with. Both used UTC before,
-  // so they agreed with each other but both pointed at yesterday between
-  // midnight and 02:00 Paris time.
-  const todayStr = localDayOf(new Date());
   // Local-date YYYY-MM-DD for the stale-brief check (the brief is written in
   // local time; UTC would flag it stale every evening).
   const todayLocal = new Date().toLocaleDateString("en-CA");
-  const todayHabits = habits.filter((h) => h.frequency === "daily");
+  const todayHabits = habits.filter((h) => habitDue(h, now ?? new Date()));
   const isDone = (h: (typeof todayHabits)[number]) =>
     h.id in optimistic
       ? optimistic[h.id]
-      : h.history.some((e) => e.date === todayStr && e.completed);
+      : habitCompleted(h, now ?? new Date());
   const habitsDone = todayHabits.filter(isDone).length;
 
-  const handleToggle = (id: string, currentlyDone: boolean) => {
+  useEffect(() => { setOptimistic({}); }, [habits, now]);
+
+  const handleToggle = async (id: string, currentlyDone: boolean) => {
+    if (habitSaving[id]) return;
+    setHabitSaving((current) => ({ ...current, [id]: true }));
     setOptimistic((o) => ({ ...o, [id]: !currentlyDone }));
     // T37 haptics: a short buzz only on completion (not un-ticks), fired here
     // in the UI layer so the hook's data logic stays pure.
@@ -114,11 +116,15 @@ export default function Today() {
       // round-trip needed to know whether today's tick crossed one.
       const habit = habits.find((h) => h.id === id);
       if (habit) {
-        const { streak } = toggledHabitState(habit.history);
+        const { streak } = scheduledToggle(habit);
         if (streak > 0 && streak % 7 === 0) setCelebrating(true);
       }
     }
-    toggleToday(id);
+    try { await toggleToday(id); }
+    catch (e) {
+      setOptimistic((current) => { const next = { ...current }; delete next[id]; return next; });
+      toast.error(e instanceof Error ? e.message : "Could not save your completion.");
+    } finally { setHabitSaving((current) => ({ ...current, [id]: false })); }
   };
 
   const nextReminder = [...overdueReminders, ...todayReminders][0];
@@ -258,15 +264,15 @@ export default function Today() {
       </div>
 
       {/* Habits */}
-      {todayHabits.length > 0 && (
+      {(
         <Card className="p-4 lg:p-5 gap-3 enter" style={{ ["--enter-delay" as string]: "90ms" }}>
           <div className="flex items-center justify-between">
             <h2 className="section-label">
               Habits
             </h2>
-            <span className="text-xs font-mono text-primary">
+            <div className="flex items-center gap-3"><Link href="/settings/habits" className="text-xs text-muted-foreground pressable active:scale-[0.97] hover:text-foreground">Manage</Link><span className="text-xs font-mono text-primary">
               {habitsDone}/{todayHabits.length}
-            </span>
+            </span></div>
           </div>
           {/* lg keeps one column: two columns cramp inside the 340px rail */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-2">
@@ -276,6 +282,8 @@ export default function Today() {
                 <button
                   key={habit.id}
                   onClick={() => handleToggle(habit.id, done)}
+                  disabled={habitSaving[habit.id]}
+                  aria-pressed={done}
                   className="flex items-center gap-3 w-full rounded-lg px-3 py-2.5 text-left pressable active:scale-[0.97] bg-muted"
                 >
                   <div
@@ -289,11 +297,13 @@ export default function Today() {
                     className={`text-sm flex-1 truncate ${done ? "text-foreground line-through opacity-60" : "text-foreground"}`}
                   >
                     {habit.name}
+                    {habit.frequency === "weekly" && <span className="ml-1 text-xs text-muted-foreground">this week</span>}
                   </span>
                 </button>
               );
             })}
           </div>
+          {todayHabits.length === 0 && <p className="text-sm text-muted-foreground">{habits.length ? "No habits scheduled today." : "Add your first habit from Manage."}</p>}
         </Card>
       )}
 
