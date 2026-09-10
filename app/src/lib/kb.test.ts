@@ -8,7 +8,7 @@ process.env.LIFEOS_DB_PATH = path.join(dbDir, "test.db");
 const vaultDir = fs.mkdtempSync(path.join(os.tmpdir(), "lifeos-kb-vault-"));
 process.env.KB_PATH = vaultDir;
 
-const { listNotes, searchNotes } = await import("./kb");
+const { listNotes, searchNotes, graphNotes } = await import("./kb");
 
 afterAll(() => {
   fs.rmSync(dbDir, { recursive: true, force: true });
@@ -27,6 +27,18 @@ beforeEach(() => {
 });
 
 describe("listNotes — no-query path", () => {
+  it("reads graph notes without changing files or following symlinks", () => {
+    writeNote("notes/a.md", "# A\n[[b]]");
+    writeNote("notes/b.md", "# B");
+    writeNote(".hidden/secret.md", "# Hidden");
+    fs.symlinkSync(path.join(dbDir, "test.db"), path.join(vaultDir, "symlink.md"));
+    const before = fs.statSync(path.join(vaultDir, "notes/a.md"));
+    const graph = graphNotes(1);
+    expect(graph.totalNotes).toBe(2);
+    expect(graph.notes.map((n) => n.path)).toEqual(["notes/a.md"]);
+    expect(graph.notes[0].content).toBe("# A\n[[b]]");
+    expect(fs.statSync(path.join(vaultDir, "notes/a.md")).mtimeMs).toBe(before.mtimeMs);
+  });
   it("lists every note newest-first, byte-identical shape to before", () => {
     writeNote("01-Inbox/older.md", "# Older\n\nsome text");
     const older = fs.statSync(path.join(vaultDir, "01-Inbox/older.md"));

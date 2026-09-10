@@ -225,6 +225,17 @@ export function readNote(relPath: string): Note | null {
   };
 }
 
+/** Read-only graph input. The existing walker excludes hidden files and symlinks. */
+export function graphNotes(limit = 2000): { notes: Note[]; totalNotes: number } {
+  if (!kbEnabled()) return { notes: [], totalNotes: 0 };
+  const root = path.resolve(KB_PATH);
+  const files: string[] = [];
+  walk(root, files);
+  files.sort();
+  const notes = files.slice(0, limit).map((file) => readNote(path.relative(root, file))).filter((note): note is Note => note !== null);
+  return { notes, totalNotes: files.length };
+}
+
 // --- Write-back --------------------------------------------------------------
 
 function slugify(s: string): string {

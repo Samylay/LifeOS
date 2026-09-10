@@ -9,6 +9,7 @@ import {
   ArrowLeft,
   Sparkles,
   Tag,
+  Network,
 } from "lucide-react";
 import { useKnowledge, type Note, type NoteMeta } from "@/lib/use-kb";
 import { calendarDaysBetween } from "@/lib/types";
@@ -19,6 +20,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Page, PageHeader } from "@/components/ui/page";
+import { KnowledgeGraph } from "@/components/knowledge-graph";
 
 function timeAgo(ms: number): string {
   const days = calendarDaysBetween(new Date(ms), new Date());
@@ -32,11 +34,11 @@ function timeAgo(ms: number): string {
 
 // --- Note reader ---
 
-function NoteReader({ note, onBack }: { note: Note; onBack: () => void }) {
+function NoteReader({ note, onBack, backLabel }: { note: Note; onBack: () => void; backLabel: string }) {
   return (
     <div className="space-y-4">
       <button onClick={onBack} className="flex items-center gap-1.5 text-sm font-medium text-primary">
-        <ArrowLeft size={14} /> Back to notes
+        <ArrowLeft size={14} /> {backLabel}
       </button>
 
       <div className="flex items-center gap-2 flex-wrap">
@@ -130,6 +132,13 @@ export default function KnowledgePage() {
   const { toast } = useToast();
   const [active, setActive] = useState<Note | null>(null);
   const [showAllNotes, setShowAllNotes] = useState(false);
+  const [view, setView] = useState<"notes" | "graph">("notes");
+  useEffect(() => {
+    const sync = () => setView(new URLSearchParams(window.location.search).get("view") === "graph" ? "graph" : "notes");
+    queueMicrotask(sync);
+    window.addEventListener("popstate", sync);
+    return () => window.removeEventListener("popstate", sync);
+  }, []);
 
   // The reader gets its own history entry so the phone back gesture closes
   // the note instead of leaving /knowledge.
@@ -152,17 +161,17 @@ export default function KnowledgePage() {
   if (active) {
     return (
       <Page narrow>
-        <NoteReader note={active} onBack={closeNote} />
+        <NoteReader note={active} onBack={closeNote} backLabel={view === "graph" ? "Back to graph" : "Back to notes"} />
       </Page>
     );
   }
 
   return (
-    <Page narrow>
+    <Page narrow={view === "notes"} className={view === "graph" ? "max-w-6xl" : undefined}>
       <PageHeader
         kicker="Vault"
         title="Knowledge"
-        description="Find a note or continue learning."
+        description="Find a note, follow its connections, or continue learning."
         icon={Brain}
         actions={
           enabled ? (
@@ -172,6 +181,12 @@ export default function KnowledgePage() {
           ) : undefined
         }
       />
+
+      <div className="flex gap-1" role="group" aria-label="Knowledge view">
+        <Button variant={view === "notes" ? "secondary" : "ghost"} aria-pressed={view === "notes"} onClick={() => { setView("notes"); window.history.replaceState(window.history.state, "", "/knowledge"); }}><FileText size={15} /> Notes & learning</Button>
+        <Button variant={view === "graph" ? "secondary" : "ghost"} aria-pressed={view === "graph"} onClick={() => { setView("graph"); window.history.replaceState(window.history.state, "", "/knowledge?view=graph"); }}><Network size={15} /> Graph</Button>
+      </div>
+      {view === "graph" ? <KnowledgeGraph onOpenNote={async (path) => { const note = await readNote(path); if (note) openNote(note); else toast("Could not open note"); }} /> : <>
 
       {!enabled && !error && (
         <Card className="gap-0 rounded-xl p-4 text-sm text-muted-foreground">
@@ -251,6 +266,7 @@ export default function KnowledgePage() {
           )}
         </div>
       )}
+      </>}
     </Page>
   );
 }
