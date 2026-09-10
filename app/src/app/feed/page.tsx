@@ -1,5 +1,7 @@
 "use client";
 
+/* eslint-disable @next/next/no-img-element -- private corpus images have no reliable intrinsic dimensions */
+
 // /feed — the infinite-scroll learning feed (spec: .scratch/feed/MAP.md).
 // Immersive full-screen overlay (covers sidebar + bottom nav), snap-scroll,
 // one card per viewport. All interactions live in the lower half (thumb
@@ -262,16 +264,46 @@ function CardView({ card }: { card: ServedCard }) {
           <span className="rounded-full border border-border px-2 py-0.5">
             {FORMAT_LABEL[card.format]}
           </span>
+          {card.category && (
+            <span className="rounded-full border border-border px-2 py-0.5">{card.category}</span>
+          )}
         </div>
 
         <h2 className="text-lg font-semibold leading-snug">{card.hook}</h2>
-        {card.subConcept && (
+        {card.subConcept && card.subConcept !== card.category && (
           <p className="mt-1 text-xs text-muted-foreground">{card.subConcept}</p>
         )}
         {card.format !== "quiz" && (
+          <>
+            {card.images?.[0] && (
+              <figure className="mt-4 overflow-hidden rounded-xl border border-border bg-card">
+                <img
+                  src={card.images[0].url}
+                  alt={card.images[0].alt || `${card.hook} experiment image`}
+                  loading="lazy"
+                  className="max-h-[38dvh] w-full object-contain"
+                />
+                {card.images[0].label && (
+                  <figcaption className="px-3 py-2 text-xs text-muted-foreground">
+                    {card.images[0].label}
+                  </figcaption>
+                )}
+              </figure>
+            )}
           <p className="mt-3 whitespace-pre-wrap text-base leading-relaxed text-foreground/90">
             {card.body}
           </p>
+            {card.source && (
+              <a
+                href={card.source.url}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-3 inline-flex min-h-11 items-center text-sm text-muted-foreground underline decoration-border underline-offset-4 transition-transform duration-[var(--dur-fast)] ease-[var(--ease-out-custom)] active:scale-[0.97]"
+              >
+                {card.source.label || "Read the source"}
+              </a>
+            )}
+          </>
         )}
 
         {card.quiz && (

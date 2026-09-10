@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   contentHash,
+  abTestImageUrl,
   dateMarker,
   exploreKeepCounts,
   exploreKilledDomains,
@@ -8,6 +9,7 @@ import {
   nextIntervalIndex,
   planFeedBatch,
   shuffleQuiz,
+  mapAbTestCase,
   type FeedCard,
   type FeedQuiz,
 } from "./feed";
@@ -273,5 +275,61 @@ describe("contentHash", () => {
   it("normalizes case, punctuation and whitespace", () => {
     expect(contentHash("Strawman!", "It's  bad.")).toBe(contentHash("strawman", "it s bad"));
     expect(contentHash("Strawman", "a")).not.toBe(contentHash("Steelman", "a"));
+  });
+});
+
+describe("A/B test feed mapping", () => {
+  it("maps a case to a stable queue wild-example card with preserved results", () => {
+    const mapped = mapAbTestCase({
+      slug: "checkout-button",
+      title: "A clearer checkout button",
+      company: "Acme",
+      category: "calls to action",
+      summary: "The team tested clearer copy.",
+      results: ["Conversion rose 12%", "No change on mobile"],
+      sourceUrl: "https://abtest.design/tests/checkout-button",
+      images: [{ file: "images/checkout-button/control.png", label: "control", originalUrl: "https://remote.test/control.png" }],
+    });
+    expect(mapped).toMatchObject({
+      id: "abtest:checkout-button",
+      topicId: "abtest-design",
+      origin: "queue",
+      format: "wild_example",
+      subConcept: "calls to action",
+      hook: "A clearer checkout button · Acme",
+      body: expect.stringContaining("Conversion rose 12%"),
+      source: { url: "https://abtest.design/tests/checkout-button" },
+    });
+    expect(mapped?.images?.[0]).toMatchObject({
+      url: "/api/ab-tests/images/images/checkout-button/control.png",
+      label: "control",
+    });
+    expect(abTestImageUrl("images/a test/control.png")).toBe(
+      "/api/ab-tests/images/images/a%20test/control.png"
+    );
+  });
+
+  it("rejects cases without stable identity and ignores unsafe image paths", () => {
+    expect(mapAbTestCase({ title: "No slug" })).toBeNull();
+    const mapped = mapAbTestCase({
+      slug: "safe",
+      title: "Safe",
+      images: [{ file: "../secret.png" }, { file: "images/safe/test.png" }],
+    });
+    expect(mapped?.images).toHaveLength(1);
+    expect(mapped?.images?.[0].file).toBe("images/safe/test.png");
+  });
+
+  it("omits source links outside the expected public test page", () => {
+    expect(mapAbTestCase({
+      slug: "safe",
+      title: "Safe",
+      sourceUrl: "javascript:alert(1)",
+    })?.source).toBeUndefined();
+    expect(mapAbTestCase({
+      slug: "safe",
+      title: "Safe",
+      sourceUrl: "https://abtest.design.evil.example/tests/safe",
+    })?.source).toBeUndefined();
   });
 });

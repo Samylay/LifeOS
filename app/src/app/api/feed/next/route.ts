@@ -21,8 +21,11 @@ export async function GET(req: NextRequest) {
   const all = listCards();
   const batch = planFeedBatch(all, Date.now(), count);
   // Refill in the background before the pool runs dry (fire-and-forget;
-  // locked + cooled down inside).
-  maybeTopUp(all.filter((c) => c.status === "fresh").length - batch.length);
+  // locked + cooled down inside). The retired surface remains readable, but
+  // must not wake the LLM generator on a GET.
+  if (!process.env.FEED_RETIRED) {
+    maybeTopUp(all.filter((c) => c.status === "fresh").length - batch.length);
+  }
   const cards = batch.map((card) => ({
     ...card,
     quiz: card.quiz ? shuffleQuiz(card.quiz, seedFor(card.id, card.timesShown)) : undefined,

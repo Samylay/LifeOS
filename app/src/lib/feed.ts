@@ -9,8 +9,9 @@
 // - Never two consecutive cards from the same topic — constraints relax in a
 //   FIXED order on small pools rather than deadlocking (see planFeedBatch).
 import { createHash } from "node:crypto";
-import { createDoc, getDoc, listDocs, updateDoc } from "./server-db";
+import { createDoc, getDoc, listDocs, setDoc, updateDoc } from "./server-db";
 import { getTopic } from "./teach";
+import { getAbTestImageUrl, loadAbTestCases } from "./abtest-design";
 
 export const CARDS = "users/local/feedCards";
 export const CONCEPT_MAPS = "users/local/feedConceptMaps";
@@ -56,6 +57,122 @@ export interface FeedCard {
   postable: boolean;
   contentHash: string;
   createdAt?: unknown;
+  /** Optional presentation metadata for imported learning material. */
+  company?: string;
+  category?: string;
+  results?: string[];
+  images?: FeedImage[];
+  source?: { url: string; label?: string };
+}
+
+export interface FeedImage {
+  /** Relative manifest path, retained for allowlist checks and diagnostics. */
+  file: string;
+  /** Same-origin media URL. Never use originalUrl in the browser. */
+  url: string;
+  originalUrl?: string;
+  label?: string;
+  alt?: string;
+}
+
+const ABTEST_TOPIC = "abtest-design";
+
+/** Map a manifest asset to the allowlisted same-origin media endpoint. */
+export function abTestImageUrl(file: string): string {
+  return getAbTestImageUrl(file);
+}
+
+function safeAbTestImage(file: unknown): file is string {
+  return (
+    typeof file === "string" &&
+    file.startsWith("images/") &&
+    !file.startsWith("/") &&
+    !file.split("/").some((part) => part === ".." || part === ".")
+  );
+}
+
+function text(value: unknown): string {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function safeAbTestSourceUrl(value: unknown, slug: string): string | undefined {
+  try {
+    const url = new URL(text(value));
+    const pathname = url.pathname.replace(/\/+$/, "");
+    if (url.protocol !== "https:" || url.hostname !== "abtest.design" || pathname !== `/tests/${slug}`) {
+      return undefined;
+    }
+    url.search = "";
+    url.hash = "";
+    return url.toString();
+  } catch {
+    return undefined;
+  }
+}
+
+/** Pure mapping from one imported case to a feed card. */
+export function mapAbTestCase(raw: Record<string, unknown>): FeedCard | null {
+  const slug = text(raw.slug);
+  const title = text(raw.title);
+  if (!slug || !title) return null;
+  const company = text(raw.company);
+  const category = text(raw.category);
+  const summary = text(raw.summary);
+  const results = Array.isArray(raw.results) ? raw.results.map(text).filter(Boolean) : [];
+  const body = [
+    summary,
+    results.length ? `Results:\n${results.map((result) => `• ${result}`).join("\n")}` : "",
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+  const images = (Array.isArray(raw.images) ? raw.images : [])
+    .map((value) => (value ?? {}) as Record<string, unknown>)
+    .filter((image) => safeAbTestImage(image.file))
+    .map((image) => {
+      const file = image.file as string;
+      return {
+        file,
+        url: abTestImageUrl(file),
+        originalUrl: text(image.originalUrl) || undefined,
+        label: text(image.label) || undefined,
+        alt: `${title}${company ? `, ${company}` : ""} experiment image`,
+      } satisfies FeedImage;
+    });
+  const sourceUrl = safeAbTestSourceUrl(raw.sourceUrl, slug);
+  const hook = company ? `${title} · ${company}` : title;
+  const card: FeedCard = {
+    id: `abtest:${slug}`,
+    topicId: ABTEST_TOPIC,
+    origin: "queue",
+    subConcept: category,
+    format: "wild_example",
+    hook,
+    body,
+    status: "fresh",
+    timesShown: 0,
+    intervalIndex: 0,
+    postable: false,
+    contentHash: contentHash(hook, body),
+    company: company || undefined,
+    category: category || undefined,
+    results: results.length ? results : undefined,
+    images: images.length ? images : undefined,
+    source: sourceUrl ? { url: sourceUrl, label: "Source: abtest.design" } : undefined,
+  };
+  return card;
+}
+
+/** Read-only imported cards. Malformed/missing corpus degrades to normal feed. */
+export function listImportedCards(): FeedCard[] {
+  try {
+    const cases = loadAbTestCases();
+    if (!Array.isArray(cases)) return [];
+    return cases
+      .map((item) => mapAbTestCase((item ?? {}) as Record<string, unknown>))
+      .filter((card): card is FeedCard => card !== null);
+  } catch {
+    return [];
+  }
 }
 
 export interface FeedConceptMap {
@@ -106,6 +223,18 @@ export function contentHash(hook: string, body: string): string {
 /** Tolerant read — absent fields default, never crash, never migrate on read. */
 export function normalizeCard(id: string, raw: Record<string, unknown>): FeedCard {
   const quiz = raw.quiz as FeedQuiz | undefined;
+  const images = Array.isArray(raw.images)
+    ? raw.images
+        .map((value) => (value ?? {}) as Record<string, unknown>)
+        .filter((image) => safeAbTestImage(image.file) && typeof image.url === "string")
+        .map((image) => ({
+          file: image.file as string,
+          url: image.url as string,
+          originalUrl: text(image.originalUrl) || undefined,
+          label: text(image.label) || undefined,
+          alt: text(image.alt) || undefined,
+        }))
+    : undefined;
   return {
     id,
     topicId: String(raw.topicId ?? ""),
@@ -142,18 +271,53 @@ export function normalizeCard(id: string, raw: Record<string, unknown>): FeedCar
     postable: Boolean(raw.postable),
     contentHash: String(raw.contentHash ?? ""),
     createdAt: raw.createdAt,
+    company: text(raw.company) || undefined,
+    category: text(raw.category) || undefined,
+    results: Array.isArray(raw.results)
+      ? raw.results.map(text).filter(Boolean)
+      : undefined,
+    images: images?.length ? images : undefined,
+    source:
+      raw.source && typeof raw.source === "object" && typeof (raw.source as Record<string, unknown>).url === "string"
+        ? {
+            url: String((raw.source as Record<string, unknown>).url),
+            label: text((raw.source as Record<string, unknown>).label) || undefined,
+          }
+        : undefined,
   };
 }
 
 export function listCards(): FeedCard[] {
-  return (listDocs(CARDS) as unknown as Array<{ id: string } & Record<string, unknown>>).map((d) =>
+  const stored = (listDocs(CARDS) as unknown as Array<{ id: string } & Record<string, unknown>>).map((d) =>
     normalizeCard(d.id, d)
   );
+  const byId = new Map(stored.map((card) => [card.id, card]));
+  // Imported cards are virtual until a user interacts with them. A stored
+  // card always wins, retaining its status and learning history.
+  for (const card of listImportedCards()) if (!byId.has(card.id)) byId.set(card.id, card);
+  return [...byId.values()];
 }
 
 export function getCard(cardId: string): FeedCard | null {
   const raw = getDoc(CARDS, cardId) as Record<string, unknown> | null;
-  return raw ? normalizeCard(cardId, raw) : null;
+  if (raw) return normalizeCard(cardId, raw);
+  return listImportedCards().find((card) => card.id === cardId) ?? null;
+}
+
+/** Persist an imported card only at the boundary of a user-driven mutation. */
+export function materializeCard(cardId: string): FeedCard | null {
+  const stored = getDoc(CARDS, cardId) as Record<string, unknown> | null;
+  if (stored) return normalizeCard(cardId, stored);
+  const imported = listImportedCards().find((card) => card.id === cardId);
+  if (!imported) return null;
+  const { id: _id, ...data } = imported;
+  void _id;
+  // Re-read before writing so a card created by another request remains the
+  // winner. This path is intentionally absent from list/get/GET operations.
+  const raced = getDoc(CARDS, cardId) as Record<string, unknown> | null;
+  if (raced) return normalizeCard(cardId, raced);
+  setDoc(CARDS, cardId, data);
+  return imported;
 }
 
 export function logEvent(cardId: string, topicId: string, type: FeedEventType): void {
@@ -170,7 +334,7 @@ export function nextIntervalIndex(current: number, correct: boolean): number {
 }
 
 export function applyQuizResult(cardId: string, correct: boolean): FeedCard | null {
-  const card = getCard(cardId);
+  const card = materializeCard(cardId);
   // A non-quiz card must never gain quiz history — lastResult would pull it
   // into the due pool (isDue treats history as resurfaceable).
   if (!card || !card.quiz) return null;
@@ -186,7 +350,7 @@ export function applyQuizResult(cardId: string, correct: boolean): FeedCard | nu
 // --- Reactions ---------------------------------------------------------------
 
 export function applyReaction(cardId: string, type: "keep" | "kill" | "flag"): FeedCard | null {
-  const card = getCard(cardId);
+  const card = materializeCard(cardId);
   if (!card) return null;
   if (type === "keep") {
     // Idempotent: a resurfaced kept card (or a double-tap) must not append a
@@ -210,7 +374,7 @@ export function applyReaction(cardId: string, type: "keep" | "kill" | "flag"): F
 }
 
 export function markShown(cardId: string): void {
-  const card = getCard(cardId);
+  const card = materializeCard(cardId);
   if (!card) return;
   updateDoc(CARDS, cardId, { timesShown: card.timesShown + 1, lastShownAt: dateMarker() });
   logEvent(cardId, card.topicId, "shown");
