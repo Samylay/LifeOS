@@ -1,13 +1,24 @@
 import {
   actionKey as filingKey, actionLabel as filingLabel, describeEffect as filingEffect,
-  isPerformable as canFile, parseActionRequest, proposedAction, selectableActions,
+  isPerformable as canFile, parseActionRequest, proposedAction as proposedFilingAction, selectableActions,
   type Action as FilingAction, type ActionSubject,
 } from "./actions";
 
 export type HomelabAction = { id: "homelab-skill" | "homelab-reference"; params: Record<string, never> };
 export type Action = FilingAction | HomelabAction;
 export type ActionId = Action["id"];
-export { proposedAction };
+/** Only this exact destination can propose a reference save. Skill installs
+ * remain manual choices, and proposal text never becomes action parameters. */
+export function proposedAction(item: ActionSubject): Action | null {
+  if (item.proposal?.destination?.trim() === "homelab-reference") {
+    try {
+      const url = new URL(item.url ?? "");
+      if (!["http:", "https:"].includes(url.protocol) || url.username || url.password) return null;
+      return { id: "homelab-reference", params: {} };
+    } catch { return null; }
+  }
+  return proposedFilingAction(item);
+}
 
 export function isHomelabAction(action: Action): action is HomelabAction {
   return action.id === "homelab-skill" || action.id === "homelab-reference";

@@ -32,7 +32,7 @@ export interface TriageAssessment {
 export interface TriageProposal {
   summary: string;
   why_relevant: string;
-  destination: string; // "vault" | "idea-bank" | "backlog:<centre>" | "roadmap:<project>" | "discard"
+  destination: string; // "vault" | "idea-bank" | "backlog:<centre>" | "homelab-reference" | "roadmap:<project>" | "discard"
   confidence: "high" | "medium" | "low";
   extraction?: { quality: "usable" | "limited" | "unavailable"; detail: string };
   rationale: string;

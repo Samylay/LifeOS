@@ -11,6 +11,8 @@ import { appendBacklogItem, type BacklogCentre } from "@/lib/backlog";
 import { mergeFrontmatterTags } from "@/lib/frontmatter";
 import { parseTriageReply, normalizeCentre, type TriageAction } from "./triage-reply";
 import type { Action } from "@/lib/decide/actions";
+import { proposedAction, isHomelabAction } from "@/lib/decide/homelab-actions";
+import { performHomelabAction } from "@/lib/homelab-resources";
 
 const COLLECTION = "users/local/triageQueue";
 const KB_PATH = process.env.KB_PATH || "/vault";
@@ -98,6 +100,11 @@ export function applyActionToItem(
   let centre = rawCentre ?? null;
   if (action === "approve") {
     const dest = p.destination ?? "discard";
+    if (dest.trim() === "homelab-reference") {
+      const proposed = proposedAction({ url, proposal: p });
+      if (!proposed || !isHomelabAction(proposed)) throw new Error("A valid source link is required to save a UI reference.");
+      return performHomelabAction(item, proposed);
+    }
     if (dest === "vault") action = "vault";
     else if (dest === "idea-bank") action = "idea-bank";
     else if (dest.startsWith("backlog")) {
