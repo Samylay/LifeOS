@@ -43,6 +43,7 @@ services:
       # Todoist token + n8n webhook in .env.
       BRIEF_TZ: "Europe/Paris"
       FEED_RETIRED: "1"
+      ABTEST_CONTENT_DIR: "/abtest-design"
       BRIEF_OUT: "/data/brief.json"
       OBJECTIVES_DIR: "/objectives"
       WHISPER_URL: "http://host.docker.internal:8091"
@@ -66,6 +67,7 @@ services:
       - "host.docker.internal:host-gateway"
     volumes:
       - lifeos-data:/data
+      - ./data/abtest-design:/abtest-design:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /home/quorky/.hermes:/hermes:ro
       # Objectives rotation config+state (shared with host classify.py).
