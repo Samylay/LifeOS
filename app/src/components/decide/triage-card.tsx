@@ -10,7 +10,7 @@
 import { Fragment } from "react";
 import { Wrench, Bookmark, Archive, Lightbulb, ListTodo, Map, Trash2, HelpCircle } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { ContextDetails, DecisionText, Provenance } from "@/components/ui/decision-context";
+import { DecisionText, Provenance } from "@/components/ui/decision-context";
 import { Badge } from "@/components/ui/badge";
 import { categoryMeta } from "@/components/decide/category-colors";
 import { cn } from "@/lib/utils";
@@ -186,7 +186,6 @@ export function TriageCard({
           {p.extraction.detail} Check the source before acting.
         </p>
       )}
-      <ContextDetails label="Recommendation details">
       {a && (
         // Why that action, not a rating of the item.
         <div className="space-y-2 rounded-lg bg-muted p-3">
@@ -209,7 +208,6 @@ export function TriageCard({
 
       <Field label="For you:" value={p.why_relevant} />
       {p.rationale && <Field label="Why this destination:" value={p.rationale} />}
-      </ContextDetails>
 
       {/^https?:\/\//.test(item.url) && <Provenance label="Open source" href={item.url} />}
     </div>
