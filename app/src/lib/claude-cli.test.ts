@@ -3,12 +3,14 @@ import { promisify } from "node:util";
 
 // Behavior slot the mocked execFile reads on each call. `null` = resolve.
 let execBehavior: { stdout: string; reject?: Record<string, unknown> } = { stdout: "" };
+let execArgs: unknown[] = [];
 
 vi.mock("node:child_process", () => {
   const execFile = Object.assign(() => {}, {
     // promisify(execFile) resolves through this custom implementation, same
     // as Node's real execFile — returning { stdout, stderr }.
-    [promisify.custom]: () => {
+    [promisify.custom]: (...args: unknown[]) => {
+      execArgs = args;
       if (execBehavior.reject) return Promise.reject(execBehavior.reject);
       return Promise.resolve({ stdout: execBehavior.stdout, stderr: "" });
     },
@@ -22,7 +24,7 @@ vi.mock("./ollama", () => ({
   ollamaGenerate: (p: string) => ollamaGenerate(p),
 }));
 
-import { generateText, isLimitError } from "./claude-cli";
+import { generateText, generateReviewJson, isLimitError } from "./claude-cli";
 
 beforeEach(() => {
   execBehavior = { stdout: "" };
@@ -46,6 +48,17 @@ describe("isLimitError", () => {
 });
 
 describe("runClaude limit fallback", () => {
+  it("runs fluency reviews without tools or custom MCP servers", async () => {
+    const previous = process.env.GEN_PROVIDER;
+    process.env.GEN_PROVIDER = "claude-cli";
+    execBehavior = { stdout: JSON.stringify({ result: '{"feedback":"Clear"}' }) };
+    try {
+      expect(await generateReviewJson("review")).toEqual({ feedback: "Clear" });
+      const flags = execArgs[1] as string[];
+      expect(flags).toEqual(expect.arrayContaining(["--safe-mode", "--strict-mcp-config", "--no-session-persistence"]));
+      expect(flags[flags.indexOf("--tools") + 1]).toBe("");
+    } finally { if (previous === undefined) delete process.env.GEN_PROVIDER; else process.env.GEN_PROVIDER = previous; }
+  });
   it("returns the envelope result on a normal run, never touching Ollama", async () => {
     execBehavior = { stdout: JSON.stringify({ result: "hello", is_error: false }) };
     expect(await generateText("p")).toBe("hello");

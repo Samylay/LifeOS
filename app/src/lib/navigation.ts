@@ -9,20 +9,20 @@ import {
 export const NAV_GROUPS = [
   { label: "Workspace", items: [
     { href: "/", label: "Today", icon: Home01Icon },
+    { href: "/news", label: "News", icon: News01Icon },
     { href: "/decide", label: "Decide", icon: Layers01Icon },
     { href: "/decide/approvals", label: "Approvals", icon: CheckListIcon },
     { href: "/projects", label: "Projects", icon: Folder01Icon },
     { href: "/content", label: "Content", icon: Video01Icon },
-    { href: "/leads", label: "Leads", icon: Search01Icon },
   ]},
   { label: "Personal", items: [
-    { href: "/voice", label: "Voice", icon: Mic01Icon },
+    { href: "/voice", label: "Fluency", icon: Mic01Icon },
     { href: "/knowledge", label: "Knowledge", icon: BookOpen01Icon },
     { href: "/workouts", label: "Training", icon: Dumbbell01Icon },
     { href: "/finance", label: "Finance", icon: Wallet01Icon },
   ]},
   { label: "Explore", items: [
-    { href: "/news", label: "News", icon: News01Icon },
+    { href: "/leads", label: "Leads", icon: Search01Icon },
     { href: "/feed", label: "Feed", icon: PlayListIcon },
     { href: "/recipes", label: "Recipes", icon: Restaurant01Icon },
   ]},
@@ -41,6 +41,7 @@ export function activeDestination(pathname: string) {
     .sort((a, b) => b.href.length - a.href.length)[0];
 }
 export function surfaceTitle(pathname: string) {
+  if (pathname === "/voice/capture") return "Quick capture";
   if (pathname === "/decide/dispatch") return "Send to Claude";
   if (pathname.startsWith("/prime")) return "Priming";
   if (pathname === "/diagrams") return "Diagrams";

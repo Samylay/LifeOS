@@ -18,7 +18,7 @@ export function TopBar() {
       <HugeiconsIcon icon={ArrowRight01Icon} size={12} className="hidden text-muted-foreground lg:block" />
       <span className="truncate text-sm font-medium">{surfaceTitle(pathname)}</span>
       <div className="flex-1" />
-      <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex"><Link href="/voice"><HugeiconsIcon icon={Mic01Icon} size={16} />Capture</Link></Button>
+      <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex"><Link href="/voice/capture"><HugeiconsIcon icon={Mic01Icon} size={16} />Capture</Link></Button>
       <Button variant="outline" size="sm" onClick={toggleChatPanel} aria-label={chatPanelOpen ? "Close assistant" : "Open assistant"} aria-expanded={chatPanelOpen}>
         <HugeiconsIcon icon={SparklesIcon} size={16} /><span className="hidden sm:inline">Assistant</span>
       </Button>

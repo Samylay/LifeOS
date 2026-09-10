@@ -1,0 +1,67 @@
+"use client";
+import Link from "next/link";
+import { useCallback, useEffect, useState } from "react";
+import { toast } from "sonner";
+import { Page, PageHeader } from "@/components/ui/page";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { BLOCKS, SKILLS, DEFAULTS, type Material, type Preferences } from "@/lib/fluency/model";
+import { request, type Dashboard } from "@/lib/fluency/client";
+
+const panel = "rounded-2xl border border-border bg-card p-5 sm:p-7";
+const select = "mt-2 w-full rounded-lg border border-border bg-background p-3 text-sm";
+const fresh = (): Material => ({ id: "", title: "", block: "conversation", language: "en", skill: "structure", prompt: "", hint: "", example: "", variation: "", passage: "" });
+export default function FluencySettings() {
+  const [data, setData] = useState<Dashboard | null>(null), [prefs, setPrefs] = useState<Preferences>(DEFAULTS), [material, setMaterial] = useState<Material | null>(null);
+  const [error, setError] = useState(""), [busy, setBusy] = useState(false), [key, setKey] = useState(""), [agentId, setAgentId] = useState("");
+  const [phrase, setPhrase] = useState({ id: "", text: "", original: "", sessionId: "" });
+  const load = useCallback(async () => { const d = await request<Dashboard>(); setData(d); setPrefs(d.preferences); }, []);
+  useEffect(() => { void load().catch(e => setError(e.message)); }, [load]);
+  const save = async (body: Record<string, unknown>, url?: string) => {
+    setError(""); setBusy(true);
+    try { await request(body, url); await load(); toast.success("Saved"); return true; } catch (e) { setError((e as Error).message); return false; } finally { setBusy(false); }
+  };
+  return <Page narrow>
+    <PageHeader kicker="Manage LifeOS" title="Fluency settings" description="Shape your practice and see what the coach has learned." actions={<Button asChild variant="outline"><Link href="/voice">Back to practice</Link></Button>} />
+    {error && <p role="alert" className="mb-5 rounded-xl border border-destructive/30 p-4 text-sm text-destructive">{error}</p>}
+    {!data ? <Button variant="outline" onClick={() => void load().catch(e => setError(e.message))}>Load practice settings</Button> : <div className="space-y-6">
+      <section className={panel}><h2 className="text-lg font-semibold">Your practice</h2><form className="mt-5 grid gap-4 sm:grid-cols-2" onSubmit={e => { e.preventDefault(); void save({ action: "preferences", ...prefs }); }}>
+        <label className="text-sm">Language<select aria-label="Language" className={select} value={prefs.language} onChange={e => setPrefs({ ...prefs, language: e.target.value as Preferences["language"] })}><option value="en">English</option><option value="fr">French</option></select></label>
+        <label className="text-sm">Preparation time<select aria-label="Preparation time" className={select} value={prefs.preparation} onChange={e => setPrefs({ ...prefs, preparation: Number(e.target.value) })}><option value={0}>Start when ready</option><option value={20}>20 seconds</option><option value={60}>One minute</option></select></label>
+        <label className="text-sm">Feedback style<select aria-label="Feedback style" className={select} value={prefs.feedback} onChange={e => setPrefs({ ...prefs, feedback: e.target.value as Preferences["feedback"] })}><option value="gentle">Gentle and specific</option><option value="direct">Direct and specific</option></select></label>
+        <label className="text-sm">Practice focus<select aria-label="Practice focus" className={select} value={prefs.focus} onChange={e => setPrefs({ ...prefs, focus: e.target.value as Preferences["focus"] })}><option value="auto">Let the coach choose</option>{Object.entries(SKILLS).map(([id, name]) => <option key={id} value={id}>{name}</option>)}</select></label>
+        <p className="text-xs leading-relaxed text-muted-foreground sm:col-span-2">English comes with a starter library. Add French exercises below when you are ready. Progress stays separate for each language.</p><Button disabled={busy} className="justify-self-start" type="submit">Save preferences</Button>
+      </form></section>
+      <section className={panel}><h2 className="text-lg font-semibold">Live conversation</h2><p className="mt-2 text-sm text-muted-foreground">{data.connected ? "ElevenLabs is connected. Your coach is ready in the studio." : "Connect your ElevenLabs account to talk with the coach. Recording and transcript feedback already work without this connection."}</p>
+        {data.agentId && <p className="mt-3 break-all font-mono text-xs text-muted-foreground">Coach ID: {data.agentId}</p>}
+        <details className="mt-4" open={!data.connected}><summary className="cursor-pointer text-sm">{data.connected ? "Update connection" : "Connect ElevenLabs"}</summary><form className="mt-4 space-y-4" onSubmit={async e => { e.preventDefault(); if (await save({ key, agentId: agentId || undefined }, "/api/fluency/connection")) { setKey(""); setAgentId(""); } }}>
+          <label className="block text-sm">ElevenLabs API key<Input type="password" autoComplete="off" className="mt-2" required value={key} onChange={e => setKey(e.target.value)} /></label>
+          <label className="block text-sm">Existing dedicated coach agent ID (optional)<Input className="mt-2" value={agentId} onChange={e => setAgentId(e.target.value)} /></label>
+          <p className="text-xs leading-relaxed text-muted-foreground">Connecting without an ID creates a private LifeOS coach in your ElevenLabs account. Use a key with agent access. The key stays on the server. Live conversations use your ElevenLabs plan. An existing agent must support the training_context variable and language/first-message overrides.</p>
+          <Button disabled={busy || !key.trim()} type="submit">{busy ? "Connecting…" : agentId ? "Connect coach" : "Create & connect coach"}</Button>
+        </form></details>
+      </section>
+      <section className={panel} id="profile"><h2 className="text-lg font-semibold">What the coach knows</h2><p className="mt-2 text-sm text-muted-foreground">{data.preferences.language === "en" ? "English" : "French"} evidence. Observations are revisable; each one links to your own words. Typed, assisted, and read-aloud practice do not establish spontaneous-speaking patterns.</p>
+        {!data.profile.length && <p className="mt-5 text-sm">No patterns yet. The coach will start with observations from your speaking attempts.</p>}
+        {data.profile.map(p => { const dismissed = data.preferences.dismissed.includes(`${data.preferences.language}:${p.skill}`); return <div key={`${p.block}:${p.skill}`} className="mt-5 border-t border-border pt-5"><div className="flex flex-wrap items-center justify-between gap-2"><div><h3 className="text-sm font-semibold">{SKILLS[p.skill]}</h3><p className="mt-1 text-xs text-muted-foreground">{BLOCKS[p.block]} · {dismissed ? "Automatic focus dismissed" : p.state}</p></div><Button size="sm" variant="outline" disabled={busy} onClick={() => void save({ action: "preferences", [dismissed ? "restore" : "dismiss"]: p.skill })}>{dismissed ? "Restore automatic focus" : "Dismiss automatic focus"}</Button></div>
+          {[...p.evidence, ...p.strengths].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 10).map((e, i) => <div className="mt-4 rounded-xl bg-muted p-4" key={`${e.sessionId}-${i}`}><p className="text-xs text-muted-foreground">{e.kind === "strength" ? "Working well" : "Observation"} · {new Date(e.createdAt).toLocaleDateString()}</p><blockquote className="my-2 text-sm italic">“{e.quote}”</blockquote><p className="text-sm">{e.note}</p><Link href={`/voice?session=${encodeURIComponent(e.sessionId)}`} className="mt-2 inline-block text-sm text-primary underline">Open attempt & correct transcript</Link></div>)}
+        </div>; })}
+      </section>
+      <section className={panel}><h2 className="text-lg font-semibold">Your phrase bank</h2><p className="mt-2 text-sm text-muted-foreground">Keep useful expressions and cues close to your practice.</p>
+        {data.phrases.filter(p => p.language === data.preferences.language).map(p => <div key={p.id} className="mt-4 border-t border-border pt-4"><p className="text-sm">{p.text}</p>{p.original && <p className="mt-2 text-xs text-muted-foreground">Your original: “{p.original}”</p>}<div className="mt-2 flex gap-3"><Button size="sm" variant="ghost" onClick={() => setPhrase({ id: p.id, text: p.text, original: p.original || "", sessionId: p.sessionId || "" })}>Edit phrase</Button>{p.sessionId && <Link className="self-center text-sm text-primary underline" href={`/voice?session=${p.sessionId}`}>Source attempt</Link>}</div></div>)}
+        <form className="mt-4 space-y-3" onSubmit={async e => { e.preventDefault(); if (await save({ action: "phrase", phraseId: phrase.id || undefined, text: phrase.text, language: data.preferences.language, original: phrase.original, sessionId: phrase.sessionId || undefined })) setPhrase({ id: "", text: "", original: "", sessionId: "" }); }}><label className="block text-sm">{phrase.id ? "Edit saved phrase" : "Add a phrase or cue"}<Textarea className="mt-2" required maxLength={1500} value={phrase.text} onChange={e => setPhrase({ ...phrase, text: e.target.value })} /></label><Button disabled={busy || !phrase.text.trim()} type="submit">Save phrase</Button>{phrase.id && <Button type="button" variant="ghost" onClick={() => setPhrase({ id: "", text: "", original: "", sessionId: "" })}>Cancel</Button>}</form>
+      </section>
+      <section className={panel}><div className="flex items-center justify-between gap-3"><h2 className="text-lg font-semibold">Practice library</h2><Button variant="outline" disabled={busy} onClick={() => setMaterial({ ...fresh(), language: prefs.language })}>Add exercise</Button></div><p className="mt-2 text-sm text-muted-foreground">Edit the text, hints, examples, and fresh prompts. Changes apply to new sessions; saved attempts retain their original exercise.</p>
+        <div className="mt-4 divide-y divide-border">{data.materials.map(m => <div key={m.id} className="flex items-center justify-between gap-3 py-3"><div><p className="text-sm font-medium">{m.title}{m.archived ? " (archived)" : ""}</p><p className="text-xs text-muted-foreground">{m.language.toUpperCase()} · {BLOCKS[m.block]} · {SKILLS[m.skill]}</p></div><Button size="sm" variant="ghost" onClick={() => setMaterial({ ...m })}>Edit<span className="sr-only"> {m.title}</span></Button></div>)}</div>
+        {material && <form className="mt-6 space-y-4 rounded-xl border border-primary/30 bg-muted/30 p-4" onSubmit={async e => { e.preventDefault(); if (await save({ action: "material", ...material })) setMaterial(null); }}>
+          <h3 className="font-semibold">{material.id ? "Edit exercise" : "New exercise"}</h3><label className="block text-sm">Title<Input className="mt-2" required maxLength={120} value={material.title} onChange={e => setMaterial({ ...material, title: e.target.value })} /></label>
+          <div className="grid gap-4 sm:grid-cols-3"><label className="text-sm">Language<select aria-label="Exercise language" className={select} value={material.language} onChange={e => setMaterial({ ...material, language: e.target.value as Material["language"] })}><option value="en">English</option><option value="fr">French</option></select></label><label className="text-sm">Block<select aria-label="Exercise block" className={select} value={material.block} onChange={e => setMaterial({ ...material, block: e.target.value as Material["block"] })}>{Object.entries(BLOCKS).map(([id, name]) => <option value={id} key={id}>{name}</option>)}</select></label><label className="text-sm">Skill<select aria-label="Exercise skill" className={select} value={material.skill} onChange={e => setMaterial({ ...material, skill: e.target.value as Material["skill"] })}>{Object.entries(SKILLS).map(([id, name]) => <option value={id} key={id}>{name}</option>)}</select></label></div>
+          {([['prompt', 'First prompt'], ['hint', 'Optional hint'], ['example', 'Example answer (revealed after an attempt)'], ['variation', 'Fresh prompt for transfer'], ['passage', 'Reading passage (optional)']] as const).map(([field, label]) => <label key={field} className="block text-sm">{label}<Textarea className="mt-2" required={field === "prompt" || field === "variation"} value={material[field]} onChange={e => setMaterial({ ...material, [field]: e.target.value })} /></label>)}
+          <label className="flex gap-2 text-sm"><input type="checkbox" checked={Boolean(material.archived)} onChange={e => setMaterial({ ...material, archived: e.target.checked })} />Archive this exercise</label><div className="flex gap-2"><Button type="submit" disabled={busy}>Save exercise</Button><Button type="button" variant="ghost" disabled={busy} onClick={() => setMaterial(null)}>Cancel</Button></div>
+        </form>}
+      </section>
+      <p className="text-xs leading-relaxed text-muted-foreground">Practice uses repetition, focused feedback, and fresh prompts. The coach reports text-based observations, not a fluency score or a diagnosis. <a className="underline" href="https://www.cambridge.org/core/journals/studies-in-second-language-acquisition/article/effects-of-distributed-practice-on-second-language-fluency-development/4F6787916C198376CAD222934D3B37E4" target="_blank" rel="noreferrer">Research on repeated speaking practice</a>.</p>
+    </div>}
+  </Page>;
+}

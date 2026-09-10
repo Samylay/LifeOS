@@ -5,7 +5,7 @@
 // (dictation). The caller decides what a transcript means; the hook stays in
 // "transcribing" until the caller's onTranscript settles, so consumers can
 // run their own interpretation step under the same busy state.
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 export type VoiceRecorderState = "idle" | "recording" | "transcribing";
 
@@ -26,6 +26,15 @@ export function useVoiceRecorder(opts: {
   // Set by cancel() before stop(): onstop discards the audio instead of
   // uploading it.
   const discardRef = useRef(false);
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      discardRef.current = true;
+      if (recorderRef.current?.state === "recording") recorderRef.current.stop();
+    };
+  }, []);
   // Keep the latest callbacks without re-creating start/stop.
   const optsRef = useRef(opts);
   optsRef.current = opts;
@@ -33,6 +42,7 @@ export function useVoiceRecorder(opts: {
   const start = useCallback(async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      if (!mounted.current) { stream.getTracks().forEach(t => t.stop()); return; }
       const mime = MediaRecorder.isTypeSupported("audio/webm") ? "audio/webm" : "";
       const rec = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
       chunksRef.current = [];
@@ -79,13 +89,13 @@ export function useVoiceRecorder(opts: {
     }
   }, []);
 
-  const stop = useCallback(() => recorderRef.current?.stop(), []);
+  const stop = useCallback(() => { if (recorderRef.current?.state === "recording") recorderRef.current.stop(); }, []);
 
   /** Discard the in-flight recording: stops the recorder but skips the
    * upload/transcription entirely. */
   const cancel = useCallback(() => {
     discardRef.current = true;
-    recorderRef.current?.stop();
+    if (recorderRef.current?.state === "recording") recorderRef.current.stop();
   }, []);
 
   return { state, start, stop, cancel };

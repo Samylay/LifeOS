@@ -298,6 +298,7 @@ export default function SettingsPage() {
           <div className="grid gap-2 sm:grid-cols-2">
             <Link href="/settings/habits" className="rounded-lg border border-border p-4 text-sm pressable active:scale-[0.97] hover:bg-muted"><span className="font-medium">Habits →</span><p className="mt-1 text-xs text-muted-foreground">Add, schedule, reorder, pause, or archive.</p></Link>
             <Link href="/prime/manage" className="rounded-lg border border-border p-4 text-sm pressable active:scale-[0.97] hover:bg-muted"><span className="font-medium">Morning routine →</span><p className="mt-1 text-xs text-muted-foreground">Edit your affirmations, prompts, and principles.</p></Link>
+            <Link href="/settings/fluency" className="rounded-lg border border-border p-4 text-sm pressable active:scale-[0.97] hover:bg-muted"><span className="font-medium">Fluency practice →</span><p className="mt-1 text-xs text-muted-foreground">Your coach, exercises, and learning profile.</p></Link>
           </div>
         </Section>
         <Section title="Collections" sub="Go straight to the collection you want to work on.">
