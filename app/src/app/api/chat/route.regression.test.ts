@@ -34,6 +34,9 @@ describe("existing chat provider paths", () => {
     expect(response.status).toBe(200);
     expect(runAgentTurn).toHaveBeenCalledOnce();
     expect(create).not.toHaveBeenCalled();
+    const body = await response.text();
+    expect(body).toContain('"type":"final"');
+    expect(body).toContain("claude reply");
   });
 
   it("keeps the Ollama path when master integration is enabled", async () => {
