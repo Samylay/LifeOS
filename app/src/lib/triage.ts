@@ -72,6 +72,17 @@ export interface TriageItem {
   // tolerantly — no migration of the live DB).
   topicTags?: string[];
   vaultTags?: string[];
+  /** Immutable evidence and assessment records attached by the triage worker. */
+  evidenceRef?: string;
+  assessmentRef?: string;
+  evidenceSummary?: {
+    bundleId: string;
+    sourceCount: number;
+    segmentCount: number;
+    coverage: string[];
+    issueCount: number;
+    quality: string;
+  };
 }
 
 const X_HOSTS = new Set(["x.com", "twitter.com", "mobile.twitter.com", "mobile.x.com", "nitter.net"]);
