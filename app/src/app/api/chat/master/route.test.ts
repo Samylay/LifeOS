@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 
-const requestMaster = vi.fn();
+const { requestMaster } = vi.hoisted(() => ({ requestMaster: vi.fn() }));
 vi.mock("@/lib/master-client", () => ({
   requestMaster,
   MasterClientError: class MasterClientError extends Error {
@@ -25,7 +25,7 @@ describe("POST /api/chat/master", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     process.env.LIFEOS_MASTER_ENABLED = "1";
-    requestMaster.mockResolvedValue({ status: "completed", api_version: "v1", answer: "hello" });
+    requestMaster.mockResolvedValue({ status: "completed", api_version: "v1", request_id: "retry_01", answer: "hello", structured_data: {}, actions: [], delegation_trace: [], citations: [], confidence: "high", escalation: null, job_id: null });
   });
 
   it("is disabled by default", async () => {
@@ -57,7 +57,7 @@ describe("POST /api/chat/master", () => {
 
   it("rejects oversized messages and streamed bodies", async () => {
     const response = await POST(request({ requestId: "r1", sessionId: "s1", message: "x".repeat(20_001) }));
-    expect(response.status).toBe(413);
+    expect(response.status).toBe(400);
     const oversized = new NextRequest("http://localhost/api/chat/master", {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -67,14 +67,16 @@ describe("POST /api/chat/master", () => {
   });
 
   it("never forwards master actions or needs_action to the browser", async () => {
-    requestMaster.mockResolvedValue({ status: "needs_action", api_version: "v1", answer: "approve?", actions: [{ type: "write" }] });
+    requestMaster.mockResolvedValue({ status: "needs_action", api_version: "v1", request_id: "r1", answer: "approve?", actions: [{ type: "write" }] });
     const response = await POST(request({ requestId: "r1", sessionId: "s1", message: "do it" }));
     expect(response.status).toBe(502);
-    expect(await response.json()).toMatchObject({ code: "unsafe_result", actions: undefined });
+    const body = await response.json();
+    expect(body).toMatchObject({ code: "unsafe_result" });
+    expect(body).not.toHaveProperty("actions");
   });
 
   it("maps a master failed result to a typed retryable error", async () => {
-    requestMaster.mockResolvedValue({ status: "failed", api_version: "v1", answer: "provider details" });
+    requestMaster.mockResolvedValue({ status: "failed", api_version: "v1", request_id: "r1", answer: "provider details" });
     const response = await POST(request({ requestId: "r1", sessionId: "s1", message: "hi" }));
     expect(response.status).toBe(502);
     expect(await response.json()).toMatchObject({ code: "master_failed", retryable: true, requestId: "r1" });

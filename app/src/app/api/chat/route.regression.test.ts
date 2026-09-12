@@ -1,16 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 
-const claudeCliEnabled = vi.fn();
-const runAgentTurn = vi.fn();
-const create = vi.fn();
+const { claudeCliEnabled, runAgentTurn, create } = vi.hoisted(() => ({
+  claudeCliEnabled: vi.fn(), runAgentTurn: vi.fn(), create: vi.fn(),
+}));
 
 vi.mock("@/lib/claude-cli", () => ({ claudeCliEnabled }));
 vi.mock("@/lib/agent-engine", () => ({ APP_TOOLS: [], runAgentTurn }));
 vi.mock("@/lib/ollama", () => ({ OLLAMA_MODEL: "test-model", getOllamaClient: () => ({ chat: { completions: { create } } }) }));
 vi.mock("@/lib/app-actions", () => ({ executeAppActions: vi.fn().mockResolvedValue([]) }));
 vi.mock("@/lib/chat-log", () => ({ logChatMessage: vi.fn() }));
-vi.mock("@/lib/homelab-resources", () => ({ searchHomelabResources: vi.fn().mockReturnValue([]) }));
+vi.mock("@/lib/homelab-resources", () => ({ searchHomelabResources: () => [] }));
 vi.mock("@/lib/dev-requests", () => ({ addDevRequest: vi.fn(), validateDevRequestInput: vi.fn() }));
 
 import { POST } from "./route";

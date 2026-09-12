@@ -115,14 +115,14 @@ function parseRequest(body: unknown): BrowserRequest | { error: string } {
 
 function projectResult(result: MasterResultV1, requestId: string) {
   const raw = result as MasterResultV1 & { status: string; actions?: unknown[] };
-  if (raw.request_id !== requestId || (raw.status !== "completed" && raw.status !== "partial")) {
-    return fail(requestId, "invalid_result", "The assistant returned an invalid result.", 502);
-  }
   if (raw.status === "failed") {
     return fail(requestId, "master_failed", "The assistant could not complete the request.", 502, true);
   }
   if (raw.status === "needs_action" || (Array.isArray(raw.actions) && raw.actions.length > 0)) {
     return fail(requestId, "unsafe_result", "The assistant returned an unsupported action.", 502);
+  }
+  if (raw.request_id !== requestId || (raw.status !== "completed" && raw.status !== "partial")) {
+    return fail(requestId, "invalid_result", "The assistant returned an invalid result.", 502);
   }
   return NextResponse.json({
     api_version: result.api_version,
