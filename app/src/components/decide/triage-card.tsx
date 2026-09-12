@@ -13,6 +13,7 @@ import type { LucideIcon } from "lucide-react";
 import { DecisionText, Provenance } from "@/components/ui/decision-context";
 import { Badge } from "@/components/ui/badge";
 import { categoryMeta } from "@/components/decide/category-colors";
+import { EvidenceDetails } from "@/components/decide/evidence-details";
 import { cn } from "@/lib/utils";
 import {
   actionKey,
@@ -29,6 +30,16 @@ export interface TriageQueueItem {
   url: string;
   source: string;
   savedAt?: { __date?: string } | string;
+  evidenceRef?: string;
+  assessmentRef?: string;
+  evidenceSummary?: {
+    bundleId?: string;
+    sourceCount?: number;
+    segmentCount?: number;
+    coverage?: string[];
+    issueCount?: number;
+    quality?: string;
+  };
   proposal?: {
     title?: string;
     category?: TriageCategory;
@@ -180,7 +191,8 @@ export function TriageCard({
       )}
 
       {p.title && p.summary && <DecisionText className="text-muted-foreground">{p.summary}</DecisionText>}
-      {p.extraction?.quality && p.extraction.quality !== "usable" && (
+      <EvidenceDetails key={item.evidenceRef ?? "legacy"} evidenceRef={item.evidenceRef} assessmentRef={item.assessmentRef} />
+      {!item.evidenceRef && p.extraction?.quality && p.extraction.quality !== "usable" && (
         <p className="rounded-lg border border-warning/30 bg-warning/10 p-3 text-sm leading-relaxed text-foreground [overflow-wrap:anywhere]">
           <span className="font-medium">{p.extraction.quality === "unavailable" ? "Source could not be read." : "Only part of the source was read."}</span>{" "}
           {p.extraction.detail} Check the source before acting.
