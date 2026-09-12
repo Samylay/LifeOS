@@ -146,7 +146,7 @@ export async function requestMaster(input: MasterRequest, options: { signal?: Ab
   const body = JSON.stringify(envelope);
   const url = configuredUrl();
   if (!process.env.LIFEOS_MASTER_CLIENT_SECRET) throw new MasterClientError("master_configuration", false, null, input.requestId);
-  const timeout = 15_000;
+  const timeout = 120_000;
   const secret = process.env.LIFEOS_MASTER_CLIENT_SECRET;
   if (!secret) throw new MasterClientError("master_configuration", false, null, input.requestId);
   let lastError: MasterClientError | undefined;

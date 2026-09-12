@@ -112,7 +112,7 @@ describe("requestMaster", () => {
     }));
     const timed = requestMaster({ requestId: "req-1", sessionId: "s-1", message: "hello" });
     const timedAssertion = expect(timed).rejects.toMatchObject({ code: "request_timeout", retryable: true });
-    await vi.advanceTimersByTimeAsync(30_001);
+    await vi.advanceTimersByTimeAsync(240_001);
     await timedAssertion;
     vi.useRealTimers();
   });
