@@ -110,6 +110,8 @@ const MAX_COVERAGE = 200;
 const MAX_ISSUES = 200;
 const MAX_GROUNDING = 1_000;
 const MAX_SEGMENT_TEXT = 100_000;
+const MAX_TAGS = 100;
+const MAX_TAG_LENGTH = 120;
 
 function record(value: unknown): Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value)
@@ -318,10 +320,22 @@ function evidenceSummary(bundle: EvidenceBundle): EvidenceSummary {
 function attachEvidence(itemId: string, bundle: EvidenceBundle): void {
   const item = getDoc("users/local/triageQueue", itemId);
   if (!item) return;
-  updateDoc("users/local/triageQueue", itemId, {
+  const patch: Record<string, unknown> = {
     evidenceRef: bundle.bundleId,
     evidenceSummary: evidenceSummary(bundle),
-  });
+  };
+  // A new extraction invalidates the old card assessment. Keep its reference
+  // for expected-prior reassessment concurrency, but remove the projection so
+  // the Decide card cannot present an assessment as support for new evidence.
+  if (item.assessmentRef !== undefined && item.evidenceRef !== bundle.bundleId) {
+    const proposal = record(item.proposal);
+    if (Object.prototype.hasOwnProperty.call(proposal, "assessment")) {
+      const { assessment: _oldAssessment, ...withoutAssessment } = proposal;
+      void _oldAssessment;
+      patch.proposal = withoutAssessment;
+    }
+  }
+  updateDoc("users/local/triageQueue", itemId, patch);
 }
 
 function validateItemIdentity(itemId: string, bundle: EvidenceBundle): void {
@@ -394,10 +408,31 @@ function validateAssessment(input: unknown): TriageAssessmentRecord {
   };
 }
 
+function validatedTags(value: unknown, field: string): string[] | undefined {
+  if (value === undefined) return undefined;
+  const values = array(value, field, MAX_TAGS).map((tag, index) => requiredString(tag, `${field}[${index}]`, MAX_TAG_LENGTH));
+  if (new Set(values).size !== values.length) {
+    throw new TriageArtifactError(`${field} must not contain duplicates`, 400);
+  }
+  return values;
+}
+
 function compatibilityProposal(item: Record<string, unknown>, assessment: TriageAssessmentRecord): TriageProposal | Record<string, unknown> {
   const current = record(item.proposal);
   const proposal = record(assessment.proposal);
-  return { ...current, ...proposal, assessment: assessment.proposal };
+  // Keep the card contract closed. Assessment payloads are model output, so
+  // arbitrary keys must not become durable proposal fields. In particular,
+  // `assessment` is the nested decision aid the card already renders, not the
+  // whole assessment record.
+  const allowed = new Set([
+    "title", "category", "summary", "why_relevant", "destination", "confidence",
+    "extraction", "rationale", "assessment", "tags",
+  ]);
+  const projected: Record<string, unknown> = { ...current };
+  for (const key of allowed) {
+    if (Object.prototype.hasOwnProperty.call(proposal, key)) projected[key] = proposal[key];
+  }
+  return projected;
 }
 
 export function publishAssessment(input: unknown, expectedPriorAssessmentId?: unknown): TriageAssessmentRecord {
@@ -430,6 +465,9 @@ export function publishAssessment(input: unknown, expectedPriorAssessmentId?: un
     if ([...assessment.inputSegmentIds, ...assessment.omittedSegmentIds].some((segmentId) => !bundleSegmentIds.has(segmentId))) {
       throw new TriageArtifactError("assessment references a segment outside its evidence bundle", 400);
     }
+    const proposal = record(assessment.proposal);
+    const topicTags = validatedTags(proposal.topicTags, "proposal.topicTags");
+    const vaultTags = validatedTags(proposal.vaultTags, "proposal.vaultTags");
     const prior = typeof item.assessmentRef === "string" ? item.assessmentRef : undefined;
     if (expected !== prior) {
       throw new TriageArtifactError("assessment is based on an unexpected prior assessment", 409);
@@ -442,6 +480,8 @@ export function publishAssessment(input: unknown, expectedPriorAssessmentId?: un
       assessmentRef: assessment.assessmentId,
       proposal: compatibilityProposal(item, assessment),
     };
+    if (topicTags !== undefined) patch.topicTags = topicTags;
+    if (vaultTags !== undefined) patch.vaultTags = vaultTags;
     // Only queued items are promoted. Deferred dates and every terminal decision
     // are deliberately left untouched when a slow assessment finishes.
     if (item.status === "queued") patch.status = "proposed";

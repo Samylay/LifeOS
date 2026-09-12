@@ -2,6 +2,7 @@ import { afterAll, describe, expect, it } from "vitest";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import type { TriageQueueItem } from "@/components/decide/triage-card";
 
 const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "lifeos-triage-evidence-test-"));
 process.env.LIFEOS_DB_PATH = path.join(tmpDir, "test.db");
@@ -10,6 +11,7 @@ const { createDoc, getDoc } = await import("./server-db");
 const {
   persistEvidence,
   publishAssessment,
+  validateEvidenceBundle,
   TRIAGE_EVIDENCE_COLLECTION,
   TRIAGE_ASSESSMENTS_COLLECTION,
 } = await import("./triage-evidence");
@@ -93,15 +95,96 @@ describe("triage evidence persistence", () => {
     expect(() => persistEvidence(bundle({ coverage: [{ sourceId: "source-1", status: "bad" }] }))).toThrow(/status/);
   });
 
+  it("rejects empty segments and accepts the Instagram contract shape", () => {
+    expect(() => validateEvidenceBundle(bundle({ segments: [{ id: "frame-1", sourceId: "source-1", kind: "frame", text: "", method: "cover" }] }))).toThrow(/non-empty string/);
+    const instagram = {
+      ...bundle({
+        bundleId: "instagram-bundle",
+        requestedUrl: "https://instagram.com/reel/abc123",
+        canonicalUrl: "https://instagram.com/reel/abc123",
+        platform: "instagram",
+        rootSourceId: "ig-post",
+        sources: [
+          { id: "ig-post", kind: "post", url: "https://instagram.com/reel/abc123", order: 0 },
+          { id: "ig-slide-1", kind: "image", url: "https://cdn.example/slide-1.jpg", order: 1, mediaMetadata: { altTextProvenance: "instagram-accessibility" } },
+          { id: "ig-slide-2", kind: "video", url: "https://cdn.example/slide-2.mp4", order: 2 },
+        ],
+        relations: [
+          { fromSourceId: "ig-post", toSourceId: "ig-slide-1", kind: "contains" },
+          { fromSourceId: "ig-post", toSourceId: "ig-slide-2", kind: "contains" },
+        ],
+        segments: [
+          { id: "ig-caption", sourceId: "ig-post", kind: "caption", text: "A reel caption.", method: "instagram-caption" },
+          { id: "ig-alt", sourceId: "ig-slide-1", kind: "alt-text", text: "Text that says: hello", method: "instagram-alt-ocr", slideIndex: 1 },
+          { id: "ig-transcript", sourceId: "ig-slide-2", kind: "transcript", text: "Spoken words.", method: "whisper", startMs: 1200, endMs: 2400 },
+          { id: "ig-ocr", sourceId: "ig-slide-2", kind: "ocr", text: "On-screen words.", method: "vision-ocr", frameId: "frame-1", startMs: 5000, endMs: 5500 },
+        ],
+        coverage: [
+          { sourceId: "ig-post", aspect: "caption", status: "complete" },
+          { sourceId: "ig-slide-1", aspect: "alt-text", status: "complete" },
+          { sourceId: "ig-slide-2", aspect: "transcript", status: "complete" },
+          { sourceId: "ig-slide-2", aspect: "frames", status: "partial", reasonCode: "sampled" },
+        ],
+      }),
+    };
+    expect(validateEvidenceBundle(instagram)).toMatchObject({ platform: "instagram", rootSourceId: "ig-post" });
+  });
+
   it("publishes an assessment, projects it, and promotes only queued items", () => {
     const id = item();
     persistEvidence(bundle({ bundleId: "bundle-2" }), id);
-    publishAssessment(assessment({ assessmentId: "assessment-2", itemId: id, bundleId: "bundle-2" }));
+    const cardAssessment = { verdict: "adopt", detail: "Works", effort: "small", payoff: "useful", apply: "Try it" };
+    publishAssessment(assessment({
+      assessmentId: "assessment-2",
+      itemId: id,
+      bundleId: "bundle-2",
+      proposal: {
+        summary: "Keep this reference",
+        destination: "vault",
+        assessment: cardAssessment,
+        topicTags: ["systems"],
+        vaultTags: ["reference"],
+        arbitraryModelField: { mustNotReachQueue: true },
+      },
+    }));
     expect(getDoc(TRIAGE_ASSESSMENTS_COLLECTION, "assessment-2")).toMatchObject({ itemId: id });
-    expect(getDoc(TRIAGE, id)).toMatchObject({ status: "proposed", assessmentRef: "assessment-2" });
-    expect((getDoc(TRIAGE, id)?.proposal as { assessment?: unknown }).assessment).toMatchObject({
-      summary: "Keep this reference",
+    const card = getDoc(TRIAGE, id) as unknown as TriageQueueItem;
+    expect(card).toMatchObject({ status: "proposed", assessmentRef: "assessment-2", topicTags: ["systems"], vaultTags: ["reference"] });
+    expect(card.proposal?.assessment).toEqual(cardAssessment);
+    expect(card.proposal).not.toHaveProperty("arbitraryModelField");
+  });
+
+  it("keeps existing learning attachment fields when an assessment omits tags", () => {
+    const id = createDoc(TRIAGE, {
+      url: "https://example.com/canonical",
+      rawUrl: "https://example.com/canonical",
+      source: "other",
+      savedAt: { __date: "2026-09-12T10:00:00.000Z" },
+      createdAt: { __date: "2026-09-12T10:00:00.000Z" },
+      status: "queued",
+      topicTags: ["existing-topic"],
+      vaultTags: ["existing-vault"],
+      proposal: { summary: "old" },
     });
+    persistEvidence(bundle({ bundleId: "bundle-tags-preserved" }), id);
+    publishAssessment(assessment({ assessmentId: "assessment-tags-preserved", itemId: id, bundleId: "bundle-tags-preserved" }));
+    expect(getDoc(TRIAGE, id)).toMatchObject({ topicTags: ["existing-topic"], vaultTags: ["existing-vault"] });
+  });
+
+  it("removes an old assessment projection when a new extraction is attached", () => {
+    const id = createDoc(TRIAGE, {
+      url: "https://example.com/canonical",
+      rawUrl: "https://example.com/canonical",
+      source: "other",
+      savedAt: { __date: "2026-09-12T10:00:00.000Z" },
+      createdAt: { __date: "2026-09-12T10:00:00.000Z" },
+      status: "filed",
+      assessmentRef: "old-assessment",
+      proposal: { summary: "keep decision", assessment: { verdict: "adopt" } },
+    });
+    persistEvidence(bundle({ bundleId: "new-bundle" }), id);
+    expect(getDoc(TRIAGE, id)).toMatchObject({ status: "filed", evidenceRef: "new-bundle", assessmentRef: "old-assessment", proposal: { summary: "keep decision" } });
+    expect(getDoc(TRIAGE, id)?.proposal).not.toHaveProperty("assessment");
   });
 
   it("leaves deferred and terminal decisions intact when slow work completes", () => {
@@ -119,6 +202,19 @@ describe("triage evidence persistence", () => {
     publishAssessment(assessment({ assessmentId: "assessment-prior", itemId: id, bundleId: "bundle-prior" }));
     expect(() => publishAssessment(assessment({ assessmentId: "assessment-next", itemId: id, bundleId: "bundle-prior" }))).toThrow(/unexpected prior/);
     expect(() => publishAssessment(assessment({ assessmentId: "assessment-next", itemId: id, bundleId: "bundle-prior" }), "assessment-prior")).not.toThrow();
+    expect(() => publishAssessment(assessment({ assessmentId: "assessment-prior", itemId: id, bundleId: "bundle-prior", proposal: { summary: "changed" } }))).toThrow(/different content/);
+  });
+
+  it("rejects malformed tag promotion without storing the assessment", () => {
+    const id = item();
+    persistEvidence(bundle({ bundleId: "bundle-bad-tags" }), id);
+    expect(() => publishAssessment(assessment({
+      assessmentId: "assessment-bad-tags",
+      itemId: id,
+      bundleId: "bundle-bad-tags",
+      proposal: { summary: "bad", topicTags: "systems" },
+    }))).toThrow(/proposal\.topicTags/);
+    expect(getDoc(TRIAGE_ASSESSMENTS_COLLECTION, "assessment-bad-tags")).toBeNull();
   });
 
   it("does not store a failed assessment, leaving evidence reusable", () => {

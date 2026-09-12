@@ -32,6 +32,8 @@ export interface TriageQueueItem {
   savedAt?: { __date?: string } | string;
   evidenceRef?: string;
   assessmentRef?: string;
+  topicTags?: string[];
+  vaultTags?: string[];
   evidenceSummary?: {
     bundleId?: string;
     sourceCount?: number;
@@ -191,7 +193,7 @@ export function TriageCard({
       )}
 
       {p.title && p.summary && <DecisionText className="text-muted-foreground">{p.summary}</DecisionText>}
-      <EvidenceDetails key={item.evidenceRef ?? "legacy"} evidenceRef={item.evidenceRef} assessmentRef={item.assessmentRef} />
+      <EvidenceDetails key={item.evidenceRef ?? "legacy"} evidenceRef={item.evidenceRef} assessmentRef={item.assessmentRef} itemId={item.id} />
       {!item.evidenceRef && p.extraction?.quality && p.extraction.quality !== "usable" && (
         <p className="rounded-lg border border-warning/30 bg-warning/10 p-3 text-sm leading-relaxed text-foreground [overflow-wrap:anywhere]">
           <span className="font-medium">{p.extraction.quality === "unavailable" ? "Source could not be read." : "Only part of the source was read."}</span>{" "}

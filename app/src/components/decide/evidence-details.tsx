@@ -55,6 +55,9 @@ export interface EvidenceBundleView {
 }
 
 export interface AssessmentView {
+  assessmentId: string;
+  itemId: string;
+  bundleId: string;
   inputSegmentIds: string[];
   omittedSegmentIds: string[];
   grounding: unknown[];
@@ -173,11 +176,26 @@ export function parseEvidenceBundle(value: unknown): EvidenceBundleView | null {
 export function parseAssessment(value: unknown): AssessmentView | null {
   const record = objectValue(value);
   if (!record) return null;
+  const assessmentId = stringValue(record.assessmentId);
+  const itemId = stringValue(record.itemId);
+  const bundleId = stringValue(record.bundleId);
+  if (!assessmentId || !itemId || !bundleId) return null;
   return {
+    assessmentId,
+    itemId,
+    bundleId,
     inputSegmentIds: stringArray(record.inputSegmentIds),
     omittedSegmentIds: stringArray(record.omittedSegmentIds),
     grounding: Array.isArray(record.grounding) ? record.grounding : [],
   };
+}
+
+export function assessmentMatchesEvidence(
+  assessment: AssessmentView | null,
+  bundle: Pick<EvidenceBundleView, "bundleId">,
+  itemId?: string,
+): assessment is AssessmentView {
+  return Boolean(assessment && assessment.bundleId === bundle.bundleId && (!itemId || assessment.itemId === itemId));
 }
 
 function humanize(value: string): string {
@@ -266,13 +284,17 @@ export function coverageView(bundle: EvidenceBundleView): CoverageView {
   return { status, line, reasons };
 }
 
-function groundingIds(assessment: AssessmentView | null): Set<string> {
-  const ids = new Set([...(assessment?.inputSegmentIds ?? [])]);
+export function groundingIds(assessment: AssessmentView | null, validSegmentIds: ReadonlySet<string>): Set<string> {
+  const ids = new Set<string>();
   for (const entry of assessment?.grounding ?? []) {
-    if (typeof entry === "string") ids.add(entry);
     const record = objectValue(entry);
-    const id = record && (record.segmentId ?? record.segment_id ?? record.id);
-    if (typeof id === "string") ids.add(id);
+    if (!record) continue;
+    const single = record.segmentId ?? record.segment_id ?? record.id;
+    const multiple = record.segmentIds;
+    const refs = Array.isArray(multiple) ? multiple : typeof single === "string" ? [single] : [];
+    for (const id of refs) {
+      if (typeof id === "string" && validSegmentIds.has(id)) ids.add(id);
+    }
   }
   return ids;
 }
@@ -366,7 +388,7 @@ function requestPath(collection: string, id: string): string {
   return `/api/data/${collection}/${encodeURIComponent(id)}`;
 }
 
-export function EvidenceDetails({ evidenceRef, assessmentRef }: { evidenceRef?: string; assessmentRef?: string }) {
+export function EvidenceDetails({ evidenceRef, assessmentRef, itemId }: { evidenceRef?: string; assessmentRef?: string; itemId?: string }) {
   const [bundle, setBundle] = useState<EvidenceBundleView | null>(null);
   const [assessment, setAssessment] = useState<AssessmentView | null>(null);
   const [state, setState] = useState<"idle" | "loading" | "ready" | "error">("idle");
@@ -383,7 +405,10 @@ export function EvidenceDetails({ evidenceRef, assessmentRef }: { evidenceRef?: 
         setState("ready");
         if (assessmentRef) {
           void fetchDocument(requestPath("users/local/triageAssessments", assessmentRef), controller.signal)
-            .then((assessmentValue) => setAssessment(parseAssessment(assessmentValue)))
+            .then((assessmentValue) => {
+              const parsedAssessment = parseAssessment(assessmentValue);
+              setAssessment(assessmentMatchesEvidence(parsedAssessment, parsed, itemId) ? parsedAssessment : null);
+            })
             .catch(() => setAssessment(null));
         }
       })
@@ -392,7 +417,7 @@ export function EvidenceDetails({ evidenceRef, assessmentRef }: { evidenceRef?: 
         setState("error");
       });
     return () => controller.abort();
-  }, [assessmentRef, evidenceRef, retry]);
+  }, [assessmentRef, evidenceRef, itemId, retry]);
 
   if (!evidenceRef) return null;
   if (state === "loading" || state === "idle") {
@@ -408,7 +433,7 @@ export function EvidenceDetails({ evidenceRef, assessmentRef }: { evidenceRef?: 
   }
 
   const coverage = coverageView(bundle);
-  const grounded = groundingIds(assessment);
+  const grounded = groundingIds(assessment, new Set(bundle.segments.map((segment) => segment.id)));
   return (
     <section className="min-w-0 space-y-2 rounded-lg border border-border/70 bg-muted/30 p-3" aria-label="Source evidence">
       <div className="flex min-w-0 items-start gap-2">

@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   coverageView,
+  assessmentMatchesEvidence,
   formatTimestamp,
+  groundingIds,
+  parseAssessment,
   parseEvidenceBundle,
   segmentLabel,
   sourceIdHint,
@@ -87,6 +90,22 @@ describe("Decide evidence presentation", () => {
     expect(parseEvidenceBundle(bundle())).not.toBeNull();
     expect(parseEvidenceBundle({ ...bundle(), rootSourceId: "missing" })).toBeNull();
     expect(parseEvidenceBundle({ ...bundle(), requestedUrl: "javascript:alert(1)" })).toBeNull();
+  });
+
+  it("marks only validated grounding citations, not every supplied segment", () => {
+    const assessment = parseAssessment({
+      assessmentId: "assessment-1",
+      itemId: "item-1",
+      bundleId: "bundle-1",
+      inputSegmentIds: ["caption-1", "ocr-1"],
+      omittedSegmentIds: [],
+      inputTruncated: false,
+      grounding: [{ segmentIds: ["caption-1", "missing"] }],
+    });
+    expect([...groundingIds(assessment, new Set(["caption-1", "ocr-1"]))]).toEqual(["caption-1"]);
+    expect(assessmentMatchesEvidence(assessment, bundle(), "item-1")).toBe(true);
+    expect(assessmentMatchesEvidence(assessment, bundle({ bundleId: "new-bundle" }), "item-1")).toBe(false);
+    expect(assessmentMatchesEvidence(assessment, bundle(), "other-item")).toBe(false);
   });
 
   it("keeps source identifiers compact without losing their title", () => {
