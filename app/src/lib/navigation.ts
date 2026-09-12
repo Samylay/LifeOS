@@ -2,7 +2,7 @@ import {
   Home01Icon, Layers01Icon, CheckListIcon, Folder01Icon, Video01Icon,
   BookOpen01Icon, Mic01Icon, Dumbbell01Icon, Wallet01Icon, Search01Icon,
   Settings01Icon, Activity01Icon, News01Icon, Menu01Icon, ComputerTerminal01Icon,
-  Restaurant01Icon, PlayListIcon,
+  Restaurant01Icon, PlayListIcon, ContentWritingIcon,
 } from "@hugeicons/core-free-icons";
 
 // One route inventory for desktop, mobile, and the current-page label.
@@ -17,6 +17,7 @@ export const NAV_GROUPS = [
   ]},
   { label: "Personal", items: [
     { href: "/voice", label: "Fluency", icon: Mic01Icon },
+    { href: "/essays", label: "Essays", icon: ContentWritingIcon },
     { href: "/knowledge", label: "Knowledge", icon: BookOpen01Icon },
     { href: "/workouts", label: "Training", icon: Dumbbell01Icon },
     { href: "/finance", label: "Finance", icon: Wallet01Icon },

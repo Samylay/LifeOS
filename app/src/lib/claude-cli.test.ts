@@ -24,7 +24,7 @@ vi.mock("./ollama", () => ({
   ollamaGenerate: (p: string) => ollamaGenerate(p),
 }));
 
-import { generateText, generateReviewJson, isLimitError } from "./claude-cli";
+import { generateText, generateReadOnlyJson, generateReviewJson, isLimitError } from "./claude-cli";
 
 beforeEach(() => {
   execBehavior = { stdout: "" };
@@ -56,6 +56,17 @@ describe("runClaude limit fallback", () => {
       expect(await generateReviewJson("review")).toEqual({ feedback: "Clear" });
       const flags = execArgs[1] as string[];
       expect(flags).toEqual(expect.arrayContaining(["--safe-mode", "--strict-mcp-config", "--no-session-persistence"]));
+      expect(flags[flags.indexOf("--tools") + 1]).toBe("");
+    } finally { if (previous === undefined) delete process.env.GEN_PROVIDER; else process.env.GEN_PROVIDER = previous; }
+  });
+  it("uses a feature-owned system prompt for generic read-only reviews", async () => {
+    const previous = process.env.GEN_PROVIDER;
+    process.env.GEN_PROVIDER = "claude-cli";
+    execBehavior = { stdout: JSON.stringify({ result: '{"ok":true}' }) };
+    try {
+      expect(await generateReadOnlyJson("review", "Review essays only.")).toEqual({ ok: true });
+      const flags = execArgs[1] as string[];
+      expect(flags[flags.indexOf("--system-prompt") + 1]).toBe("Review essays only.");
       expect(flags[flags.indexOf("--tools") + 1]).toBe("");
     } finally { if (previous === undefined) delete process.env.GEN_PROVIDER; else process.env.GEN_PROVIDER = previous; }
   });
