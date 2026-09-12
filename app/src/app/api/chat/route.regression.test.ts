@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 
 const { claudeCliEnabled, runAgentTurn, create } = vi.hoisted(() => ({
@@ -24,8 +24,9 @@ const request = () => new NextRequest("http://localhost/api/chat", {
 describe("existing chat provider paths", () => {
   beforeEach(() => {
     vi.resetAllMocks();
-    process.env.LIFEOS_MASTER_ENABLED = "1";
+    vi.stubEnv("LIFEOS_MASTER_ENABLED", "1");
   });
+  afterEach(() => vi.unstubAllEnvs());
 
   it("keeps the Claude path when master integration is enabled", async () => {
     claudeCliEnabled.mockReturnValue(true);

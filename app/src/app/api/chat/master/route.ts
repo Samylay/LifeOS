@@ -114,7 +114,7 @@ function parseRequest(body: unknown): BrowserRequest | { error: string } {
 }
 
 function projectResult(result: MasterResultV1, requestId: string) {
-  const raw = result as MasterResultV1 & { status: string; actions?: unknown[] };
+  const raw = result as Omit<MasterResultV1, "status"> & { status: string; actions?: unknown[] };
   if (raw.status === "failed") {
     return fail(requestId, "master_failed", "The assistant could not complete the request.", 502, true);
   }

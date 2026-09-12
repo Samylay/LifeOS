@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 
 const { requestMaster } = vi.hoisted(() => ({ requestMaster: vi.fn() }));
@@ -13,7 +13,7 @@ vi.mock("@/lib/master-client", () => ({
 
 import { POST } from "./route";
 
-const request = (body: unknown, init: RequestInit = {}) =>
+const request = (body: unknown, init: ConstructorParameters<typeof NextRequest>[1] = {}) =>
   new NextRequest("http://localhost/api/chat/master", {
     method: "POST",
     headers: { "content-type": "application/json", ...(init.headers ?? {}) },
@@ -24,12 +24,14 @@ const request = (body: unknown, init: RequestInit = {}) =>
 describe("POST /api/chat/master", () => {
   beforeEach(() => {
     vi.resetAllMocks();
-    process.env.LIFEOS_MASTER_ENABLED = "1";
+    vi.stubEnv("LIFEOS_MASTER_ENABLED", "1");
     requestMaster.mockResolvedValue({ status: "completed", api_version: "v1", request_id: "retry_01", answer: "hello", structured_data: {}, actions: [], delegation_trace: [], citations: [], confidence: "high", escalation: null, job_id: null });
   });
 
+  afterEach(() => vi.unstubAllEnvs());
+
   it("is disabled by default", async () => {
-    delete process.env.LIFEOS_MASTER_ENABLED;
+    vi.stubEnv("LIFEOS_MASTER_ENABLED", "0");
     const response = await POST(request({ requestId: "r1", sessionId: "s1", message: "hi" }));
     expect(response.status).toBe(404);
     expect(requestMaster).not.toHaveBeenCalled();
@@ -49,6 +51,13 @@ describe("POST /api/chat/master", () => {
     { requestId: "r1", sessionId: "s1", message: "hi", user_id: "samy" },
     { requestId: "r1", sessionId: "s1", message: "hi", pageContext: { path: "/", actions: [] } },
     { requestId: "r1", sessionId: "s1", message: "hi", pageContext: { path: "" } },
+    { requestId: "r1", sessionId: "s1", message: "   " },
+    { requestId: "x".repeat(129), sessionId: "s1", message: "hi" },
+    { requestId: "r1", sessionId: "s1", message: "hi", pageContext: { path: "x".repeat(257) } },
+    { requestId: "r1", sessionId: "s1", message: "hi", pageContext: { path: "/", title: "x".repeat(201) } },
+    { requestId: "r1", sessionId: "s1", message: "hi", pageContext: { path: "/", summary: "x".repeat(4001) } },
+    { requestId: "r1", sessionId: "s1", message: "hi", grant: "admin" },
+    { requestId: "r1", sessionId: "s1", message: "hi", capability_hints: ["write"] },
   ])("rejects malformed or privileged input %#", async (body) => {
     const response = await POST(request(body));
     expect(response.status).toBe(400);
