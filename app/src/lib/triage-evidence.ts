@@ -457,6 +457,9 @@ export function publishAssessment(input: unknown, expectedPriorAssessmentId?: un
     if (typeof item.url !== "string" || typeof bundle.canonicalUrl !== "string" || canonicalizeUrl(item.url) !== canonicalizeUrl(bundle.canonicalUrl)) {
       throw new TriageArtifactError("assessment itemId does not match its evidence bundle", 400);
     }
+    if (item.evidenceRef !== assessment.bundleId) {
+      throw new TriageArtifactError("assessment evidence is no longer the item's current evidence", 409);
+    }
     const bundleSegmentIds = new Set(
       (Array.isArray(bundle.segments) ? bundle.segments : [])
         .map((segment) => record(segment).id)

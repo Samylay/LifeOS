@@ -205,6 +205,15 @@ describe("triage evidence persistence", () => {
     expect(() => publishAssessment(assessment({ assessmentId: "assessment-prior", itemId: id, bundleId: "bundle-prior", proposal: { summary: "changed" } }))).toThrow(/different content/);
   });
 
+  it("rejects a stale assessment after a newer bundle becomes current", () => {
+    const id = item();
+    persistEvidence(bundle({ bundleId: "bundle-old" }), id);
+    persistEvidence(bundle({ bundleId: "bundle-new" }), id);
+    expect(() => publishAssessment(assessment({ assessmentId: "assessment-stale", itemId: id, bundleId: "bundle-old" }))).toThrow(/current evidence/);
+    expect(getDoc(TRIAGE_ASSESSMENTS_COLLECTION, "assessment-stale")).toBeNull();
+    expect(getDoc(TRIAGE, id)).toMatchObject({ evidenceRef: "bundle-new", status: "queued", proposal: { summary: "old" } });
+  });
+
   it("rejects malformed tag promotion without storing the assessment", () => {
     const id = item();
     persistEvidence(bundle({ bundleId: "bundle-bad-tags" }), id);
