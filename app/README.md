@@ -44,7 +44,8 @@ Claude/Ollama paths. This route does not persist chat history or execute actions
 The LifeOS server reads `LIFEOS_MASTER_ENABLED=1`, `LIFEOS_MASTER_URL` (an explicit
 private base URL), and `LIFEOS_MASTER_CLIENT_SECRET` (the provisioned credential
 for client `lifeos`). These are server settings, never `NEXT_PUBLIC_*` values.
-No configuration or deployment is enabled by this change.
+The homelab deployment uses `http://host.docker.internal:8080` through the
+existing Docker host-gateway mapping.
 
 Send `{requestId, sessionId, message, pageContext?}`. Generate the request ID once
 per turn and retain the entire payload on a transport retry. IDs allow letters,
@@ -75,9 +76,9 @@ npx tsc --noEmit --incremental false
 npx eslint src/lib/master-client.ts src/lib/master-client.test.ts src/app/api/chat/master/route.ts src/app/api/chat/master/route.test.ts src/app/api/chat/master/route.integration.test.ts src/app/api/chat/route.regression.test.ts
 ```
 
-Deployment remains separate: a Docker container cannot reach a host master bound
-only to loopback, and provider CLI confinement requires review. Full history and
-session memory, streaming, jobs UX, governed actions and page-local specialist
-routing remain later phases. See the personal-agent repository's
+The master deployment is private and read-only for this route; provider CLI
+confinement remains a deployment limitation. Full history and session memory,
+streaming, jobs UX, governed actions and page-local specialist routing remain
+later phases. See the personal-agent repository's
 `docs/lifeos-integration.md` and `reports/lifeos-integration-report.md` for the
 cross-repository contract and verification record.
