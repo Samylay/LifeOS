@@ -180,11 +180,12 @@ function DecideInner() {
           </Link>
           <Link
             href="/decide/dispatch"
-            aria-label="Send to Claude"
+            aria-label="Send to OpenCode"
             className="inline-flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-transform duration-[var(--dur-fast)] ease-[var(--ease-out-custom)] hover:text-foreground active:scale-[0.97] max-lg:[min-height:44px]"
           >
             <Terminal size={14} aria-hidden /> Send
           </Link>
+          <Link href="/decide/extracts" aria-label="Decision history" className="inline-flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-transform duration-[var(--dur-fast)] ease-[var(--ease-out-custom)] hover:text-foreground active:scale-[0.97]">History</Link>
       </FilterBar>
 
       {loading ? (
