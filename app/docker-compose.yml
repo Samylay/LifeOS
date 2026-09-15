@@ -82,6 +82,9 @@ services:
       - /home/quorky/infra:/home/quorky/infra:ro
       # Chat homelab bridge: get_autoloop_summary reads the nightly log.
       - /home/quorky/services/autoloop:/home/quorky/services/autoloop:ro
+      # Personal Instagram export: read-only, mounted outside /data so it is
+      # never copied into the LifeOS database or image.
+      - /home/quorky/scratch/instagram-export/extracted:/instagram-export:ro
 
 volumes:
   lifeos-data:
