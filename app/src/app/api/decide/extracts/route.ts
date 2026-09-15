@@ -10,8 +10,8 @@ function parseItem(line:string):ExtractItem|null { const m=line.match(/^- \*\*(.
 function parseRuling(line:string):ExtractItem|null {
   const m=line.match(/^- (?:- )?(?:\*\*)?(.+?)(?:\*\*)?(?: — (.*))?$/);
   if(!m)return null;
-  const body=m[2]||; const ses=body.match(/ · \[\[([^|\]]+)(?:\|([^\]]+))?\]\]$/);
-  let summary=body; if(ses)summary=summary.replace(ses[0],);
-  return {title:clean(m[1].replace(/^\*\*|\*\*$/g,)),state:needs ruling,summary:clean(summary),session:ses?.[2]||ses?.[1]};
+  const body=m[2]||""; const ses=body.match(/ · \[\[([^|\]]+)(?:\|([^\]]+))?\]\]$/);
+  let summary=body; if(ses)summary=summary.replace(ses[0],"");
+  return {title:clean(m[1].replace(/^\*\*|\*\*$/g,"")),state:"needs ruling",summary:clean(summary),session:ses?.[2]||ses?.[1]};
 }
 export async function GET(){ if(!kbEnabled())return NextResponse.json({error:"knowledge base not configured"},{status:503}); const groups=GROUPS.map(([file,title])=>{const note=readNote(ROOT+file);return {id:file.replace(".md",""),title,items:note?note.content.split("\n").map(parseItem).filter((x):x is ExtractItem=>Boolean(x)):[]};}); const rn=readNote(ROOT+"needs-ruling.md"); const rulings=rn?rn.content.split("\n").map(parseRuling).filter((x):x is ExtractItem=>Boolean(x)):[]; return NextResponse.json({stats:{sessions:82,briefs:281,decisions:274,rulings:rulings.length},groups,rulings});}
