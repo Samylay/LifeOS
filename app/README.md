@@ -82,3 +82,19 @@ streaming, jobs UX, governed actions and page-local specialist routing remain
 later phases. See the personal-agent repository's
 `docs/lifeos-integration.md` and `reports/lifeos-integration-report.md` for the
 cross-repository contract and verification record.
+
+## Opt-in Jev routing
+
+`POST /api/chat/jev` is disabled unless `JEV_ENABLED=1` and the server-only
+`AI_GATEWAY_API_KEY` is present. It uses AI SDK 7 evaluation through Vercel AI
+Gateway (`JEV_MODEL`, default `typesafe-ai/jev`) for typed specialist,
+confirmation, and general-request decisions. Jev never generates the answer,
+grants permissions, or executes actions: high-confidence routing selects an
+existing specialist prompt, while uncertain requests use a safe ask/review
+path and final answers still use the existing master/provider handling.
+
+Gateway requests require zero data retention. The existing `/api/chat` and
+`/api/chat/master` routes remain unchanged, and the old master stays private
+and operational until a keyed Jev path is smoke-tested and observed. With the
+current missing key, activation is **BLOCKED/NEEDS-USER**. No `.env` files are
+changed by this integration.

@@ -8,6 +8,7 @@ export type MasterRequest = {
   sessionId: string;
   message: string;
   pageContext?: PageContext | null;
+  specialistId?: "finance" | "workout" | "homelab" | null;
 };
 
 export type MasterRequestV1 = {
@@ -19,7 +20,7 @@ export type MasterRequestV1 = {
   session_id: string;
   message: string;
   page_context: PageContext | null;
-  specialist_id: null;
+  specialist_id: "finance" | "workout" | "homelab" | null;
   capability_hints: [];
   mode: "sync";
 };
@@ -106,7 +107,7 @@ function requestEnvelope(input: MasterRequest): MasterRequestV1 {
     session_id: input.sessionId,
     message: input.message,
     page_context: input.pageContext ?? null,
-    specialist_id: null,
+    specialist_id: input.specialistId ?? null,
     capability_hints: [],
     mode: "sync",
   } satisfies MasterRequestV1;
