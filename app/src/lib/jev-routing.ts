@@ -50,6 +50,9 @@ export function decisionFromAnswers(answers: unknown): JevDecision {
   const needsConfirmation = booleanProbability(value.needsConfirmation);
   const generalRequest = booleanProbability(value.generalRequest);
   const confidence = probability >= 0.85 ? "high" : probability >= 0.6 ? "medium" : "low";
+  if (generalRequest >= 0.8) {
+    return { route: "general", specialistId: null, confidence, probability, needsConfirmation: needsConfirmation >= 0.8, generalRequest: true, actionsAllowed: false };
+  }
   if (confidence === "high" && specialist !== "general" && needsConfirmation < 0.8) {
     return { route: "specialist", specialistId: specialist, confidence, probability, needsConfirmation: needsConfirmation >= 0.8, generalRequest: generalRequest >= 0.8, actionsAllowed: false };
   }
