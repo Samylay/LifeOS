@@ -10,7 +10,7 @@
 // enforces; this UI just never pretends otherwise).
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Bookmark, Check, ChevronUp, RotateCw, X } from "lucide-react";
+import { Bookmark, Check, ChevronUp, Palette, RotateCw, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/components/toast";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -122,6 +122,9 @@ export default function FeedPage() {
         className="absolute left-3 top-3 z-10 flex h-11 w-11 items-center justify-center rounded-full text-muted-foreground transition-transform duration-150 active:scale-[0.97]"
       >
         <X className="h-5 w-5" />
+      </Link>
+      <Link href="/feed/review" className="absolute right-3 top-3 z-10 inline-flex min-h-11 items-center gap-2 rounded-lg border border-border bg-card/90 px-3 py-2 text-xs text-muted-foreground backdrop-blur-md transition-transform duration-[var(--dur-fast)] active:scale-[0.97]">
+        <Palette size={14} /> Review inspiration
       </Link>
 
       {phase === "loading" && (
