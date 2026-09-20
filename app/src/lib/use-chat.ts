@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useRef } from "react";
 import { useTasks } from "./use-tasks";
+import { notifyTaskCompleted } from "./task-notifications";
 import { useHabits } from "./use-habits";
 import { useNotes } from "./use-notes";
 import { useReminders } from "./use-reminders";
@@ -173,6 +174,7 @@ export function useChat() {
               );
               if (target) {
                 await updateTask(target.id, { status: "done" });
+                await notifyTaskCompleted(target.title);
                 results.push({
                   tool: "complete_task",
                   summary: `Completed: "${target.title}"`,

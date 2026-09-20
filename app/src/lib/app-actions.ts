@@ -8,6 +8,7 @@
 // created here are indistinguishable from client-created ones.
 import { createDoc, listDocs, updateDoc } from "./server-db";
 import { appendToInbox } from "./voice-inbox";
+import { notifyTaskCompleted } from "./task-notifications";
 import type { ChatAction } from "@/app/api/chat/route";
 
 export interface AppActionResult {
@@ -122,6 +123,7 @@ export async function executeAppActions(actions: ChatAction[]): Promise<AppActio
           );
           if (target) {
             updateDoc(COLL("tasks"), target.id, { status: "done", updatedAt: enc(new Date()) });
+            await notifyTaskCompleted(target.title || c.title);
             results.push({ tool: "complete_task", summary: `Completed: "${target.title}"` });
           } else {
             results.push({
