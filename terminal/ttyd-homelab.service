@@ -18,7 +18,7 @@ StartLimitBurst=8
 Description=ttyd web terminal (homelab host access for LifeOS /terminal)
 After=network-online.target
 Wants=network-online.target
-OnFailure=notify-telegram@%n.service
+OnFailure=notify-lifeos@%n.service
 
 [Service]
 Type=simple

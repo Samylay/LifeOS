@@ -19,7 +19,7 @@ StartLimitBurst=8
 Description=ttyd web terminal (raw tailscale-IP bind, for phones with Tailscale DNS off)
 After=network-online.target
 Wants=network-online.target
-OnFailure=notify-telegram@%n.service
+OnFailure=notify-lifeos@%n.service
 
 [Service]
 EnvironmentFile=/home/quorky/.config/homelab/secrets.env
