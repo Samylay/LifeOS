@@ -102,6 +102,31 @@ export async function executeAppActions(actions: ChatAction[]): Promise<AppActio
           results.push({ tool: "create_reminder", summary: `Created reminder: "${r.title}"` });
           break;
         }
+        case "schedule_lifeos_notification": {
+          const n = action.input as {
+            text: string;
+            scheduledAt: string;
+            title?: string;
+            severity?: "high" | "normal" | "low";
+            path?: string;
+          };
+          const scheduledAt = new Date(n.scheduledAt);
+          if (!n.text?.trim() || Number.isNaN(scheduledAt.getTime())) {
+            results.push({ tool: action.tool, summary: "Failed: notification text and a valid schedule time are required", failed: true });
+            break;
+          }
+          createDoc(COLL("scheduledNotifications"), {
+            text: n.text.trim(),
+            scheduledAt: enc(scheduledAt),
+            status: "pending",
+            ...(n.title?.trim() ? { title: n.title.trim() } : {}),
+            ...(n.severity ? { severity: n.severity } : {}),
+            ...(n.path ? { path: n.path } : {}),
+            ...stamps(),
+          });
+          results.push({ tool: action.tool, summary: `Scheduled LifeOS notification for ${scheduledAt.toLocaleString("en-GB", { timeZone: "Europe/Paris" })}` });
+          break;
+        }
         case "create_project": {
           const p = action.input as { title: string; area?: string; status?: string };
           createDoc(COLL("projects"), {

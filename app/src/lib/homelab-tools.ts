@@ -1,11 +1,10 @@
 // Server-executed homelab tools for the chat Assistant — the bridge between
 // the in-app chat and the homelab. Every action routes through the same safe
 // machinery the /decide surfaces already use (promptQueue → promptDispatch →
-// host poller; decisionQueue verdicts): the chat can queue and launch work or
-// record rulings, but never runs shell commands, restarts services, or
-// touches ROADMAPs directly.
+// host poller; decisionQueue verdicts): the chat can queue asynchronous host
+// Codex work for review or record rulings.
 import fs from "node:fs";
-import { listDocs, createDoc, getDoc, updateDoc } from "@/lib/server-db";
+import { listDocs, createDoc, getDoc, updateDoc, deleteDoc } from "@/lib/server-db";
 import { getAllContainers } from "@/lib/system-health";
 import { getHostMetrics, getStandingGoals } from "@/lib/metrics";
 import { DECISION_VERDICTS, type DecisionVerdict, type DecisionItem } from "@/lib/decisions";
@@ -17,20 +16,56 @@ const TRIAGE_QUEUE = "users/local/triageQueue";
 // Mounted read-only at the same host path (docker-compose.yml).
 const AUTOLOOP_LOG = "/home/quorky/services/autoloop/autoloop.log";
 
+// User-facing LifeOS records the assistant may search. Service credentials,
+// push endpoints, execution logs, and protected decision evidence stay out of
+// this generic surface; their purpose-built tools remain available as needed.
+const LIFEOS_READ_COLLECTIONS = new Set([
+  "tasks", "habits", "projects", "notes", "reminders", "scheduledNotifications",
+  "notifications", "bodyMeasurements", "dailyBlocks", "contentIdeas", "contentTypes",
+  "financeMerchantLabels", "fluency", "leads", "feedCards", "feedConceptMaps",
+  "hookFormulas", "knowledgePassages", "teachTopics", "teachSessions", "teachTurns",
+  "topicTags", "topicTagProposals", "chatSessions", "chatMessages", "voicePending",
+  "settings", "projectArchive", "triageQueue", "triageAssessments", "triageEvidence",
+  "feedEvents", "feedMeta", "homelabResources", "decisionQueue", "promptQueue",
+  "promptDispatch", "proposalSurfaced", "notifyLog", "pushDelivery", "homelabAudit",
+]);
+const LIFEOS_WRITE_COLLECTIONS = new Set([
+  "tasks", "habits", "projects", "projectArchive", "notes", "reminders", "scheduledNotifications",
+  "notifications", "settings", "bodyMeasurements", "dailyBlocks", "contentIdeas", "contentTypes", "financeMerchantLabels",
+  "fluency", "leads", "feedCards", "feedConceptMaps", "hookFormulas", "knowledgePassages",
+  "teachTopics", "teachSessions", "teachTurns", "topicTags", "voicePending",
+]);
+
+function redactSecrets(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(redactSecrets);
+  if (!value || typeof value !== "object") return value;
+  return Object.fromEntries(Object.entries(value as Record<string, unknown>).map(([key, entry]) =>
+    [/token|secret|password|credential|private.?key|api.?key/i.test(key) ? key : "", "[redacted]"]
+      .some(([match]) => Boolean(match))
+      ? [key, "[redacted]"]
+      : [key, redactSecrets(entry)]
+  ));
+}
+
+function containsSecretField(value: unknown): boolean {
+  if (Array.isArray(value)) return value.some(containsSecretField);
+  if (!value || typeof value !== "object") return false;
+  return Object.entries(value as Record<string, unknown>).some(([key, entry]) =>
+    /token|secret|password|credential|private.?key|api.?key/i.test(key) || containsSecretField(entry)
+  );
+}
+
 export interface HomelabToolResult {
   tool: string;
   summary: string; // short human line for the chat badge
   data: unknown; // structured result fed back to the model
   failed?: boolean;
-  // Set when Samy asked for run-now on a queued prompt: the UI renders a
-  // one-tap confirm that launches JUST this prompt via /api/triage/dispatch.
-  // The model can only REQUEST it — the tap is what launches (T47 stays).
   confirm?: { promptId: string; title: string };
 }
 
 // ── dispatch core (shared with /api/triage/dispatch) ─────────────────────────
 
-// One merged brief must not grow so large that a single Claude session chokes
+// One merged brief must not grow so large that a single Codex session chokes
 // on it, so a big queue is split into several dispatch docs — the host poller
 // launches one session per pending doc, so this fans the load out. Batches are
 // packed greedily under both a per-brief character budget and an item cap.
@@ -69,8 +104,8 @@ export function dispatchQueuedPrompts(opts?: { promptId?: string }):
     orderBy: ["queuedAt", "asc"],
   }) as QueuedPrompt[];
 
-  // Run-now confirm: launch exactly the one prompt Samy tapped, leaving the
-  // rest of the queue for the normal /decide flow.
+  // A targeted dispatch launches exactly one queued prompt, leaving the rest
+  // for the normal /decide flow.
   if (opts?.promptId) {
     queued = queued.filter((q) => q.id === opts.promptId);
     if (queued.length === 0) return { ok: false, error: "prompt not found or no longer queued" };
@@ -104,7 +139,7 @@ export function dispatchQueuedPrompts(opts?: { promptId?: string }):
     });
     for (const q of batch) {
       updateDoc(PROMPT_QUEUE, q.id, { status: "dispatched", dispatchId });
-      // Handing a card to Claude means it has been acted on — retire the source
+      // Handing a card to Codex means it has been acted on — retire the source
       // triage item so it leaves the Approved view (which lists only `filed`).
       // Guard on `filed` so a re-dispatch or a manual discard is never clobbered.
       if (q.itemId) {
@@ -134,37 +169,50 @@ export function dispatchQueuedPrompts(opts?: { promptId?: string }):
 
 export const HOMELAB_TOOLS = [
   {
+    name: "search_lifeos_data",
+    description:
+      "Search and read LifeOS records across its task, habit, project, reminder, notification, finance, training, content, lead, feed, knowledge, teaching, chat, and triage surfaces. Use this before answering questions about app data or before changing an existing record. Secrets and service credentials are redacted.",
+    parameters: {
+      type: "object",
+      properties: {
+        collection: { type: "string", description: "LifeOS collection such as tasks, habits, leads, feedCards, teachTopics, financeMerchantLabels, triageQueue, chatSessions, or chatMessages" },
+        query: { type: "string", description: "Optional case-insensitive search across record fields" },
+        limit: { type: "number", description: "Maximum records (default 20, maximum 100)" },
+      },
+      required: ["collection"],
+    },
+  },
+  {
+    name: "change_lifeos_data",
+    description:
+      "Create, update, or delete a user-owned record in an eligible LifeOS collection. Use only when the user requested the data change. Read an existing record first for updates/deletes; identify it by id. Protected decision records, audit data, credentials, and service state cannot be changed through this tool.",
+    parameters: {
+      type: "object",
+      properties: {
+        operation: { type: "string", enum: ["create", "update", "delete"] },
+        collection: { type: "string", description: "Eligible user-owned LifeOS collection" },
+        id: { type: "string", description: "Existing record id for update/delete" },
+        data: { type: "object", description: "Record fields for create/update" },
+      },
+      required: ["operation", "collection"],
+    },
+  },
+  {
     name: "homelab_overview",
     description:
-      "Snapshot of everything pending across the decide system: prompts queued for a Claude session (the 'approve page' queue), pending triage cards, pending NEEDS-USER approvals, and standing-goal health. Use this first when the user asks what's queued or pending.",
+      "Snapshot of everything pending across the decide system: prompts queued for a Codex session (the 'approve page' queue), pending triage cards, pending NEEDS-USER approvals, and standing-goal health. Use this first when the user asks what's queued or pending.",
     parameters: { type: "object", properties: {}, required: [] },
   },
-  // NOTE (T47, Samy 2026-07-14 option b): chat may QUEUE but never LAUNCH.
-  // `launch_queued_prompts` and `queue_homelab_prompt`'s `launch_now` used to
-  // let a single chat message — reachable from the phone — start an autonomous
-  // Claude Code session with arbitrary instructions within ~10s. That is T29's
-  // recorded threat model ("phone message → effective root") arriving via the
-  // sanctioned path. Launching is now a UI action only. Do not re-add a
-  // launch tool here: dispatchQueuedPrompts stays exported for that route, and
-  // the queue is the gate. Adding one back reopens the phone-to-root gap.
-  //
-  // `run_now` below does NOT reopen it: it only marks the queued doc and
-  // surfaces a confirm chip — the launch still requires Samy's tap in the UI
-  // (POST /api/triage/dispatch {promptId}). Model output never launches.
   {
     name: "queue_homelab_prompt",
     description:
-      "Queue a NEW ad-hoc instruction for a Claude Code session on the homelab (e.g. 'have claude check why the backup is slow'). It is only QUEUED — say that plainly. It does not run until Samy launches it from the /decide approve page; chat cannot launch it. If he EXPLICITLY says to run it right now / immediately / skip the queue THIS time, set run_now: the UI will show him a one-tap Run now confirm (you still cannot launch it yourself).",
+      "Queue a new instruction for a Codex session on the homelab. If Samy explicitly asks to run it now, set run_now true. This only adds a confirmation button to the chat; it does not dispatch the prompt.",
     parameters: {
       type: "object",
       properties: {
         title: { type: "string", description: "Short title for the queued work" },
-        prompt: { type: "string", description: "Full instruction for the Claude session" },
-        run_now: {
-          type: "boolean",
-          description:
-            "ONLY when Samy explicitly asked, in this conversation, to run it now / immediately / without waiting for the queue. Never infer it from urgency.",
-        },
+        prompt: { type: "string", description: "Full instruction for the Codex session" },
+        run_now: { type: "boolean", description: "Set only when Samy explicitly asks to run it now. This adds a confirmation button but does not dispatch." },
       },
       required: ["title", "prompt"],
     },
@@ -221,34 +269,21 @@ export const HOMELAB_TOOLS = [
       required: ["topic"],
     },
   },
-  {
-    name: "queue_dev_request",
-    description:
-      "Queue a dev request for later implementation when Samy asks to build/fix/change something in LifeOS itself. It ONLY records the request — it cannot execute anything, by design. Use instead of claiming you can change the app.",
-    parameters: {
-      type: "object",
-      properties: {
-        project: { type: "string", description: "Optional project/area label" },
-        title: { type: "string", description: "Short request title" },
-        description: { type: "string", description: "What to build/fix/change, with any context he gave" },
-      },
-      required: ["title", "description"],
-    },
-  },
 ] as const;
 
 export const HOMELAB_TOOL_NAMES = new Set<string>(HOMELAB_TOOLS.map((t) => t.name));
 
 // Short present-progressive labels streamed to the chat while a tool runs.
 export const HOMELAB_TOOL_STATUS: Record<string, string> = {
+  search_lifeos_data: "Searching LifeOS…",
+  change_lifeos_data: "Updating LifeOS…",
   homelab_overview: "Checking what's queued…",
-  queue_homelab_prompt: "Queueing it for a Claude session…",
+  queue_homelab_prompt: "Queueing it for Codex…",
   get_service_health: "Checking service health…",
   get_autoloop_summary: "Reading the last nightly run…",
   list_pending_approvals: "Fetching pending approvals…",
   record_approval_verdict: "Recording your verdict…",
   add_learning_topic: "Adding it to your learning queue…",
-  queue_dev_request: "Queueing the dev request…",
 };
 
 // ── executors ────────────────────────────────────────────────────────────────
@@ -285,6 +320,65 @@ export async function executeHomelabTool(
   input: Record<string, unknown>
 ): Promise<HomelabToolResult> {
   switch (tool) {
+    case "search_lifeos_data": {
+      const collection = String(input.collection ?? "");
+      if (!LIFEOS_READ_COLLECTIONS.has(collection)) {
+        return { tool, summary: `Failed: collection "${collection}" is not available`, data: { error: "collection is not available" }, failed: true };
+      }
+      const query = typeof input.query === "string" ? input.query.trim().toLocaleLowerCase() : "";
+      const limit = typeof input.limit === "number" && input.limit > 0 ? Math.min(Math.floor(input.limit), 100) : 20;
+      const docs = listDocs(`users/local/${collection}`);
+      const filtered = query
+        ? docs.filter((doc) => JSON.stringify(redactSecrets(doc)).toLocaleLowerCase().includes(query))
+        : docs;
+      const records = filtered.slice(0, limit).map(redactSecrets);
+      return {
+        tool,
+        summary: `Found ${filtered.length} ${collection} record${filtered.length === 1 ? "" : "s"}${filtered.length > records.length ? `, showing ${records.length}` : ""}`,
+        data: { collection, total: filtered.length, records },
+      };
+    }
+    case "change_lifeos_data": {
+      const collection = String(input.collection ?? "");
+      const operation = String(input.operation ?? "");
+      if (!LIFEOS_WRITE_COLLECTIONS.has(collection)) {
+        return { tool, summary: `Failed: ${collection} is protected or not editable`, data: { error: "collection is protected or not editable" }, failed: true };
+      }
+      const path = `users/local/${collection}`;
+      if (operation === "create") {
+        const data = input.data;
+        if (!data || typeof data !== "object" || Array.isArray(data)) {
+          return { tool, summary: "Failed: data object required", data: { error: "data object required" }, failed: true };
+        }
+        if (containsSecretField(data)) {
+          return { tool, summary: "Failed: credentials cannot be changed through the assistant", data: { error: "credential fields are protected" }, failed: true };
+        }
+        const id = createDoc(path, data as Record<string, unknown>);
+        return { tool, summary: `Created ${collection} record`, data: { collection, id } };
+      }
+      const id = typeof input.id === "string" ? input.id : "";
+      if (!id || !getDoc(path, id)) {
+        return { tool, summary: "Failed: existing record id required", data: { error: "record not found" }, failed: true };
+      }
+      if (operation === "update") {
+        const data = input.data;
+        if (!data || typeof data !== "object" || Array.isArray(data)) {
+          return { tool, summary: "Failed: data object required", data: { error: "data object required" }, failed: true };
+        }
+        if (containsSecretField(data)) {
+          return { tool, summary: "Failed: credentials cannot be changed through the assistant", data: { error: "credential fields are protected" }, failed: true };
+        }
+        const fields = { ...(data as Record<string, unknown>) };
+        delete fields.id;
+        updateDoc(path, id, fields);
+        return { tool, summary: `Updated ${collection} record`, data: { collection, id } };
+      }
+      if (operation === "delete") {
+        deleteDoc(path, id);
+        return { tool, summary: `Deleted ${collection} record`, data: { collection, id } };
+      }
+      return { tool, summary: `Failed: unknown operation ${operation}`, data: { error: "unknown operation" }, failed: true };
+    }
     case "homelab_overview": {
       const queued = listDocs(PROMPT_QUEUE, {
         where: [["status", "==", "queued"]],
@@ -323,8 +417,6 @@ export async function executeHomelabTool(
         source: "chat",
         ...(runNow ? { runNowRequested: true } : {}),
       });
-      // Still no launch branch (T47) — run_now only surfaces a confirm chip;
-      // the launch is Samy's tap on it, never this executor.
       return {
         tool,
         summary: runNow ? `Queued "${title}" — tap Run now to launch it` : `Queued "${title}"`,
@@ -435,21 +527,6 @@ export async function executeHomelabTool(
         tool,
         summary: `Queued "${topic.slice(0, 60)}" for teaching`,
         data: { id, note: "Visible in the Teach me section on /knowledge; schedule or start a session from there." },
-      };
-    }
-    case "queue_dev_request": {
-      const { validateDevRequestInput, addDevRequest } = await import("./dev-requests");
-      const err = validateDevRequestInput(input);
-      if (err) return { tool, summary: `Failed: ${err}`, data: { error: err }, failed: true };
-      const doc = addDevRequest({
-        project: typeof input.project === "string" && input.project.trim() ? input.project.trim() : undefined,
-        title: String(input.title).trim(),
-        description: String(input.description).trim(),
-      });
-      return {
-        tool,
-        summary: `Queued "${doc.title.slice(0, 60)}" for later implementation`,
-        data: { id: doc.id, note: "Recorded in the dev-request queue; nothing executes from chat." },
       };
     }
     default:

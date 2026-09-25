@@ -7,6 +7,7 @@ import { useHabits } from "./use-habits";
 import { useNotes } from "./use-notes";
 import { useReminders } from "./use-reminders";
 import { useProjects } from "./use-projects";
+import { validateChatInput } from "./chat-input";
 import type { ChatAction } from "@/app/api/chat/route";
 
 export interface ChatMessage {
@@ -25,8 +26,6 @@ export interface ActionResult {
   summary: string;
   count?: number;
   failed?: boolean;
-  // Run-now request on a queued homelab prompt: rendered as a one-tap
-  // confirm chip; the tap (not the model) launches it.
   confirm?: { promptId: string; title: string };
 }
 
@@ -211,8 +210,8 @@ export function useChat() {
   );
 
   const sendMessage = useCallback(
-    async (content: string, opts?: { retry?: boolean }) => {
-      if (loading) return;
+    async (content: string, opts?: { retry?: boolean }): Promise<string | null> => {
+      if (loading) return null;
 
       // Retry re-sends the last user message: drop the trailing interrupted
       // reply instead of duplicating the user bubble.
@@ -221,15 +220,16 @@ export function useChat() {
       if (opts?.retry) {
         base = messages.filter((m) => !m.interrupted);
         const lastUser = [...base].reverse().find((m) => m.role === "user");
-        if (!lastUser) return;
+        if (!lastUser) return null;
         userMsg = lastUser;
         setMessages(base);
       } else {
-        if (!content.trim()) return;
+        const validatedContent = validateChatInput(content);
+        if (validatedContent === null) return null;
         userMsg = {
           id: `msg-${++msgId}`,
           role: "user",
-          content: content.trim(),
+          content: validatedContent,
           timestamp: new Date(),
         };
         setMessages((prev) => [...prev, userMsg]);
@@ -300,7 +300,7 @@ export function useChat() {
 
         // Clear may have replaced this conversation while the response was
         // streaming. Never apply its actions or append its reply afterward.
-        if (request !== requestRef.current) return;
+        if (request !== requestRef.current) return null;
 
         // Execute client-side actions from AI tool calls
         let actionResults: ActionResult[] = data.serverResults ?? [];
@@ -308,7 +308,7 @@ export function useChat() {
           setStatusText(null);
           actionResults = [...actionResults, ...(await executeActions(data.actions))];
         }
-        if (request !== requestRef.current) return;
+        if (request !== requestRef.current) return null;
 
         const assistantMsg: ChatMessage = {
           id: `msg-${++msgId}`,
@@ -318,8 +318,9 @@ export function useChat() {
           timestamp: new Date(),
         };
         setMessages((prev) => [...prev, assistantMsg]);
+        return data.reply;
       } catch (err: unknown) {
-        if (request !== requestRef.current) return;
+        if (request !== requestRef.current) return null;
         if (err instanceof Error && err.name === "AbortError") {
           // User hit Stop mid-stream: leave a visible interrupted marker
           // (with a Retry affordance in the panel) instead of vanishing.
@@ -333,7 +334,7 @@ export function useChat() {
               timestamp: new Date(),
             },
           ]);
-          return;
+          return null;
         }
 
         const code =
@@ -347,7 +348,7 @@ export function useChat() {
             content = "The local model is busy. Please wait a moment and try again.";
             break;
           default:
-            content = `Something went wrong: ${err instanceof Error ? err.message : "Unknown error"}. Check that the Claude CLI is reachable (or Ollama, if GEN_PROVIDER=ollama).`;
+            content = `Something went wrong: ${err instanceof Error ? err.message : "Unknown error"}. Check that the Codex bridge is reachable (or Ollama, if GEN_PROVIDER=ollama).`;
         }
 
         const errorMsg: ChatMessage = {
@@ -358,6 +359,7 @@ export function useChat() {
           timestamp: new Date(),
         };
         setMessages((prev) => [...prev, errorMsg]);
+        return null;
       } finally {
         if (request === requestRef.current) {
           setLoading(false);

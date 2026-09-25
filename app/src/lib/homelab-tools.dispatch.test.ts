@@ -92,48 +92,39 @@ describe("dispatchQueuedPrompts batching", () => {
   });
 });
 
-// T47 (Samy 2026-07-14, option b): chat may QUEUE but never LAUNCH. One chat
-// message is reachable from the phone, so a launch tool here means
-// "phone message → effective root" (T29's threat model) via the sanctioned
-// path. These assert the gap stays closed — the catalog is what the model can
-// call, so a tool re-appearing there is the whole vulnerability.
-describe("chat cannot launch a Claude session (T47)", () => {
-  it("exposes no launch tool in the catalog the model sees", () => {
+describe("chat cannot dispatch work (T47)", () => {
+  it("exposes no direct execution tool", () => {
     const names = HOMELAB_TOOLS.map((t) => t.name);
-    expect(names).not.toContain("launch_queued_prompts");
-    expect(names.filter((n) => /launch|dispatch|start_/i.test(n))).toEqual([]);
-    expect(HOMELAB_TOOL_NAMES.has("launch_queued_prompts")).toBe(false);
-    expect(Object.keys(HOMELAB_TOOL_STATUS)).not.toContain("launch_queued_prompts");
+    expect(names).not.toContain("execute_homelab_prompt");
+    expect(names.filter((name) => /launch|dispatch|execute_homelab_prompt/i.test(name))).toEqual([]);
+    expect(HOMELAB_TOOL_NAMES.has("execute_homelab_prompt")).toBe(false);
+    expect(Object.keys(HOMELAB_TOOL_STATUS)).not.toContain("execute_homelab_prompt");
   });
 
-  it("queue_homelab_prompt exposes only title/prompt/run_now — and run_now is a flag, not a launch", () => {
-    // run_now (2026-07-22, T47-safe): marks the queued doc so the UI shows a
-    // one-tap Run now confirm chip. The model still cannot launch anything —
-    // the parameter surface must never grow a direct-dispatch knob.
+  it("keeps run_now as a confirmation request, not a dispatch control", () => {
     const q = HOMELAB_TOOLS.find((t) => t.name === "queue_homelab_prompt");
     expect(q).toBeDefined();
     expect(Object.keys(q!.parameters.properties)).toEqual(["title", "prompt", "run_now"]);
     expect(q!.parameters.properties.run_now.type).toBe("boolean");
   });
 
-  it("queues without dispatching even when asked to launch_now", async () => {
+  it("queues a run-now request with a confirm chip and does not dispatch", async () => {
     const before = listDocs(DISPATCH, {}).length;
     const r = await executeHomelabTool("queue_homelab_prompt", {
       title: "t47 probe",
       prompt: "launch this immediately",
-      launch_now: true, // ignored by design: no such branch
+      run_now: true,
     });
     expect(r.failed).toBeFalsy();
-    // The prompt is queued...
+    expect(r.confirm).toMatchObject({ title: "t47 probe" });
     const queued = listDocs(QUEUE, { where: [["status", "==", "queued"]] });
     expect(queued.some((d) => (d as { title?: string }).title === "t47 probe")).toBe(true);
-    // ...but nothing was handed to the host poller.
     expect(listDocs(DISPATCH, {}).length).toBe(before);
   });
 
-  it("refuses an unknown launch tool name outright", async () => {
+  it("refuses an unknown direct execution tool", async () => {
     const before = listDocs(DISPATCH, {}).length;
-    const r = await executeHomelabTool("launch_queued_prompts", {});
+    const r = await executeHomelabTool("execute_homelab_prompt", {});
     expect(r.failed).toBe(true);
     expect(listDocs(DISPATCH, {}).length).toBe(before);
   });

@@ -1,5 +1,5 @@
 // The shared agent turn behind BOTH the Assistant chat panel and the /voice
-// VoicePal surface. `claude -p` has no native function calling, so the tool
+// VoicePal surface. `Codex CLI` has no native function calling, so the tool
 // catalog (app-item tools + homelab tools) is described in the prompt and the
 // model returns a { reply, actions } JSON envelope. Homelab tools execute HERE
 // in a bounded loop — each round's TOOL_RESULT lines are appended to the
@@ -23,6 +23,25 @@ export interface AgentAction {
 }
 
 export const APP_TOOLS: OpenAI.ChatCompletionTool[] = [
+  {
+    type: "function",
+    function: {
+      name: "schedule_lifeos_notification",
+      description:
+        "Schedule a LifeOS push and pager notification for a specific date and time. Resolve relative dates using Europe/Paris. If the user gives a date but no time, use 09:00 local time. Include enough context in the notification text to make it useful when tapped.",
+      parameters: {
+        type: "object",
+        properties: {
+          text: { type: "string", description: "Notification body, including the relevant context" },
+          scheduledAt: { type: "string", description: "ISO 8601 datetime with Europe/Paris offset" },
+          title: { type: "string", description: "Short notification title (optional)" },
+          severity: { type: "string", enum: ["high", "normal", "low"] },
+          path: { type: "string", description: "Optional LifeOS path to open when tapped" },
+        },
+        required: ["text", "scheduledAt"],
+      },
+    },
+  },
   {
     type: "function",
     function: {
@@ -254,16 +273,20 @@ export async function runAgentTurn(opts: AgentTurnOptions): Promise<AgentTurnOut
   const serverResults: HomelabToolResult[] = [];
   let reply = "";
   let followUps: string[] = [];
-  let clientActions: AgentAction[] = [];
+  const clientActions: AgentAction[] = [];
+  const clientActionKeys = new Set<string>();
 
-  for (let round = 0; round < maxRounds; round++) {
+  // `maxRounds` bounds server-tool executions. Allow one final model turn after
+  // the last tool result so the assistant can explain what happened.
+  let toolRounds = 0;
+  for (let turn = 0; turn <= maxRounds; turn++) {
     const prompt = [
       systemPrompt,
       "",
       "You can act by emitting tool calls. Available tools (JSON schema):",
       JSON.stringify(TOOL_CATALOG, null, 2),
       "",
-      `Homelab tools (${[...HOMELAB_TOOL_NAMES].join(", ")}) are executed by the server and their results are appended to the conversation as TOOL_RESULT lines — call them and WAIT for results before answering about homelab state or emitting app-item actions. App-item tools (create_tasks, create_habit, create_note, create_reminder, create_project, complete_task) are executed by the server from your FINAL response — only emit them in a response that contains no homelab tool calls, and never repeat ones you already emitted.`,
+      `Server tools (${[...HOMELAB_TOOL_NAMES].join(", ")}) run immediately and return TOOL_RESULT lines. App-item tools are committed by the server after the final reply. You may combine app-item actions with server tools in the same turn. Preserve every app action across tool rounds; never repeat an action already emitted. Use search_lifeos_data to find/read the user's app records and change_lifeos_data to create, update, or remove eligible records. For requested LifeOS feature or UI/code changes, queue a complete implementation brief with queue_homelab_prompt. Do not claim a queued prompt has started; it must be dispatched from /decide. Never claim a tool or app capability is unavailable without checking the tool catalog.`,
       "",
       "Conversation so far:",
       convoParts.join("\n\n"),
@@ -284,11 +307,18 @@ export async function runAgentTurn(opts: AgentTurnOptions): Promise<AgentTurnOut
       : [];
     const actions = Array.isArray(envelope.actions) ? envelope.actions : [];
     const homelabCalls = actions.filter((a) => HOMELAB_TOOL_NAMES.has(a.tool));
-    clientActions = actions.filter((a) => !HOMELAB_TOOL_NAMES.has(a.tool));
+    for (const action of actions.filter((a) => !HOMELAB_TOOL_NAMES.has(a.tool))) {
+      const key = JSON.stringify([action.tool, action.input ?? {}]);
+      if (!clientActionKeys.has(key)) {
+        clientActionKeys.add(key);
+        clientActions.push(action);
+      }
+    }
 
-    if (homelabCalls.length === 0 || round === maxRounds - 1) break;
+    if (homelabCalls.length === 0 || toolRounds >= maxRounds) break;
 
     convoParts.push(`ASSISTANT (tool calls): ${JSON.stringify(homelabCalls)}`);
+    toolRounds++;
     for (const call of homelabCalls) {
       onStatus?.(HOMELAB_TOOL_STATUS[call.tool] ?? `Running ${call.tool}…`);
       const result = await executeHomelabTool(call.tool, call.input ?? {});

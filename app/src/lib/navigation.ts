@@ -3,6 +3,7 @@ import {
   BookOpen01Icon, Mic01Icon, Dumbbell01Icon, Wallet01Icon, Search01Icon,
   Settings01Icon, Activity01Icon, News01Icon, Menu01Icon, ComputerTerminal01Icon,
   Restaurant01Icon, PlayListIcon, ContentWritingIcon,
+  NetworkIcon, Chat01Icon,
 } from "@hugeicons/core-free-icons";
 
 // One route inventory for desktop, mobile, and the current-page label.
@@ -13,6 +14,8 @@ export const NAV_GROUPS = [
     { href: "/decide", label: "Decide", icon: Layers01Icon },
     { href: "/decide/approvals", label: "Approvals", icon: CheckListIcon },
     { href: "/projects", label: "Projects", icon: Folder01Icon },
+    { href: "/mind-map", label: "Mind map", icon: NetworkIcon },
+    { href: "/chat", label: "Chat", icon: Chat01Icon },
     { href: "/content", label: "Content", icon: Video01Icon },
   ]},
   { label: "Personal", items: [
@@ -43,7 +46,7 @@ export function activeDestination(pathname: string) {
 }
 export function surfaceTitle(pathname: string) {
   if (pathname === "/voice/capture") return "Quick capture";
-  if (pathname === "/decide/dispatch") return "Send to Claude";
+  if (pathname === "/decide/dispatch") return "Send to Codex";
   if (pathname.startsWith("/prime")) return "Priming";
   if (pathname === "/diagrams") return "Diagrams";
   return activeDestination(pathname)?.label ?? "Today";

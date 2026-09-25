@@ -1,24 +1,23 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 
-const { claudeCliEnabled, runAgentTurn, create } = vi.hoisted(() => ({
-  claudeCliEnabled: vi.fn(), runAgentTurn: vi.fn(), create: vi.fn(),
+const { codexEnabled, runAgentTurn, create } = vi.hoisted(() => ({
+  codexEnabled: vi.fn(), runAgentTurn: vi.fn(), create: vi.fn(),
 }));
 
-vi.mock("@/lib/claude-cli", () => ({ claudeCliEnabled }));
+vi.mock("@/lib/claude-cli", () => ({ codexEnabled }));
 vi.mock("@/lib/agent-engine", () => ({ APP_TOOLS: [], runAgentTurn }));
 vi.mock("@/lib/ollama", () => ({ OLLAMA_MODEL: "test-model", getOllamaClient: () => ({ chat: { completions: { create } } }) }));
 vi.mock("@/lib/app-actions", () => ({ executeAppActions: vi.fn().mockResolvedValue([]) }));
 vi.mock("@/lib/chat-log", () => ({ logChatMessage: vi.fn() }));
 vi.mock("@/lib/homelab-resources", () => ({ searchHomelabResources: () => [] }));
-vi.mock("@/lib/dev-requests", () => ({ addDevRequest: vi.fn(), validateDevRequestInput: vi.fn() }));
 
 import { POST } from "./route";
 
-const request = () => new NextRequest("http://localhost/api/chat", {
+const request = (content = "hello") => new NextRequest("http://localhost/api/chat", {
   method: "POST",
   headers: { "content-type": "application/json" },
-  body: JSON.stringify({ messages: [{ role: "user", content: "hello" }], sessionId: "s1" }),
+  body: JSON.stringify({ messages: [{ role: "user", content }], sessionId: "s1" }),
 });
 
 describe("existing chat provider paths", () => {
@@ -29,7 +28,7 @@ describe("existing chat provider paths", () => {
   afterEach(() => vi.unstubAllEnvs());
 
   it("keeps the Claude path when master integration is enabled", async () => {
-    claudeCliEnabled.mockReturnValue(true);
+    codexEnabled.mockReturnValue(true);
     runAgentTurn.mockResolvedValue({ reply: "claude reply", clientActions: [], serverResults: [] });
     const response = await POST(request());
     expect(response.status).toBe(200);
@@ -41,11 +40,38 @@ describe("existing chat provider paths", () => {
   });
 
   it("keeps the Ollama path when master integration is enabled", async () => {
-    claudeCliEnabled.mockReturnValue(false);
+    codexEnabled.mockReturnValue(false);
     create.mockResolvedValue({ choices: [{ finish_reason: "stop", message: { content: "ollama reply" } }] });
     const response = await POST(request());
     expect(response.status).toBe(200);
     expect(create).toHaveBeenCalledOnce();
     expect(await response.json()).toMatchObject({ reply: "ollama reply", actions: [] });
+  });
+
+  it("passes raw user content unchanged through the Codex path", async () => {
+    const content = "  Keep?! <raw> & casing\n\tintact  ";
+    codexEnabled.mockReturnValue(true);
+    runAgentTurn.mockResolvedValue({ reply: "ok", clientActions: [], serverResults: [] });
+
+    await POST(request(content));
+
+    expect(runAgentTurn).toHaveBeenCalledWith(expect.objectContaining({
+      convoParts: [`USER: ${content}`],
+    }));
+  });
+
+  it("passes raw user content unchanged through the Ollama path", async () => {
+    const content = "  Keep?! <raw> & casing\n\tintact  ";
+    codexEnabled.mockReturnValue(false);
+    create.mockResolvedValue({ choices: [{ finish_reason: "stop", message: { content: "ok" } }] });
+
+    await POST(request(content));
+
+    expect(create).toHaveBeenCalledWith(expect.objectContaining({
+      messages: [
+        expect.objectContaining({ role: "system" }),
+        { role: "user", content },
+      ],
+    }));
   });
 });
