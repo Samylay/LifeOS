@@ -5,7 +5,7 @@
 // 1. The DETECTOR (below the "--- LLM layer" marker splits it off) is pure
 //    arithmetic over transactions — merchant grouping, amount tolerance,
 //    cadence from date gaps. It imports nothing from claude-cli and takes no
-//    model call, so it works exactly the same whether `claude -p` is
+//    model call, so it works exactly the same whether `Codex CLI` is
 //    installed, rate-limited, or GEN_PROVIDER is unset entirely. This is the
 //    half T69's dedup and T71's UI can both depend on without ever touching
 //    a subscription.
@@ -111,7 +111,7 @@ function median(values: number[]): number {
   return sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
 }
 
-function classifyCadence(avgGapDays: number): Exclude<FlowCadence, "oneoff"> | null {
+export function classifyCadence(avgGapDays: number): Exclude<FlowCadence, "oneoff"> | null {
   let best: Exclude<FlowCadence, "oneoff"> | null = null;
   let bestDiff = Infinity;
   for (const cadence of Object.keys(CADENCE_TARGET_DAYS) as Exclude<FlowCadence, "oneoff">[]) {
@@ -149,12 +149,17 @@ export function detectRecurringSeries(
   const series: RecurringSeries[] = [];
   for (const [key, txs] of groups) {
     if (txs.length < minOccurrences) continue;
-    const sorted = [...txs].sort((a, b) => a.date.localeCompare(b.date));
+    const all = [...txs].sort((a, b) => a.date.localeCompare(b.date));
 
-    const amounts = sorted.map((t) => t.amount);
-    const med = median(amounts);
+    // One off-price charge (a pro-rated first month, a one-time adjustment)
+    // must not hide an otherwise steady series. Keep the occurrences that sit
+    // within tolerance of the median, as long as enough remain AND the most
+    // recent charge is one of them: a latest charge off the old price is a
+    // price change, and the series is not confirmed at either price.
+    const med = median(all.map((t) => t.amount));
     const tolerance = Math.max(amountToleranceFloor, med * amountToleranceRatio);
-    if (amounts.some((a) => Math.abs(a - med) > tolerance)) continue;
+    const sorted = all.filter((t) => Math.abs(t.amount - med) <= tolerance);
+    if (sorted.length < minOccurrences || sorted[sorted.length - 1] !== all[all.length - 1]) continue;
 
     const gaps: number[] = [];
     for (let i = 1; i < sorted.length; i++) gaps.push(daysBetween(sorted[i - 1].date, sorted[i].date));

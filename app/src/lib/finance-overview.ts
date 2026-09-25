@@ -16,8 +16,9 @@ import { recentMonths } from "./finance-months";
 import { isSyncStale, formatLastSynced } from "./finance-freshness";
 import { findExpiringConsents } from "./bank-consent-tripwire";
 import { yearlyAmount } from "./finance";
+import { classifyCadence } from "./subscription-detector";
 import { listClassificationOverrides } from "./finance-overrides-db";
-import { financeActivity, type FinanceActivity } from "./finance-activity";
+import { dedupeFinanceActivity, financeActivity, type FinanceActivity, type MerchantLabel } from "./finance-activity";
 import { listMerchantLabels } from "./finance-labels-db";
 import { nextBankSyncAt } from "./bank-sync-schedule";
 import { isEnableBankingConfigured } from "./enable-banking";
@@ -43,9 +44,57 @@ export interface ConsentWarning {
 // defines (the current month of the burn-history window), not something the
 // pure recurrence detector should know about.
 
-export interface RecurringChargeView extends RecurringCharge {
+export interface RecurringChargeView extends Omit<RecurringCharge, "cadence"> {
   /** True when `firstSeen` falls in `currentMonth` — see module note above. */
   isNew: boolean;
+  /** A user-marked subscription or bill whose transaction history cannot confirm a cadence yet. */
+  cadence: RecurringCharge["cadence"] | "unknown";
+}
+
+function hasKnownRecurringCadence(
+  charge: RecurringChargeView,
+): charge is RecurringChargeView & { cadence: RecurringCharge["cadence"] } {
+  return charge.cadence !== "unknown";
+}
+
+export function addMarkedSubscriptions(
+  charges: RecurringChargeView[],
+  activity: FinanceActivity[],
+  labels: Record<string, MerchantLabel>,
+  currentMonth: string,
+): RecurringChargeView[] {
+  const existing = new Set(charges.map((charge) => charge.merchantKey));
+  const marked = new Map<string, FinanceActivity[]>();
+  for (const item of activity) {
+    const category = labels[item.merchantKey]?.category;
+    if (!item.date || item.direction !== "out" || item.currency !== "EUR" || item.isTransfer || !item.included || (category !== "Subscriptions" && category !== "Bills") || existing.has(item.merchantKey)) continue;
+    marked.set(item.merchantKey, [...(marked.get(item.merchantKey) ?? []), item]);
+  }
+  const additions: RecurringChargeView[] = [...marked].map(([merchantKey, items]) => {
+    const ordered = [...items].sort((a, b) => (a.date ?? "").localeCompare(b.date ?? ""));
+    const latest = ordered[ordered.length - 1];
+    // He already said this merchant recurs, so the amount-tolerance check the
+    // detector needs to rule out coincidences does not apply: a plan change
+    // (Pro one month, Max the next) is still the same subscription. The dates
+    // alone decide the cadence; the latest amount is what he pays now.
+    const days = ordered.slice(1).map((next, i) => (Date.parse(next.date ?? "") - Date.parse(ordered[i].date ?? "")) / 86_400_000);
+    const cadence = days.length ? classifyCadence(days.reduce((sum, d) => sum + d, 0) / days.length) : null;
+    return {
+      merchantKey,
+      label: latest.label,
+      direction: "out",
+      cadence: cadence ?? "unknown",
+      amount: latest.amount,
+      kind: labels[merchantKey]?.category === "Bills" ? "fixed" : "sub",
+      firstSeen: ordered[0].date ?? "",
+      lastSeen: latest.date ?? "",
+      confidence: 1,
+      occurrenceCount: ordered.length,
+      overridden: true,
+      isNew: ordered[0].date?.startsWith(currentMonth) ?? false,
+    };
+  });
+  return [...charges, ...additions];
 }
 
 /** Exported for finance-overview.test.ts; also usable by any future caller
@@ -68,7 +117,7 @@ export interface CancellableGroup {
  * `RecurringCharge` already has) rather than re-deriving a monthly-to-yearly
  * conversion here. */
 export function groupCancellable(charges: RecurringChargeView[]): CancellableGroup {
-  const subs = charges.filter((c) => c.kind === "sub");
+  const subs = charges.filter((c) => c.kind === "sub").filter(hasKnownRecurringCadence);
   const sorted = [...subs].sort((a, b) => yearlyAmount(b) - yearlyAmount(a));
   const yearlyTotal = sorted.reduce((sum, c) => sum + yearlyAmount(c), 0);
   return { charges: sorted, yearlyTotal };
@@ -125,8 +174,6 @@ export function getFinanceOverview(now: Date = new Date()): FinanceOverview {
     .slice(0, 10);
 
   const rows = listBankTransactionsInRange(fromMonth, toExclusive);
-  // No exchange rate is available. Never add different currencies as euros.
-  const transactions = rows.filter((row) => row.currency === "EUR").map(toBankTransactionLike);
   // Own-account identifiers (IBAN, account nickname) plus, when set, the
   // account holder's own name — kept out of source (public remote) and read
   // from a gitignored .env instead, same as any other repo-local secret.
@@ -134,6 +181,12 @@ export function getFinanceOverview(now: Date = new Date()): FinanceOverview {
     ...listOwnAccountIdentifiers(),
     ...(process.env.FINANCE_ACCOUNT_HOLDER_NAME ? [process.env.FINANCE_ACCOUNT_HOLDER_NAME] : []),
   ];
+  const labels = listMerchantLabels();
+  const activity = dedupeFinanceActivity(financeActivity(rows, ownAccountIdentifiers, labels));
+  const uniqueIds = new Set(activity.map((item) => item.transactionId));
+  const uniqueRows = rows.filter((row) => uniqueIds.has(row.transactionId));
+  // No exchange rate is available. Never add different currencies as euros.
+  const transactions = uniqueRows.filter((row) => row.currency === "EUR").map(toBankTransactionLike);
   // Ticket 04: corrections, keyed by normalized counterparty, read fresh on
   // every call — the same store `monthlyBurn` and `detectRecurring` are both
   // handed below, so a burn month's fixed/sub/variable split and the
@@ -143,7 +196,8 @@ export function getFinanceOverview(now: Date = new Date()): FinanceOverview {
   const burnMonths = months.map((month) => monthlyBurn(transactions, month, overrides, ownAccountIdentifiers));
 
   const currentMonth = months[months.length - 1];
-  const recurringCharges = markNewlyAppeared(detectRecurring(transactions, overrides).charges, currentMonth);
+  const detectedCharges = markNewlyAppeared(detectRecurring(transactions, overrides).charges, currentMonth);
+  const recurringCharges = addMarkedSubscriptions(detectedCharges, activity, labels, currentMonth);
   const cancellable = groupCancellable(recurringCharges);
 
   const lastSyncAtRaw = getBankSyncState("last_sync_at");
@@ -159,7 +213,7 @@ export function getFinanceOverview(now: Date = new Date()): FinanceOverview {
   }));
 
   return {
-    activity: financeActivity(rows, ownAccountIdentifiers, listMerchantLabels()),
+    activity,
     configured,
     nextSyncAt: configured && accounts.length ? nextBankSyncAt(Number(getBankSyncState("last_sync_attempt_at")), lastSyncAt, nowMs) : null,
     syncError: getBankSyncState("last_sync_error") || getBankSyncState("last_balance_error") || null,

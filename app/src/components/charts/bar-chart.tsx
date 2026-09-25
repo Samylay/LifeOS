@@ -4,6 +4,7 @@ import {
   Bar,
   BarChart as RechartsBarChart,
   CartesianGrid,
+  Cell,
   Legend,
   ResponsiveContainer,
   Tooltip,
@@ -33,6 +34,12 @@ export interface BarChartProps<T extends object = Record<string, string | number
   stacked?: boolean;
   /** Display name per category key, used for the legend + tooltip rows. */
   categoryLabels?: Record<string, string>;
+  /** Compact currency or unit formatter for the value axis. */
+  axisValueFormatter?: ChartValueFormatter;
+  /** Called when the user selects a bar. */
+  onDatumClick?: (datum: T) => void;
+  /** Highlight one data point across every series. */
+  selectedIndex?: number;
 }
 
 /** Tremor-style bar chart, grouped or stacked multi-series. */
@@ -49,10 +56,13 @@ export function BarChart<T extends object>({
   className,
   stacked = false,
   categoryLabels,
+  axisValueFormatter,
+  onDatumClick,
+  selectedIndex,
 }: BarChartProps<T>) {
   return (
-    <div className={cn("h-80 w-full", className)}>
-      <ResponsiveContainer width="100%" height="100%">
+    <div className={cn("h-80 w-full min-w-0", className)}>
+      <ResponsiveContainer width="100%" height="100%" minWidth={0}>
         <RechartsBarChart data={data} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
           {showGrid && (
             <CartesianGrid stroke={GRID_STROKE} vertical={false} />
@@ -61,7 +71,7 @@ export function BarChart<T extends object>({
             <XAxis dataKey={index} tick={AXIS_TICK_STYLE} axisLine={false} tickLine={false} />
           )}
           {showYAxis && (
-            <YAxis tick={AXIS_TICK_STYLE} axisLine={false} tickLine={false} width={36} allowDecimals={false} />
+            <YAxis tick={AXIS_TICK_STYLE} axisLine={false} tickLine={false} width={axisValueFormatter ? 58 : 36} allowDecimals={false} tickFormatter={axisValueFormatter} />
           )}
           <Tooltip
             content={(props) => <ChartTooltip {...props} valueFormatter={valueFormatter} />}
@@ -83,7 +93,19 @@ export function BarChart<T extends object>({
                 radius={radius}
                 isAnimationActive={false}
                 maxBarSize={32}
-              />
+                onClick={onDatumClick ? (rectangle) => {
+                  if (rectangle.payload && typeof rectangle.payload === "object") onDatumClick(rectangle.payload as T);
+                } : undefined}
+              >
+                {(selectedIndex !== undefined || onDatumClick) && data.map((_, dataIndex) => (
+                  <Cell
+                    key={`${category}-${dataIndex}`}
+                    fill={color}
+                    opacity={selectedIndex === undefined || selectedIndex === dataIndex ? 1 : 0.42}
+                    style={onDatumClick ? { cursor: "pointer", transition: "opacity 150ms var(--ease-out-custom)" } : undefined}
+                  />
+                ))}
+              </Bar>
             );
           })}
         </RechartsBarChart>

@@ -25,7 +25,7 @@ const CATEGORY_RULES: [SpendingCategory, RegExp][] = [
   ["Eating out", /\b(restaurant|cafe|coffee|boulangerie|bakery|deliveroo|uber\s*eats|mcdonald|burger|pizza)\b/i],
   ["Transport", /\b(sncf|ratp|uber|bolt|train|metro|parking|toll|transport)\b/i],
   ["Subscriptions", /\b(netflix|spotify|anthropic|openai|adobe|subscription|abonnement)\b/i],
-  ["Bills", /\b(loyer|rent|electricity|edf|engie|insurance|assurance|cotisation|telecom|sfr|bouygues)\b/i],
+  ["Bills", /\b(loyer|rent|electricity|edf|engie|totalenergies|insurance|assurance|cotisation|telecom|sfr|bouygues)\b/i],
   ["Health", /\b(pharmacie|pharmacy|medical|dentist|doctor|hospital)\b/i],
   ["Travel", /\b(hotel|airbnb|airline|ryanair|easyjet|booking\.com)\b/i],
   ["Cash", /\b(atm|retrait|cash withdrawal)\b/i],
@@ -59,8 +59,22 @@ export function financeActivity(
   }).sort((a, b) => (b.date ?? "").localeCompare(a.date ?? "") || a.transactionId.localeCompare(b.transactionId));
 }
 
+/** Collapse bank-feed duplicates even when the aggregator assigned them
+ * different transaction IDs. Keep separate payments unless every stable
+ * transaction detail matches, including account, day, merchant and amount. */
+export function dedupeFinanceActivity(activity: FinanceActivity[]): FinanceActivity[] {
+  const seen = new Set<string>();
+  return activity.filter((item) => {
+    if (!item.date || !item.direction) return true;
+    const key = [item.accountUid, item.date, item.direction, item.currency, item.amount.toFixed(2), item.merchantKey].join("|");
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 export function formatMoney(amount: number, currency = "EUR"): string {
   if (!Number.isFinite(amount)) return "Amount unavailable";
-  try { return new Intl.NumberFormat("en-IE", { style: "currency", currency }).format(amount); }
+  try { return new Intl.NumberFormat("fr-FR", { style: "currency", currency }).format(amount); }
   catch { return `${amount.toFixed(2)} ${currency}`; }
 }

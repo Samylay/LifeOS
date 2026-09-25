@@ -1,11 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { financeActivity, formatMoney } from "./finance-activity";
+import { dedupeFinanceActivity, financeActivity, formatMoney, suggestedCategory } from "./finance-activity";
 
 const tx = (id: string, extra = {}) => ({ transactionId: id, accountUid: "fixture", bookingDate: "2026-09-01", amount: "12.34", currency: "EUR", raw: { credit_debit_indicator: "DBIT", remittance_information: ["PRELEVEMENT DE: EXAMPLE SHOP ID: 123"] }, ...extra });
 describe("readable bank activity", () => {
   it("uses bank direction for unsigned outgoing amounts and recovers remittance names", () => {
     const [item] = financeActivity([tx("one")]);
     expect(item.label).toBe("EXAMPLE SHOP"); expect(item.direction).toBe("out"); expect(item.amount).toBe(12.34);
+  });
+  it("recognizes TotalEnergies as a bill", () => {
+    expect(suggestedCategory("TotalEnergies Electricite et Gaz France")).toBe("Bills");
   });
   it("uses the sender for income and does not invent direction when absent", () => {
     const rows = financeActivity([tx("in", { debtorName: "Fixture employer", raw: { credit_debit_indicator: "CRDT" } }), tx("unknown", { raw: {} })]);
@@ -27,5 +30,23 @@ describe("readable bank activity", () => {
   it("does not merge unknown merchants into one editable label", () => {
     const rows = financeActivity([tx("one", { raw: {} }), tx("two", { raw: {} })]);
     expect(rows[0].merchantKey).not.toBe(rows[1].merchantKey);
+  });
+  it("collapses duplicate bank rows with distinct ids but identical transaction details", () => {
+    const rows = financeActivity([tx("provider-id-one"), tx("provider-id-two")]);
+    expect(rows).toHaveLength(2);
+    expect(dedupeFinanceActivity(rows)).toHaveLength(1);
+  });
+  it("keeps same-day payments when the account, merchant, or amount differs", () => {
+    const rows = financeActivity([
+      tx("one"),
+      tx("other-amount", { amount: "13.34" }),
+      tx("other-account", { accountUid: "other-account" }),
+      tx("other-merchant", { creditorName: "Other shop" }),
+    ]);
+    expect(dedupeFinanceActivity(rows)).toHaveLength(4);
+  });
+  it("keeps undated transactions separate because their identity is incomplete", () => {
+    const rows = financeActivity([tx("one", { bookingDate: undefined }), tx("two", { bookingDate: undefined })]);
+    expect(dedupeFinanceActivity(rows)).toHaveLength(2);
   });
 });

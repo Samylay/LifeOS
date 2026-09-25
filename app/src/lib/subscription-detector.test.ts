@@ -72,6 +72,28 @@ describe("detector works without any LLM backend configured", () => {
     expect(detectRecurringSeries(txs)).toHaveLength(0);
   });
 
+  it("still detects a steady series with one off-price early charge", () => {
+    const txs: DetectorTransaction[] = [
+      tx({ transactionId: "t1", merchant: "MUTUELLE CO", amount: 53.2, date: "2026-06-04" }), // pro-rated first month
+      tx({ transactionId: "t2", merchant: "MUTUELLE CO", amount: 28.5, date: "2026-07-06" }),
+      tx({ transactionId: "t3", merchant: "MUTUELLE CO", amount: 28.5, date: "2026-08-04" }),
+      tx({ transactionId: "t4", merchant: "MUTUELLE CO", amount: 28.5, date: "2026-09-04" }),
+    ];
+    const series = detectRecurringSeries(txs);
+    expect(series).toHaveLength(1);
+    expect(series[0]).toMatchObject({ cadence: "monthly", amount: 28.5, firstSeen: "2026-07-06" });
+  });
+
+  it("does not confirm a series whose latest charge left the old price", () => {
+    const txs: DetectorTransaction[] = [
+      tx({ transactionId: "t1", merchant: "GYM CO", amount: 25, date: "2026-01-05" }),
+      tx({ transactionId: "t2", merchant: "GYM CO", amount: 25, date: "2026-02-04" }),
+      tx({ transactionId: "t3", merchant: "GYM CO", amount: 25, date: "2026-03-06" }),
+      tx({ transactionId: "t4", merchant: "GYM CO", amount: 60, date: "2026-04-05" }),
+    ];
+    expect(detectRecurringSeries(txs)).toHaveLength(0);
+  });
+
   it("tolerates small VAT/FX wobble within the amount tolerance", () => {
     const txs: DetectorTransaction[] = [
       tx({ transactionId: "t1", merchant: "SPOTIFY", amount: 11.99, date: "2026-01-10" }),

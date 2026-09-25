@@ -10,9 +10,6 @@ import {
   Check,
   X,
   MoonStar,
-  TrendingUp,
-  TrendingDown,
-  PiggyBank,
   AlertTriangle,
   Landmark,
   ArrowDownLeft,
@@ -54,10 +51,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
-import { KpiCard } from "@/components/charts";
-import { MonthHistory, monthLabel } from "@/components/finance/month-history";
+import { BarChart } from "@/components/charts";
+import { monthLabel } from "@/components/finance/month-history";
 import { ActivityLedger } from "@/components/finance/activity-ledger";
-import { formatMoney } from "@/lib/finance-activity";
+import { formatMoney, type FinanceActivity } from "@/lib/finance-activity";
 
 // A placeholder, so the box is never a blank wall. Invented round numbers and
 // generic labels on purpose: this repo's remote is public, and a realistic
@@ -130,7 +127,7 @@ function PasteBox({
                 {f.dormant && <span className="ml-1 text-muted-foreground">(unused)</span>}
               </span>
               <span className="shrink-0 tabular-nums text-muted-foreground">
-                {formatEuro(f.amount)} {CADENCE_LABEL[f.cadence]}
+                {formatEuro(f.amount, { decimals: true })} {CADENCE_LABEL[f.cadence]}
               </span>
             </div>
           ))}
@@ -288,7 +285,7 @@ function FlowRow({
       </div>
       <div className="flex shrink-0 items-center gap-1">
         <span className="tabular-nums text-sm text-muted-foreground">
-          {flow.cadence === "oneoff" ? "—" : `${formatEuro(yearlyAmount(flow), { decimals: false })}/yr`}
+          {flow.cadence === "oneoff" ? "One-off" : `${formatEuro(yearlyAmount(flow), { decimals: true })}/year`}
         </span>
         {onToggleDormant && (
           <Button
@@ -312,6 +309,12 @@ function FlowRow({
 
 function formatSyncedDate(iso: string): string {
   return new Date(iso).toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
+}
+
+function hasKnownRecurringCadence(
+  charge: RecurringChargeView,
+): charge is RecurringChargeView & { cadence: Exclude<RecurringChargeView["cadence"], "unknown"> } {
+  return charge.cadence !== "unknown";
 }
 
 /**
@@ -426,9 +429,9 @@ function RecurringChargeRow({
   return (
     <div className="flex items-center justify-between gap-3 border-b border-border/60 py-2 last:border-b-0">
       <div className="min-w-0">
-        <p className="flex items-center gap-2 truncate text-sm font-medium text-foreground">
-          <span className="truncate">{charge.label}</span>
-          <Badge variant="secondary">{KIND_LABEL[charge.kind]}</Badge>
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-medium text-foreground">
+          <span className="min-w-0 break-words">{charge.label}</span>
+          <Badge variant="secondary">{charge.kind === "fixed" && charge.direction === "out" ? "Bill" : KIND_LABEL[charge.kind]}</Badge>
           {charge.isNew && (
             <Badge className="shrink-0 gap-1 text-[10px] font-medium">
               <Sparkles size={10} /> New
@@ -439,14 +442,17 @@ function RecurringChargeRow({
               Corrected
             </Badge>
           )}
-        </p>
+        </div>
         <p className="text-xs text-muted-foreground">
-          {CADENCE_LABEL[charge.cadence]} · seen {charge.occurrenceCount}× · {formatChargeDate(charge.firstSeen)} –{" "}
-          {formatChargeDate(charge.lastSeen)}
+          {charge.cadence === "unknown"
+            ? `Marked subscription · frequency unknown · seen ${charge.occurrenceCount}×`
+            : `${CADENCE_LABEL[charge.cadence]} · seen ${charge.occurrenceCount}×`} · {formatChargeDate(charge.firstSeen)} – {formatChargeDate(charge.lastSeen)}
         </p>
       </div>
       <div className="flex shrink-0 items-center gap-2">
-        <span className="tabular-nums text-sm text-muted-foreground">{formatEuro(charge.amount)}</span>
+        <span className={cn("tabular-nums text-sm", charge.direction === "in" ? "text-primary" : "text-muted-foreground")}>
+          {charge.direction === "in" ? "+" : "−"}{charge.cadence === "unknown" ? `${formatEuro(charge.amount, { decimals: true })} latest` : formatEuro(charge.amount, { decimals: true })}
+        </span>
         {onCorrect && onClear && (
           <CorrectChargeMenu
             charge={charge}
@@ -465,17 +471,43 @@ function RecurringChargeRow({
  */
 function RecurringChargesCard({
   charges,
+  activity,
   onCorrect,
   onClear,
+  onTrack,
 }: {
   charges: RecurringChargeView[];
+  activity: FinanceActivity[];
   onCorrect: (merchantKey: string, kind: FlowKind) => void;
   onClear: (merchantKey: string) => void;
+  onTrack: (item: FinanceActivity) => void;
 }) {
   if (charges.length === 0) return null;
+  const monthlyCosts = charges.reduce((total, charge) => charge.direction === "out" && hasKnownRecurringCadence(charge) ? total + monthlyAmount(charge) : total, 0);
+  const monthlyIncome = charges.reduce((total, charge) => charge.direction === "in" && hasKnownRecurringCadence(charge) ? total + monthlyAmount(charge) : total, 0);
+  const unknownCadence = charges.filter((charge) => charge.direction === "out" && !hasKnownRecurringCadence(charge));
+  const unknownLatestTotal = unknownCadence.reduce((total, charge) => total + charge.amount, 0);
+  const knownMerchants = new Set(charges.map((charge) => charge.merchantKey));
+  const possibleRepeats = new Map<string, FinanceActivity[]>();
+  for (const item of activity) {
+    if (!item.date || item.direction !== "out" || item.currency !== "EUR" || item.isTransfer || !item.included || knownMerchants.has(item.merchantKey) || (item.category !== "Bills" && item.category !== "Subscriptions")) continue;
+    possibleRepeats.set(item.merchantKey, [...(possibleRepeats.get(item.merchantKey) ?? []), item]);
+  }
+  const unconfirmedBills = [...possibleRepeats.values()].filter((items) => items.length > 1);
   return (
     <Card className="enter gap-2 px-4 py-4">
-      <p className="section-label">Recurring charges</p>
+      <div className="space-y-3">
+        <div>
+          <h2 className="text-sm font-semibold">Recurring charges</h2>
+          <p className="mt-1 text-xs text-muted-foreground">Your baseline: what comes in and goes out every month before any one-off spending. The month total above includes everything.</p>
+        </div>
+        <div className="rounded-lg bg-muted/40 p-3">
+          <p className="text-lg font-semibold tabular-nums">{formatEuro(monthlyIncome - monthlyCosts, { decimals: true })}/month</p>
+          <p className="mt-1 text-xs text-muted-foreground">{formatEuro(monthlyIncome, { decimals: true })} recurring income − {formatEuro(monthlyCosts, { decimals: true })} recurring costs, including rent. Before investing.</p>
+          {unknownCadence.length > 0 && <p className="mt-2 text-xs text-muted-foreground">Not included: {formatEuro(unknownLatestTotal, { decimals: true })} latest amounts across {unknownCadence.length} charges with unconfirmed frequency.</p>}
+          {unconfirmedBills.length > 0 && <div className="mt-3 space-y-1 text-xs text-muted-foreground"><p>Possible repeat charges, not included yet. Track one to count it:</p>{unconfirmedBills.map((items) => <div key={items[0].merchantKey} className="flex items-center justify-between gap-2"><span className="min-w-0 break-words">{items[0].label}: {items.length} payments totalling {formatEuro(items.reduce((sum, item) => sum + item.amount, 0), { decimals: true })}</span><Button size="sm" variant="outline" className="shrink-0" onClick={() => onTrack(items[0])}><Plus size={14} /> Track</Button></div>)}</div>}
+        </div>
+      </div>
       <div>
         {charges.map((c) => (
           <RecurringChargeRow key={c.merchantKey} charge={c} onCorrect={onCorrect} onClear={onClear} />
@@ -516,11 +548,30 @@ function BurnOverview() {
     try { await clearCorrection(merchantKey); toast("Back to detected classification", "success"); }
     catch { toast("Couldn't clear the correction", "error"); }
   };
+  const handleTrack = async (item: FinanceActivity) => {
+    const category = item.category === "Subscriptions" ? "Subscriptions" : "Bills";
+    try {
+      const response = await fetch("/api/finance/labels", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ transactionId: item.transactionId, label: item.label, category }) });
+      if (!response.ok) throw new Error();
+      await refresh();
+      toast(`Tracking ${item.label}`, "success");
+    } catch { toast("Couldn't track this charge", "error"); }
+  };
   if (loading && !overview) return <Skeleton className="h-64 w-full rounded-xl" />;
-  if (!overview || !overview.months.length) return <Card className="gap-2 p-4"><p>Bank overview could not load.</p><Button variant="outline" onClick={() => void refresh()}>Retry</Button></Card>;
+  if (!overview) return <Card className="gap-2 p-4"><p>{error ? "Could not load your bank overview." : "No bank overview is available yet."}</p>{error && <p role="alert" className="text-sm text-destructive">{error}</p>}<Button variant="outline" onClick={() => void refresh()}>Retry</Button></Card>;
+  if (!overview.months.length) return <Card className="gap-2 p-4"><p>No bank history is available yet.</p><Button variant="outline" onClick={() => void refresh()}>Retry</Button></Card>;
   const months = overview.months;
   const current = months.find((month) => month.burn.month === selectedMonth) ?? months.at(-1)!;
   const month = current.burn.month;
+  const afterInvestment = current.burn.in - current.burn.out - 70;
+  const flowChart = months.map(({ burn }) => ({
+    month: new Date(`${burn.month}-01T00:00:00Z`).toLocaleDateString("fr-FR", { month: "short", year: "2-digit", timeZone: "UTC" }),
+    monthKey: burn.month,
+    income: burn.in,
+    spending: burn.out,
+    remaining: burn.in - burn.out - 70,
+  }));
+  const selectedChartIndex = months.findIndex(({ burn }) => burn.month === month);
   const linked = overview.accounts.length > 0;
   const nextSync = overview.nextSyncAt ? new Date(overview.nextSyncAt).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }) : null;
 
@@ -539,24 +590,33 @@ function BurnOverview() {
     {linked && <BurnBanner overview={overview} />}
     <Card className="gap-4 p-4 sm:p-5">
       <div className="flex flex-wrap items-baseline justify-between gap-2"><h2 className="text-lg font-semibold">{monthLabel(month)}</h2><span className="text-xs text-muted-foreground">EUR only{month === months.at(-1)?.burn.month ? " · Month in progress" : ""}</span></div>
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-        <KpiCard label="Spent" value={formatMoney(current.burn.out)} icon={<TrendingDown size={13} />} />
-        <KpiCard label="Income" value={formatMoney(current.burn.in)} icon={<TrendingUp size={13} />} />
-        <KpiCard label="Net cash flow" value={formatMoney(current.burn.in - current.burn.out)} icon={<PiggyBank size={13} />} />
+      <div className="space-y-1 rounded-lg bg-muted/40 p-3">
+        <p className="text-xs text-muted-foreground">After spending and €70 monthly investing</p>
+        <p className="text-xl font-semibold tabular-nums">{formatMoney(afterInvestment)}</p>
+        <p className="text-xs text-muted-foreground">{formatMoney(current.burn.in)} income − {formatMoney(current.burn.out)} spending − €70 investment</p>
+        <p className="text-xs text-muted-foreground">Based on {current.burn.txCount} income and spending transactions. {formatMoney(current.burn.transfer)} in account transfers is excluded.</p>
       </div>
-      <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4 text-sm">
-        {[["Fixed bills", current.burn.fixed], ["Subscriptions", current.burn.sub], ["Other spending", current.burn.variable], ["Transfers", current.burn.transfer]].map(([label, value]) => <div key={label}><dt className="text-xs text-muted-foreground">{label}</dt><dd className="mt-1 font-medium tabular-nums">{formatMoney(Number(value))}</dd></div>)}
+      <dl className="grid grid-cols-2 gap-3 sm:grid-cols-3 text-sm">
+        {[["Recurring bills", current.burn.fixed], ["Recurring subscriptions", current.burn.sub], ["Everything else", current.burn.variable]].map(([label, value]) => <div key={label}><dt className="text-xs text-muted-foreground">{label}</dt><dd className="mt-1 font-medium tabular-nums">{formatMoney(Number(value))}</dd></div>)}
       </dl>
-      <p className="text-xs text-muted-foreground">Transfers between your accounts are excluded from spending and income. Other currencies appear in transactions.</p>
+      <div className="min-w-0">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <p className="text-sm font-semibold">Income, spending and remaining</p>
+          <p className="text-xs text-muted-foreground">Selected: {monthLabel(month)}</p>
+        </div>
+        <p className="mt-1 text-xs text-muted-foreground">Tap any bar to filter this month’s totals and transactions below.</p>
+        <BarChart data={flowChart} index="month" categories={["income", "spending", "remaining"]} categoryLabels={{ income: "Income", spending: "Spent", remaining: "After €70 investing" }} colors={["var(--chart-2)", "var(--chart-1)", "var(--chart-3)"]} valueFormatter={(value) => formatMoney(Number(value))} axisValueFormatter={(value) => new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", notation: "compact", maximumFractionDigits: 1 }).format(value)} onDatumClick={(datum) => setSelectedMonth(datum.monthKey)} selectedIndex={selectedChartIndex} showLegend className="h-56" />
+      </div>
+      <p className="text-xs text-muted-foreground">Totals include EUR only. Other currencies are shown in the transaction list and kept out of the sums.</p>
+      {current.burn.txCount === 0 && current.burn.transfer === 0 && <p className="text-xs text-muted-foreground">No spending or income was recorded for this month.</p>}
       {current.undetermined.length > 0 && <p className="text-xs text-warning">{current.undetermined.length} transactions need review and are excluded from these totals.</p>}
-      <MonthHistory months={months} selected={month} onSelect={setSelectedMonth} />
     </Card>
     <ActivityLedger key={month} activity={overview.activity ?? []} month={month} refresh={refresh} />
     {linked && <Card className="gap-2 p-4"><h2 className="text-sm font-semibold">Account balances</h2>{overview.accounts.map((account) => <div key={account.accountUid} className="flex items-center justify-between gap-3 border-b border-border py-2 last:border-0">
       <div className="min-w-0"><p className="text-sm font-medium">{account.aspspName || "Bank"} · {account.accountUid.slice(-4)}</p><p className="text-xs text-muted-foreground">{account.balanceSyncedAt ? `Balance updated ${formatSyncedDate(account.balanceSyncedAt)}` : "No balance available"}</p></div>
       <span className="text-sm font-medium tabular-nums">{account.balanceAmount !== null ? formatMoney(Number(account.balanceAmount), account.balanceCurrency || "EUR") : "—"}</span>
     </div>)}</Card>}
-    <RecurringChargesCard charges={overview.recurringCharges} onCorrect={handleCorrect} onClear={handleClear} />
+    <RecurringChargesCard charges={overview.recurringCharges} activity={overview.activity} onCorrect={handleCorrect} onClear={handleClear} onTrack={(item) => void handleTrack(item)} />
   </div>;
 }
 
@@ -619,7 +679,7 @@ export default function FinancePage() {
       <ConfirmDialog
         open={pendingDelete !== null}
         title="Delete this line?"
-        message={pendingDelete ? `${pendingDelete.label}, ${formatEuro(pendingDelete.amount)}.` : ""}
+        message={pendingDelete ? `${pendingDelete.label}, ${formatEuro(pendingDelete.amount, { decimals: true })}.` : ""}
         confirmLabel="Delete"
         destructive
         onConfirm={() => {

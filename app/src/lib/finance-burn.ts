@@ -191,7 +191,7 @@ function isDirectDebit(raw: unknown): boolean {
 // caller-supplied `ownAccountIdentifiers` (an IBAN or the account holder's
 // name, read at runtime from bank_accounts / config — never hardcoded here,
 // since this module stays pure and this repo's remote is public).
-const REVOLUT_INTERNAL_MOVE = /\b(to|from)\s+(robo portfolio|eur|usd|gbp|savings|vault|pocket)\b/i;
+const REVOLUT_INTERNAL_MOVE = /\b(to|from)\s+(robo portfolio|investment account|eur|usd|gbp|savings|vault|pocket)\b/i;
 
 function isSelfTransfer(merchant: string, remittance: string | null, ownAccountIdentifiers: string[]): boolean {
   if (REVOLUT_INTERNAL_MOVE.test(merchant) || (remittance && REVOLUT_INTERNAL_MOVE.test(remittance))) return true;
@@ -245,7 +245,12 @@ function convert(tx: BankTransactionLike, ownAccountIdentifiers: string[]): Conv
   // only carrier of sign, per finance.ts's house rule.
   const namedMerchant = (direction === "out" ? tx.creditorName : tx.debtorName)?.trim();
   const remittance = remittanceText(tx.raw);
-  const merchant = namedMerchant || deriveMerchantFromRemittance(tx.raw) || "UNKNOWN";
+  // Some bank feeds put the SEPA instrument in creditor_name (for example
+  // "PRELEVEMENT EUROPEEN") and the actual biller in the remittance. Using
+  // both forms would split one bill into duplicate recurring charges.
+  const merchant = (/^PRELEVEMENT\b/i.test(namedMerchant ?? "") ? deriveMerchantFromRemittance(tx.raw) : namedMerchant)
+    || deriveMerchantFromRemittance(tx.raw)
+    || "UNKNOWN";
   return {
     detectorTx: {
       transactionId: tx.transactionId,

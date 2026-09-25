@@ -289,27 +289,27 @@ describe("merchant fallback from remittance_information (CAUSE 1)", () => {
     const transactions: BankTransactionLike[] = [
       outNoCreditor({
         transactionId: "rent1",
-        amount: "845.14",
+        amount: "800.00",
         date: "2026-03-04",
-        remittance: "PRELEVEMENT EUROPEEN 3816317483 DE: NEXITY STUDEA ID: FR00ZZZ000001 MOTIF: QUITTANCE 01/03",
+        remittance: "PRELEVEMENT EUROPEEN 3816317483 DE: SAMPLE RENTAL SERVICE ID: FIXTURE-MANDATE-ID MOTIF: QUITTANCE 01/03",
       }),
       outNoCreditor({
         transactionId: "rent2",
-        amount: "845.14",
+        amount: "800.00",
         date: "2026-04-04",
-        remittance: "PRELEVEMENT EUROPEEN 9912384710 DE: NEXITY STUDEA ID: FR00ZZZ000001 MOTIF: QUITTANCE 01/04",
+        remittance: "PRELEVEMENT EUROPEEN 9912384710 DE: SAMPLE RENTAL SERVICE ID: FIXTURE-MANDATE-ID MOTIF: QUITTANCE 01/04",
       }),
       outNoCreditor({
         transactionId: "rent3",
-        amount: "845.14",
+        amount: "800.00",
         date: "2026-05-04",
-        remittance: "PRELEVEMENT EUROPEEN 1123958123 DE: NEXITY STUDEA ID: FR00ZZZ000001 MOTIF: QUITTANCE 01/05",
+        remittance: "PRELEVEMENT EUROPEEN 1123958123 DE: SAMPLE RENTAL SERVICE ID: FIXTURE-MANDATE-ID MOTIF: QUITTANCE 01/05",
       }),
     ];
     const { charges } = detectRecurring(transactions);
     expect(charges).toHaveLength(1);
-    expect(charges[0].label).toContain("NEXITY STUDEA");
-    expect(charges[0].amount).toBeCloseTo(845.14, 2);
+    expect(charges[0].label).toContain("SAMPLE RENTAL SERVICE");
+    expect(charges[0].amount).toBeCloseTo(800.00, 2);
     expect(charges[0].cadence).toBe("monthly");
   });
 
@@ -363,6 +363,18 @@ describe("merchant fallback from remittance_information (CAUSE 1)", () => {
     expect(charges).toHaveLength(1);
     expect(charges[0].label).toBe("REAL MERCHANT NAME");
   });
+
+  it("does not split a bill when creditor_name is only the SEPA instrument", () => {
+    const transactions: BankTransactionLike[] = [
+      { ...outNoCreditor({ transactionId: "b1", amount: "800.00", date: "2026-04-04", remittance: "PRELEVEMENT EUROPEEN DE: SAMPLE RENTAL SERVICE ID: FIXTURE-MANDATE-ID" }), creditorName: "PRELEVEMENT EUROPEEN" },
+      { ...outNoCreditor({ transactionId: "b2", amount: "800.00", date: "2026-05-04", remittance: "PRELEVEMENT EUROPEEN DE: SAMPLE RENTAL SERVICE ID: FIXTURE-MANDATE-ID" }), creditorName: "PRELEVEMENT EUROPEEN" },
+      { ...outNoCreditor({ transactionId: "b3", amount: "800.00", date: "2026-06-04", remittance: "PRELEVEMENT EUROPEEN DE: SAMPLE RENTAL SERVICE ID: FIXTURE-MANDATE-ID" }), creditorName: "PRELEVEMENT EUROPEEN" },
+    ];
+    const { charges } = detectRecurring(transactions);
+    expect(charges).toHaveLength(1);
+    expect(charges[0].label).toBe("SAMPLE RENTAL SERVICE");
+    expect(charges[0].kind).toBe("fixed");
+  });
 });
 
 describe("classify — fixed vs sub for a SEPA direct-debit cost of living (CAUSE 3)", () => {
@@ -378,19 +390,19 @@ describe("classify — fixed vs sub for a SEPA direct-debit cost of living (CAUS
     const transactions: BankTransactionLike[] = [
       outNoCreditor({
         transactionId: "rent1",
-        amount: "845.14",
+        amount: "800.00",
         date: "2026-01-04",
         remittance: "PRELEVEMENT EUROPEEN 1000000001 DE: PLACEHOLDER PROPERTY CO ID: FR00ZZZ000099 MOTIF: QUITTANCE 01/01",
       }),
       outNoCreditor({
         transactionId: "rent2",
-        amount: "845.14",
+        amount: "800.00",
         date: "2026-02-04",
         remittance: "PRELEVEMENT EUROPEEN 1000000002 DE: PLACEHOLDER PROPERTY CO ID: FR00ZZZ000099 MOTIF: QUITTANCE 01/02",
       }),
       outNoCreditor({
         transactionId: "rent3",
-        amount: "845.14",
+        amount: "800.00",
         date: "2026-03-04",
         remittance: "PRELEVEMENT EUROPEEN 1000000003 DE: PLACEHOLDER PROPERTY CO ID: FR00ZZZ000099 MOTIF: QUITTANCE 01/03",
       }),
@@ -488,9 +500,9 @@ describe("classify — fixed vs sub for a SEPA direct-debit cost of living (CAUS
 
   it("still lets an override win over the direct-debit signal", () => {
     const transactions: BankTransactionLike[] = [
-      outNoCreditor({ transactionId: "o1", amount: "845.14", date: "2026-01-04", remittance: "PRELEVEMENT EUROPEEN 1 DE: PLACEHOLDER PROPERTY CO ID: FR00ZZZ000099" }),
-      outNoCreditor({ transactionId: "o2", amount: "845.14", date: "2026-02-04", remittance: "PRELEVEMENT EUROPEEN 2 DE: PLACEHOLDER PROPERTY CO ID: FR00ZZZ000099" }),
-      outNoCreditor({ transactionId: "o3", amount: "845.14", date: "2026-03-04", remittance: "PRELEVEMENT EUROPEEN 3 DE: PLACEHOLDER PROPERTY CO ID: FR00ZZZ000099" }),
+      outNoCreditor({ transactionId: "o1", amount: "800.00", date: "2026-01-04", remittance: "PRELEVEMENT EUROPEEN 1 DE: PLACEHOLDER PROPERTY CO ID: FR00ZZZ000099" }),
+      outNoCreditor({ transactionId: "o2", amount: "800.00", date: "2026-02-04", remittance: "PRELEVEMENT EUROPEEN 2 DE: PLACEHOLDER PROPERTY CO ID: FR00ZZZ000099" }),
+      outNoCreditor({ transactionId: "o3", amount: "800.00", date: "2026-03-04", remittance: "PRELEVEMENT EUROPEEN 3 DE: PLACEHOLDER PROPERTY CO ID: FR00ZZZ000099" }),
     ];
     const { charges } = detectRecurring(transactions, { "PLACEHOLDER PROPERTY CO": "variable" });
     expect(charges).toHaveLength(1);
@@ -500,9 +512,9 @@ describe("classify — fixed vs sub for a SEPA direct-debit cost of living (CAUS
   it("keeps the bucket-sum invariant in integer cents for a full mixed month (rent + bank fee + phone + charity + Netflix + groceries)", () => {
     const transactions: BankTransactionLike[] = [
       // Rent: direct debit, unmatched label -> fixed.
-      outNoCreditor({ transactionId: "rent1", amount: "845.14", date: "2026-01-04", remittance: "PRELEVEMENT EUROPEEN 1 DE: PLACEHOLDER PROPERTY CO ID: FR00ZZZ000099" }),
-      outNoCreditor({ transactionId: "rent2", amount: "845.14", date: "2026-02-04", remittance: "PRELEVEMENT EUROPEEN 2 DE: PLACEHOLDER PROPERTY CO ID: FR00ZZZ000099" }),
-      outNoCreditor({ transactionId: "rent3", amount: "845.14", date: "2026-03-04", remittance: "PRELEVEMENT EUROPEEN 3 DE: PLACEHOLDER PROPERTY CO ID: FR00ZZZ000099" }),
+      outNoCreditor({ transactionId: "rent1", amount: "800.00", date: "2026-01-04", remittance: "PRELEVEMENT EUROPEEN 1 DE: PLACEHOLDER PROPERTY CO ID: FR00ZZZ000099" }),
+      outNoCreditor({ transactionId: "rent2", amount: "800.00", date: "2026-02-04", remittance: "PRELEVEMENT EUROPEEN 2 DE: PLACEHOLDER PROPERTY CO ID: FR00ZZZ000099" }),
+      outNoCreditor({ transactionId: "rent3", amount: "800.00", date: "2026-03-04", remittance: "PRELEVEMENT EUROPEEN 3 DE: PLACEHOLDER PROPERTY CO ID: FR00ZZZ000099" }),
       // Bank fee: cotisation keyword -> fixed.
       outNoCreditor({ transactionId: "fee1", amount: "3.50", date: "2026-01-15", remittance: "COTISATION MENSUELLE PLACEHOLDER BANK" }),
       outNoCreditor({ transactionId: "fee2", amount: "3.50", date: "2026-02-15", remittance: "COTISATION MENSUELLE PLACEHOLDER BANK" }),
@@ -525,7 +537,7 @@ describe("classify — fixed vs sub for a SEPA direct-debit cost of living (CAUS
     const { burn, recurring } = monthlyBurn(transactions, "2026-03");
     expect(recurring.filter((c) => c.kind === "fixed")).toHaveLength(4); // rent, fee, phone, charity
     expect(recurring.filter((c) => c.kind === "sub")).toHaveLength(1); // netflix
-    expect(burn.fixed).toBeCloseTo(845.14 + 3.5 + 24.99 + 10.0, 2);
+    expect(burn.fixed).toBeCloseTo(800.00 + 3.5 + 24.99 + 10.0, 2);
     expect(burn.sub).toBeCloseTo(7.99, 2);
     expect(burn.variable).toBeCloseTo(37.42, 2);
     expect(burn.fixed + burn.sub + burn.variable).toBeCloseTo(burn.out, 2);
@@ -533,9 +545,9 @@ describe("classify — fixed vs sub for a SEPA direct-debit cost of living (CAUS
 
   it("keeps the bucket-sum invariant cent-exactly with two overrides moving charges between buckets (ticket 04)", () => {
     const transactions: BankTransactionLike[] = [
-      outNoCreditor({ transactionId: "rent1", amount: "845.14", date: "2026-01-04", remittance: "PRELEVEMENT EUROPEEN 1 DE: PLACEHOLDER PROPERTY CO ID: FR00ZZZ000099" }),
-      outNoCreditor({ transactionId: "rent2", amount: "845.14", date: "2026-02-04", remittance: "PRELEVEMENT EUROPEEN 2 DE: PLACEHOLDER PROPERTY CO ID: FR00ZZZ000099" }),
-      outNoCreditor({ transactionId: "rent3", amount: "845.14", date: "2026-03-04", remittance: "PRELEVEMENT EUROPEEN 3 DE: PLACEHOLDER PROPERTY CO ID: FR00ZZZ000099" }),
+      outNoCreditor({ transactionId: "rent1", amount: "800.00", date: "2026-01-04", remittance: "PRELEVEMENT EUROPEEN 1 DE: PLACEHOLDER PROPERTY CO ID: FR00ZZZ000099" }),
+      outNoCreditor({ transactionId: "rent2", amount: "800.00", date: "2026-02-04", remittance: "PRELEVEMENT EUROPEEN 2 DE: PLACEHOLDER PROPERTY CO ID: FR00ZZZ000099" }),
+      outNoCreditor({ transactionId: "rent3", amount: "800.00", date: "2026-03-04", remittance: "PRELEVEMENT EUROPEEN 3 DE: PLACEHOLDER PROPERTY CO ID: FR00ZZZ000099" }),
       out({ transactionId: "n1", amount: "7.99", date: "2026-01-20", creditorName: "NETFLIX.COM 1111" }),
       out({ transactionId: "n2", amount: "7.99", date: "2026-02-20", creditorName: "NETFLIX.COM 2222" }),
       out({ transactionId: "n3", amount: "7.99", date: "2026-03-20", creditorName: "NETFLIX.COM 3333" }),
@@ -549,7 +561,7 @@ describe("classify — fixed vs sub for a SEPA direct-debit cost of living (CAUS
     });
     expect(burn.fixed).toBeCloseTo(7.99, 2);
     expect(burn.sub).toBe(0);
-    expect(burn.variable).toBeCloseTo(845.14 + 37.42, 2);
+    expect(burn.variable).toBeCloseTo(800.00 + 37.42, 2);
     expect(burn.fixed + burn.sub + burn.variable).toBeCloseTo(burn.out, 2);
     // Cent-exact, not merely close: the sum in integer cents must match `out`
     // in integer cents exactly, the way the module's own doc comment promises.
@@ -608,7 +620,7 @@ describe("transfer bucket — self-transfers and internal moves excluded from sp
 
   it("keeps the bucket invariant in integer cents across a mixed month", () => {
     const transactions: BankTransactionLike[] = [
-      out({ transactionId: "rent", amount: "845.14", date: "2026-04-04", creditorName: "LOYER APPARTEMENT" }),
+      out({ transactionId: "rent", amount: "800.00", date: "2026-04-04", creditorName: "LOYER APPARTEMENT" }),
       out({
         transactionId: "transfer1",
         amount: "4500.00",
@@ -621,7 +633,7 @@ describe("transfer bucket — self-transfers and internal moves excluded from sp
     ];
     const { burn } = monthlyBurn(transactions, "2026-04", {}, ["PLACEHOLDER HOLDER NAME"]);
     expect(burn.fixed + burn.sub + burn.variable).toBeCloseTo(burn.out, 2);
-    expect(burn.out).toBeCloseTo(845.14 + 37.42, 2);
+    expect(burn.out).toBeCloseTo(800.00 + 37.42, 2);
     expect(burn.transfer).toBeCloseTo(4500.0 + 1.23, 2);
     expect(burn.in).toBeCloseTo(2200.0, 2);
   });
