@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { RefreshCw, ExternalLink, ChevronDown, Settings2, Sparkles } from "lucide-react";
+import { RefreshCw, ExternalLink, ChevronDown, Settings2, Sparkles, Rows3, LayoutList } from "lucide-react";
 import { BUCKET_LABELS, type Bucket, type Edition, type NewsItem } from "@/lib/news/types";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,33 +10,36 @@ import { Badge } from "@/components/ui/badge";
 import { Page, PageHeader } from "@/components/ui/page";
 import { Skeleton } from "@/components/ui/skeleton";
 
-const BUCKET_ORDER: Bucket[] = ["tech", "sec", "video", "news"];
+const BUCKET_ORDER: Bucket[] = ["news", "tech", "sec", "video"];
 
 const POLL_MS = 20_000;
 
 // Editions written before the tldr/summary split have no tldr — fall back to
 // the long summary rather than rendering an empty card.
-function NewsCard({ item }: { item: NewsItem }) {
+type Density = "compact" | "comfortable";
+
+function NewsCard({ item, density }: { item: NewsItem; density: Density }) {
   const [open, setOpen] = useState(false);
+  const compact = density === "compact";
   const line = item.tldr || item.summary;
   // Nothing more to reveal when the summary adds nothing over the one-liner.
   const expandable = Boolean(item.summary) && item.summary !== line;
 
   return (
     <Card
-      className={`p-4 gap-0 border-l-2 ${item.score >= 5 ? "border-l-primary" : "border-l-border"}`}
+      className={`${compact ? "p-3" : "p-4"} gap-0 border-l-2 ${item.score >= 5 ? "border-l-primary" : "border-l-border"}`}
     >
       <a
         href={item.link}
         target="_blank"
         rel="noopener noreferrer"
-        className="mb-1 flex items-start gap-2 transition-transform duration-150 hover:-translate-y-0.5 active:scale-[0.99]"
+        className={`${compact ? "mb-0.5" : "mb-1"} flex items-start gap-2 transition-transform duration-150 hover:-translate-y-0.5 active:scale-[0.99]`}
       >
-        <span className="flex-1 font-medium leading-snug">{item.title}</span>
+        <span className={`flex-1 font-medium leading-snug ${compact ? "line-clamp-1" : ""}`}>{item.title}</span>
         <ExternalLink size={14} className="mt-1 shrink-0 text-muted-foreground/70" />
       </a>
 
-      <p className="text-sm leading-relaxed text-muted-foreground">
+      <p className={`text-sm leading-relaxed text-muted-foreground ${compact ? "line-clamp-1" : ""}`}>
         {line}
       </p>
 
@@ -46,7 +49,7 @@ function NewsCard({ item }: { item: NewsItem }) {
         </p>
       )}
 
-      <div className="mt-2 flex items-center justify-between gap-2">
+      <div className={`${compact ? "mt-1" : "mt-2"} flex items-center justify-between gap-2`}>
         <span className="flex items-center gap-2 text-xs text-muted-foreground/70">
           {item.source}
           {item.degraded && (
@@ -93,10 +96,21 @@ export default function NewsPage() {
   const [loadError, setLoadError] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [refreshArmed, setRefreshArmed] = useState(false);
+  const [density, setDensity] = useState<Density>("compact");
   // generatedAt of the edition we had when generation started — polling stops
   // once GET returns something newer (or anything, if we had nothing).
   const baselineRef = useRef<string | null>(null);
   const disarmTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    const saved = window.localStorage.getItem("lifeos-news-density");
+    if (saved === "compact" || saved === "comfortable") setDensity(saved);
+  }, []);
+
+  const changeDensity = (next: Density) => {
+    setDensity(next);
+    window.localStorage.setItem("lifeos-news-density", next);
+  };
 
   const fetchEdition = useCallback(async (): Promise<Edition | null> => {
     const r = await fetch("/api/news/run");
@@ -174,6 +188,28 @@ export default function NewsPage() {
           : "A focused security and development digest."}
         actions={
           <>
+          <div className="flex items-center rounded-lg border border-border p-0.5" aria-label="Card density" role="group">
+            <button
+              type="button"
+              onClick={() => changeDensity("compact")}
+              aria-label="Compact cards"
+              aria-pressed={density === "compact"}
+              title="Compact cards"
+              className={`rounded-md p-1.5 transition-transform duration-150 active:scale-[0.97] ${density === "compact" ? "bg-surface-3 text-foreground" : "text-muted-foreground/70"}`}
+            >
+              <Rows3 size={15} />
+            </button>
+            <button
+              type="button"
+              onClick={() => changeDensity("comfortable")}
+              aria-label="Comfortable cards"
+              aria-pressed={density === "comfortable"}
+              title="Comfortable cards"
+              className={`rounded-md p-1.5 transition-transform duration-150 active:scale-[0.97] ${density === "comfortable" ? "bg-surface-3 text-foreground" : "text-muted-foreground/70"}`}
+            >
+              <LayoutList size={15} />
+            </button>
+          </div>
           <Button asChild variant="ghost" size="sm" className="gap-1.5 text-sm font-medium text-muted-foreground">
             <Link href="/news/feeds">
               <Settings2 size={15} /> Manage feeds
@@ -235,7 +271,7 @@ export default function NewsPage() {
               </h2>
               <div className="space-y-3">
                 {items.map((it) => (
-                  <NewsCard key={`${it.source}:${it.link}:${it.title}`} item={it} />
+                  <NewsCard key={`${it.source}:${it.link}:${it.title}`} item={it} density={density} />
                 ))}
               </div>
             </section>

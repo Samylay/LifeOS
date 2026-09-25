@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Page, PageHeader } from "@/components/ui/page";
 
-const BUCKET_ORDER: Bucket[] = ["tech", "sec", "video", "news"];
+const BUCKET_ORDER: Bucket[] = ["news", "tech", "sec", "video"];
 
 // Feed CRUD, moved off the /news reading surface (same components/logic).
 export default function NewsFeedsPage() {

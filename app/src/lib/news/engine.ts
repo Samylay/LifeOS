@@ -1,5 +1,5 @@
 // The news pipeline, ported from the n8n "Daily News Digest" code node so it
-// runs in-process on the LLM backend LifeOS already uses (`claude -p` via
+// runs in-process on the LLM backend LifeOS already uses (`Codex CLI` via
 // claude-cli.ts). Phases: parallel RSS/Atom fetch → dedupe + 24h cutoff →
 // interleave by source → best-effort Jina full-text → per-article summarise +
 // score against the configured reader profile → bucket → one edition per day.
@@ -7,6 +7,7 @@ import { generateJson } from "@/lib/claude-cli";
 import { getDoc, setDoc, listDocs, deleteDoc } from "@/lib/server-db";
 import { todayInTz } from "@/lib/brief/tz";
 import { activeFeeds } from "./feeds";
+import { notifyNewsletterArrival } from "./notifications";
 import {
   EDITIONS_COLLECTION,
   INBOX_COLLECTION,
@@ -175,7 +176,7 @@ interface SplitStory {
 // A newsletter issue is many independent stories; folding it into one item
 // loses all but whichever two or three the summariser happened to name. This
 // splits it into per-story items, already summarised and scored, so they rank
-// against RSS articles like any other source. It is ONE `claude -p` call per
+// against RSS articles like any other source. It is ONE `Codex CLI` call per
 // email on purpose: a call per story would blow the run route's maxDuration.
 function splitPrompt(email: InboxItem): string {
   return [
@@ -378,7 +379,7 @@ export async function runNews(opts: { force?: boolean } = {}): Promise<Edition> 
     )
   );
 
-  // Phase 3: summarise + score, sequentially (one claude -p at a time).
+  // Phase 3: summarise + score, sequentially (one Codex CLI at a time).
   const items: NewsItem[] = [];
   for (let i = 0; i < pool.length; i++) {
     const a = pool[i];
@@ -436,6 +437,15 @@ export async function runNews(opts: { force?: boolean } = {}): Promise<Edition> 
   // Emails are dropped only once their stories are safely in a stored edition —
   // a crash mid-run leaves them pending for the next pass instead of losing them.
   for (const email of emails) deleteDoc(INBOX_COLLECTION, email.id);
+
+  try {
+    const sources = [...new Set(newsletters.map((item) => item.source))];
+    await notifyNewsletterArrival(sources);
+  } catch (e) {
+    // A notification outage must not undo a stored edition or leave its mail
+    // in the inbox to be processed a second time.
+    console.log(`[news] newsletter notification failed: ${e instanceof Error ? e.message : e}`);
+  }
 
   return edition;
 }

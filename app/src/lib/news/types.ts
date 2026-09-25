@@ -75,7 +75,6 @@ export const DEFAULT_FEEDS: Omit<Feed, "id" | "addedAt">[] = [
   { name: "The Hacker News", url: "https://feeds.feedburner.com/TheHackersNews", bucket: "sec", french: false, active: true },
   { name: "tl;dr sec", url: "https://tldrsec.com/feed.xml", bucket: "sec", french: false, active: true },
   { name: "The Record", url: "https://therecord.media/feed", bucket: "sec", french: false, active: true },
-  { name: "HugoDécrypte", url: "https://www.youtube.com/feeds/videos.xml?channel_id=UCAcAnMF0OrCtUep3Y4M-ZPw", bucket: "video", french: true, active: true },
 ];
 
 export const BUCKET_LABELS: Record<Bucket, string> = {
