@@ -30,12 +30,14 @@ services:
       # can append its summary/tags. Match `id -u`/`id -g` of the vault owner.
       KB_UID: "1000"
       KB_GID: "1000"
-      # AI goal drafting via the Claude Code CLI (`claude -p`), using the mounted
-      # ~/.claude subscription auth — no API key/bill. Set GEN_PROVIDER=ollama
-      # to fall back to the local model.
-      GEN_PROVIDER: "claude-cli"
-      CLAUDE_CLI_MODEL: "sonnet"
-      CLAUDE_CONFIG_DIR: "/root/.claude"
+      # LifeOS calls use the host's Codex CLI. Set GEN_PROVIDER=ollama
+      # to use the local model directly instead.
+      GEN_PROVIDER: "codex"
+      CODEX_BRIDGE_URL: "http://host.docker.internal:11435/generate"
+      # Read-only Crawl4AI PoC. Override CRAWL4AI_API_TOKEN in the deploy
+      # environment for a non-default token; the service is not published.
+      CRAWL4AI_URL: "http://crawl4ai:11235"
+      CRAWL4AI_API_TOKEN: "${CRAWL4AI_API_TOKEN:?Set CRAWL4AI_API_TOKEN in the deploy environment}"
       # Prometheus (monitoring stack) for the /status host vitals — reached by
       # service name over the shared monitoring network (declared below).
       PROM_URL: "http://prometheus:9090"
@@ -73,8 +75,6 @@ services:
       # Objectives rotation config+state (shared with host classify.py).
       - /home/quorky/services/objectives:/objectives
       - /home/quorky/vault/obsidian:/vault
-      # Claude CLI auth/config (container runs as root → /root/.claude).
-      - /home/quorky/.claude:/root/.claude
       # T28: tracked-centres (daily-planning dynamic blocks) reads host-path
       # ROADMAP.md files + ~/infra/goals state; mounted read-only at the SAME
       # absolute paths so the module's host defaults work unchanged in-container.
@@ -82,6 +82,24 @@ services:
       - /home/quorky/infra:/home/quorky/infra:ro
       # Chat homelab bridge: get_autoloop_summary reads the nightly log.
       - /home/quorky/services/autoloop:/home/quorky/services/autoloop:ro
+    depends_on:
+      crawl4ai:
+        condition: service_healthy
+
+  crawl4ai:
+    image: unclecode/crawl4ai:0.9.3
+    container_name: lifeos-crawl4ai
+    restart: unless-stopped
+    shm_size: "1g"
+    environment:
+      CRAWL4AI_API_TOKEN: "${CRAWL4AI_API_TOKEN:?Set CRAWL4AI_API_TOKEN in the deploy environment}"
+    expose:
+      - "11235"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:11235/health >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
 
 volumes:
   lifeos-data:
