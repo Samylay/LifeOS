@@ -4,10 +4,11 @@
 //
 // Dedup is by canonical URL so the same tweet captured twice — or a bookmark
 // the nightly grabber already carried — inserts once.
-import { listDocs, createDoc } from "./server-db";
+import { listDocs, createDoc, updateDoc, runInTransaction } from "./server-db";
 import { canonicalizeUrl, inferSource, type TriageSource } from "./triage";
 
 export const TRIAGE_COLLECTION = "users/local/triageQueue";
+export const TRIAGE_LINK_ARCHIVE = "users/local/triageLinkArchive";
 
 const VALID_SOURCES: TriageSource[] = ["x", "instagram", "other"];
 
@@ -37,11 +38,6 @@ export function enqueueTriageItem(input: EnqueueInput): EnqueueResult {
       ? (input.source as TriageSource)
       : inferSource(url);
 
-  const existing = listDocs(TRIAGE_COLLECTION, { where: [["url", "==", url]] });
-  if (existing.length > 0) {
-    return { id: existing[0].id as string, duplicate: true, source };
-  }
-
   const parsed =
     input.savedAt instanceof Date
       ? input.savedAt
@@ -55,16 +51,73 @@ export function enqueueTriageItem(input: EnqueueInput): EnqueueResult {
       ? input.previewImage.slice(0, 2000)
       : "";
 
-  const id = createDoc(TRIAGE_COLLECTION, {
-    url,
-    rawUrl: input.url,
-    source,
-    savedAt: { __date: parsed.toISOString() },
-    status: "queued",
-    createdAt: { __date: new Date().toISOString() },
-    ...(folder ? { folder } : {}),
-    ...(previewImage ? { previewImage } : {}),
-  });
+  return runInTransaction(() => {
+    const existing = listDocs(TRIAGE_COLLECTION, { where: [["url", "==", url]] });
+    if (existing.length > 0) {
+      const prior = existing[0];
+      const priorSource = prior.source;
+      // A replay must archive the original capture metadata, not replace it
+      // with the canonical URL and current replay time.
+      archiveLink({
+        url,
+        rawUrl: typeof prior.rawUrl === "string" ? prior.rawUrl : input.url,
+        source: typeof priorSource === "string" && VALID_SOURCES.includes(priorSource as TriageSource)
+          ? priorSource as TriageSource
+          : source,
+        triageItemId: prior.id as string,
+        capturedAt: prior.savedAt as string | Date | { __date?: unknown } | undefined,
+      });
+      return { id: prior.id as string, duplicate: true, source };
+    }
 
-  return { id, duplicate: false, source };
+    const id = createDoc(TRIAGE_COLLECTION, {
+      url,
+      rawUrl: input.url,
+      source,
+      savedAt: { __date: parsed.toISOString() },
+      status: "queued",
+      createdAt: { __date: new Date().toISOString() },
+      ...(folder ? { folder } : {}),
+      ...(previewImage ? { previewImage } : {}),
+    });
+
+    archiveLink({ url, rawUrl: input.url, source, triageItemId: id, capturedAt: parsed });
+    return { id, duplicate: false, source };
+  });
+}
+
+function archiveLink(input: {
+  url: string;
+  rawUrl: string;
+  source: TriageSource;
+  triageItemId: string;
+  capturedAt?: string | Date | { __date?: unknown };
+}): void {
+  const existing = listDocs(TRIAGE_LINK_ARCHIVE, { where: [["url", "==", input.url]], limit: 1 });
+  const capturedAt =
+    input.capturedAt instanceof Date
+      ? input.capturedAt.toISOString()
+      : typeof input.capturedAt === "string"
+        ? input.capturedAt
+        : typeof input.capturedAt?.__date === "string"
+          ? input.capturedAt.__date
+          : "";
+  const captured = capturedAt && !Number.isNaN(Date.parse(capturedAt)) ? new Date(capturedAt) : null;
+  if (existing.length) {
+    // A prior backfill may have used replay time for a source record with no
+    // savedAt. Correct that once, while retaining the archive's read-only API.
+    if (!captured && existing[0].capturedAt) {
+      updateDoc(TRIAGE_LINK_ARCHIVE, existing[0].id, { capturedAt: null, captureDateMissing: true });
+    }
+    return;
+  }
+  createDoc(TRIAGE_LINK_ARCHIVE, {
+    url: input.url,
+    rawUrl: input.rawUrl,
+    source: input.source,
+    triageItemId: input.triageItemId,
+    capturedAt: captured ? { __date: captured.toISOString() } : null,
+    ...(captured ? {} : { captureDateMissing: true }),
+    archivedAt: { __date: new Date().toISOString() },
+  });
 }

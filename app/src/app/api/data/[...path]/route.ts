@@ -20,6 +20,7 @@ type Ctx = { params: Promise<{ path: string[] }> };
 const IMMUTABLE_TRIAGE_COLLECTIONS = new Set([
   "users/local/triageEvidence",
   "users/local/triageAssessments",
+  "users/local/triageLinkArchive",
 ]);
 
 function split(segments: string[]) {
