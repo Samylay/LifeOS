@@ -6,7 +6,7 @@
 //
 // The signature only proves the worker forwarded the mail — not that the mail
 // was wanted. The worker forwards ANYTHING addressed to news@, and the body
-// reaches `claude -p` downstream, so the sender must also be on the approved
+// reaches `Codex CLI` downstream, so the sender must also be on the approved
 // list (NEWS_SENDER_ALLOWLIST). Both unset → 503; sender off it → 403.
 import { NextRequest, NextResponse } from "next/server";
 import { createHmac, timingSafeEqual } from "node:crypto";

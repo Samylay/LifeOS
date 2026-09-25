@@ -8,13 +8,13 @@ import type { NextRequest } from "next/server";
 // server-db.test.ts and the triage ingest route test).
 const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "lifeos-brainstorm-test-"));
 process.env.LIFEOS_DB_PATH = path.join(tmpDir, "test.db");
-process.env.GEN_PROVIDER = "claude-cli";
+process.env.GEN_PROVIDER = "codex";
 
 // The model is the thing under suspicion here, so it is stubbed and told to
 // misbehave. No CLI, no subscription call.
 const generateJson = vi.fn();
 vi.mock("@/lib/claude-cli", () => ({
-  claudeCliEnabled: () => true,
+  codexEnabled: () => true,
   generateJson: (p: string) => generateJson(p),
 }));
 

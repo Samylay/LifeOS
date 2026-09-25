@@ -1,4 +1,4 @@
-// Items Samy could hand to a Claude session: filed inside the dispatch window
+// Items Samy could hand to a Codex session: filed inside the dispatch window
 // and not already queued (T-decide-rework-08). The window is deliberate — an
 // unbounded "approved items" list is the holding pen this rework killed.
 //

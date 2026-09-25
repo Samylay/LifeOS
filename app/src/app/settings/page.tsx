@@ -11,7 +11,6 @@ import {
 import { useGarmin } from "@/lib/use-garmin";
 import { PushSettings } from "@/components/push-settings";
 import { LeadsAvailabilityCard } from "@/components/leads-availability-card";
-import { DevRequestsCard } from "@/components/dev-requests-card";
 import { BankAccountsCard } from "@/components/bank-accounts-card";
 import { Button } from "@/components/ui/button";
 import { Page, PageHeader } from "@/components/ui/page";
@@ -337,11 +336,6 @@ export default function SettingsPage() {
         {/* Leads availability switch (ticket 04) */}
         <Section title="Leads" sub="Whether scout's demand surface is allowed to show you anything.">
           <LeadsAvailabilityCard />
-        </Section>
-
-        {/* Dev requests (T29) */}
-        <Section title="Dev requests" sub="Build/fix/change asks queued from the Assistant chat.">
-          <DevRequestsCard />
         </Section>
 
         {/* Integrations */}

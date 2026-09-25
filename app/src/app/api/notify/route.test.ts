@@ -97,9 +97,10 @@ describe("POST /api/notify deep-link path", () => {
     expect(await storedPath("deep-link me", { path: "/prime" })).toBe("/prime");
   });
 
-  it("defaults by stream when no path is given (capture -> /decide, alerts -> /pager)", async () => {
+  it("defaults by stream when no path is given (capture -> /decide, alerts -> /pager, news -> /news)", async () => {
     expect(await storedPath("📥 captured a reel")).toBe("/decide");
     expect(await storedPath("🚨 something broke")).toBe("/pager");
+    expect(await storedPath("a newsletter arrived", { stream: "news", severity: "normal" })).toBe("/news");
   });
 
   it("rejects non-path values back to the stream default (scheme, //, whitespace)", async () => {

@@ -10,7 +10,7 @@ import { db, collection, onSnapshot, query, orderBy, limit } from "./local-db";
 import { updateDocument, deleteDocument } from "./firestore";
 import { useAuth, LOCAL_USER } from "./auth-context";
 
-export const PAGER_STREAMS = ["alerts", "nightly", "weekly", "capture", "system"] as const;
+export const PAGER_STREAMS = ["alerts", "nightly", "weekly", "capture", "system", "news"] as const;
 export type PagerStream = (typeof PAGER_STREAMS)[number];
 export type PagerSeverity = "page" | "info" | "low";
 

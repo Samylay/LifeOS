@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getOllamaClient, OLLAMA_MODEL } from "@/lib/ollama";
-import { claudeCliEnabled, generateText } from "@/lib/claude-cli";
+import { codexEnabled, generateText } from "@/lib/claude-cli";
 
 const SYSTEM_PROMPT = `You are "Stride AI", a personal productivity coach.
 Your job is to provide a "Daily Brief" — a very concise (2-3 sentences), motivating summary of the user's day based on their data.
@@ -33,8 +33,8 @@ Habits Done: ${stats.habitsDone}/${stats.totalHabits}
 `;
 
     let brief: string | null;
-    if (claudeCliEnabled()) {
-      // `claude -p`: fold the system prompt into the single prompt string.
+    if (codexEnabled()) {
+      // `Codex CLI`: fold the system prompt into the single prompt string.
       brief = (
         await generateText(
           `${SYSTEM_PROMPT}\n\nGenerate my daily brief based on this: ${context}`
@@ -58,7 +58,7 @@ Habits Done: ${stats.habitsDone}/${stats.totalHabits}
     console.error("Brief API error:", error);
     return NextResponse.json(
       {
-        error: "Failed to generate brief. Check the Claude CLI (or Ollama if GEN_PROVIDER=ollama).",
+        error: "Failed to generate brief. Check the Codex bridge (or Ollama if GEN_PROVIDER=ollama).",
         details: error instanceof Error ? error.message : undefined,
       },
       { status: 500 }

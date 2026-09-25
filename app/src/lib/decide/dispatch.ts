@@ -1,4 +1,4 @@
-// T-decide-rework-08 — what may be put in front of a Claude Code session.
+// T-decide-rework-08 — what may be put in front of a Codex session.
 //
 // A queued prompt is executed verbatim by an agent, and a triage item is text
 // ingested from the internet, so the item's own words are never the source of

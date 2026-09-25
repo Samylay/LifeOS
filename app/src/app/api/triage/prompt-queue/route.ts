@@ -1,7 +1,7 @@
 // Prompt queue for the Approved view: each approved triage item can queue one
 // prompt describing the action to take on it (install the skill, try the
 // technique, …). Queued prompts are merged by /api/triage/dispatch into one
-// brief for a Claude Code session on the homelab host.
+// brief for a Codex session on the homelab host.
 import { NextRequest, NextResponse } from "next/server";
 import { listDocs, createDoc, deleteDoc } from "@/lib/server-db";
 

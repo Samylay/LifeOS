@@ -39,7 +39,7 @@ import { listPushSubs, sendPushToAll } from "@/lib/web-push-channel";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const STREAMS = ["alerts", "nightly", "weekly", "capture", "system"] as const;
+const STREAMS = ["alerts", "nightly", "weekly", "capture", "system", "news"] as const;
 // Legacy pager vocabulary + the gateway vocabulary — both accepted on POST.
 const SEVERITIES = ["page", "info", "low", "high", "normal"] as const;
 type Stream = (typeof STREAMS)[number];
@@ -58,6 +58,7 @@ const STREAM_PATHS: Record<Stream, string> = {
   weekly: "/pager",
   capture: "/decide", // captured items land in the triage deck
   system: "/pager",
+  news: "/news",
 };
 
 // Absolute in-app path only — no scheme, no protocol-relative "//", no

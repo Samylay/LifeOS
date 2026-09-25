@@ -40,13 +40,13 @@ export function performHomelabAction(item: Record<string, unknown>, action: Home
     if (action.id === "homelab-skill") {
       const prompt = skillInstallInstruction(id);
       const existing = listDocs(PROMPTS, { where: [["itemId", "==", id], ["status", "==", "queued"]] });
-      if (existing.some((q) => q.origin !== "homelab-skill")) throw new Error("This item already has queued instructions. Review them in Send to Claude.");
+      if (existing.some((q) => q.origin !== "homelab-skill")) throw new Error("This item already has queued instructions. Review them in Send to Codex.");
       const promptId = existing[0]?.id ?? createDoc(PROMPTS, {
         itemId: id, origin: "homelab-skill", title: "Install selected homelab skill",
         prompt, status: "queued", queuedAt: { __date: new Date().toISOString() },
       });
       artifact = { homelabPromptId: promptId };
-      outcome = "Skill install queued. Start it from Send to Claude.";
+      outcome = "Skill install queued. Start it from Send to Codex.";
     } else {
       const resourceId = createHash("sha256").update(url).digest("hex");
       const existing = getDoc(HOMELAB_RESOURCES, resourceId);

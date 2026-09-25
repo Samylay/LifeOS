@@ -6,7 +6,7 @@
 // redesign, and it is the reason this endpoint exists instead of the old
 // /api/content/script.
 import { NextRequest, NextResponse } from "next/server";
-import { claudeCliEnabled, generateJson } from "@/lib/claude-cli";
+import { codexEnabled, generateJson } from "@/lib/claude-cli";
 import { buildBrainstormPrompt, validateBrainstorm } from "@/lib/content/brainstorm";
 import type { ContentType, HookFormula } from "@/lib/content/catalog";
 import { listDocs } from "@/lib/server-db";
@@ -15,9 +15,9 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
-  if (!claudeCliEnabled()) {
+  if (!codexEnabled()) {
     return NextResponse.json(
-      { error: "claude-cli not enabled (set GEN_PROVIDER=claude-cli)" },
+      { error: "Codex bridge not enabled (set GEN_PROVIDER=codex)" },
       { status: 503 },
     );
   }

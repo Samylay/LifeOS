@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { claudeCliEnabled, draftGoalPlan } from "@/lib/claude-cli";
+import { codexEnabled, draftGoalPlan } from "@/lib/claude-cli";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
-  if (!claudeCliEnabled()) {
+  if (!codexEnabled()) {
     return NextResponse.json(
-      { error: "claude-cli not enabled (set GEN_PROVIDER=claude-cli)" },
+      { error: "Codex bridge not enabled (set GEN_PROVIDER=codex)" },
       { status: 503 }
     );
   }

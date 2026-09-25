@@ -29,7 +29,7 @@ export function actionLabel(action: Action): string {
   return action.id === "homelab-skill" ? "Queue skill install" : action.id === "homelab-reference" ? "Save UI reference" : filingLabel(action as FilingAction);
 }
 export function describeEffect(action: Action, item: ActionSubject, options?: { compact?: boolean }): string {
-  if (action.id === "homelab-skill") return "Queue an install request for Claude. Start it from Send to Claude.";
+  if (action.id === "homelab-skill") return "Queue an install request for Codex. Start it from Send to Codex.";
   if (action.id === "homelab-reference") return "Save for future UI work. Relevant requests will bring it back.";
   return filingEffect(action as FilingAction, item, options);
 }

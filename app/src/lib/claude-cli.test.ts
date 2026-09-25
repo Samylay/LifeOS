@@ -50,7 +50,7 @@ describe("isLimitError", () => {
 describe("runClaude limit fallback", () => {
   it("runs fluency reviews without tools or custom MCP servers", async () => {
     const previous = process.env.GEN_PROVIDER;
-    process.env.GEN_PROVIDER = "claude-cli";
+    process.env.GEN_PROVIDER = "codex";
     execBehavior = { stdout: JSON.stringify({ result: '{"feedback":"Clear"}' }) };
     try {
       expect(await generateReviewJson("review")).toEqual({ feedback: "Clear" });
@@ -61,7 +61,7 @@ describe("runClaude limit fallback", () => {
   });
   it("uses a feature-owned system prompt for generic read-only reviews", async () => {
     const previous = process.env.GEN_PROVIDER;
-    process.env.GEN_PROVIDER = "claude-cli";
+    process.env.GEN_PROVIDER = "codex";
     execBehavior = { stdout: JSON.stringify({ result: '{"ok":true}' }) };
     try {
       expect(await generateReadOnlyJson("review", "Review essays only.")).toEqual({ ok: true });

@@ -7,7 +7,7 @@
 
 export const DEFER_DAYS = 7;
 
-// How far back the dispatch surface looks for items to hand to Claude. The
+// How far back the dispatch surface looks for items to hand to Codex. The
 // window is the point: an "approved items" list with no bound is the holding
 // pen this rework exists to kill (45 items sat filed and untouched). Filing is
 // the action now — anything older than this is finished, not pending.
@@ -47,7 +47,7 @@ export function visibleQueueItems<T extends QueueDoc>(items: T[], now: Date): T[
     .sort((a, b) => (toTime(a.createdAt) ?? 0) - (toTime(b.createdAt) ?? 0));
 }
 
-// Items filed inside the dispatch window and not already queued for Claude —
+// Items filed inside the dispatch window and not already queued for Codex —
 // newest first, because the thing you just decided is the thing you want to
 // hand over. An item with no readable filedAt is excluded: it is old enough
 // to predate the field, so it is finished, not pending.

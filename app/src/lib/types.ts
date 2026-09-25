@@ -525,7 +525,7 @@ export const AREA_HEX: Record<AreaId, string> = {
 // A goal is a single quarterly objective. Each ISO week you set 1-3 concrete
 // commitments toward it (the week-to-week layer), and log sessions as you put
 // in the work (the day-to-day layer). The weekly plan can be AI-prefilled from
-// the objective via `claude -p`.
+// the objective via `Codex CLI`.
 
 export type GoalStatus = "active" | "done" | "dropped";
 

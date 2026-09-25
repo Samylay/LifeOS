@@ -10,7 +10,7 @@
 | State | Zustand | 5.x |
 | Database | SQLite (better-sqlite3) document store | 11.x |
 | Auth | None — single-user, self-hosted | — |
-| AI | Claude Code CLI (`claude -p`) by default; Ollama fallback | sonnet / qwen2.5:7b |
+| AI | Host Codex CLI through the LifeOS bridge; Ollama fallback | configured Codex model / qwen2.5:7b |
 | Charts | Recharts | 3.x |
 | Icons | Lucide React | 0.564.x |
 | Fonts | Inter + JetBrains Mono | via @fontsource |

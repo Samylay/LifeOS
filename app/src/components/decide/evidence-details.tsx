@@ -437,10 +437,10 @@ export function EvidenceDetails({ evidenceRef, assessmentRef, itemId }: { eviden
   return (
     <section className="min-w-0 space-y-2 rounded-lg border border-border/70 bg-muted/30 p-3" aria-label="Source evidence">
       <div className="flex min-w-0 items-start gap-2">
-        <p className={cn("min-w-0 flex-1 text-xs leading-relaxed", coverage.status === "complete" ? "text-muted-foreground" : "text-warning-foreground")}>{coverage.line}</p>
+        <p className={cn("min-w-0 flex-1 text-xs leading-relaxed", coverage.status === "complete" ? "text-muted-foreground" : "text-foreground")}>{coverage.line}</p>
         {bundle.issues.length > 0 && <span className="shrink-0 text-[11px] text-warning" title={`${bundle.issues.length} extraction issue${bundle.issues.length === 1 ? "" : "s"}`}>· {bundle.issues.length} issue{bundle.issues.length === 1 ? "" : "s"}</span>}
       </div>
-      {coverage.reasons.length > 0 && <p className="text-xs leading-relaxed text-warning-foreground">{coverage.reasons.join(" · ")}</p>}
+      {coverage.reasons.length > 0 && <p className="text-xs leading-relaxed text-foreground">{coverage.reasons.join(" · ")}</p>}
       <details className="group/evidence min-w-0 border-t border-border/70 pt-2">
         <summary className="flex min-h-9 cursor-pointer list-none items-center gap-1.5 rounded-md text-xs font-medium text-foreground transition-transform duration-[var(--dur-fast)] ease-[var(--ease-out-custom)] active:scale-[0.97] [&::-webkit-details-marker]:hidden">
           <ChevronDown size={13} aria-hidden className="transition-transform duration-[var(--dur-fast)] ease-[var(--ease-out-custom)] group-open/evidence:rotate-180" />

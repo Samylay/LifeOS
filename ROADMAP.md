@@ -8,7 +8,7 @@
 - Verify baseline for any code change: `cd app && npx tsc --noEmit && docker compose build && docker compose up -d`, then smoke `curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3000/` (expect 200) plus every route the change touched.
 - Serving topology: container binds `127.0.0.1:3000`, exposed to the tailnet via `tailscale serve`. Do not change ports, networks, or mounts except where a task explicitly says so; any `docker-compose.yml`/infra change must be its own commit whose message states the operational effect.
 - NEVER touch: user data (`lifeos-data` volume / `data/lifeos.db`), `.env` files, the mounted vault, `~/.hermes`, `~/services/objectives` contents.
-- LLM backend is `claude -p` via `src/lib/claude-cli.ts` with Ollama kept as an intentional env-toggle fallback (`GEN_PROVIDER=ollama`) — do not remove Ollama paths.
+- LifeOS generation uses the host Codex CLI through `src/lib/claude-cli.ts`; Codex uses the host-configured model (currently `gpt-5.6-luna`). Ollama remains an intentional env-toggle fallback (`GEN_PROVIDER=ollama`) — do not remove its paths.
 - Follow the standing autoloop conventions: blindspot pass before building, `autoloop:` commit prefix, pitch + quiz in the log entry.
 
 ## Tasks

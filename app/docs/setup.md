@@ -1,17 +1,14 @@
 # LifeOS App — Setup Guide
 
-LifeOS is self-hosted: data lives in a local **SQLite** file and the AI
-features (chat / parse / brief / goal-drafting) run through the **Claude Code
-CLI** (`claude -p`) by default, with a local **Ollama** instance as the
-fallback backend. There are no per-token API bills and no login (single-user).
+LifeOS is self-hosted: data lives in a local **SQLite** file. AI features use
+the host **Codex CLI** through the private HTTP bridge, with local **Ollama**
+available as a fallback. The bridge uses the Codex model configured on the host.
 
 ## Prerequisites
 
 - Node.js 20+ and npm (for local dev), or Docker + Docker Compose (to serve)
-- The default AI backend (`GEN_PROVIDER=claude-cli`): the
-  [Claude Code CLI](https://docs.claude.com/en/docs/claude-code) installed, plus
-  a `CLAUDE_CODE_OAUTH_TOKEN` from `claude setup-token` (a standalone `claude -p`
-  can't use a mounted `~/.claude` — it reports "Not logged in").
+- The default AI backend (`GEN_PROVIDER=codex`): Codex CLI installed and logged
+  in on the host, with the LifeOS bridge reachable at `CODEX_BRIDGE_URL`.
 - Fallback backend (`GEN_PROVIDER=ollama`): [Ollama](https://ollama.com) running
   locally with a tool-capable model pulled (`ollama pull qwen2.5:7b`).
 
@@ -33,9 +30,8 @@ All optional — sensible defaults are baked in. See `.env.local.example`.
 | Variable | Default | Purpose |
 |----------|---------|---------|
 | `LIFEOS_DB_PATH` | `./data/lifeos.db` | SQLite database file location |
-| `GEN_PROVIDER` | `claude-cli` | AI backend: `claude-cli` (default) or `ollama` |
-| `CLAUDE_CLI_MODEL` | `sonnet` | Model for the `claude -p` path |
-| `CLAUDE_CODE_OAUTH_TOKEN` | — | Auth for `claude -p` (from `claude setup-token`) |
+| `GEN_PROVIDER` | `codex` | AI backend: `codex` (default) or `ollama` |
+| `CODEX_BRIDGE_URL` | `http://host.docker.internal:11435/generate` | Host Codex bridge URL |
 | `OLLAMA_BASE_URL` | `http://127.0.0.1:11434` | Ollama server URL (fallback only) |
 | `OLLAMA_MODEL` | `qwen2.5:7b` | Ollama model for chat / parse / brief (fallback) |
 

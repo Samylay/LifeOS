@@ -6,10 +6,11 @@ import { profile } from "./model";
 import { sessions } from "./store";
 
 const configPath = () => path.join(path.dirname(process.env.LIFEOS_DB_PATH || path.join(process.cwd(), "data/lifeos.db")), "fluency-connection.json");
-function credentials(): { key: string; agentId: string } | null {
+export function elevenLabsCredentials(): { key: string; agentId: string } | null {
   if (process.env.ELEVENLABS_API_KEY && process.env.FLUENCY_ELEVENLABS_AGENT_ID) return { key: process.env.ELEVENLABS_API_KEY, agentId: process.env.FLUENCY_ELEVENLABS_AGENT_ID };
   try { return JSON.parse(fs.readFileSync(configPath(), "utf8")); } catch { return null; }
 }
+const credentials = elevenLabsCredentials;
 export const connected = () => Boolean(credentials()?.key && credentials()?.agentId);
 export const connectionInfo = () => ({ connected: connected(), agentId: credentials()?.agentId ?? null });
 async function request(key: string, endpoint: string, body?: unknown) {

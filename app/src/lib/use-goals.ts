@@ -157,7 +157,7 @@ export function useGoals() {
     [goals, updateGoal]
   );
 
-  // --- AI prefill via claude -p ---
+  // --- AI prefill via Codex CLI ---
 
   const draftPlan = useCallback(
     async (id: string): Promise<GoalDraftApplied | null> => {

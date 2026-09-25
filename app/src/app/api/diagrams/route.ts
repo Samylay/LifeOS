@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
     const kind = KINDS.includes(body.kind) ? body.kind : "auto";
     if (!prompt) return NextResponse.json({ error: "prompt is required" }, { status: 400 });
 
-    // /compose runs claude -p sonnet then renders; typically 10-30s.
+    // /compose runs Codex CLI sonnet then renders; typically 10-30s.
     const res = await fetch(`${DIAGRAMS_URL}/compose`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
