@@ -233,12 +233,14 @@ export const APP_TOOLS: OpenAI.ChatCompletionTool[] = [
   },
 ];
 
-const TOOL_CATALOG = [
-  ...APP_TOOLS
-    .filter((t): t is OpenAI.ChatCompletionFunctionTool => t.type === "function")
-    .map((t) => t.function),
-  ...HOMELAB_TOOLS,
+export const CHAT_TOOLS: OpenAI.ChatCompletionTool[] = [
+  ...APP_TOOLS,
+  ...HOMELAB_TOOLS.map((tool) => ({ type: "function" as const, function: tool })),
 ];
+
+const TOOL_CATALOG = CHAT_TOOLS
+  .filter((tool): tool is OpenAI.ChatCompletionFunctionTool => tool.type === "function")
+  .map((tool) => tool.function);
 
 export interface AgentTurnOptions {
   systemPrompt: string;
@@ -267,8 +269,8 @@ export interface AgentTurnOutcome {
 export async function runAgentTurn(opts: AgentTurnOptions): Promise<AgentTurnOutcome> {
   const { systemPrompt, convoParts, maxRounds = 4, includeFollowUps, onStatus, onToolResult } = opts;
   const envelopeShape = includeFollowUps
-    ? `{"reply": "<short natural-language summary for the user>", "followUps": ["<2-3 short spoken-style follow-up questions>"], "actions": [{"tool": "<tool name>", "input": { ...args matching that tool's schema }}]}`
-    : `{"reply": "<short natural-language summary for the user>", "actions": [{"tool": "<tool name>", "input": { ...args matching that tool's schema }}]}`;
+    ? `{"reply": "<direct answer or action result for the user>", "followUps": ["<2-3 short spoken-style follow-up questions>"], "actions": [{"tool": "<tool name>", "input": { ...args matching that tool's schema }}]}`
+    : `{"reply": "<direct answer or action result for the user>", "actions": [{"tool": "<tool name>", "input": { ...args matching that tool's schema }}]}`;
 
   const serverResults: HomelabToolResult[] = [];
   let reply = "";

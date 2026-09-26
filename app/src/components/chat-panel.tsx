@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback, KeyboardEvent } from "react";
+import { useState, useRef, useEffect, KeyboardEvent } from "react";
 import { Dialog } from "@base-ui/react/dialog";
 import { useIsMobile } from "@/hooks/use-shell-mobile";
 import {
@@ -22,6 +22,7 @@ import { cn } from "@/lib/utils";
 import { useAppStore } from "@/lib/store";
 import { useChat, type ActionResult } from "@/lib/use-chat";
 import { RunNowChip } from "@/components/run-now-chip";
+import { useAssistantVoice } from "@/lib/use-assistant-voice";
 import { useVoiceRecorder } from "@/lib/use-voice-recorder";
 import { useVisualViewport } from "@/lib/use-visual-viewport";
 
@@ -47,14 +48,7 @@ export function ChatPanel() {
   const isMobile = useIsMobile();
   const { messages, loading, statusText, sendMessage, clearMessages, stop, retryLast } =
     useChat();
-  const [liveVoice, setLiveVoice] = useState<"idle" | "connecting" | "listening" | "speaking" | "thinking" | "error">("idle");
-  const [liveVoiceAvailable, setLiveVoiceAvailable] = useState(false);
-  const [liveVoiceError, setLiveVoiceError] = useState("");
-  const [liveCaption, setLiveCaption] = useState("");
-  const liveConversation = useRef<import("@elevenlabs/client").Conversation | null>(null);
-  const liveVoiceGeneration = useRef(0);
-  const sendMessageRef = useRef(sendMessage);
-  sendMessageRef.current = sendMessage;
+  const { liveVoice, liveVoiceAvailable, liveVoiceError, liveCaption, stopLiveVoice, toggleLiveVoice } = useAssistantVoice(sendMessage, chatPanelOpen);
   // The soft keyboard shrinks the visual viewport only, so a 100vh panel would
   // hide its composer underneath the keyboard. Track the visible area instead.
   const viewport = useVisualViewport();
@@ -65,70 +59,6 @@ export function ChatPanel() {
   // new message) re-engages it.
   const userScrolledRef = useRef(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-
-  useEffect(() => {
-    const abort = new AbortController();
-    void fetch("/api/voice/assistant", { signal: abort.signal })
-      .then((response) => response.json())
-      .then((data) => setLiveVoiceAvailable(Boolean(data.available)))
-      .catch(() => {});
-    return () => abort.abort();
-  }, []);
-
-  const stopLiveVoice = useCallback(async () => {
-    liveVoiceGeneration.current++;
-    const active = liveConversation.current;
-    liveConversation.current = null;
-    setLiveVoice("idle");
-    if (active) await active.endSession().catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    if (!chatPanelOpen) void stopLiveVoice();
-    return () => { void stopLiveVoice(); };
-  }, [chatPanelOpen, stopLiveVoice]);
-
-  const toggleLiveVoice = async () => {
-    if (liveConversation.current) {
-      await stopLiveVoice();
-      return;
-    }
-    const generation = ++liveVoiceGeneration.current;
-    setLiveVoice("connecting");
-    setLiveVoiceError("");
-    setLiveCaption("");
-    try {
-      const response = await fetch("/api/voice/assistant", { method: "POST" });
-      const data = await response.json();
-      if (!response.ok || typeof data.token !== "string") throw new Error(data.error || "Could not connect live voice.");
-      if (generation !== liveVoiceGeneration.current) return;
-      const { Conversation } = await import("@elevenlabs/client");
-      const conversation = await Conversation.startSession({
-        conversationToken: data.token,
-        connectionType: "webrtc",
-        clientTools: {
-          ask_lifeos: async (params: { message?: unknown }) => {
-            if (generation !== liveVoiceGeneration.current) throw new Error("Voice conversation ended.");
-            if (typeof params.message !== "string" || !params.message.trim()) throw new Error("No spoken message was received.");
-            setLiveVoice("thinking");
-            const reply = await sendMessageRef.current(params.message);
-            if (!reply) throw new Error("LifeOS could not complete that response.");
-            return reply;
-          },
-        },
-        onModeChange: ({ mode }) => { if (generation === liveVoiceGeneration.current) setLiveVoice(mode === "speaking" ? "speaking" : mode === "listening" ? "listening" : mode === "thinking" ? "thinking" : "connecting"); },
-        onMessage: ({ role, message }) => { if (generation === liveVoiceGeneration.current && role === "agent" && message.trim()) setLiveCaption(message); },
-        onDisconnect: () => { if (generation === liveVoiceGeneration.current) { liveConversation.current = null; setLiveVoice("idle"); } },
-        onError: (message) => { if (generation === liveVoiceGeneration.current) { setLiveVoiceError(message || "Live voice disconnected."); setLiveVoice("error"); } },
-      });
-      if (generation !== liveVoiceGeneration.current) { await conversation.endSession(); return; }
-      liveConversation.current = conversation;
-      setLiveVoice("listening");
-    } catch (error) {
-      setLiveVoiceError(error instanceof Error ? error.message : "Could not start live voice.");
-      setLiveVoice("error");
-    }
-  };
 
   const handleScroll = () => {
     const el = scrollRef.current;
@@ -232,12 +162,12 @@ export function ChatPanel() {
           </div>
           <div className="flex items-center gap-1">
             <Button
-              variant={liveConversation.current || liveVoice === "connecting" || liveVoice === "thinking" || liveVoice === "speaking" || liveVoice === "listening" ? "default" : "ghost"}
+              variant={liveVoice !== "idle" && liveVoice !== "error" ? "default" : "ghost"}
               size="icon-sm"
               onClick={() => void toggleLiveVoice()}
               disabled={!liveVoiceAvailable || (liveVoice === "idle" && (loading || voice !== "idle")) || liveVoice === "connecting"}
-              aria-label={liveConversation.current ? "End voice conversation" : "Start voice conversation"}
-              title={liveConversation.current ? "End voice conversation" : liveVoiceAvailable ? "Talk to LifeOS" : "Live voice is not configured"}
+              aria-label={liveVoice !== "idle" && liveVoice !== "error" ? "End voice conversation" : "Start voice conversation"}
+              title={liveVoice !== "idle" && liveVoice !== "error" ? "End voice conversation" : liveVoiceAvailable ? "Talk to LifeOS" : "Live voice is not configured"}
               className="active:scale-[0.97]"
             >
               {liveVoice === "connecting" ? <Loader2 size={15} className="animate-spin" /> : liveVoice === "listening" || liveVoice === "thinking" || liveVoice === "speaking" ? <Square size={13} /> : <Volume2 size={16} />}
@@ -246,7 +176,7 @@ export function ChatPanel() {
               <Button
                 variant="ghost"
                 size="icon-sm"
-                onClick={clearMessages}
+                onClick={() => { void stopLiveVoice(); clearMessages(); }}
                 className="text-muted-foreground"
                 title="Clear conversation"
                 aria-label="Clear conversation"

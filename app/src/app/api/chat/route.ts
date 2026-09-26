@@ -2,8 +2,9 @@ import OpenAI from "openai";
 import { NextRequest, NextResponse } from "next/server";
 import { getOllamaClient, OLLAMA_MODEL } from "@/lib/ollama";
 import { codexEnabled } from "@/lib/claude-cli";
-import { APP_TOOLS, runAgentTurn, type AgentAction } from "@/lib/agent-engine";
+import { CHAT_TOOLS, runAgentTurn, type AgentAction } from "@/lib/agent-engine";
 import { executeAppActions, type AppActionResult } from "@/lib/app-actions";
+import { HOMELAB_TOOL_NAMES, executeHomelabTool } from "@/lib/homelab-tools";
 import { searchHomelabResources } from "@/lib/homelab-resources";
 import { logChatMessage } from "@/lib/chat-log";
 
@@ -17,7 +18,9 @@ You have access to LifeOS tools across the app. You can search/read records and 
 You are ALSO a homelab surface. Through server tools you can inspect queues and approvals, read service health and autoloop status, and queue instructions for a Codex session. Do not launch or dispatch a session from chat. Any request to change LifeOS features, UI elements, layout, styles, routes, or code should be turned into a complete implementation brief and queued for later review. The user dispatches queued work from /decide. Approval verdicts only record the ruling. If a request does not fit an available tool, identify the specific missing operation.
 
 Guidelines:
-- Replies appear in a narrow side pane. Default to at most 60 words, with the answer first. For a decision, state the recommendation and the consequence in one short sentence each. Include any material risk or condition that could change the decision. Avoid repeating the request or listing implementation details. Give more detail only when asked. This brevity rule applies to user-facing prose, never tool arguments or required action data.
+- Do not rephrase, paraphrase, or echo the user's request. Do not open with acknowledgements, summaries of their intent, or "you want" preambles. Start with the answer or the verified action result. Preserve the original wording when capturing input.
+- Check the available tool catalog before saying you cannot do something. Identify the exact missing operation or failed tool when access is limited.
+- Replies appear in the chat workspace or sidebar. Default to at most 60 words, with the answer first. For a decision, state the recommendation and the consequence in one short sentence each. Include any material risk or condition that could change the decision. Avoid repeating the request or listing implementation details. Give more detail only when asked. This brevity rule applies to user-facing prose, never tool arguments or required action data.
 - Route by INTENT first. Raw thinking-out-loud (a brain dump, an idea he is still turning over, a ramble with no discrete action) goes to capture_braindump, which puts it in the vault where Hermes enriches it — this is what the separate voice surface was built for, and it is the right home for it even when he types it here. A discrete fact or reference worth filing goes to create_note. Actionable work goes to tasks/reminders. Schedule_lifeos_notification is for a notification sent at the requested time, not a reminder item. Homelab and feature requests go to the homelab tools. One input can be several of these at once: a dump that contains two clear actions gets captured AND creates the tasks — never drop the raw dump just because you extracted actions from it.
 - Homelab work intent: when Samy asks for work that needs a Codex session, prepare a precise prompt with affected files or routes, expected behavior, preservation rules, and verification, then queue it with queue_homelab_prompt. Do not dispatch from chat.
 
@@ -182,14 +185,14 @@ export async function POST(req: NextRequest) {
       })),
     ];
 
-    const actions: ChatAction[] = [];
+    const toolResults: AppActionResult[] = [];
     let reply = "";
 
     // Call the local model and handle the tool-use loop
     let response = await callWithRetry(client, {
       model: OLLAMA_MODEL,
       max_tokens: 4096,
-      tools: APP_TOOLS,
+      tools: CHAT_TOOLS,
       messages: openaiMessages,
     });
 
@@ -212,13 +215,18 @@ export async function POST(req: NextRequest) {
         if (toolCall.type !== "function") continue;
         const fn = toolCall.function;
         const parsedArgs = JSON.parse(fn.arguments);
-        actions.push({ tool: fn.name, input: parsedArgs });
+        const action = { tool: fn.name, input: parsedArgs };
+        const result = HOMELAB_TOOL_NAMES.has(fn.name)
+          ? await executeHomelabTool(fn.name, parsedArgs)
+          : (await executeAppActions([action]))[0];
+        toolResults.push(result);
+        logChatMessage(sessionId, "tool", JSON.stringify("data" in result ? result.data : result).slice(0, 8000), [result]);
 
-        // Add tool result
+        // Return actual execution evidence, including failures, to the model.
         openaiMessages.push({
           role: "tool",
           tool_call_id: toolCall.id,
-          content: JSON.stringify({ success: true }),
+          content: JSON.stringify("data" in result ? result.data : result),
         });
       }
 
@@ -226,7 +234,7 @@ export async function POST(req: NextRequest) {
       response = await callWithRetry(client, {
         model: OLLAMA_MODEL,
         max_tokens: 4096,
-        tools: APP_TOOLS,
+        tools: CHAT_TOOLS,
         messages: openaiMessages,
       });
 
@@ -237,7 +245,7 @@ export async function POST(req: NextRequest) {
     reply += choice.message.content || "";
 
     // T45: same server-side commit + logging contract as the claude path.
-    const appResults = actions.length ? await executeAppActions(actions) : [];
+    const appResults = toolResults;
     logChatMessage(sessionId, "assistant", reply, appResults);
 
     return NextResponse.json({ reply, actions: [], serverResults: appResults });
