@@ -123,7 +123,7 @@ export default function FeedPage() {
       >
         <X className="h-5 w-5" />
       </Link>
-      <Link href="/feed/review" className="absolute right-3 top-3 z-10 inline-flex min-h-11 items-center gap-2 rounded-lg border border-border bg-card/90 px-3 py-2 text-xs text-muted-foreground backdrop-blur-md transition-transform duration-[var(--dur-fast)] active:scale-[0.97]">
+      <Link href="/feed/review" className="absolute right-3 top-3 z-10 inline-flex min-h-11 items-center gap-2 rounded-lg border border-border bg-card/90 px-3 py-2 text-xs lg:text-sm text-muted-foreground backdrop-blur-md transition-transform duration-[var(--dur-fast)] active:scale-[0.97]">
         <Palette size={14} /> Review inspiration
       </Link>
 
@@ -255,10 +255,10 @@ function CardView({ card }: { card: ServedCard }) {
   return (
     <section
       ref={sectionRef}
-      className="relative flex h-dvh w-full snap-start flex-col justify-center px-6 pb-28 pt-14"
+      className="relative flex min-h-dvh w-full snap-start flex-col justify-center px-6 pb-28 pt-20 lg:px-12"
     >
-      <div className={cn("mx-auto w-full max-w-md transition-opacity duration-150", dimmed && "opacity-30")}>
-        <div className="mb-3 flex items-center gap-2 text-xs text-muted-foreground">
+      <div className={cn("mx-auto w-full max-w-md lg:max-w-3xl 2xl:max-w-5xl transition-opacity duration-150 ease-[var(--ease-out-custom)]", dimmed && "opacity-30")}>
+        <div className="mb-3 flex flex-wrap items-center gap-2 text-xs lg:text-sm text-muted-foreground">
           {card.origin === "explore" && (
             <span className="rounded-full bg-secondary px-2 py-0.5 font-medium text-secondary-foreground">
               explore · {card.domain}
@@ -272,9 +272,9 @@ function CardView({ card }: { card: ServedCard }) {
           )}
         </div>
 
-        <h2 className="text-lg font-semibold leading-snug">{card.hook}</h2>
+        <h2 className="text-lg font-semibold leading-snug lg:text-3xl 2xl:text-4xl">{card.hook}</h2>
         {card.subConcept && card.subConcept !== card.category && (
-          <p className="mt-1 text-xs text-muted-foreground">{card.subConcept}</p>
+          <p className="mt-1 text-xs lg:text-sm text-muted-foreground">{card.subConcept}</p>
         )}
         {card.format !== "quiz" && (
           <>
@@ -284,16 +284,16 @@ function CardView({ card }: { card: ServedCard }) {
                   src={card.images[0].url}
                   alt={card.images[0].alt || `${card.hook} experiment image`}
                   loading="lazy"
-                  className="max-h-[38dvh] w-full object-contain"
+                  className="max-h-[38dvh] w-full object-contain lg:max-h-[48dvh] 2xl:max-h-[52dvh]"
                 />
                 {card.images[0].label && (
-                  <figcaption className="px-3 py-2 text-xs text-muted-foreground">
+                  <figcaption className="px-3 py-2 text-xs lg:text-sm text-muted-foreground">
                     {card.images[0].label}
                   </figcaption>
                 )}
               </figure>
             )}
-          <p className="mt-3 whitespace-pre-wrap text-base leading-relaxed text-foreground/90">
+          <p className="mt-3 whitespace-pre-wrap text-base lg:text-xl 2xl:text-2xl leading-relaxed text-foreground/90">
             {card.body}
           </p>
             {card.source && (
@@ -301,7 +301,7 @@ function CardView({ card }: { card: ServedCard }) {
                 href={card.source.url}
                 target="_blank"
                 rel="noreferrer"
-                className="mt-3 inline-flex min-h-11 items-center text-sm text-muted-foreground underline decoration-border underline-offset-4 transition-transform duration-[var(--dur-fast)] ease-[var(--ease-out-custom)] active:scale-[0.97]"
+                className="mt-3 inline-flex min-h-11 items-center text-sm lg:text-base text-muted-foreground underline decoration-border underline-offset-4 transition-transform duration-[var(--dur-fast)] ease-[var(--ease-out-custom)] active:scale-[0.97]"
               >
                 {card.source.label || "Read the source"}
               </a>
@@ -311,7 +311,7 @@ function CardView({ card }: { card: ServedCard }) {
 
         {card.quiz && (
           <div className="mt-4">
-            <p className="text-base leading-relaxed">{card.quiz.question}</p>
+            <p className="text-base lg:text-xl 2xl:text-2xl leading-relaxed">{card.quiz.question}</p>
             <div className="mt-3 flex flex-col gap-2">
               {card.quiz.options.map((opt, idx) => {
                 const isRight = idx === card.quiz!.answerIndex;
@@ -322,7 +322,7 @@ function CardView({ card }: { card: ServedCard }) {
                     onClick={() => answer(idx)}
                     disabled={answered}
                     className={cn(
-                      "min-h-11 rounded-lg border border-border px-4 py-2.5 text-left text-sm transition-transform duration-150 active:scale-[0.97]",
+                      "min-h-11 rounded-lg border border-border px-4 py-2.5 text-left text-sm lg:text-lg 2xl:text-xl transition-transform duration-150 ease-[var(--ease-out-custom)] active:scale-[0.97]",
                       !answered && "bg-card",
                       answered && isRight && "border-primary bg-primary/15",
                       answered && isPicked && !isRight && "border-destructive bg-destructive/15"
@@ -335,7 +335,7 @@ function CardView({ card }: { card: ServedCard }) {
               })}
             </div>
             {answered && (
-              <p className="enter mt-3 text-sm leading-relaxed text-muted-foreground">
+              <p className="enter mt-3 text-sm lg:text-lg leading-relaxed text-muted-foreground">
                 {card.quiz.why}
               </p>
             )}
