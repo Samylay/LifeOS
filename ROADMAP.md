@@ -87,6 +87,10 @@
 
 ## Log
 
+- 2026-09-26 (attended, extractor rewrite): Added transactional source-snapshot guards to evidence/assessment publication, a read-only `/decide/sources/[id]` review with timestamp-linked claims and channel coverage, and a card link to it. The host extractor was rewritten in the services repository (`c9b9373`), with nightly and accepted-workflow scheduling (`6203d99`). Verified 132 Python regressions, 29 focused LifeOS tests including a real captured video bundle, tsc, targeted ESLint, production Docker build/deploy, API replay/concurrent-edit checks and HTTP 200 for the review/home/Decide routes. Full suite retains seven failures reproduced on unchanged HEAD plus a native better-sqlite3 worker crash; browser inspection unavailable because no local Chrome is running and work-samy is unreachable. Raw captures and the source-specific report remain private under `.scratch/extractor-rewrite/`. Historical manifest prepared, bulk backfill not run. Remaining acquisition gaps are explicit in the ingestion contract.
+  Pitch: make each extracted claim inspectable and preserve user edits when background work finishes.
+  Quiz: Does a complete speech channel imply complete video coverage? No; sampled visuals and unclassified audio retain their own coverage states.
+
 - 2026-09-26 (attended follow-up): Changed wide-screen feed cards to an image-left, text-right layout with reactions below the text. Desktop cards stay one viewport tall; unusually long text remains accessible through column overflow. Mobile stays stacked. Verified tsc, targeted ESLint, isolated Docker Compose build from HEAD plus the feed change, deployment, and HTTP 200 for / and /feed. Unrelated working-tree edits excluded from the build and commit. Browser verification unavailable because work-samy remains unreachable.
   Pitch: spend desktop width on parallel image and text columns instead of a taller card.
   Quiz: Where does overflow go on desktop? Only the text column, with reactions kept outside it.
