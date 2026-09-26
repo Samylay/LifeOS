@@ -202,3 +202,14 @@ Use synthetic fixtures and a temporary data store for mutation verification, nev
 - Source/model injection strings remain data and never become executable instructions or action parameters.
 
 Final report: implementation changes, exact verification commands/results, extraction version, manifest reconciliation, commit/push status, known dirty files preserved, and ambiguous cases. Do not claim the historical pass complete until every manifest entry has an explicit outcome.
+
+
+## Implemented extractor, 2026-09-26
+
+Host entry point: `/home/quorky/services/triage/extractor.py`; package and operational coverage: `ingestion/README.md` beside it. Extraction version `lifeos-ingestion-3.0`. The existing nightly grabbers now invoke this entry point; `lifeos-extractor.timer` services accepted waiting workflows separately.
+
+Both publication endpoints additionally accept `expectedItemState`. Use the full snapshot fields exported as `EXTRACTION_STATE_FIELDS` from `triage-evidence.ts`, representing absent values as null. The snapshot is checked inside the write transaction. HTTP 409 means a user/source edit won; do not retry with a fabricated new baseline. `expectedPriorAssessmentId` remains supported. Legacy clients without a snapshot keep their previous protocol.
+
+Read-only source review is available at `/decide/sources/<item-id>` and from each extracted card. It shows timestamp-linked grounded claims, every channel's coverage, and expandable source evidence. Stale assessments do not appear as current claims.
+
+The contract above remains the target. Current explicit gaps: sampled frames do not provide continuous motion analysis; non-speech audio/music structure is unclassified; text-bearing PDF diagrams are unprocessed; repository acquisition covers a pinned source document, not every relevant implementation file. These channels carry partial/not-requested coverage rather than a claim of completeness. The acceptance run used a real X video; other providers have deterministic fixture coverage. Historical reprocessing has a resumable manifest/CLI, but the complete historical corpus is not claimed as reprocessed.

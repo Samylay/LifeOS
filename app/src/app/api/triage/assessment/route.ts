@@ -6,14 +6,14 @@ export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
   try {
-    let body: { assessment?: unknown; expectedPriorAssessmentId?: unknown; expectedAssessmentId?: unknown };
+    let body: { assessment?: unknown; expectedPriorAssessmentId?: unknown; expectedAssessmentId?: unknown; expectedItemState?: unknown };
     try {
-      body = (await req.json()) as { assessment?: unknown; expectedPriorAssessmentId?: unknown; expectedAssessmentId?: unknown };
+      body = (await req.json()) as { assessment?: unknown; expectedPriorAssessmentId?: unknown; expectedAssessmentId?: unknown; expectedItemState?: unknown };
     } catch {
       return NextResponse.json({ error: "invalid JSON" }, { status: 400 });
     }
     const assessment = body && Object.prototype.hasOwnProperty.call(body, "assessment") ? body.assessment : body;
-    const result = publishAssessment(assessment, body?.expectedPriorAssessmentId ?? body?.expectedAssessmentId);
+    const result = publishAssessment(assessment, body?.expectedPriorAssessmentId ?? body?.expectedAssessmentId, body?.expectedItemState);
     return NextResponse.json({ ok: true, assessmentId: result.assessmentId, assessment: result });
   } catch (error) {
     const status = error instanceof TriageArtifactError ? error.status : 500;

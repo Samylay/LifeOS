@@ -346,12 +346,31 @@ function validateItemIdentity(itemId: string, bundle: EvidenceBundle): void {
   }
 }
 
-export function persistEvidence(bundleInput: unknown, itemId?: unknown): EvidenceBundle {
+export const EXTRACTION_STATE_FIELDS = ["url", "status", "evidenceRef", "assessmentRef", "note", "notes", "userNote", "annotations", "savedAt", "folder", "folderPath", "decision", "filedAs", "deferredUntil"] as const;
+
+/** Compare the source snapshot inside the write transaction so a concurrent user edit wins. */
+export function extractionItemState(item: Record<string, unknown>): Record<string, unknown> {
+  return Object.fromEntries(EXTRACTION_STATE_FIELDS.map((key) => [key, item[key] ?? null]));
+}
+function checkExtractionState(itemId: string, expected: unknown): void {
+  if (expected === undefined) return; // Existing clients retain their original protocol.
+  const state = requiredRecord(expected, "expectedItemState");
+  if (EXTRACTION_STATE_FIELDS.some((key) => !Object.prototype.hasOwnProperty.call(state, key))) {
+    throw new TriageArtifactError("expectedItemState must include every extraction state field", 400);
+  }
+  const current = getDoc("users/local/triageQueue", itemId);
+  if (!current || canonical(extractionItemState(current)) !== canonical(extractionItemState(state))) {
+    throw new TriageArtifactError("Source changed during extraction; preserve the current user state", 409);
+  }
+}
+
+export function persistEvidence(bundleInput: unknown, itemId?: unknown, expectedItemState?: unknown): EvidenceBundle {
   const bundle = validateEvidenceBundle(bundleInput);
   const item = itemId === undefined ? undefined : id(itemId, "itemId");
   if (item) validateItemIdentity(item, bundle);
   const payloadHash = digest(bundle);
   runInTransaction(() => {
+    if (item) checkExtractionState(item, expectedItemState);
     const existing = getDoc(TRIAGE_EVIDENCE_COLLECTION, bundle.bundleId);
     if (existing) {
       ensureSame(bundle.bundleId, existing, bundle);
@@ -435,7 +454,7 @@ function compatibilityProposal(item: Record<string, unknown>, assessment: Triage
   return projected;
 }
 
-export function publishAssessment(input: unknown, expectedPriorAssessmentId?: unknown): TriageAssessmentRecord {
+export function publishAssessment(input: unknown, expectedPriorAssessmentId?: unknown, expectedItemState?: unknown): TriageAssessmentRecord {
   const assessment = validateAssessment(input);
   const expected = expectedPriorAssessmentId === undefined || expectedPriorAssessmentId === null
     ? undefined
@@ -447,6 +466,7 @@ export function publishAssessment(input: unknown, expectedPriorAssessmentId?: un
       ensureSame(assessment.assessmentId, existing, assessment);
       return;
     }
+    checkExtractionState(assessment.itemId, expectedItemState);
     const bundle = getDoc(TRIAGE_EVIDENCE_COLLECTION, assessment.bundleId);
     if (!bundle) throw new TriageArtifactError("bundleId does not refer to stored evidence", 404);
     const item = getDoc("users/local/triageQueue", assessment.itemId);

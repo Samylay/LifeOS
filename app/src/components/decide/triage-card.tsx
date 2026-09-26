@@ -194,6 +194,7 @@ export function TriageCard({
       )}
 
       {p.title && p.summary && <DecisionText className="text-muted-foreground">{p.summary}</DecisionText>}
+      {item.evidenceRef && <a href={`/decide/sources/${encodeURIComponent(item.id)}`} className="inline-flex min-h-9 items-center text-sm font-medium text-primary underline-offset-4 hover:underline transition-transform duration-[var(--dur-fast)] ease-[var(--ease-out-custom)] active:scale-[0.97]">Review extraction</a>}
       <EvidenceDetails key={item.evidenceRef ?? "legacy"} evidenceRef={item.evidenceRef} assessmentRef={item.assessmentRef} itemId={item.id} />
       {!item.evidenceRef && p.extraction?.quality && p.extraction.quality !== "usable" && (
         <p className="rounded-lg border border-warning/30 bg-warning/10 p-3 text-sm leading-relaxed text-foreground [overflow-wrap:anywhere]">
