@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { useTasks } from "./use-tasks";
 import { notifyTaskCompleted } from "./task-notifications";
 import { useHabits } from "./use-habits";
@@ -9,6 +9,7 @@ import { useReminders } from "./use-reminders";
 import { useProjects } from "./use-projects";
 import { validateChatInput } from "./chat-input";
 import type { ChatAction } from "@/app/api/chat/route";
+import type { FoodPhoto } from "./food-model";
 
 export interface ChatMessage {
   id: string;
@@ -36,7 +37,7 @@ const newSessionId = () =>
     ? crypto.randomUUID()
     : `s-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
-export function useChat() {
+export function useChat(persistent = false) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(false);
   // Live tool-activity line ("Checking what's queued…") streamed by the API
@@ -49,6 +50,57 @@ export function useChat() {
   // T45: conversation id — the server persists every exchange under it, and
   // clearing the panel finishes the session (routes it to the vault).
   const sessionRef = useRef<string>(newSessionId());
+  const [photos, setPhotos] = useState<FoodPhoto[]>([]);
+  const [restoring, setRestoring] = useState(persistent);
+
+  const refreshPhotos = useCallback(async () => {
+    const session = sessionRef.current;
+    const response = await fetch(`/api/chat/history?sessionId=${encodeURIComponent(session)}`);
+    if (!response.ok) throw new Error("Couldn't load the conversation");
+    const data = await response.json();
+    if (session === sessionRef.current) setPhotos(data.photos);
+    return data;
+  }, []);
+
+  useEffect(() => {
+    if (!persistent) return;
+    let active = true;
+    try {
+      const stored = localStorage.getItem("lifeos-chat-session");
+      if (stored && /^[a-zA-Z0-9-]{1,100}$/.test(stored)) sessionRef.current = stored;
+      localStorage.setItem("lifeos-chat-session", sessionRef.current);
+    } catch { /* Storage disabled: the server still keeps accepted messages. */ }
+    void refreshPhotos().then((data) => {
+      if (active) setMessages(data.messages.map((m: ChatMessage) => ({ ...m, timestamp: new Date(m.timestamp) })));
+    }).catch(() => {}).finally(() => { if (active) setRestoring(false); });
+    const refresh = () => { void refreshPhotos().catch(() => {}); };
+    window.addEventListener("focus", refresh);
+    return () => { active = false; window.removeEventListener("focus", refresh); };
+  }, [persistent, refreshPhotos]);
+
+  useEffect(() => {
+    if (!persistent || !photos.some((p) => p.state === "pending" || p.state === "running")) return;
+    const interval = setInterval(() => { void refreshPhotos().catch(() => {}); }, 2500);
+    return () => clearInterval(interval);
+  }, [persistent, photos, refreshPhotos]);
+
+  const sendPhoto = useCallback(async (file: File, caption: string, id: string, eatenAt: string, timezone: string) => {
+    const form = new FormData();
+    form.set("photo", file); form.set("caption", caption); form.set("id", id);
+    form.set("sessionId", sessionRef.current); form.set("eatenAt", eatenAt); form.set("timezone", timezone);
+    const session = sessionRef.current;
+    const response = await fetch("/api/chat/photos", { method: "POST", body: form });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "Couldn't upload the photo");
+    if (session === sessionRef.current) setPhotos((previous) => [...previous.filter((p) => p.id !== data.photo.id), data.photo]);
+  }, []);
+
+  const updatePhoto = useCallback(async (id: string, input: Record<string, unknown>) => {
+    const response = await fetch(`/api/chat/photos/${encodeURIComponent(id)}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) });
+    const data = await response.json();
+    if (!response.ok) { void refreshPhotos().catch(() => {}); throw new Error(data.error || "Couldn't update this meal"); }
+    setPhotos((previous) => previous.map((p) => p.id === id ? data.photo : p));
+  }, [refreshPhotos]);
 
   const { tasks, createTask, updateTask } = useTasks();
   const { habits, createHabit } = useHabits();
@@ -211,7 +263,7 @@ export function useChat() {
 
   const sendMessage = useCallback(
     async (content: string, opts?: { retry?: boolean }): Promise<string | null> => {
-      if (loading) return null;
+      if (loading || restoring) return null;
 
       // Retry re-sends the last user message: drop the trailing interrupted
       // reply instead of duplicating the user bubble.
@@ -240,6 +292,7 @@ export function useChat() {
       try {
         // Build context from current app state
         const context = {
+          foodPhotos: persistent,
           taskCount: tasks.length,
           existingTasks: tasks.slice(0, 30).map((t) => t.title),
           existingHabits: habits.map((h) => h.name),
@@ -318,6 +371,7 @@ export function useChat() {
           timestamp: new Date(),
         };
         setMessages((prev) => [...prev, assistantMsg]);
+        if (persistent) void refreshPhotos().catch(() => {});
         return data.reply;
       } catch (err: unknown) {
         if (request !== requestRef.current) return null;
@@ -368,7 +422,7 @@ export function useChat() {
         }
       }
     },
-    [loading, messages, tasks, habits, projects, executeActions]
+    [loading, restoring, messages, tasks, habits, projects, executeActions, persistent, refreshPhotos]
   );
 
   // Stop the in-flight request; the AbortError handler records the
@@ -398,7 +452,9 @@ export function useChat() {
     }).catch(() => {});
     sessionRef.current = newSessionId();
     setMessages([]);
-  }, []);
+    setPhotos([]);
+    if (persistent) { try { localStorage.setItem("lifeos-chat-session", sessionRef.current); } catch {} }
+  }, [persistent]);
 
-  return { messages, loading, statusText, sendMessage, clearMessages, stop, retryLast };
+  return { messages, photos, restoring, sendPhoto, updatePhoto, loading, statusText, sendMessage, clearMessages, stop, retryLast };
 }

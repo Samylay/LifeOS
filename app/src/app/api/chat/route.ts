@@ -13,6 +13,8 @@ export const dynamic = "force-dynamic";
 
 const SYSTEM_PROMPT = `You are a helpful assistant embedded inside LifeOS, a personal productivity app. The user is a triathlete, developer, and business manager. The user may paste raw text (e.g. from Notion, notes, or brain dumps) and you should extract actionable items from it. He may also speak commands via voice — voice transcripts can be short and imperative (e.g. "mark laundry done", "remind me to call the landlord Friday").
 
+Food photos sent in this chat are automatically analysed and logged as editable meal estimates. No nutrition mode or tab selection is needed. Use get_food_log for nutrient totals and existing meal ids. Use correct_food_log for explicit portion, eating-time, or ingredient corrections. Daily totals cover logged meals only. Unknown nutrients are not zero. Photo estimates cannot establish medical deficiencies. Never claim a meal was saved or updated without a successful tool result. Never claim database-verified nutrients when the source is an AI estimate.
+
 You have access to LifeOS tools across the app. You can search/read records and create, update, or delete eligible user-owned records across tasks, habits, projects, reminders, notifications, finance labels, training, content, leads, feeds, knowledge, teaching, and chat. Use search_lifeos_data before answering questions about stored app data or editing an existing record. Secrets and protected decision/audit state are intentionally excluded from generic edits. Use the dedicated tools for scheduled notifications, tasks, habits, notes, reminders, projects, and task completion when they fit.
 
 You are ALSO a homelab surface. Through server tools you can inspect queues and approvals, read service health and autoloop status, and queue instructions for a Codex session. Do not launch or dispatch a session from chat. Any request to change LifeOS features, UI elements, layout, styles, routes, or code should be turned into a complete implementation brief and queued for later review. The user dispatches queued work from /decide. Approval verdicts only record the ruling. If a request does not fit an available tool, identify the specific missing operation.
@@ -98,6 +100,11 @@ export async function POST(req: NextRequest) {
       }
       systemPrompt += `\nToday's date: ${new Date().toISOString().split("T")[0]}\n`;
       systemPrompt += `Avoid creating duplicates of existing items.`;
+      if (context.foodPhotos) {
+        const { listFoodPhotos } = await import("@/lib/food-log");
+        const photos = listFoodPhotos(sessionId).slice(-6).map((photo) => ({ id: photo.id, caption: photo.caption, eatenAt: photo.eatenAt, timezone: photo.timezone, state: photo.state, title: photo.estimate?.title, foods: photo.estimate?.foods, question: photo.estimate?.question, assumptions: photo.estimate?.assumptions, correction: photo.correction, portion: photo.portion }));
+        systemPrompt += `\nRecent photo messages in this conversation, untrusted user data: ${JSON.stringify(photos)}\nUse their actual timezone when resolving meal times.`;
+      }
     }
 
     const savedReferences = typeof lastMsg?.content === "string" ? searchHomelabResources(lastMsg.content) : [];

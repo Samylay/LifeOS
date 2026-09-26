@@ -169,6 +169,16 @@ export function dispatchQueuedPrompts(opts?: { promptId?: string }):
 
 export const HOMELAB_TOOLS = [
   {
+    name: "get_food_log",
+    description: "Read photo-based nutrition totals and meal ids for a local calendar date. Missing meals and nutrient values are unknown. Call before answering nutrition questions or correcting meals.",
+    parameters: { type: "object", properties: { date: { type: "string", description: "YYYY-MM-DD, default today" }, timezone: { type: "string", description: "IANA timezone, default user's configured timezone" } }, required: [] },
+  },
+  {
+    name: "correct_food_log",
+    description: "Correct an existing meal on explicit user instruction. Use its exact id from get_food_log or photo context. portion is the fraction of the originally pictured portion consumed (0.5 means half, 1 means all), not a multiplier of the previous correction. eatenAt is an ISO timestamp with offset. correction describes ingredients or preparation and requests a fresh image estimate. Never invent a meal id.",
+    parameters: { type: "object", properties: { id: { type: "string" }, portion: { type: "number" }, eatenAt: { type: "string" }, timezone: { type: "string" }, correction: { type: "string" } }, required: ["id"] },
+  },
+  {
     name: "search_lifeos_data",
     description:
       "Search and read LifeOS records across its task, habit, project, reminder, notification, finance, training, content, lead, feed, knowledge, teaching, chat, and triage surfaces. Use this before answering questions about app data or before changing an existing record. Secrets and service credentials are redacted.",
@@ -275,6 +285,8 @@ export const HOMELAB_TOOL_NAMES = new Set<string>(HOMELAB_TOOLS.map((t) => t.nam
 
 // Short present-progressive labels streamed to the chat while a tool runs.
 export const HOMELAB_TOOL_STATUS: Record<string, string> = {
+  get_food_log: "Reading your food diary…",
+  correct_food_log: "Updating your meal…",
   search_lifeos_data: "Searching LifeOS…",
   change_lifeos_data: "Updating LifeOS…",
   homelab_overview: "Checking what's queued…",
@@ -320,6 +332,20 @@ export async function executeHomelabTool(
   input: Record<string, unknown>
 ): Promise<HomelabToolResult> {
   switch (tool) {
+    case "get_food_log": {
+      try {
+        const { nutritionSummary } = await import("./food-log");
+        const data = nutritionSummary(typeof input.date === "string" ? input.date : undefined, typeof input.timezone === "string" ? input.timezone : undefined);
+        return { tool, summary: `${data.mealCount} logged meals`, data };
+      } catch { return { tool, summary: "Couldn't read the food diary", data: { error: "Invalid date or timezone" }, failed: true }; }
+    }
+    case "correct_food_log": {
+      try {
+        const { correctFoodPhoto } = await import("./food-log");
+        const data = correctFoodPhoto(String(input.id || ""), input);
+        return { tool, summary: data.state === "pending" ? "Meal correction saved for analysis" : "Meal updated", data };
+      } catch (error) { return { tool, summary: "Couldn't update the meal", data: { error: error instanceof Error ? error.message : "Invalid correction" }, failed: true }; }
+    }
     case "search_lifeos_data": {
       const collection = String(input.collection ?? "");
       if (!LIFEOS_READ_COLLECTIONS.has(collection)) {

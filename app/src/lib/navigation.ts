@@ -39,7 +39,7 @@ export const NAV_UTILITIES = [
   { href: "/settings", label: "Settings", icon: Settings01Icon },
 ];
 export const NAV_ITEMS = [...NAV_GROUPS.flatMap((g) => g.items), ...NAV_UTILITIES];
-export const MOBILE_ITEMS = ["/", "/decide", "/voice", "/projects"].map((href) => NAV_ITEMS.find((i) => i.href === href)!);
+export const MOBILE_ITEMS = ["/", "/decide", "/chat", "/voice"].map((href) => NAV_ITEMS.find((i) => i.href === href)!);
 export { Menu01Icon };
 
 export function activeDestination(pathname: string) {
