@@ -7,7 +7,7 @@ import { generateJson } from "@/lib/claude-cli";
 import { getDoc, setDoc, listDocs, deleteDoc } from "@/lib/server-db";
 import { todayInTz } from "@/lib/brief/tz";
 import { activeFeeds } from "./feeds";
-import { notifyNewsletterArrival } from "./notifications";
+import { preserveIssue } from "./issues";
 import {
   EDITIONS_COLLECTION,
   INBOX_COLLECTION,
@@ -122,6 +122,7 @@ function loadInbox(): InboxItem[] {
   const raw = listDocs(INBOX_COLLECTION) as unknown as InboxItem[];
   const out: InboxItem[] = [];
   for (const it of raw) {
+    preserveIssue(it);
     const age = now - new Date(it.addedAt || it.receivedAt || 0).getTime();
     if (age > INBOX_TTL_MS) {
       deleteDoc(INBOX_COLLECTION, it.id);
@@ -307,6 +308,7 @@ async function splitNewsletter(email: InboxItem): Promise<NewsItem[]> {
       // link, so the card still goes somewhere.
       link: String(s.link ?? "").trim() || email.link || `mailto:${email.from}`,
       source,
+      newsletterId: email.id,
       bucket: "news",
       french: false,
       tldr: clampTldr(tldr),
@@ -334,6 +336,7 @@ function wholeEmailItem(email: InboxItem): NewsItem {
     summary: text.slice(0, 400),
     score: MIN_SCORE,
     degraded: true,
+    newsletterId: email.id,
   };
 }
 
@@ -341,14 +344,14 @@ function wholeEmailItem(email: InboxItem): NewsItem {
  * Build (or fetch the cached) news edition for today. Deduped by date: a second
  * call the same day returns the stored edition unless force=true.
  */
-export async function runNews(opts: { force?: boolean } = {}): Promise<Edition> {
+async function buildNews(opts: { force?: boolean } = {}): Promise<Edition> {
   const { dateStr } = todayInTz();
-  if (!opts.force) {
-    const existing = getDoc(EDITIONS_COLLECTION, dateStr) as (Edition & { id: string }) | null;
-    if (existing) return existing;
-  }
+  const existing = getDoc(EDITIONS_COLLECTION, dateStr) as (Edition & { id: string }) | null;
+  const emails = loadInbox();
+  if (!opts.force && existing && emails.length === 0) return existing;
 
-  const feeds = activeFeeds();
+  const incremental = Boolean(existing && !opts.force);
+  const feeds = incremental ? [] : activeFeeds();
 
   // Phase 1: parallel fetch + parse.
   const fetched = await Promise.allSettled(
@@ -380,7 +383,7 @@ export async function runNews(opts: { force?: boolean } = {}): Promise<Edition> 
   );
 
   // Phase 3: summarise + score, sequentially (one Codex CLI at a time).
-  const items: NewsItem[] = [];
+  const items: NewsItem[] = existing ? existing.items.filter((item) => incremental || item.bucket === "news") : [];
   for (let i = 0; i < pool.length; i++) {
     const a = pool[i];
     const t = texts[i];
@@ -414,7 +417,6 @@ export async function runNews(opts: { force?: boolean } = {}): Promise<Edition> 
   // Phase 4: newsletters (delivered by the Cloudflare Email Worker). Each
   // email is split into its own stories, summarised and scored in that same
   // pass, then folded in alongside the RSS items.
-  const emails = loadInbox();
   for (const email of emails) {
     try {
       items.push(...(await splitNewsletter(email)));
@@ -438,16 +440,16 @@ export async function runNews(opts: { force?: boolean } = {}): Promise<Edition> 
   // a crash mid-run leaves them pending for the next pass instead of losing them.
   for (const email of emails) deleteDoc(INBOX_COLLECTION, email.id);
 
-  try {
-    const sources = [...new Set(newsletters.map((item) => item.source))];
-    await notifyNewsletterArrival(sources);
-  } catch (e) {
-    // A notification outage must not undo a stored edition or leave its mail
-    // in the inbox to be processed a second time.
-    console.log(`[news] newsletter notification failed: ${e instanceof Error ? e.message : e}`);
-  }
 
   return edition;
+}
+
+let running: Promise<Edition> | null = null;
+
+export function runNews(opts: { force?: boolean } = {}): Promise<Edition> {
+  if (running) return running;
+  running = buildNews(opts).finally(() => { running = null; });
+  return running;
 }
 
 export function latestEdition(): Edition | null {

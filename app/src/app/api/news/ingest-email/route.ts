@@ -11,7 +11,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { createDoc } from "@/lib/server-db";
-import { INBOX_COLLECTION } from "@/lib/news/types";
+import { getIssue, preserveIssue } from "@/lib/news/issues";
+import { INBOX_COLLECTION, type InboxItem } from "@/lib/news/types";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -77,7 +78,7 @@ export async function POST(req: NextRequest) {
 
   const from = String(body.from ?? "").slice(0, 320);
   const subject = String(body.subject ?? "").slice(0, 500);
-  const text = String(body.text ?? "").slice(0, 200_000);
+  const text = String(body.text ?? "");
   if (!from || (!subject && !text)) {
     return NextResponse.json({ error: "empty email" }, { status: 400 });
   }
@@ -98,5 +99,7 @@ export async function POST(req: NextRequest) {
     addedAt: new Date().toISOString(),
   });
 
+  const issue = getIssue(id);
+  if (issue) preserveIssue(issue as InboxItem);
   return NextResponse.json({ ok: true, id });
 }

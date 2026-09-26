@@ -2,15 +2,15 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { RefreshCw, ExternalLink, ChevronDown, Settings2, Sparkles, Rows3, LayoutList, Newspaper, Code2, Shield, Play } from "lucide-react";
+import { RefreshCw, ExternalLink, ChevronDown, Settings2, Sparkles, Rows3, LayoutList, Search } from "lucide-react";
 import { BUCKET_LABELS, type Bucket, type Edition, type NewsItem } from "@/lib/news/types";
+import { Newsletters } from "@/components/newsletters";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Page, PageHeader } from "@/components/ui/page";
 import { Skeleton } from "@/components/ui/skeleton";
 
-const BUCKET_ICONS = { news: Newspaper, tech: Code2, sec: Shield, video: Play };
 const BUCKET_ORDER: Bucket[] = ["news", "tech", "sec", "video"];
 
 const POLL_MS = 20_000;
@@ -19,30 +19,29 @@ const POLL_MS = 20_000;
 // the long summary rather than rendering an empty card.
 type Density = "compact" | "comfortable";
 
-function NewsCard({ item, density }: { item: NewsItem; density: Density }) {
+function NewsCard({ item, density, onRead }: { item: NewsItem; density: Density; onRead: (id: string) => void }) {
   const [open, setOpen] = useState(false);
   const compact = density === "compact";
-  const Icon = BUCKET_ICONS[item.bucket];
   const line = item.tldr || item.summary;
   // Nothing more to reveal when the summary adds nothing over the one-liner.
   const expandable = Boolean(item.summary) && item.summary !== line;
 
   return (
     <Card
-      className={`${compact ? "p-3" : "p-4"} gap-0 border-l-2 ${item.score >= 5 ? "border-l-primary" : "border-l-border"}`}
+      className={`${compact ? "p-4" : "p-5"} gap-0 border-l-2 ${item.score >= 5 ? "border-l-primary" : "border-l-border"}`}
     >
-      {!compact && <div className="mb-4 flex items-center gap-3 border-b border-border pb-4"><span className="grid size-11 place-items-center rounded-full border border-border bg-background text-chart-4"><Icon size={21} strokeWidth={1.5} /></span><div><p className="text-xs font-medium">{item.source}</p><p className="text-xs text-muted-foreground">{BUCKET_LABELS[item.bucket]}</p></div></div>}
+
       <a
         href={item.link}
         target="_blank"
         rel="noopener noreferrer"
-        className={`${compact ? "mb-0.5" : "mb-1"} flex items-start gap-2 transition-transform duration-150 hover:-translate-y-0.5 active:scale-[0.99]`}
+        className={`${compact ? "mb-0.5" : "mb-1"} flex items-start gap-2 transition-transform duration-150 [transition-timing-function:var(--ease-out-custom)] hover:-translate-y-0.5 active:scale-[0.97]`}
       >
-        <span className={`flex-1 font-medium leading-snug ${compact ? "line-clamp-1" : ""}`}>{item.title}</span>
+        <span className="flex-1 font-medium leading-snug">{item.title}</span>
         <ExternalLink size={14} className="mt-1 shrink-0 text-muted-foreground/70" />
       </a>
 
-      <p className={`text-sm leading-relaxed text-muted-foreground ${compact ? "line-clamp-1" : ""}`}>
+      <p className={`text-sm leading-relaxed text-muted-foreground ${compact ? "line-clamp-2" : ""}`}>
         {line}
       </p>
 
@@ -52,7 +51,7 @@ function NewsCard({ item, density }: { item: NewsItem; density: Density }) {
         </p>
       )}
 
-      <div className={`${compact ? "mt-1" : "mt-2"} flex items-center justify-between gap-2`}>
+      <div className={`${compact ? "mt-1" : "mt-2"} flex flex-wrap items-center justify-between gap-2`}>
         <span className="flex items-center gap-2 text-xs text-muted-foreground/70">
           {item.source}
           {item.degraded && (
@@ -61,13 +60,15 @@ function NewsCard({ item, density }: { item: NewsItem; density: Density }) {
             </span>
           )}
         </span>
+        <div className="flex items-center gap-2">
+        {item.newsletterId && <Button variant="ghost" size="sm" onClick={() => onRead(item.newsletterId!)}>Full newsletter</Button>}
         {expandable && (
           <button
             onClick={() => setOpen((o) => !o)}
             aria-expanded={open}
-            className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs transition-transform duration-150 active:scale-[0.95] text-muted-foreground/70"
+            className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs transition-transform duration-150 [transition-timing-function:var(--ease-out-custom)] active:scale-[0.97] text-muted-foreground/70"
           >
-            {open ? "Less" : "More"}
+            {open ? "Less" : "Details"}
             <ChevronDown
               size={13}
               style={{
@@ -77,6 +78,7 @@ function NewsCard({ item, density }: { item: NewsItem; density: Density }) {
             />
           </button>
         )}
+        </div>
       </div>
     </Card>
   );
@@ -99,13 +101,20 @@ export default function NewsPage() {
   const [loadError, setLoadError] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [refreshArmed, setRefreshArmed] = useState(false);
-  const [density, setDensity] = useState<Density>("comfortable");
+  const [density, setDensity] = useState<Density>("compact");
+  const [view, setView] = useState<"digest" | "full">("digest");
+  const [selectedIssue, setSelectedIssue] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [source, setSource] = useState("");
+  const [bucketFilter, setBucketFilter] = useState("");
+  const [pushDevices, setPushDevices] = useState<number | null>(null);
   // generatedAt of the edition we had when generation started — polling stops
   // once GET returns something newer (or anything, if we had nothing).
   const baselineRef = useRef<string | null>(null);
   const disarmTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
+    void fetch("/api/push/subscribe").then((response) => response.json()).then((data) => setPushDevices(data.subs.length)).catch(() => {});
     const saved = window.localStorage.getItem("lifeos-news-density");
     if (saved === "compact" || saved === "comfortable") setDensity(saved);
   }, []);
@@ -181,11 +190,16 @@ export default function NewsPage() {
     generate();
   };
 
+  const visibleItems = (edition?.items ?? []).filter((item) =>
+    (!bucketFilter || item.bucket === bucketFilter) && (!source || item.source === source) &&
+    `${item.title} ${item.tldr} ${item.summary} ${item.source}`.toLowerCase().includes(search.toLowerCase())
+  );
+
   return (
-    <Page className="max-w-6xl">
+    <Page className="max-w-4xl">
       <PageHeader
         kicker="Digest"
-        title="News"
+        title="News digest"
         description={edition
           ? `${edition.items.length} article${edition.items.length === 1 ? "" : "s"} · ${edition.date}`
           : "A focused security and development digest."}
@@ -198,7 +212,7 @@ export default function NewsPage() {
               aria-label="Compact cards"
               aria-pressed={density === "compact"}
               title="Compact cards"
-              className={`rounded-md p-1.5 transition-transform duration-150 active:scale-[0.97] ${density === "compact" ? "bg-surface-3 text-foreground" : "text-muted-foreground/70"}`}
+              className={`rounded-md p-1.5 transition-transform duration-150 [transition-timing-function:var(--ease-out-custom)] active:scale-[0.97] ${density === "compact" ? "bg-surface-3 text-foreground" : "text-muted-foreground/70"}`}
             >
               <Rows3 size={15} />
             </button>
@@ -208,7 +222,7 @@ export default function NewsPage() {
               aria-label="Comfortable cards"
               aria-pressed={density === "comfortable"}
               title="Comfortable cards"
-              className={`rounded-md p-1.5 transition-transform duration-150 active:scale-[0.97] ${density === "comfortable" ? "bg-surface-3 text-foreground" : "text-muted-foreground/70"}`}
+              className={`rounded-md p-1.5 transition-transform duration-150 [transition-timing-function:var(--ease-out-custom)] active:scale-[0.97] ${density === "comfortable" ? "bg-surface-3 text-foreground" : "text-muted-foreground/70"}`}
             >
               <LayoutList size={15} />
             </button>
@@ -234,7 +248,24 @@ export default function NewsPage() {
         }
       />
 
-      {loading ? (
+      <div className="mb-6 space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4">
+          <div className="flex gap-2" role="group" aria-label="Reading view">
+            <Button variant={view === "digest" ? "default" : "outline"} aria-pressed={view === "digest"} onClick={() => setView("digest")}>Skim digest</Button>
+            <Button variant={view === "full" ? "default" : "outline"} aria-pressed={view === "full"} onClick={() => { setSelectedIssue(null); setView("full"); }}>Full newsletters</Button>
+          </div>
+          <p className="text-xs text-muted-foreground">Daily reminder from 08:00, after quiet hours. {pushDevices === 0 ? <Link className="underline" href="/settings">Enable device notifications</Link> : pushDevices !== null ? `${pushDevices} device${pushDevices === 1 ? "" : "s"} registered` : <Link className="underline" href="/settings">Notification settings</Link>}</p>
+        </div>
+        <div className="flex flex-col gap-3 sm:flex-row">
+          <label className="flex flex-1 items-center gap-2 rounded-lg border border-border px-3 py-2 focus-within:ring-2 focus-within:ring-primary/30"><Search size={16} className="text-muted-foreground" /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search headlines, topics, sources…" aria-label="Search news" className="w-full bg-transparent text-sm outline-none" /></label>
+          {view === "digest" && <>
+            <select aria-label="Filter section" value={bucketFilter} onChange={(event) => setBucketFilter(event.target.value)} className="rounded-lg border border-border bg-background px-3 py-2 text-sm"><option value="">All sections</option>{BUCKET_ORDER.map((bucket) => <option key={bucket} value={bucket}>{BUCKET_LABELS[bucket]}</option>)}</select>
+            <select aria-label="Filter source" value={source} onChange={(event) => setSource(event.target.value)} className="rounded-lg border border-border bg-background px-3 py-2 text-sm"><option value="">All sources</option>{[...new Set(edition?.items.map((item) => item.source) ?? [])].sort().map((name) => <option key={name}>{name}</option>)}</select>
+          </>}
+        </div>
+      </div>
+
+      {view === "full" ? <Newsletters search={search} initialId={selectedIssue} /> : loading ? (
         <EditionSkeleton />
       ) : loadError ? (
         <Card className="flex-col items-center justify-center gap-3 py-16 text-center">
@@ -264,22 +295,22 @@ export default function NewsPage() {
           Nothing relevant today. Refresh to regenerate the edition.
         </p>
       ) : (
-        BUCKET_ORDER.map((bucket) => {
-          const items = edition.items.filter((it) => it.bucket === bucket);
+        <>{visibleItems.length === 0 && <p className="text-sm text-muted-foreground">No stories match these filters.</p>}{BUCKET_ORDER.map((bucket) => {
+          const items = visibleItems.filter((it) => it.bucket === bucket);
           if (items.length === 0) return null;
           return (
             <section key={bucket} className="mb-6">
               <h2 className="mb-3 text-sm font-semibold text-muted-foreground">
                 {BUCKET_LABELS[bucket]} <Badge variant="secondary" className="ml-1 align-middle">{items.length}</Badge>
               </h2>
-              <div className={density === "compact" ? "space-y-2" : "grid items-start gap-4 md:grid-cols-2 xl:grid-cols-3"}>
+              <div className={density === "compact" ? "space-y-2" : "space-y-4"}>
                 {items.map((it) => (
-                  <NewsCard key={`${it.source}:${it.link}:${it.title}`} item={it} density={density} />
+                  <NewsCard key={`${it.source}:${it.link}:${it.title}`} item={it} density={density} onRead={(id) => { setSelectedIssue(id); setView("full"); window.scrollTo({ top: 0 }); }} />
                 ))}
               </div>
             </section>
           );
-        })
+        })}</>
       )}
     </Page>
   );

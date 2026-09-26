@@ -176,7 +176,10 @@ export async function POST(req: NextRequest) {
   // low never. A failed/refused endpoint prunes the subscription.
   const settings = getNotifySettings();
   const quiet = isQuietHours(new Date(), settings);
-  const decision = decidePush(level, quiet, settings, listPushSubs().length);
+  // News is an explicitly requested daily subscription. Keep quiet hours,
+  // without enabling normal pushes for unrelated streams.
+  const pushSettings = stream === "news" ? { ...settings, pushNormal: true } : settings;
+  const decision = decidePush(level, quiet, pushSettings, listPushSubs().length);
   let pushOutcome: ChannelOutcome = decision === "send" ? "error" : decision;
   let pushInfo: string | undefined;
   if (decision === "send") {

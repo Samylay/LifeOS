@@ -30,6 +30,7 @@ export interface NewsItem {
   // the page, so it must be machine-visible: the `news-split-healthy`
   // standing goal fails the edition on any item carrying this.
   degraded?: boolean;
+  newsletterId?: string;
 }
 
 // Cap for NewsItem.tldr. The prompt asks for one sentence under this; the
@@ -44,12 +45,13 @@ export interface Edition {
 
 export const FEEDS_COLLECTION = "news_feeds";
 export const EDITIONS_COLLECTION = "news_editions";
+export const ISSUES_COLLECTION = "news_issues";
 export const INBOX_COLLECTION = "news_inbox";
 
 // A newsletter email delivered by the Cloudflare Email Worker to
 // /api/news/ingest-email. Treated by the next runNews() pass (summarised +
-// scored like any other source, bucket "news"), then deleted — the digest
-// keeps the summary, the raw email does not linger. See docs/news-aggregator.md.
+// scored like any other source, bucket "news"). Full text is retained in
+// news_issues before the processing inbox entry is removed.
 export interface InboxItem {
   id: string;
   from: string; // sender address

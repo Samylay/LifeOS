@@ -9,7 +9,7 @@ import type { NextRequest } from "next/server";
 const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "lifeos-notify-test-"));
 process.env.LIFEOS_DB_PATH = path.join(tmpDir, "test.db");
 
-const { createDoc } = await import("@/lib/server-db");
+const { createDoc, setDoc } = await import("@/lib/server-db");
 const { GET, POST } = await import("./route");
 
 const COLLECTION = "users/local/notifications";
@@ -108,4 +108,13 @@ describe("POST /api/notify deep-link path", () => {
     expect(await storedPath("bad path 2", { path: "//evil.example/x" })).toBe("/pager");
     expect(await storedPath("bad path 3", { path: "/pri me" })).toBe("/pager");
   });
+});
+
+
+it("allows requested news pushes while other normal streams remain off", async () => {
+  setDoc("users/local/settings", "notify", { quietStart: "00:00", quietEnd: "00:00", tz: "Europe/Paris", pushNormal: false });
+  const news = await (await post({ text: "News routing check", stream: "news", severity: "normal" })).json();
+  expect(news.push).toBe("no-subs");
+  const system = await (await post({ text: "System routing check", stream: "system", severity: "normal" })).json();
+  expect(system.push).toBe("skipped");
 });

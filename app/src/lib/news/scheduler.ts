@@ -3,6 +3,7 @@
 // the catch-up path never regenerate an existing edition. Kept a couple of
 // hours before the 06:00 brief so today's edition is ready when the brief
 // card reads it.
+import { notifyDailyNews } from "./notifications";
 import { runNews } from "./engine";
 import { BRIEF_TZ, isPastHourInTz, msUntilNextRun } from "@/lib/brief/tz";
 
@@ -41,4 +42,11 @@ export function startNewsScheduler() {
 
   if (isPastHourInTz(RUN_HOUR)) void runSafely("catch-up");
   scheduleNext();
+  // Pick up emails arriving after the morning edition, and retry delivery.
+  const poll = setInterval(async () => {
+    await runSafely("arrival check");
+    try { await notifyDailyNews(); } catch (error) { log(`notification retry: ${error}`); }
+  }, 5 * 60_000);
+  poll.unref();
+  void notifyDailyNews().catch((error) => log(`notification catch-up: ${error}`));
 }
