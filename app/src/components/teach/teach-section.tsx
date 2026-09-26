@@ -293,13 +293,13 @@ export function TeachSection() {
           <Button onClick={() => void load()} size="sm" variant="secondary" className="shrink-0">Retry</Button>
         </div>
       ) : (
-      <ul className="space-y-2">
+      <ul className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
         {topics
           .filter((t) => t.status !== "done")
           .map((t) =>
             t.status === "needs-mission" ? (
-              <li key={t.id} className="space-y-2 rounded-lg bg-muted px-3 py-2">
-                <p className="truncate text-sm text-foreground">{t.topic}</p>
+              <li key={t.id} className="topic-node space-y-2">
+                <p className="text-sm font-medium text-foreground">{t.topic}</p>
                 <p className="text-xs text-muted-foreground/70">
                   queued from chat — needs a why before it&apos;s active
                 </p>
@@ -319,11 +319,12 @@ export function TeachSection() {
                 </Button>
               </li>
             ) : (
-              <li key={t.id} className="rounded-lg bg-muted px-3 py-2">
+              <li key={t.id} className="topic-node">
                 <div className="flex items-center gap-2">
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm text-foreground">{t.topic}</p>
-                    <p className="line-clamp-2 text-xs text-muted-foreground">
+                    <p className="text-sm font-medium text-foreground">{t.topic}</p>
+                    {t.mission && <p className="mt-1 text-xs text-muted-foreground">{t.mission}</p>}
+                    <p className="mt-2 text-xs text-muted-foreground">
                       {t.status === "scheduled" && t.scheduledFor ? `session ${t.scheduledFor} · ` : ""}
                       {(() => {
                         const r = lastRecord(t.learningRecords);
@@ -352,7 +353,7 @@ export function TeachSection() {
                   </Button>
                 </div>
                 {pickingId === t.id && busyId !== t.id && (
-                  <div className="enter mt-2 flex items-center gap-2">
+                  <div className="enter mt-3 flex flex-wrap items-center gap-2">
                     <span className="text-xs text-muted-foreground">How many exchanges?</span>
                     {TURN_BUDGET_OPTIONS.map((n) => (
                       <button

@@ -1,17 +1,21 @@
 "use client";
 
-import { useEffect } from "react";
+import { PreparedMaterials } from "@/components/workflows/workflow-links";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Dumbbell } from "lucide-react";
+import { Dumbbell, CalendarDays, Activity, Utensils } from "lucide-react";
 import { useGarmin } from "@/lib/use-garmin";
 import TrainingAnalytics from "@/components/training-analytics";
 import { StrengthCard } from "@/components/strength-card";
 import { ProgramCard } from "@/components/program-card";
 import { NutritionCard } from "@/components/nutrition-card";
+import { FlowSelector } from "@/components/workspace/visual-navigation";
 import { Page, PageHeader } from "@/components/ui/page";
 
 export default function TrainingPage() {
   const garmin = useGarmin();
+  const [view, setView] = useState("program");
 
   // Probe Garmin on mount: the workout list itself comes from Strava (below),
   // but this keeps HR/sleep syncing warm and detects an expired session.
@@ -41,25 +45,21 @@ export default function TrainingPage() {
         </div>
       )}
 
-      {/* Calories in (MyFitnessPal → Garmin) and the day's weigh-in */}
-      <div className="enter" style={{ ["--enter-delay" as string]: "30ms" }}>
+      <PreparedMaterials />
+      <FlowSelector label="Training view" value={view} onChange={setView} options={[
+        { id: "program", label: "Your program", icon: CalendarDays },
+        { id: "activity", label: "Activity", icon: Activity },
+        { id: "strength", label: "Strength", icon: Dumbbell },
+        { id: "nutrition", label: "Nutrition", icon: Utensils },
+      ]} />
+      <section hidden={view !== "program"} aria-label="Weekly training program"><ProgramCard /></section>
+      <section hidden={view !== "activity"} aria-label="Activity and recovery"><TrainingAnalytics /></section>
+      <section hidden={view !== "strength"} aria-label="Strength training"><StrengthCard /></section>
+      <section hidden={view !== "nutrition"} aria-label="Nutrition">
         <NutritionCard />
-      </div>
-
-      {/* Analytics (Strava) */}
-      <div className="enter" style={{ ["--enter-delay" as string]: "60ms" }}>
-        <TrainingAnalytics />
-      </div>
-
-      {/* Strength focus (folded in from the retired /strength route) */}
-      <div className="enter" style={{ ["--enter-delay" as string]: "90ms" }}>
-        <StrengthCard />
-      </div>
-
-      {/* Weekly PPLPPL program — per-exercise weight tracking */}
-      <div className="enter" style={{ ["--enter-delay" as string]: "120ms" }}>
-        <ProgramCard />
-      </div>
+        {!garmin.connection.connected && <p className="rounded-xl border border-border bg-card p-6 text-sm text-muted-foreground">Connect Garmin in Settings to see nutrition and weight.</p>}
+        <Link href="/recipes" className="mt-4 inline-flex items-center gap-2 rounded-lg border border-border px-4 py-3 text-sm pressable active:scale-[0.97]"><Utensils size={16} /> Choose a recipe →</Link>
+      </section>
     </Page>
   );
 }

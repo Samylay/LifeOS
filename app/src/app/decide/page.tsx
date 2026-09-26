@@ -120,7 +120,7 @@ function DecideInner() {
   // the study step's proposal.
   const actionFor = useCallback(
     (item: TriageQueueItem): Action | null => {
-      const action = overrides[item.id] ?? proposedAction(item);
+      const action = overrides[item.id] ?? (/^https?:\/\//i.test(item.url) ? { id: "homelab-develop", params: {} } as const : proposedAction(item));
       return action && isPerformable(action) ? action : null;
     },
     [overrides],

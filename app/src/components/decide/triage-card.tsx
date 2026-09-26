@@ -56,6 +56,7 @@ export interface TriageQueueItem {
 }
 
 const ACTION_ICONS: Record<ActionId, LucideIcon> = {
+  "homelab-develop": Lightbulb,
   "homelab-skill": Wrench,
   "homelab-reference": Bookmark,
   "file-vault": Archive,

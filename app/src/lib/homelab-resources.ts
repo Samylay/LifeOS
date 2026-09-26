@@ -1,3 +1,4 @@
+import { startWorkflow, cancelUnstartedForItem } from "./workflows/store";
 import { createHash } from "node:crypto";
 import { createDoc, deleteDoc, getDoc, listDocs, runInTransaction, setDoc, updateDoc } from "@/lib/server-db";
 import type { HomelabAction } from "@/lib/decide/homelab-actions";
@@ -37,7 +38,11 @@ export function performHomelabAction(item: Record<string, unknown>, action: Home
   return runInTransaction(() => {
     let artifact: Record<string, unknown>;
     let outcome: string;
-    if (action.id === "homelab-skill") {
+    if (action.id === "homelab-develop") {
+      const run = startWorkflow(id);
+      artifact = { workflowRunId: run.id };
+      outcome = run.state === "awaiting-extraction" ? "Accepted. Extraction will run before the workflow." : "Workflow started. Results will appear in Workflows.";
+    } else if (action.id === "homelab-skill") {
       const prompt = skillInstallInstruction(id);
       const existing = listDocs(PROMPTS, { where: [["itemId", "==", id], ["status", "==", "queued"]] });
       if (existing.some((q) => q.origin !== "homelab-skill")) throw new Error("This item already has queued instructions. Review them in Send to Codex.");
@@ -69,6 +74,7 @@ export function performHomelabAction(item: Record<string, unknown>, action: Home
 
 /** Undo only our own artifact, never a dispatched installation or another source's reference. */
 export function undoHomelabAction(item: Record<string, unknown>) {
+  if (item.filedAs === "homelab-develop") cancelUnstartedForItem(String(item.id));
   if (item.filedAs === "homelab-skill" && typeof item.homelabPromptId === "string") {
     const prompt = getDoc(PROMPTS, item.homelabPromptId);
     if (prompt && (prompt.status !== "queued" || prompt.origin !== "homelab-skill" || prompt.itemId !== item.id)) throw new Error("The installation request has already been sent. It cannot be undone here.");

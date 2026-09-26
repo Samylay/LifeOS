@@ -1,5 +1,7 @@
 "use client";
 
+import { WorkflowInboxLink } from "@/components/workflows/workflow-links";
+
 // /decide/approvals — NEEDS-USER asks aggregated from every ROADMAP.md, on
 // their own surface (T-decide-rework-07). An agent asking permission and Samy
 // sorting inbound bookmarks are different interruptions, so they no longer
@@ -68,6 +70,7 @@ export default function ApprovalsPage() {
         ← Saved items
       </Link>
 
+      <WorkflowInboxLink />
       {loading ? (
         <div className="shimmer rounded-xl bg-card p-10 text-center text-sm text-muted-foreground">
           loading approvals…

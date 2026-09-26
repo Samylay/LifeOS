@@ -61,7 +61,7 @@ export default function LeadsPage() {
   const { leads, loading, cap, lastDeliveredAt, setOutcome, pass, remove } = useLeads();
 
   return (
-    <Page narrow>
+    <Page className="max-w-5xl">
       <PageHeader
         kicker="Pipeline"
         title="Leads"
@@ -81,7 +81,7 @@ export default function LeadsPage() {
       ) : leads.length === 0 ? (
         <EmptySurface lastDeliveredAt={lastDeliveredAt} />
       ) : (
-        <div className="space-y-3">
+        <div className="grid items-start gap-4 lg:grid-cols-2">
           {leads.map((lead) => (
             <LeadCard key={lead.id} lead={lead} onOutcome={setOutcome} onPass={pass} onRemove={remove} />
           ))}

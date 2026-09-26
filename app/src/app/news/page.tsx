@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { RefreshCw, ExternalLink, ChevronDown, Settings2, Sparkles, Rows3, LayoutList } from "lucide-react";
+import { RefreshCw, ExternalLink, ChevronDown, Settings2, Sparkles, Rows3, LayoutList, Newspaper, Code2, Shield, Play } from "lucide-react";
 import { BUCKET_LABELS, type Bucket, type Edition, type NewsItem } from "@/lib/news/types";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Page, PageHeader } from "@/components/ui/page";
 import { Skeleton } from "@/components/ui/skeleton";
 
+const BUCKET_ICONS = { news: Newspaper, tech: Code2, sec: Shield, video: Play };
 const BUCKET_ORDER: Bucket[] = ["news", "tech", "sec", "video"];
 
 const POLL_MS = 20_000;
@@ -21,6 +22,7 @@ type Density = "compact" | "comfortable";
 function NewsCard({ item, density }: { item: NewsItem; density: Density }) {
   const [open, setOpen] = useState(false);
   const compact = density === "compact";
+  const Icon = BUCKET_ICONS[item.bucket];
   const line = item.tldr || item.summary;
   // Nothing more to reveal when the summary adds nothing over the one-liner.
   const expandable = Boolean(item.summary) && item.summary !== line;
@@ -29,6 +31,7 @@ function NewsCard({ item, density }: { item: NewsItem; density: Density }) {
     <Card
       className={`${compact ? "p-3" : "p-4"} gap-0 border-l-2 ${item.score >= 5 ? "border-l-primary" : "border-l-border"}`}
     >
+      {!compact && <div className="mb-4 flex items-center gap-3 border-b border-border pb-4"><span className="grid size-11 place-items-center rounded-full border border-border bg-background text-chart-4"><Icon size={21} strokeWidth={1.5} /></span><div><p className="text-xs font-medium">{item.source}</p><p className="text-xs text-muted-foreground">{BUCKET_LABELS[item.bucket]}</p></div></div>}
       <a
         href={item.link}
         target="_blank"
@@ -96,7 +99,7 @@ export default function NewsPage() {
   const [loadError, setLoadError] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [refreshArmed, setRefreshArmed] = useState(false);
-  const [density, setDensity] = useState<Density>("compact");
+  const [density, setDensity] = useState<Density>("comfortable");
   // generatedAt of the edition we had when generation started — polling stops
   // once GET returns something newer (or anything, if we had nothing).
   const baselineRef = useRef<string | null>(null);
@@ -179,7 +182,7 @@ export default function NewsPage() {
   };
 
   return (
-    <Page narrow>
+    <Page className="max-w-6xl">
       <PageHeader
         kicker="Digest"
         title="News"
@@ -269,7 +272,7 @@ export default function NewsPage() {
               <h2 className="mb-3 text-sm font-semibold text-muted-foreground">
                 {BUCKET_LABELS[bucket]} <Badge variant="secondary" className="ml-1 align-middle">{items.length}</Badge>
               </h2>
-              <div className="space-y-3">
+              <div className={density === "compact" ? "space-y-2" : "grid items-start gap-4 md:grid-cols-2 xl:grid-cols-3"}>
                 {items.map((it) => (
                   <NewsCard key={`${it.source}:${it.link}:${it.title}`} item={it} density={density} />
                 ))}

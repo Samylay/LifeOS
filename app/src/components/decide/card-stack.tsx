@@ -198,7 +198,7 @@ export function CardStack<T extends { id: string }>({
   const onPointerDown = (e: React.PointerEvent) => {
     if (busy || !top) return;
     // Let links/buttons inside the card work untouched.
-    if ((e.target as HTMLElement).closest("a,button,input,textarea,select,summary,[contenteditable]")) return;
+    if ((e.target as HTMLElement).closest("a,button,input,textarea,select,summary,video,audio,[contenteditable]")) return;
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     cardWidthRef.current = (e.currentTarget as HTMLElement).offsetWidth || 360;
     gestureRef.current = {

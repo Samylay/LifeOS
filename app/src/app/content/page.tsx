@@ -10,12 +10,15 @@ import {
   Check,
   Loader2,
   Download,
-  AlertTriangle,
+  Lightbulb,
+  Camera,
+  CircleCheck,
   ArrowRight,
 } from "lucide-react";
 import { useContentIdeas } from "@/lib/use-content";
 import { useToast } from "@/components/toast";
 import { ConfirmDialog } from "@/components/confirm-dialog";
+import { FlowSelector } from "@/components/workspace/visual-navigation";
 import { Page, PageHeader } from "@/components/ui/page";
 import { Skeleton } from "@/components/skeleton";
 import type { ContentIdea, ContentIdeaStatus, ContentPillar } from "@/lib/types";
@@ -249,6 +252,7 @@ function IdeaBank() {
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [pillarFilter, setPillarFilter] = useState<ContentPillar | "all">("all");
   const [hidePosted, setHidePosted] = useState(false);
+  const [stageFilter, setStageFilter] = useState("all");
   const [seeding, setSeeding] = useState(false);
   const [showAll, setShowAll] = useState(false);
   const { types, hooks, addType, updateType, addHook, updateHook } = useContentCatalog();
@@ -292,13 +296,19 @@ function IdeaBank() {
 
 
   const visible = ideas.filter(
-    (i) => (pillarFilter === "all" || i.pillar === pillarFilter) && (!hidePosted || statusOf(i) !== "posted")
+    (i) => (pillarFilter === "all" || i.pillar === pillarFilter) && (!hidePosted || statusOf(i) !== "posted") && (stageFilter === "all" || statusOf(i) === stageFilter)
   );
   const shown = showAll ? visible : visible.slice(0, 25);
   const unscripted = ideas.filter((i) => statusOf(i) === "idea").length;
 
   return (
     <div className="space-y-4">
+      <FlowSelector label="Content stage" value={stageFilter} onChange={(id) => { setStageFilter(id); if (id === "posted") setHidePosted(false); setShowAll(false); }} options={[
+        { id: "all", label: "All ideas", count: ideas.length, icon: Clapperboard },
+        { id: "idea", label: "Develop", count: ideas.filter((i) => statusOf(i) === "idea").length, icon: Lightbulb },
+        { id: "ready", label: "Ready to film", count: ideas.filter((i) => statusOf(i) === "ready").length, icon: Camera },
+        { id: "posted", label: "Published", count: ideas.filter((i) => statusOf(i) === "posted").length, icon: CircleCheck },
+      ]} />
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-1.5 flex-wrap">
           <button
@@ -327,7 +337,7 @@ function IdeaBank() {
             );
           })}
           <label className="flex items-center gap-1.5 text-xs ml-2 text-muted-foreground/70">
-            <Checkbox checked={hidePosted} onCheckedChange={(v) => setHidePosted(v === true)} />
+            <Checkbox checked={hidePosted} onCheckedChange={(v) => { setHidePosted(v === true); if (v === true && stageFilter === "posted") setStageFilter("all"); }} />
             hide posted
           </label>
           <button
@@ -361,18 +371,7 @@ function IdeaBank() {
         </div>
       </div>
 
-      {unscripted < 12 && (
-        <div className="flex items-center gap-3 flex-wrap rounded-xl px-4 py-3 text-sm bg-warning/10 text-muted-foreground border border-warning/25">
-          <AlertTriangle size={16} className="text-warning shrink-0" />
-          <span className="flex-1 min-w-0">
-            Bank rule: {unscripted} unscripted idea{unscripted === 1 ? "" : "s"} left (floor is 12). Run a 20-min
-            brainstorm against the hook formulas.
-          </span>
-          <Button size="sm" variant="secondary" onClick={() => setCreating(true)} className="gap-1.5 text-xs shrink-0">
-            <Plus size={13} /> Add idea
-          </Button>
-        </div>
-      )}
+      <p className="text-xs text-muted-foreground">{unscripted} ideas to develop. Open a card to write or explore an angle.</p>
 
       {creating && (
         <IdeaEditor
@@ -418,7 +417,8 @@ function IdeaBank() {
         </Card>
       )}
 
-      <div className="space-y-2">
+      {ideas.length > 0 && visible.length === 0 && <div className="rounded-xl border border-dashed border-border p-6 text-center"><p className="text-sm text-muted-foreground">No ideas match these filters.</p><Button variant="ghost" className="mt-2" onClick={() => { setStageFilter("all"); setPillarFilter("all"); setHidePosted(false); }}>Show all ideas</Button></div>}
+      <div className="grid items-start gap-4 lg:grid-cols-2">
         {shown.map((idea) =>
           editingId === idea.id ? (
             <IdeaEditor
@@ -500,7 +500,9 @@ function IdeaBank() {
                   previously-scripted idea is deliberately NOT rendered: the
                   premise of this rework is that he never sees a postable
                   draft. The data is kept, just not shown. */}
-              <div className="mt-3">
+              <details className="mt-3 border-t border-border pt-3">
+                <summary className="cursor-pointer text-xs font-medium text-muted-foreground pressable active:scale-[0.97]">Write & explore{idea.body ? " · draft saved" : ""}</summary>
+                <div className="mt-3">
                 <IdeaBody
                   key={idea.id}
                   ideaId={idea.id}
@@ -521,7 +523,8 @@ function IdeaBank() {
                   onAcceptType={(key) =>
                     updateIdea(idea.id, { pillar: key as ContentPillar })}
                 />
-              </div>
+                </div>
+              </details>
             </Card>
           )
         )}
@@ -550,7 +553,7 @@ function IdeaBank() {
 
 export default function ContentPage() {
   return (
-    <Page>
+    <Page className="max-w-6xl">
       <PageHeader
         kicker="Publish"
         title="Content OS"

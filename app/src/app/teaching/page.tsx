@@ -1,0 +1,55 @@
+"use client";
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { ArrowDown, ArrowUp, BookOpen, GraduationCap, Plus, Save, Trash2 } from "lucide-react";
+import { toast } from "sonner";
+import { Page, PageHeader } from "@/components/ui/page";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { PreparedMaterials } from "@/components/workflows/workflow-links";
+interface Module { id: string; title: string; objective: string; exercise: string; evidence: string; sources: string }
+interface Curriculum { title: string; audience: string; promise: string; outcome: string; modules: Module[] }
+const DRAFT_KEY = "lifeos-teaching-draft";
+const empty: Curriculum = { title: "", audience: "", promise: "", outcome: "", modules: [] };
+export default function TeachingPage() {
+  const [course, setCourse] = useState<Curriculum>(empty); const [revision, setRevision] = useState(0);
+  const [loading, setLoading] = useState(true); const [error, setError] = useState(""); const [busy, setBusy] = useState(false); const [dirty, setDirty] = useState(false);
+  const [focus, setFocus] = useState<string | null>(null);
+  useEffect(() => {
+    let draft: { course: Curriculum; revision: number } | null = null;
+    try { const saved = JSON.parse(localStorage.getItem(DRAFT_KEY) || "null"); if (saved?.course && Array.isArray(saved.course.modules) && typeof saved.revision === "number") draft = saved; } catch {}
+    if (draft) { setCourse(draft.course); setRevision(draft.revision); setDirty(true); }
+    fetch("/api/teaching").then((r) => { if (!r.ok) throw new Error("Could not load your course"); return r.json(); }).then((data) => { if (draft) { if (draft.revision !== (data.curriculum?.revision || 0)) setError("Your local draft is preserved. The saved course changed elsewhere. Download your draft or load the saved version below."); } else if (data.curriculum) { setCourse(data.curriculum); setRevision(data.curriculum.revision); } }).catch((e) => setError(e.message)).finally(() => setLoading(false)); }, []);
+  useEffect(() => { if (!dirty) return; const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ""; }; window.addEventListener("beforeunload", warn); return () => window.removeEventListener("beforeunload", warn); }, [dirty]);
+  useEffect(() => { if (!loading && dirty) { try { localStorage.setItem(DRAFT_KEY, JSON.stringify({ course, revision })); } catch { setError("Browser storage is unavailable. Save your course before leaving this page."); } } }, [course, revision, dirty, loading]);
+  const change = (patch: Partial<Curriculum>) => { setCourse((c) => ({ ...c, ...patch })); setDirty(true); };
+  const current = course.modules.find((m) => m.id === focus) || course.modules[0];
+  function moduleChange(patch: Partial<Module>) { if (current) change({ modules: course.modules.map((m) => m.id === current.id ? { ...m, ...patch } : m) }); }
+  function addModule() { const lessonModule = { id: crypto.randomUUID(), title: "", objective: "", exercise: "", evidence: "", sources: "" }; change({ modules: [...course.modules, lessonModule] }); setFocus(lessonModule.id); }
+  function move(direction: number) { const at = course.modules.findIndex((m) => m.id === current?.id); const to = at + direction; if (at < 0 || to < 0 || to >= course.modules.length) return; const next = [...course.modules]; [next[at], next[to]] = [next[to], next[at]]; change({ modules: next }); }
+  function downloadDraft() { const url = URL.createObjectURL(new Blob([JSON.stringify(course, null, 2)], { type: "application/json" })); const link = document.createElement("a"); link.href = url; link.download = "teaching-draft.json"; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000); }
+  async function loadSaved() {
+    setBusy(true);
+    try {
+      const response = await fetch("/api/teaching"); if (!response.ok) throw new Error("Could not load saved course"); const data = await response.json();
+      if (dirty) { localStorage.setItem(`${DRAFT_KEY}-backup`, JSON.stringify({ course, revision })); downloadDraft(); }
+      localStorage.removeItem(DRAFT_KEY); setCourse(data.curriculum || empty); setRevision(data.curriculum?.revision || 0); setDirty(false); setError("");
+      toast.success("Saved version loaded. Your previous draft was preserved.");
+    } catch (e) { setError(e instanceof Error ? e.message : "Could not load saved course. Your draft is still here."); } finally { setBusy(false); }
+  }
+  async function save() { setBusy(true); setError(""); try { const response = await fetch("/api/teaching", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ curriculum: course, revision }) }); const data = await response.json(); if (!response.ok) throw new Error(data.error); setRevision(data.revision); setDirty(false); try { localStorage.removeItem(DRAFT_KEY); } catch {} toast.success("Course saved"); } catch (e) { setError(e instanceof Error ? e.message : "Could not save"); } finally { setBusy(false); } }
+  return <Page className="max-w-6xl"><PageHeader kicker="For the people you teach" title="Teaching studio" description="Define the promise, build the learning path, and decide what will demonstrate understanding." icon={GraduationCap} actions={<Button disabled={busy || loading || !dirty} onClick={() => void save()}><Save size={15} />{busy ? "Saving…" : dirty ? "Save changes" : "Saved"}</Button>} />
+    {error && <section className="rounded-lg border border-warning/30 p-3 text-sm"><p role="alert">{error}</p><div className="mt-3 flex flex-wrap gap-2"><Button size="sm" variant="outline" onClick={downloadDraft}>Download local draft</Button><Button size="sm" variant="outline" disabled={busy || loading} onClick={() => void loadSaved()}>Load saved version</Button></div></section>}
+    {loading ? <p role="status" className="p-6 text-sm text-muted-foreground">Loading your teaching workspace…</p> : <fieldset disabled={busy} className="space-y-5">
+      <section className="grid gap-4 rounded-2xl border border-border bg-card p-5 lg:grid-cols-2"><label className="space-y-2 text-xs font-medium">Course or workshop<Input value={course.title} maxLength={200} onChange={(e) => change({ title: e.target.value })} placeholder="What are you teaching?" /></label><label className="space-y-2 text-xs font-medium">Who is it for?<Input value={course.audience} maxLength={2000} onChange={(e) => change({ audience: e.target.value })} placeholder="Starting knowledge, context, and constraints" /></label><label className="space-y-2 text-xs font-medium">The promise<Textarea value={course.promise} maxLength={3000} onChange={(e) => change({ promise: e.target.value })} placeholder="What changes for the learner?" /></label><label className="space-y-2 text-xs font-medium">Demonstrate it<Textarea value={course.outcome} maxLength={3000} onChange={(e) => change({ outcome: e.target.value })} placeholder="What should they be able to do on their own?" /></label></section>
+      <div className="grid items-start gap-5 lg:grid-cols-[260px_minmax(0,1fr)]"><section><div className="mb-3 flex items-center justify-between gap-2"><h2 className="text-sm font-medium">Learning path</h2><Button variant="ghost" size="sm" onClick={addModule} disabled={course.modules.length >= 40}><Plus size={15} />Module</Button></div><ol className="course-path space-y-2">{course.modules.map((m, index) => <li key={m.id}><button onClick={() => setFocus(m.id)} aria-pressed={current?.id === m.id} className={`flex w-full items-center gap-3 rounded-xl border p-3 text-left transition-transform duration-[var(--dur-fast)] ease-[var(--ease-out-custom)] active:scale-[0.97] ${current?.id === m.id ? "border-primary/40 bg-secondary" : "border-border bg-card"}`}><span className="grid size-8 shrink-0 place-items-center rounded-full border border-border font-mono text-xs">{index+1}</span><span className="text-sm">{m.title || "Untitled module"}</span></button></li>)}</ol>{course.modules.length === 0 && <p className="rounded-xl border border-dashed border-border p-4 text-sm text-muted-foreground">Start with one thing the learner should be able to do.</p>}</section>
+        {current ? <section className="space-y-4 rounded-2xl border border-border bg-card p-5"><div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-sm font-medium">Module design</h2><div className="flex gap-1"><Button variant="ghost" size="icon" aria-label="Move module earlier" disabled={course.modules[0]?.id === current.id} onClick={() => move(-1)}><ArrowUp size={15} /></Button><Button variant="ghost" size="icon" aria-label="Move module later" disabled={course.modules.at(-1)?.id === current.id} onClick={() => move(1)}><ArrowDown size={15} /></Button><Button variant="ghost" size="icon" aria-label="Remove module" onClick={() => { const removed = current; const at = course.modules.indexOf(current); change({ modules: course.modules.filter((m) => m.id !== current.id) }); toast("Module removed", { action: { label: "Undo", onClick: () => { setCourse((c) => { if (c.modules.some((m) => m.id === removed.id)) return c; const modules = [...c.modules]; modules.splice(at, 0, removed); return { ...c, modules }; }); setDirty(true); } } }); }}><Trash2 size={15} /></Button></div></div>
+        <label className="block space-y-2 text-xs font-medium">Name<Input value={current.title} maxLength={200} onChange={(e) => moduleChange({ title: e.target.value })} /></label>
+        {([["objective", "Learn", "What can they do after this module?"], ["exercise", "Practise", "A concrete exercise that makes them use it"], ["evidence", "Show understanding", "What observable result demonstrates learning?"], ["sources", "Material and references", "Links, source notes, and what each contributes"]] as const).map(([key,label,placeholder]) => <label key={key} className="block space-y-2 text-xs font-medium">{label}<Textarea value={current[key]} maxLength={key === "exercise" || key === "sources" ? 6000 : 3000} onChange={(e) => moduleChange({ [key]: e.target.value })} placeholder={placeholder} className="min-h-24" /></label>)}</section> : <div className="grid min-h-72 place-items-center rounded-2xl border border-dashed border-border p-8 text-center"><div><BookOpen size={30} className="mx-auto mb-4 text-muted-foreground" /><h2 className="text-lg font-medium">From what you know to what they can do</h2><p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">Each module connects a learning objective, an exercise, and evidence of understanding.</p><Button className="mt-5" variant="outline" onClick={addModule}><Plus size={15} />Build the first module</Button></div></div>}
+      </div>
+    </fieldset>}
+    <PreparedMaterials area="/teaching" />
+    <Link href="/review?topic=teaching_ai" className="inline-flex min-h-10 items-center gap-2 text-sm text-muted-foreground underline">Your teaching notes and how they were interpreted</Link>
+  </Page>;
+}

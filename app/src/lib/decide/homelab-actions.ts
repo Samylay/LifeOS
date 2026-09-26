@@ -4,12 +4,13 @@ import {
   type Action as FilingAction, type ActionSubject,
 } from "./actions";
 
-export type HomelabAction = { id: "homelab-skill" | "homelab-reference"; params: Record<string, never> };
+export type HomelabAction = { id: "homelab-skill" | "homelab-reference" | "homelab-develop"; params: Record<string, never> };
 export type Action = FilingAction | HomelabAction;
 export type ActionId = Action["id"];
 /** Only this exact destination can propose a reference save. Skill installs
  * remain manual choices, and proposal text never becomes action parameters. */
 export function proposedAction(item: ActionSubject): Action | null {
+  if (item.proposal?.destination?.trim() === "workflow") return { id: "homelab-develop", params: {} };
   if (item.proposal?.destination?.trim() === "homelab-reference") {
     try {
       const url = new URL(item.url ?? "");
@@ -21,14 +22,15 @@ export function proposedAction(item: ActionSubject): Action | null {
 }
 
 export function isHomelabAction(action: Action): action is HomelabAction {
-  return action.id === "homelab-skill" || action.id === "homelab-reference";
+  return action.id === "homelab-skill" || action.id === "homelab-reference" || action.id === "homelab-develop";
 }
 export function isPerformable(action: Action): boolean { return isHomelabAction(action) || canFile(action); }
 export function actionKey(action: Action): string { return isHomelabAction(action) ? action.id : filingKey(action); }
 export function actionLabel(action: Action): string {
-  return action.id === "homelab-skill" ? "Queue skill install" : action.id === "homelab-reference" ? "Save UI reference" : filingLabel(action as FilingAction);
+  return action.id === "homelab-develop" ? "Develop this idea" : action.id === "homelab-skill" ? "Queue skill install" : action.id === "homelab-reference" ? "Save UI reference" : filingLabel(action as FilingAction);
 }
 export function describeEffect(action: Action, item: ActionSubject, options?: { compact?: boolean }): string {
+  if (action.id === "homelab-develop") return "Extract this source and prepare the most relevant result automatically. Review results before any install or integration.";
   if (action.id === "homelab-skill") return "Queue an install request for Codex. Start it from Send to Codex.";
   if (action.id === "homelab-reference") return "Save for future UI work. Relevant requests will bring it back.";
   return filingEffect(action as FilingAction, item, options);
@@ -36,7 +38,7 @@ export function describeEffect(action: Action, item: ActionSubject, options?: { 
 export function selectableDecideActions(item: ActionSubject, current?: Action | null): Action[] {
   const options: Action[] = selectableActions(item, current && !isHomelabAction(current) ? current : null);
   if (item.url && /^https?:\/\//i.test(item.url)) options.push(
-    { id: "homelab-skill", params: {} }, { id: "homelab-reference", params: {} },
+    { id: "homelab-develop", params: {} }, { id: "homelab-skill", params: {} }, { id: "homelab-reference", params: {} },
   );
   return options;
 }
@@ -44,7 +46,7 @@ export function selectableDecideActions(item: ActionSubject, current?: Action | 
 // equally closed boundary, accepting no instruction, URL, or caller metadata.
 export function parseDecideAction(body: unknown): Action | null {
   if (typeof body === "object" && body !== null && "action" in body &&
-      (body.action === "homelab-skill" || body.action === "homelab-reference")) {
+      (body.action === "homelab-skill" || body.action === "homelab-reference" || body.action === "homelab-develop")) {
     return { id: body.action, params: {} };
   }
   return parseActionRequest(body);

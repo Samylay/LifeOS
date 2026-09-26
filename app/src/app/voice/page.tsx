@@ -1,7 +1,8 @@
 "use client";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ArrowRight, Mic, Settings2, Square, RotateCcw, Volume2 } from "lucide-react";
+import { ArrowRight, Mic, Settings2, Square, RotateCcw, Volume2, MessageCircle, BookOpen, Presentation } from "lucide-react";
+import { FlowSelector } from "@/components/workspace/visual-navigation";
 import { Page, PageHeader } from "@/components/ui/page";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -104,10 +105,10 @@ export default function FluencyPage() {
     <PageHeader kicker="Speak · reflect · repeat" title="Fluency studio" description="Make room for more speaking reps. One useful adjustment at a time." actions={<div className="flex gap-2"><Button asChild variant="outline"><Link href="/voice/capture">Quick capture</Link></Button><Button asChild variant="outline"><Link href="/settings/fluency"><Settings2 size={16} />Manage practice</Link></Button></div>} />
     {error && <p role="alert" className="mb-4 text-sm text-destructive">{error} <Button variant="ghost" onClick={() => void load()}>Retry</Button></p>}
     {!data ? <p role="status" className="p-6 text-muted-foreground">Loading your practice…</p> : <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
-      <div className="space-y-5"><div className="flex flex-wrap gap-2">{(Object.keys(BLOCKS) as Block[]).map(b => <Button key={b} variant={block === b ? "default" : "outline"} onClick={() => { setBlock(b); setSelected(""); }}>{BLOCKS[b]}</Button>)}</div>
+      <div className="space-y-5"><FlowSelector label="Speaking practice" value={block} onChange={(id) => { setBlock(id as Block); setSelected(""); }} options={(Object.keys(BLOCKS) as Block[]).map((id, index) => ({ id, label: BLOCKS[id], icon: [MessageCircle, BookOpen, Presentation][index % 3] }))} />
         <section className={`${panel} enter`}><p className="text-xs uppercase tracking-widest text-primary">{data.preferences.language === "en" ? "English" : "French"} · about 7 minutes</p><h2 className="mt-5 text-2xl font-semibold tracking-tight">{material?.title || "Your practice library is ready to grow"}</h2><p className="my-5 text-lg leading-relaxed">{material?.prompt || "Add an exercise for this language and block in Manage practice."}</p><p className="mb-6 text-sm text-muted-foreground">{selected ? `Chosen exercise · ${material ? SKILLS[material.skill] : ""}` : rec?.reason}</p>
           <Button size="lg" disabled={!material || busy} onClick={async () => { setBusy(true); try { const r = await request<{ session: Session }>({ action: "create", materialId: material!.id }); setS(r.session); window.history.replaceState(null, "", `/voice?session=${r.session.id}`); } catch (e) { setError((e as Error).message); } finally { setBusy(false); } }}>Start practice<ArrowRight size={17} /></Button>
-          <div className="mt-7 grid grid-cols-3 gap-3 border-t border-border pt-5 text-sm"><span><span className="block text-xs text-muted-foreground">01</span>Speak</span><span><span className="block text-xs text-muted-foreground">02</span>Refine & retry</span><span><span className="block text-xs text-muted-foreground">03</span>Try a new prompt</span></div>
+          <div className="mt-7 grid grid-cols-3 gap-3 border-t border-border pt-5 text-sm [&>span]:border-l [&>span]:border-border [&>span]:pl-3 [&>span>span]:mb-2 [&>span>span]:grid [&>span>span]:size-7 [&>span>span]:place-items-center [&>span>span]:rounded-full [&>span>span]:bg-chart-4/10"><span><span className="block text-xs text-muted-foreground">01</span>Speak</span><span><span className="block text-xs text-muted-foreground">02</span>Refine & retry</span><span><span className="block text-xs text-muted-foreground">03</span>Try a new prompt</span></div>
         </section>
         <label className="block text-sm font-medium">Choose another exercise<select aria-label="Choose another exercise" className="mt-2 w-full rounded-lg border border-border bg-background p-3 font-normal" value={selected} onChange={e => setSelected(e.target.value)}><option value="">Coach’s choice</option>{data.materials.filter(m => !m.archived && m.language === data.preferences.language && m.block === block).map(m => <option key={m.id} value={m.id}>{m.title}</option>)}</select></label>
         {!data.connected && <p className="text-sm text-muted-foreground">Recorded practice is ready. <Link className="underline" href="/settings/fluency">Connect ElevenLabs</Link> for live conversation.</p>}

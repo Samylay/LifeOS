@@ -1,5 +1,5 @@
 import { Network } from "lucide-react";
-import { MindMapView } from "@/components/mind-map/mind-map-view";
+import { MindMapWorkspace } from "@/components/mind-map/mind-map-workspace";
 import { Page, PageHeader } from "@/components/ui/page";
 
 export default function MindMapPage() {
@@ -8,10 +8,10 @@ export default function MindMapPage() {
       <PageHeader
         kicker="Workspace"
         title="Mind map"
-        description="See how your current projects and learning threads connect."
+        description="Explore your notes and their connections, or move between LifeOS areas."
         icon={Network}
       />
-      <MindMapView />
+      <MindMapWorkspace />
     </Page>
   );
 }

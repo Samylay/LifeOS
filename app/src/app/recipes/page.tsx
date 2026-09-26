@@ -291,10 +291,10 @@ export default function RecipesPage() {
     });
 
   return (
-    <Page narrow>
+    <Page className="max-w-6xl">
       <PageHeader
         title="Recipes"
-        description="Meal-prep book."
+        description="Choose a recipe, gather the ingredients, and follow the method."
         icon={CookingPot}
         actions={!creating ? (
           <Button
@@ -380,7 +380,8 @@ export default function RecipesPage() {
         </Card>
       )}
 
-      <div className="space-y-2">
+      {!loading && recipes.length > 0 && visible.length === 0 && <p className="rounded-xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">No recipes match. Try another ingredient or clear the tag filter.</p>}
+      <div className="grid items-start gap-4 md:grid-cols-2 xl:grid-cols-3">
         {visible.map((r) =>
           editingId === r.id ? (
             <RecipeEditor
@@ -394,14 +395,19 @@ export default function RecipesPage() {
               onCancel={() => setEditingId(null)}
             />
           ) : (
-            <Card key={r.id} className="px-4 py-3 gap-0">
-              <div className="flex items-start justify-between gap-2">
+            <Card key={r.id} className={`gap-0 overflow-hidden p-0 ${openIds.has(r.id) ? "md:col-span-2 xl:col-span-3" : ""}`}>
+              <button type="button" onClick={() => toggleOpen(r.id)} aria-label={`Open recipe: ${r.name}`} aria-expanded={openIds.has(r.id)} className="recipe-preview w-full text-left pressable active:scale-[0.97]">
+                <span className="recipe-preview-center"><CookingPot size={26} strokeWidth={1.5} /></span>
+                <span className="recipe-preview-ingredients">{r.ingredients.slice(0, 3).map((i, index) => <span key={index}>{i.name}</span>)}{r.ingredients.length > 3 && <span>+{r.ingredients.length - 3} ingredients</span>}</span>
+              </button>
+              <div className="p-4">
+              <div className="flex flex-wrap items-start justify-between gap-2">
                 <button
                   onClick={() => toggleOpen(r.id)}
-                  className="min-w-0 flex-1 text-left active:scale-[0.99] transition-transform duration-150"
+                  aria-expanded={openIds.has(r.id)} className="min-w-0 basis-44 flex-1 text-left pressable active:scale-[0.97]"
                 >
                   <div className="flex items-center gap-2">
-                    <p className="text-sm font-medium text-foreground truncate">{r.name}</p>
+                    <p className="text-sm font-medium text-foreground">{r.name}</p>
                     {openIds.has(r.id) ? (
                       <ChevronUp size={14} className="shrink-0 text-muted-foreground/70" />
                     ) : (
@@ -429,6 +435,7 @@ export default function RecipesPage() {
                       target="_blank"
                       rel="noreferrer"
                       title={r.source}
+                      aria-label={`Open source for ${r.name}`}
                       className="flex h-11 w-11 items-center justify-center rounded-lg text-muted-foreground/70 hover:text-foreground active:scale-[0.95] transition-transform duration-150"
                     >
                       <LinkIcon size={15} />
@@ -437,6 +444,7 @@ export default function RecipesPage() {
                   <button
                     onClick={() => setEditingId(r.id)}
                     title="Edit"
+                    aria-label={`Edit ${r.name}`}
                     className="flex h-11 w-11 items-center justify-center rounded-lg text-muted-foreground/70 hover:text-foreground active:scale-[0.95] transition-transform duration-150"
                   >
                     <Pencil size={15} />
@@ -444,6 +452,7 @@ export default function RecipesPage() {
                   <button
                     onClick={() => setConfirmId(r.id)}
                     title="Delete"
+                    aria-label={`Delete ${r.name}`}
                     className="flex h-11 w-11 items-center justify-center rounded-lg text-muted-foreground/70 hover:text-destructive active:scale-[0.95] transition-transform duration-150"
                   >
                     <Trash2 size={15} />
@@ -472,10 +481,9 @@ export default function RecipesPage() {
                         <p className="section-label">
                           Method
                         </p>
-                        <ol className="space-y-1">
+                        <ol className="step-method">
                           {r.steps.map((s, idx) => (
-                            <li key={idx} className="text-sm flex gap-2 text-muted-foreground">
-                              <span className="font-semibold text-foreground tabular-nums">{idx + 1}.</span>
+                            <li key={idx} className="text-sm text-muted-foreground">
                               <span>{s}</span>
                             </li>
                           ))}
@@ -493,6 +501,7 @@ export default function RecipesPage() {
                   </div>
                 </div>
               )}
+              </div>
             </Card>
           )
         )}

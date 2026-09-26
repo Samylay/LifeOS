@@ -6,7 +6,7 @@ import { toast as sonnerToast } from "sonner";
 import { useToast } from "@/components/toast";
 import {
   Check, Loader2, X, Activity, Eye, EyeOff,
-  BellRing, Sunrise, RefreshCw, Send,
+  BellRing, Sunrise, RefreshCw, Send, Layers, Newspaper, Radar, Landmark, ListChecks, Plug,
 } from "lucide-react";
 import { useGarmin } from "@/lib/use-garmin";
 import { PushSettings } from "@/components/push-settings";
@@ -17,11 +17,19 @@ import { Page, PageHeader } from "@/components/ui/page";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 
+const settingSections = [
+  { title: "Habits & routines", icon: ListChecks }, { title: "Collections", icon: Layers },
+  { title: "Feed & decisions", icon: Newspaper }, { title: "Notifications", icon: BellRing },
+  { title: "Leads", icon: Radar }, { title: "Integrations", icon: Plug },
+  { title: "Banks", icon: Landmark }, { title: "Morning brief", icon: Sunrise },
+];
+const sectionId = (title: string) => `settings-${title.toLowerCase().replace(/[^a-z]+/g, "-")}`;
+
 // --- Shared bits ---------------------------------------------------------
 
 function Section({ title, sub, children }: { title: string; sub?: string; children: React.ReactNode }) {
   return (
-    <Card className="gap-4 py-4">
+    <Card id={sectionId(title)} className="gap-4 py-4 scroll-mt-24">
       <CardHeader className="px-4">
         <CardTitle className="section-label">{title}</CardTitle>
         {sub && <CardDescription className="text-xs">{sub}</CardDescription>}
@@ -156,9 +164,9 @@ function GarminCard() {
 
   return (
     <div className="rounded-lg bg-muted p-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-card">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-card">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
               <circle cx="12" cy="12" r="9" stroke="#007CC3" strokeWidth="2" />
               <path d="M12 7v5l3 3" stroke="#007CC3" strokeWidth="2" strokeLinecap="round" />
@@ -285,14 +293,18 @@ export default function SettingsPage() {
   };
 
   return (
-    <Page narrow>
+    <Page className="max-w-5xl">
       <PageHeader
         kicker="System"
         title="Manage LifeOS"
         description="Your routines, collections, and preferences in one place."
       />
 
-      <div className="space-y-4">
+      <Link href="/review" className="flex min-h-12 items-center justify-between gap-3 rounded-xl border border-border bg-card p-4 text-sm font-medium active:scale-[0.97]">Your notebook and the LifeOS overhaul <span aria-hidden="true">→</span></Link>
+      <nav aria-label="Settings sections" className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        {settingSections.map(({ title, icon: Icon }) => <a key={title} href={`#${sectionId(title)}`} className="flex min-h-16 items-center gap-3 rounded-lg border border-border bg-card p-3 text-xs font-medium transition-transform duration-[var(--dur-fast)] ease-[var(--ease-out-custom)] active:scale-[0.97] hover:bg-secondary"><Icon size={18} className="shrink-0 text-muted-foreground" />{title}</a>)}
+      </nav>
+      <div className="grid items-start gap-4 lg:grid-cols-2">
         <Section title="Habits & routines" sub="Keep your routines easy to change as life changes.">
           <div className="grid gap-2 sm:grid-cols-2">
             <Link href="/settings/habits" className="rounded-lg border border-border p-4 text-sm pressable active:scale-[0.97] hover:bg-muted"><span className="font-medium">Habits →</span><p className="mt-1 text-xs text-muted-foreground">Add, schedule, reorder, pause, or archive.</p></Link>

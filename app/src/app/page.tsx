@@ -1,5 +1,9 @@
 "use client";
 
+import { WorkflowInboxLink } from "@/components/workflows/workflow-links";
+
+import { WorkspaceMap } from "@/components/workspace/visual-navigation";
+
 import { useCallback, useEffect, useState } from "react";
 import {
   Sun,
@@ -173,6 +177,9 @@ export default function Today() {
           )}
         </div>
       </div>
+
+      <WorkflowInboxLink />
+      <WorkspaceMap />
 
       <div className="flex flex-col gap-4 lg:gap-6 lg:grid lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start">
       {/* Morning brief — the live daily loop, anchor of this page; first on

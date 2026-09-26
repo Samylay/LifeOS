@@ -99,8 +99,8 @@ function ProjectRow({
     <li className="rounded-xl border border-border bg-card p-4">
       <div className="flex items-start gap-2">
         <div className="min-w-0 flex-1 space-y-1">
-          <div className="flex items-center gap-2">
-            <h3 className="truncate text-sm font-semibold text-foreground">{project.name}</h3>
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="break-words text-sm font-semibold text-foreground">{project.name}</h3>
             {meta && (
               <span
                 className="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
@@ -200,7 +200,7 @@ export default function ProjectsPage() {
   const done = projects.filter((p) => p.state?.status === "done" || p.state?.status === "archived");
 
   return (
-    <Page narrow className="max-w-lg">
+    <Page className="max-w-6xl">
       <PageHeader
         kicker="Derived from your repos"
         title="Projects"
@@ -231,12 +231,18 @@ export default function ProjectsPage() {
                 : "Nothing active. Every project is done or archived."}
             </p>
           ) : (
-            <ul className="space-y-2">
-              {active.map((p) => <ProjectRow key={p.name} project={p} onArchive={archive} />)}
-              {/* A repo that cannot be read stays in the list with its
-                  error — silently dropping it is how a surface starts lying. */}
-              {broken.map((p) => <ProjectRow key={p.name} project={p} onArchive={archive} />)}
-            </ul>
+            <div className="visual-board">
+              {ACTIVE_ORDER.map((status) => {
+                const entries = active.filter((p) => p.state?.status === status && !p.error);
+                const meta = STATUS_META[status];
+                return <section className="visual-lane" key={status} aria-label={meta.label}>
+                  <h2 className="visual-lane-heading"><span className="flex items-center gap-2"><span className="size-2 rounded-full" style={{ background: meta.color }} />{meta.label}</span><span className="font-mono text-xs text-muted-foreground">{entries.length}</span></h2>
+                  <ul className="space-y-3">{entries.map((p) => <ProjectRow key={p.name} project={p} onArchive={archive} />)}</ul>
+                  {entries.length === 0 && <p className="py-6 text-center text-xs text-muted-foreground">No projects in this state.</p>}
+                </section>;
+              })}
+              {broken.length > 0 && <section className="visual-lane"><h2 className="visual-lane-heading text-destructive">Unable to read</h2><ul className="space-y-3">{broken.map((p) => <ProjectRow key={p.name} project={p} onArchive={archive} />)}</ul></section>}
+            </div>
           )}
 
           {done.length > 0 && (

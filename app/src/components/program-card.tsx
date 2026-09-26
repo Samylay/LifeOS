@@ -20,11 +20,11 @@ function todayProgramDay(now: Date = new Date()): ProgramDay {
 }
 
 const btnGhost =
-  "flex h-6 w-6 items-center justify-center rounded-md bg-muted text-muted-foreground transition-transform duration-150 active:scale-90";
+  "flex h-9 w-9 items-center justify-center rounded-md bg-muted text-muted-foreground transition-transform duration-150 ease-[var(--ease-out-custom)] active:scale-[0.97]";
 const btnPrimary =
-  "flex items-center gap-1 rounded-lg bg-primary px-2.5 py-1 text-[11px] font-medium text-primary-foreground transition-transform duration-150 active:scale-[0.97]";
+  "flex items-center gap-1 rounded-lg bg-primary px-2.5 py-1 text-[11px] font-medium text-primary-foreground transition-transform duration-150 ease-[var(--ease-out-custom)] active:scale-[0.97]";
 const btnTab =
-  "shrink-0 rounded-full px-3 py-1 text-xs font-medium transition-transform duration-150";
+  "min-w-0 rounded-xl border border-border px-2 py-3 text-xs font-medium pressable active:scale-[0.97]";
 
 function ExerciseRow({
   ex,
@@ -43,9 +43,9 @@ function ExerciseRow({
   const last = ex.history.length > 0 ? ex.history[ex.history.length - 1] : null;
 
   return (
-    <li className="flex items-center justify-between gap-2 py-1.5">
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-sm">{ex.name}</p>
+    <li className="flex flex-wrap items-center justify-between gap-3 py-4">
+      <div className="min-w-0 basis-40 flex-1">
+        <p className="text-sm font-medium">{ex.name}</p>
         <p className="font-mono text-[11px] text-muted-foreground">
           {ex.sets}×{ex.targetReps}
           {ex.repsSuffix ?? ""}
@@ -94,10 +94,6 @@ export function ProgramCard() {
   const loggingRemainingRef = useRef(false);
 
   const dayExercises = useMemo(() => byDay(activeDay), [byDay, activeDay]);
-  const daysWithWork = useMemo(
-    () => PROGRAM_DAY_ORDER.filter((d) => exercises.some((e) => e.day === d)),
-    [exercises]
-  );
   const isToday = activeDay === todayProgramDay();
   const remainingToday = useMemo(() => remainingExercisesForToday(dayExercises), [dayExercises]);
 
@@ -201,18 +197,22 @@ export function ProgramCard() {
         )}
       </div>
 
-      <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1">
-        {daysWithWork.map((d) => (
+      <div className="grid grid-cols-4 gap-2 sm:grid-cols-7" role="group" aria-label="Training day">
+        {PROGRAM_DAY_ORDER.map((d) => (
           <button
             key={d}
             onClick={() => setActiveDay(d)}
+            aria-pressed={activeDay === d}
+            aria-label={`${PROGRAM_DAY_LABEL[d]}: ${byDay(d)[0]?.dayLabel || "Rest"}`}
             className={`${btnTab} ${
               activeDay === d
                 ? "bg-primary text-primary-foreground"
                 : "bg-muted text-muted-foreground"
             }`}
           >
-            {PROGRAM_DAY_LABEL[d].slice(0, 3)}
+            <span className="block font-mono">{PROGRAM_DAY_LABEL[d].slice(0, 3)}</span>
+            <span className="mt-2 block h-1 rounded-full bg-current opacity-30" aria-hidden="true" />
+            <span className="mt-2 block text-[10px]">{byDay(d)[0]?.dayLabel || "Rest"}</span>
           </button>
         ))}
       </div>

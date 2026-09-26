@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { persistEvidence, TriageArtifactError } from "@/lib/triage-evidence";
 
+import { advanceWaitingWorkflows } from "@/lib/workflows/store";
+
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
@@ -14,6 +16,7 @@ export async function POST(req: NextRequest) {
     }
     const bundle = body && Object.prototype.hasOwnProperty.call(body, "bundle") ? body.bundle : body;
     const result = persistEvidence(bundle, body?.itemId);
+    if (typeof body?.itemId === "string") advanceWaitingWorkflows(body.itemId);
     return NextResponse.json({ ok: true, bundleId: result.bundleId, evidence: result });
   } catch (error) {
     const status = error instanceof TriageArtifactError ? error.status : 500;

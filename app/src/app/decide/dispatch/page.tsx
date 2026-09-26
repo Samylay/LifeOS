@@ -19,7 +19,7 @@
 //    record as reference data and never edits it.
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { Loader2, RefreshCw, Send, Terminal, Trash2, WandSparkles } from "lucide-react";
+import { ArrowUpRight, Check, Loader2, RefreshCw, Search, Send, Terminal, Trash2, WandSparkles } from "lucide-react";
 import { toast } from "sonner";
 import { Page, PageHeader } from "@/components/ui/page";
 import { post } from "@/lib/decide/post";
@@ -82,6 +82,8 @@ export default function DispatchPage() {
   const [candidates, setCandidates] = useState<Dispatchable[]>([]);
   const [windowDays, setWindowDays] = useState(7);
   const [skills, setSkills] = useState<Record<string, SkillTestId>>({});
+  const [selected, setSelected] = useState<Dispatchable | null>(null);
+  const [instruction, setInstruction] = useState("");
   const [queueing, setQueueing] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
@@ -101,6 +103,10 @@ export default function DispatchPage() {
   // null from a fetch = it failed. A dead API must never render as "nothing
   // queued" — the same guard the approvals surface carries.
   const [failed, setFailed] = useState(false);
+  const [query, setQuery] = useState("");
+  const visibleCandidates = candidates.filter((item) =>
+    `${item.title} ${item.url}`.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()),
+  );
 
   const refresh = useCallback(async () => {
     const [q, c] = await Promise.all([
@@ -117,13 +123,13 @@ export default function DispatchPage() {
   useEffect(() => { queueMicrotask(() => void refresh()); }, [refresh]);
 
   const queuePrompt = async (item: Dispatchable) => {
-    const skill = skills[item.id] ?? "frontend-design";
-    const body = queueBodyFor(item.id, skillTestPrompt(item, skill));
+    const body = queueBodyFor(item.id, instruction);
     if (!body || queueing) return;
     setQueueing(item.id);
     try {
       await post("/api/triage/prompt-queue", { ...body });
-      toast.success("A/B test queued — nothing runs until you send");
+      toast.success("Instructions queued. Nothing runs until you send.");
+      setSelected(null); setInstruction("");
       await refresh();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "could not queue");
@@ -162,19 +168,20 @@ export default function DispatchPage() {
   };
 
   return (
-    <Page narrow className="max-w-lg">
+    <Page className="mx-auto max-w-6xl px-4 pb-24 pt-6 sm:px-6 lg:px-8">
       <PageHeader
-        kicker="Hand work over"
-        title="Send to Codex"
-        description="Review queued instructions before sending."
+        kicker="Codex workspace · dispatch"
+        title="What should this become?"
+        description="Choose a reference and describe the outcome: a tool, experiment, design, lesson, or something else. Send the prepared work when ready."
         icon={Terminal}
+        className="mb-6"
       />
-      <Link
-        href="/decide"
-        className="inline-flex items-center gap-1 text-xs font-medium text-primary transition-transform duration-[var(--dur-fast)] ease-[var(--ease-out-custom)] active:scale-[0.97]"
-      >
-        ← Saved items
-      </Link>
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3 border-y border-border py-3">
+        <Link href="/decide" className="inline-flex min-h-9 items-center gap-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">
+          <span aria-hidden="true">←</span> Saved items
+        </Link>
+        <div className="flex items-center gap-2 text-xs text-muted-foreground"><span className="size-2 rounded-full bg-success" /> Runs only after you send</div>
+      </div>
 
       {loading ? (
         <div className="shimmer rounded-xl bg-card p-10 text-center text-sm text-muted-foreground">
@@ -189,103 +196,100 @@ export default function DispatchPage() {
           </button>
         </div>
       ) : (
-        <div className="space-y-6">
-          <section className="space-y-3">
-            <h2 className="text-sm font-semibold text-foreground">
-              Queued{queued.length > 0 && <span className="ml-1.5 text-xs text-primary">{queued.length}</span>}
-            </h2>
-            {queued.length === 0 ? (
-              <p className="rounded-xl border border-border bg-card p-6 text-center text-sm text-muted-foreground">
-              Nothing queued. Choose a skill test below, or ask the assistant to queue other work.
-              </p>
-            ) : (
-              <>
-                <ul className="space-y-2">
-                  {queued.map((q) => (
-                    <li key={q.id} className="rounded-lg border border-border bg-card p-3">
-                      <div className="flex items-start gap-2">
-                        <div className="min-w-0 flex-1">
-                          <p className="text-sm font-medium text-foreground [overflow-wrap:anywhere]">
-                            {q.title || "untitled"}
-                          </p>
-                          <DecisionText className="mt-0.5 text-xs text-muted-foreground">
-                            {q.prompt}
-                          </DecisionText>
-                        </div>
-                        <button
-                          onClick={() => remove(q.id)}
-                          aria-label="Remove from the queue"
-                          className="shrink-0 rounded-md p-1.5 text-muted-foreground transition-transform duration-[var(--dur-fast)] ease-[var(--ease-out-custom)] hover:text-destructive active:scale-[0.97]"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-                <button
-                  onClick={send}
-                  disabled={sending}
-                  className="flex w-full items-center justify-center gap-2 rounded-lg bg-success/10 px-3 py-2 text-sm font-semibold text-success transition-transform duration-[var(--dur-fast)] ease-[var(--ease-out-custom)] active:scale-[0.97] disabled:opacity-40 max-lg:[min-height:44px]"
-                >
-                  {sending ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />}
-                  Send {queued.length} to Codex
-                </button>
-              </>
-            )}
-          </section>
-
-          {references.length > 0 && <section className="space-y-3 rounded-lg border border-border bg-card p-4">
-            <h2 className="text-sm font-semibold">Saved for this kind of work</h2>
-            <p className="text-xs text-muted-foreground">UI references matching your instructions.</p>
-            {references.map((reference) => <div key={reference.id} className="space-y-1">
-              <Provenance label={reference.title} href={reference.url} />
-              <DecisionText className="text-muted-foreground">{reference.summary}</DecisionText>
-            </div>)}
-          </section>}
-          <section className="space-y-3">
-            <h2 className="text-sm font-semibold text-foreground">Filed in the last {windowDays} days</h2>
+        <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
+          <section aria-labelledby="references-heading" className="min-w-0">
+            <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <p className="mb-1 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Reference library</p>
+                <h2 id="references-heading" className="text-xl font-semibold tracking-tight">Pick a starting point</h2>
+                <p className="mt-1 text-sm text-muted-foreground">Recently filed references stay available here for {windowDays} days.</p>
+              </div>
+              {candidates.length > 0 && <span className="rounded-full border border-border px-2.5 py-1 font-mono text-xs text-muted-foreground">{visibleCandidates.length} / {candidates.length}</span>}
+            </div>
+            {candidates.length > 0 && <label className="mb-4 flex h-11 items-center gap-2.5 rounded-lg border border-border bg-card px-3 text-muted-foreground focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-ring/20">
+              <Search size={16} aria-hidden="true" />
+              <span className="sr-only">Search saved references</span>
+              <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search title or link" className="min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground" />
+              {query && <button type="button" onClick={() => setQuery("")} className="text-xs hover:text-foreground">Clear</button>}
+            </label>}
             {candidates.length === 0 ? (
-              <p className="rounded-xl border border-border bg-card p-6 text-center text-sm text-muted-foreground">
-                Nothing recent to hand over. Filing is the action now — older items are done.
-              </p>
+              <div className="rounded-xl border border-dashed border-border bg-card/50 px-6 py-12 text-center">
+                <div className="mx-auto mb-3 grid size-11 place-items-center rounded-full bg-secondary text-muted-foreground"><WandSparkles size={18} /></div>
+                <h3 className="font-medium">No fresh references yet</h3>
+                <p className="mx-auto mt-1 max-w-sm text-sm text-muted-foreground">When you file a saved item, it will appear here to prepare work.</p>
+                <Link href="/decide" className="mt-4 inline-flex min-h-10 items-center rounded-lg border border-border px-3 text-sm font-medium hover:bg-secondary">Browse saved items</Link>
+              </div>
+            ) : visibleCandidates.length === 0 ? (
+              <p className="rounded-lg border border-border bg-card p-6 text-center text-sm text-muted-foreground">No references match “{query}”.</p>
             ) : (
-              <ul className="space-y-2">
-                {candidates.map((item) => (
-                  <li key={item.id} className="space-y-2 rounded-lg border border-border bg-card p-3">
-                    <p className="text-sm font-medium leading-snug text-foreground">{item.title}</p>
-                    {item.url && (
-                      <a href={item.url} target="_blank" rel="noreferrer"
-                        className="block text-xs text-primary [overflow-wrap:anywhere]">
-                        {item.url}
-                      </a>
-                    )}
-                    <div className="flex flex-wrap items-end gap-2 rounded-lg border border-border bg-background/60 p-3">
-                      <label className="min-w-48 flex-1 space-y-1">
-                        <span className="block text-xs font-medium text-muted-foreground">Skill to test</span>
-                        <select
-                          value={skills[item.id] ?? "frontend-design"}
-                          onChange={(e) => setSkills((current) => ({ ...current, [item.id]: e.target.value as SkillTestId }))}
-                          className="min-h-10 w-full rounded-md border border-border bg-background px-2 text-sm text-foreground"
-                        >
-                          {SKILL_TESTS.map((skill) => <option key={skill.id} value={skill.id}>{skill.label}</option>)}
-                        </select>
-                      </label>
-                      <button
-                        onClick={() => void queuePrompt(item)}
-                        disabled={queueing !== null}
-                        className="inline-flex min-h-10 items-center gap-1.5 rounded-lg bg-accent px-3 py-2 text-sm font-medium text-accent-foreground transition-transform duration-[var(--dur-fast)] ease-[var(--ease-out-custom)] active:scale-[0.97] disabled:opacity-50"
-                      >
-                        {queueing === item.id ? <Loader2 size={14} className="animate-spin" /> : <WandSparkles size={14} />}
-                        {queueing === item.id ? "Queueing…" : "Queue A/B test"}
+              <ul className="grid gap-3 sm:grid-cols-2">
+                {visibleCandidates.map((item) => (
+                  <li key={item.id} className="group flex min-w-0 flex-col rounded-xl border border-border bg-card p-4 transition-transform duration-[var(--dur-base)] ease-[var(--ease-out-custom)] hover:-translate-y-0.5 hover:border-primary/30">
+                    <div className="mb-3 flex items-center justify-between gap-2">
+                      <span className="rounded-md bg-secondary px-2 py-1 font-mono text-[10px] uppercase tracking-wide text-muted-foreground">{item.filedAs || "Saved reference"}</span>
+                      {item.url && <a href={item.url} target="_blank" rel="noreferrer" aria-label={`Open source for ${item.title}`} className="grid size-8 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground"><ArrowUpRight size={15} /></a>}
+                    </div>
+                    <h3 className="line-clamp-3 min-h-[3.75rem] text-[15px] font-medium leading-snug text-foreground">{item.title}</h3>
+                    {item.url && <p className="mt-2 truncate font-mono text-[10px] text-muted-foreground">{item.url.replace(/^https?:\/\//, "")}</p>}
+                    <div className="mt-auto space-y-3 pt-4">
+                      <button onClick={() => { setSelected(item); setInstruction(""); requestAnimationFrame(() => document.getElementById("dispatch-instruction")?.focus()); }} className="flex min-h-10 w-full items-center justify-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-medium transition-transform duration-[var(--dur-fast)] ease-[var(--ease-out-custom)] active:scale-[0.97] hover:bg-secondary">
+                        <WandSparkles size={15} /> Prepare work
                       </button>
-                      <p className="basis-full text-xs text-muted-foreground">Two renders, same small local model and 900-token cap. The skill is the only change.</p>
                     </div>
                   </li>
                 ))}
               </ul>
             )}
+
           </section>
+
+          <aside className="space-y-4 lg:sticky lg:top-6">
+            {selected && <section aria-label="Prepare instructions" className="rounded-xl border border-border bg-card p-4 space-y-3">
+              <div className="flex items-start justify-between gap-3"><h2 className="text-base font-semibold">Prepare work</h2><button onClick={() => { setSelected(null); setInstruction(""); }} className="min-h-9 text-xs text-muted-foreground active:scale-[0.97]">Cancel</button></div>
+              <p className="text-sm [overflow-wrap:anywhere]">{selected.title}</p>
+              <label htmlFor="dispatch-instruction" className="block text-sm font-medium">Outcome and boundaries</label>
+              <textarea id="dispatch-instruction" value={instruction} onChange={(event) => setInstruction(event.target.value)} rows={7} placeholder="What should Codex produce? Include what to preserve, how to judge the result, and when to stop." className="w-full rounded-lg border border-border bg-background p-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" />
+              <details><summary className="cursor-pointer text-xs text-muted-foreground">Optional: skill A/B experiment</summary><div className="mt-3 flex flex-wrap gap-2">
+                <select aria-label="Skill for A/B preset" value={skills[selected.id] ?? "frontend-design"} onChange={(event) => setSkills((current) => ({ ...current, [selected.id]: event.target.value as SkillTestId }))} className="min-h-10 min-w-0 flex-1 rounded-md border border-border bg-background px-2 text-sm">{SKILL_TESTS.map((skill) => <option key={skill.id} value={skill.id}>{skill.label}</option>)}</select>
+                <button onClick={() => setInstruction(skillTestPrompt(selected, skills[selected.id] ?? "frontend-design"))} className="min-h-10 rounded-md border border-border px-3 text-xs active:scale-[0.97]">Use preset</button>
+              </div></details>
+              <button onClick={() => void queuePrompt(selected)} disabled={queueing !== null || !instruction.trim()} className="flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-primary px-3 text-sm font-medium text-primary-foreground transition-transform duration-[var(--dur-fast)] ease-[var(--ease-out-custom)] active:scale-[0.97] disabled:opacity-50">{queueing ? <Loader2 size={15} className="animate-spin" /> : <WandSparkles size={15} />}Queue instructions</button>
+            </section>}
+
+            <section aria-labelledby="queue-heading" className="overflow-hidden rounded-xl border border-border bg-card shadow-card">
+              <div className="flex items-center justify-between border-b border-border px-4 py-3.5">
+                <div><p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Ready when you are</p><h2 id="queue-heading" className="mt-1 text-lg font-semibold">Send queue</h2></div>
+                <span className="grid size-8 place-items-center rounded-full bg-secondary font-mono text-xs">{queued.length}</span>
+              </div>
+              {queued.length === 0 ? (
+                <div className="px-5 py-8 text-center">
+                  <div className="mx-auto mb-3 grid size-10 place-items-center rounded-full border border-dashed border-border text-muted-foreground"><Check size={17} /></div>
+                  <p className="text-sm font-medium">Your queue is clear</p>
+                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground">Choose a reference to prepare work. It will wait here until you send.</p>
+                </div>
+              ) : <>
+                <ul className="max-h-[55vh] divide-y divide-border overflow-y-auto">
+                  {queued.map((q) => <li key={q.id} className="px-4 py-3">
+                    <div className="flex items-start gap-2">
+                      <div className="min-w-0 flex-1"><p className="text-sm font-medium leading-snug [overflow-wrap:anywhere]">{q.title || "Untitled work"}</p><details className="mt-1"><summary className="cursor-pointer text-xs text-muted-foreground hover:text-foreground">Review instructions</summary><DecisionText className="mt-2 max-h-44 overflow-y-auto rounded-md bg-background p-2 text-[11px] text-muted-foreground">{q.prompt}</DecisionText></details></div>
+                      <button onClick={() => remove(q.id)} aria-label={`Remove ${q.title || "instructions"} from queue`} className="grid size-8 shrink-0 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"><Trash2 size={14} /></button>
+                    </div>
+                  </li>)}
+                </ul>
+                <div className="border-t border-border bg-background/50 p-4">
+                  <p className="mb-3 text-xs leading-relaxed text-muted-foreground">Sending starts one Codex session with these instructions.</p>
+                  <button onClick={send} disabled={sending} className="flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-success px-3 py-2 text-sm font-semibold text-success-foreground transition-transform duration-[var(--dur-fast)] ease-[var(--ease-out-custom)] active:scale-[0.97] disabled:opacity-60">
+                    {sending ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />}
+                    {sending ? "Sending…" : `Send ${queued.length} ${queued.length === 1 ? "instruction" : "instructions"} to Codex`}
+                  </button>
+                </div>
+              </>}
+            </section>
+            {references.length > 0 && <details className="mt-4 rounded-xl border border-border bg-card px-4 py-3">
+              <summary className="cursor-pointer text-sm font-medium">Related references <span className="ml-1 text-xs text-muted-foreground">{references.length}</span></summary>
+              <div className="mt-3 space-y-3">{references.map((reference) => <div key={reference.id} className="space-y-1"><Provenance label={reference.title} href={reference.url} /><DecisionText className="text-xs text-muted-foreground">{reference.summary}</DecisionText></div>)}</div>
+            </details>}
+          </aside>
         </div>
       )}
     </Page>

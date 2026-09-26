@@ -14,6 +14,8 @@ export const NAV_GROUPS = [
     { href: "/decide", label: "Decide", icon: Layers01Icon },
     { href: "/decide/approvals", label: "Approvals", icon: CheckListIcon },
     { href: "/projects", label: "Projects", icon: Folder01Icon },
+    { href: "/workflows", label: "Workflows", icon: Layers01Icon },
+    { href: "/teaching", label: "Teaching", icon: BookOpen01Icon },
     { href: "/mind-map", label: "Mind map", icon: NetworkIcon },
     { href: "/chat", label: "Chat", icon: Chat01Icon },
     { href: "/content", label: "Content", icon: Video01Icon },
@@ -45,6 +47,7 @@ export function activeDestination(pathname: string) {
     .sort((a, b) => b.href.length - a.href.length)[0];
 }
 export function surfaceTitle(pathname: string) {
+  if (pathname === "/review") return "Overhaul review";
   if (pathname === "/voice/capture") return "Quick capture";
   if (pathname === "/decide/dispatch") return "Send to Codex";
   if (pathname.startsWith("/prime")) return "Priming";

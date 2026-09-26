@@ -18,6 +18,8 @@ export const dynamic = "force-dynamic";
 type Ctx = { params: Promise<{ path: string[] }> };
 
 const IMMUTABLE_TRIAGE_COLLECTIONS = new Set([
+  "users/local/workflowRuns",
+  "users/local/workflowLibrary",
   "users/local/triageEvidence",
   "users/local/triageAssessments",
   "users/local/triageLinkArchive",

@@ -338,22 +338,22 @@ export default function StatusPage() {
         {data && sorted.length === 0 ? (
           <Card className="p-5 text-sm text-muted-foreground">No containers were returned by the status API.</Card>
         ) : (
-          <div className="work-canvas divide-y divide-border overflow-hidden">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {sorted.map((container) => (
-              <div key={container.name} className="enter flex min-h-12 items-center gap-3 px-4 py-2.5">
+              <div key={container.name} className="enter flex min-w-0 flex-wrap items-center gap-3 rounded-xl border border-border bg-card p-4">
                 <span
                   aria-hidden="true"
                   className="size-2 shrink-0 rounded-full"
                   style={{ background: container.up ? "var(--success)" : "var(--destructive)" }}
                 />
                 <Boxes size={14} className="shrink-0 text-muted-foreground/60" aria-hidden="true" />
-                <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
+                <span className="min-w-0 flex-1 break-words text-sm font-medium text-foreground">
                   {container.label || container.name}
                 </span>
                 {container.label && (
-                  <span className="hidden font-mono text-[10px] text-muted-foreground sm:inline">{container.name}</span>
+                  <span className="w-full break-all font-mono text-[10px] text-muted-foreground">{container.name}</span>
                 )}
-                <span className={`max-w-[45%] truncate text-right text-xs ${container.up ? "text-muted-foreground" : "text-destructive"}`}>
+                <span className={`w-full text-xs ${container.up ? "text-muted-foreground" : "text-destructive"}`}>
                   {container.up ? `Running · ${container.status}` : `Down · ${container.state}`}
                 </span>
               </div>

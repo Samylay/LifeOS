@@ -1,5 +1,7 @@
 "use client";
 
+import { PreparedMaterials } from "@/components/workflows/workflow-links";
+
 import { useEffect, useState } from "react";
 import {
   Brain,
@@ -94,15 +96,15 @@ function NoteRow({
         if (full) openNote(full);
         else toast("Could not open note");
       }}
-      className="w-full text-left rounded-xl border border-border bg-card p-4 transition-transform hover:bg-muted active:scale-[0.99] duration-150"
+      className="w-full h-full text-left rounded-xl border border-border bg-card p-5 pressable hover:bg-muted active:scale-[0.97]"
     >
       <div className="flex items-start gap-3">
-        <div className="shrink-0 flex h-9 w-9 items-center justify-center rounded-lg bg-muted">
+        <div className="shrink-0 flex h-10 w-10 items-center justify-center rounded-full border border-chart-2/30 bg-chart-2/10">
           <FileText size={16} className="text-primary" />
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 flex-wrap">
-            <p className="text-sm font-medium truncate text-foreground">{n.title}</p>
+            <p className="text-sm font-medium break-words text-foreground">{n.title}</p>
             <Badge variant="secondary" className="rounded-md text-[10px] font-normal">
               {n.folder}
             </Badge>
@@ -167,7 +169,8 @@ export default function KnowledgePage() {
   }
 
   return (
-    <Page narrow={view === "notes"} className={view === "graph" ? "max-w-6xl" : undefined}>
+    <Page className="max-w-6xl">
+      <PreparedMaterials />
       <PageHeader
         kicker="Vault"
         title="Knowledge"
@@ -251,12 +254,12 @@ export default function KnowledgePage() {
           ) : (
             <>
               {query && <p className="px-1 text-xs text-muted-foreground">{notes.length} matching note{notes.length === 1 ? "" : "s"}</p>}
-              {(showAllNotes || query ? notes : notes.slice(0, 5)).map((n) => (
+              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">{(showAllNotes || query ? notes : notes.slice(0, 6)).map((n) => (
                 <NoteRow key={n.path} note={n} readNote={readNote} openNote={openNote} toast={toast} />
-              ))}
+              ))}</div>
             </>
           )}
-          {!query && !showAllNotes && notes.length > 5 && (
+          {!query && !showAllNotes && notes.length > 6 && (
             <button
               onClick={() => setShowAllNotes(true)}
               className="w-full rounded-lg border border-dashed border-border py-2 text-xs font-medium text-muted-foreground transition-transform duration-150 active:scale-[0.98]"

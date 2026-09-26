@@ -11,10 +11,6 @@ import {
   X,
   MoonStar,
   AlertTriangle,
-  Landmark,
-  ArrowDownLeft,
-  ArrowUpRight,
-  ArrowLeftRight,
   Sparkles,
   Pencil,
   Undo2,
@@ -596,9 +592,13 @@ function BurnOverview() {
         <p className="text-xs text-muted-foreground">{formatMoney(current.burn.in)} income − {formatMoney(current.burn.out)} spending − €70 investment</p>
         <p className="text-xs text-muted-foreground">Based on {current.burn.txCount} income and spending transactions. {formatMoney(current.burn.transfer)} in account transfers is excluded.</p>
       </div>
+      <div aria-label="Spending composition" className="space-y-3 rounded-xl border border-border bg-background p-4">
+        <p className="text-xs font-medium text-muted-foreground">Where spending went · {monthLabel(month)}</p>
+        <div className="flex h-4 gap-1 overflow-hidden rounded-full" aria-hidden="true">{[current.burn.fixed, current.burn.sub, current.burn.variable].map((amount, i) => amount > 0 && <div key={i} style={{ flex: amount, background: ["var(--chart-2)", "var(--chart-4)", "var(--chart-5)"][i] }} />)}</div>
       <dl className="grid grid-cols-2 gap-3 sm:grid-cols-3 text-sm">
-        {[["Recurring bills", current.burn.fixed], ["Recurring subscriptions", current.burn.sub], ["Everything else", current.burn.variable]].map(([label, value]) => <div key={label}><dt className="text-xs text-muted-foreground">{label}</dt><dd className="mt-1 font-medium tabular-nums">{formatMoney(Number(value))}</dd></div>)}
+        {[["Recurring bills", current.burn.fixed], ["Recurring subscriptions", current.burn.sub], ["Everything else", current.burn.variable]].map(([label, value], index) => <div key={label}><dt className="text-xs text-muted-foreground"><span aria-hidden="true" className="mr-1.5 inline-block size-2 rounded-full" style={{ background: ["var(--chart-2)", "var(--chart-4)", "var(--chart-5)"][index] }} />{label}</dt><dd className="mt-1 font-medium tabular-nums">{formatMoney(Number(value))}</dd></div>)}
       </dl>
+      </div>
       <div className="min-w-0">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <p className="text-sm font-semibold">Income, spending and remaining</p>
@@ -634,7 +634,7 @@ export default function FinancePage() {
   const [pendingDelete, setPendingDelete] = useState<FinanceFlow | null>(null);
 
   return (
-    <Page>
+    <Page className="max-w-6xl">
       <PageHeader
         kicker="Money"
         title="Finance"

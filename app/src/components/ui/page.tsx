@@ -2,6 +2,7 @@ import * as React from "react"
 import type { LucideIcon } from "lucide-react"
 
 import { cn } from "@/lib/utils"
+import { RelatedAreas } from "@/components/workspace/visual-navigation"
 
 function Page({
   className,
@@ -50,6 +51,7 @@ function PageHeader({
           <h1 className="min-w-0 text-balance text-foreground">{title}</h1>
         </div>
         {description && <p className="page-description">{description}</p>}
+        <RelatedAreas />
       </div>
       {actions && <div className="page-actions shrink-0">{actions}</div>}
     </header>

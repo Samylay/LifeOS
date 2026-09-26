@@ -21,7 +21,7 @@ export function bulkTarget<T extends { id: string }>(
   actionFor: (item: T) => Action | null,
 ): BulkTarget<T> | null {
   const top = items[0] ? actionFor(items[0]) : null;
-  if (!top) return null;
+  if (!top || top.id === "homelab-develop") return null;
   const key = actionKey(top);
   const matching = items.filter((i) => {
     const a = actionFor(i);
