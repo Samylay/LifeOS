@@ -171,9 +171,7 @@ export default function KnowledgePage() {
   return (
     <Page className="max-w-6xl">
       <PageHeader
-        kicker="Learning centre"
         title="Knowledge"
-        description="Choose an interest. Find your next step. Learn at your own pace."
         icon={Brain}
         actions={
           enabled ? (

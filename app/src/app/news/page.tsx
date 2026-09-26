@@ -198,11 +198,7 @@ export default function NewsPage() {
   return (
     <Page className="max-w-4xl">
       <PageHeader
-        kicker="Digest"
         title="News digest"
-        description={edition
-          ? `${edition.items.length} article${edition.items.length === 1 ? "" : "s"} · ${edition.date}`
-          : "A focused security and development digest."}
         actions={
           <>
           <div className="flex items-center rounded-lg border border-border p-0.5" aria-label="Card density" role="group">

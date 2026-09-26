@@ -88,7 +88,7 @@ export default function HabitsSettingsPage() {
   };
   return <Page narrow>
     <Link href="/settings" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground pressable active:scale-[0.97]"><ArrowLeft size={14} /> Manage LifeOS</Link>
-    <PageHeader title="Habits" kicker="Your routines" description="Make your daily list fit the way you live." icon={ListChecks} actions={<Button onClick={() => setEditor(null)}><Plus size={16} /> Add habit</Button>} />
+    <PageHeader title="Habits" icon={ListChecks} actions={<Button onClick={() => setEditor(null)}><Plus size={16} /> Add habit</Button>} />
     <FilterBar>{(["active", "paused", "archived"] as const).map((value) => <Button key={value} variant={tab === value ? "secondary" : "ghost"} aria-pressed={tab === value} onClick={() => setTab(value)} className="capitalize">{value}<span className="ml-1 text-xs text-muted-foreground">{habits.filter((h) => (pending[h.id]?.status ?? h.status ?? "active") === value).length}</span></Button>)}</FilterBar>
     {error ? <Card className="p-5 text-sm" role="alert">Could not load habits. Retrying automatically.</Card> : loading ? <p className="text-sm text-muted-foreground">Loading habits…</p> : visible.length === 0 ?
       <Card className="items-start p-6"><h2 className="font-medium">{tab === "active" ? "Make room for a routine" : `No ${tab} habits`}</h2><p className="text-sm text-muted-foreground">{tab === "active" ? "Add a habit, or bring one back from Paused or Archived." : "Your completion history stays intact when a habit moves here."}</p>{tab === "active" && <Button variant="outline" onClick={() => setEditor(null)}>Add your first habit</Button>}</Card> :

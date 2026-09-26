@@ -23,7 +23,7 @@ export default function FluencySettings() {
     try { await request(body, url); await load(); toast.success("Saved"); return true; } catch (e) { setError((e as Error).message); return false; } finally { setBusy(false); }
   };
   return <Page narrow>
-    <PageHeader kicker="Manage LifeOS" title="Fluency settings" description="Shape your practice and see what the coach has learned." actions={<Button asChild variant="outline"><Link href="/voice">Back to practice</Link></Button>} />
+    <PageHeader title="Fluency settings" actions={<Button asChild variant="outline"><Link href="/voice">Back to practice</Link></Button>} />
     {error && <p role="alert" className="mb-5 rounded-xl border border-destructive/30 p-4 text-sm text-destructive">{error}</p>}
     {!data ? <Button variant="outline" onClick={() => void load().catch(e => setError(e.message))}>Load practice settings</Button> : <div className="space-y-6">
       <section className={panel}><h2 className="text-lg font-semibold">Your practice</h2><form className="mt-5 grid gap-4 sm:grid-cols-2" onSubmit={e => { e.preventDefault(); void save({ action: "preferences", ...prefs }); }}>

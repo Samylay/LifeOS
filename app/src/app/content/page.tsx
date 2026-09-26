@@ -555,9 +555,7 @@ export default function ContentPage() {
   return (
     <Page className="max-w-6xl">
       <PageHeader
-        kicker="Publish"
         title="Content OS"
-        description="Your ideas, from first thought to published."
         icon={Clapperboard}
       />
 

@@ -148,9 +148,7 @@ function DecideInner() {
   return (
     <Page narrow className="max-w-xl">
       <PageHeader
-        kicker="Attention queue"
         title="Decide"
-        description="Choose where each saved item goes."
         icon={Layers}
       />
       <FilterBar

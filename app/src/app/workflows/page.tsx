@@ -39,7 +39,7 @@ export default function WorkflowsPage() {
     catch (e) { toast.error(e instanceof Error ? e.message : "Could not start"); } finally { setBusy(null); }
   }
   return <Page className="max-w-6xl">
-    <PageHeader kicker="Saved ideas in motion" title="Workflows" description="See what was extracted, what was tried, and the change ready for your decision." icon={FlaskConical} actions={<Button variant="outline" onClick={() => void refresh()}><RefreshCw size={15} />Refresh</Button>} />
+    <PageHeader title="Workflows" icon={FlaskConical} actions={<Button variant="outline" onClick={() => void refresh()}><RefreshCw size={15} />Refresh</Button>} />
     <nav aria-label="Saved content journey" className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-background p-4 text-xs text-muted-foreground">{["Save", "Extract", "Explore", "Review", "Apply"].map((label, i) => <span key={label} className="inline-flex items-center gap-2"><span className="grid size-7 place-items-center rounded-full border border-border font-mono">{i+1}</span>{label}{i < 4 && <ArrowRight size={13} aria-hidden="true" />}</span>)}</nav>
     <FlowSelector label="Workflow stage" value={view} onChange={(id) => { setView(id); setSelected(null); }} options={[{ id: "ready", label: "Your decision", count: ready.length, icon: Check }, { id: "active", label: "In progress", count: active.length, icon: FlaskConical }, { id: "finished", label: "Outcomes", count: finished.length, icon: Layers }]} />
     {error && <div role="alert" className="rounded-lg border border-warning/30 p-4 text-sm">{error}. <button className="underline" onClick={() => void refresh()}>Retry</button></div>}

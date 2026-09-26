@@ -294,7 +294,6 @@ export default function RecipesPage() {
     <Page className="max-w-6xl">
       <PageHeader
         title="Recipes"
-        description="Choose a recipe, gather the ingredients, and follow the method."
         icon={CookingPot}
         actions={!creating ? (
           <Button

@@ -636,9 +636,7 @@ export default function FinancePage() {
   return (
     <Page className="max-w-6xl">
       <PageHeader
-        kicker="Money"
         title="Finance"
-        description="Income, spending, and recurring costs."
         icon={Wallet}
       />
 

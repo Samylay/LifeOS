@@ -20,16 +20,12 @@ function Page({
 
 interface PageHeaderProps extends Omit<React.ComponentProps<"header">, "title"> {
   title: React.ReactNode
-  description?: React.ReactNode
-  kicker?: React.ReactNode
   icon?: LucideIcon
   actions?: React.ReactNode
 }
 
 function PageHeader({
   title,
-  description,
-  kicker,
   icon: Icon,
   actions,
   className,
@@ -38,7 +34,6 @@ function PageHeader({
   return (
     <header data-slot="page-header" className={cn("page-header enter", className)} {...props}>
       <div className="min-w-0">
-        {kicker && <p className="page-kicker">{kicker}</p>}
         <div className="flex min-w-0 items-center gap-2.5">
           {Icon && (
             <span
@@ -50,7 +45,6 @@ function PageHeader({
           )}
           <h1 className="min-w-0 text-balance text-foreground">{title}</h1>
         </div>
-        {description && <p className="page-description">{description}</p>}
         <RelatedAreas />
       </div>
       {actions && <div className="page-actions shrink-0">{actions}</div>}

@@ -6,7 +6,6 @@ import { Card } from "@/components/ui/card";
 import { Page, PageHeader } from "@/components/ui/page";
 import {
   MIND_MAP_BY_ID,
-  MIND_MAP_GROUPS,
   MIND_MAP_OUTGOING,
 } from "@/lib/mind-map-data";
 
@@ -18,7 +17,6 @@ export default async function MindMapNodePage({ params }: { params: Promise<{ no
   const connected = MIND_MAP_OUTGOING(node.id)
     .map((edge) => MIND_MAP_BY_ID.get(edge.source === node.id ? edge.target : edge.source))
     .filter((item): item is NonNullable<typeof item> => Boolean(item));
-  const group = MIND_MAP_GROUPS.find((item) => item.id === node.group);
 
   return (
     <Page className="max-w-4xl">
@@ -26,9 +24,7 @@ export default async function MindMapNodePage({ params }: { params: Promise<{ no
         <Link href="/mind-map"><ArrowLeft size={14} />Back to mind map</Link>
       </Button>
       <PageHeader
-        kicker={group?.label ?? "Mind map"}
         title={node.label}
-        description={node.summary}
       />
       <Card className="gap-2 p-4 sm:p-5">
         <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">About this node</p>

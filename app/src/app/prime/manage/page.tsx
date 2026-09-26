@@ -48,9 +48,7 @@ export default function PrimeManagePage() {
   return (
     <Page narrow>
       <PageHeader
-        kicker="Daily Prime"
         title="Prime banks"
-        description="Affirmations, prompts, principles, and the soft-timer floor."
         icon={Settings2}
         actions={
           <Button asChild variant="outline" size="sm">

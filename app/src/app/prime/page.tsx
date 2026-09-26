@@ -186,11 +186,7 @@ export default function PrimePage() {
     <Page narrow>
       {celebrating && <Celebration onDone={() => setCelebrating(false)} />}
       <PageHeader
-        kicker="Morning ritual"
         title="Daily Prime"
-        description={
-          done ? "Done for today. Return tomorrow for the next ritual." : "Affirm, then speak. Read everything out loud."
-        }
         icon={Sunrise}
         actions={
           <Button asChild variant="outline" size="sm">

@@ -29,9 +29,7 @@ export default function TrainingPage() {
   return (
     <Page className="max-w-5xl">
       <PageHeader
-        kicker="Health"
         title="Training"
-        description="Recovery and training at a glance."
         icon={Dumbbell}
       />
 

@@ -197,16 +197,10 @@ export default function StatusPage() {
   const ageSeconds = updatedAt === null ? null : Math.max(0, Math.round((now - updatedAt) / 1_000));
   const stale = updatedAt !== null && now - updatedAt > STALE_AFTER_MS;
 
-  const description = data
-    ? `${running}/${containers.length} containers up${host?.uptimeSeconds != null ? ` · host up ${uptime(host.uptimeSeconds)}` : ""}`
-    : "Live health for the homelab services LifeOS depends on.";
-
   return (
     <Page className="max-w-5xl">
       <PageHeader
-        kicker="Operations"
         title="Status"
-        description={description}
         icon={Activity}
         actions={
           <>
@@ -233,6 +227,7 @@ export default function StatusPage() {
 
       {ageSeconds !== null && (
         <p className={`-mt-3 text-xs ${stale || error ? "text-destructive" : "text-muted-foreground"}`} role="status">
+          {host?.uptimeSeconds != null && <>Host up {uptime(host.uptimeSeconds)} · </>}
           Updated {ageSeconds}s ago{error ? " · last refresh failed" : ""}
         </p>
       )}

@@ -65,9 +65,7 @@ export default function NewsFeedsPage() {
   return (
     <Page narrow>
       <PageHeader
-        kicker="News / Sources"
         title="Manage feeds"
-        description={`${feeds.length} feed${feeds.length === 1 ? "" : "s"} in the daily edition.`}
         actions={<Button asChild variant="outline" size="sm" className="text-muted-foreground">
           <Link href="/news" aria-label="Back to News">
             <ArrowLeft size={16} /> Back to news

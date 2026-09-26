@@ -56,10 +56,11 @@ function Practice({ initial, connected, onBack }: { initial: Session; connected:
   const disconnect = async () => { setBusy(true); try { await live.stop(); } catch (e) { setError((e as Error).message); } finally { setBusy(false); } };
   const leave = async () => { if (recordingBusy) return; await disconnect(); if (!live.unsaved) onBack(); };
   return <Page narrow>
-    <PageHeader kicker={`${BLOCKS[s.material.block]} · ${s.material.language === "en" ? "English" : "French"}`} title={s.material.title} actions={<Button variant="outline" disabled={busy || recordingBusy} onClick={() => void leave()}>Back to studio</Button>} />
+    <PageHeader title={s.material.title} actions={<Button variant="outline" disabled={busy || recordingBusy} onClick={() => void leave()}>Back to studio</Button>} />
     {error && <p role="alert" className="mb-4 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">{error}</p>}
     <div className="mb-5 flex flex-wrap gap-2" aria-label="Practice stages">{stages.map((label, i) => <Button key={label} size="sm" variant={viewPhase === i ? "default" : "outline"} disabled={!s.rounds[i] || busy || talking || recordingBusy} onClick={() => { setViewPhase(i); setCueSaved(false); }}>{i + 1}. {label}</Button>)}</div>
     <section className={`${panel} enter`}>
+      <p className="mb-3 text-sm text-muted-foreground">{BLOCKS[s.material.block]} · {s.material.language === "en" ? "English" : "French"}</p>
       <div className="flex items-center justify-between gap-3"><span className="text-xs font-medium uppercase tracking-widest text-primary">{s.status === "complete" ? "Session saved" : stages[viewPhase]}</span><span className="text-xs text-muted-foreground">{SKILLS[s.material.skill]}</span></div>
       <p className="my-7 text-xl font-medium leading-relaxed tracking-tight sm:text-2xl">{round.prompt}</p>
       {s.material.passage && <div className="mb-5 rounded-xl bg-muted p-4"><Button size="sm" variant="ghost" onClick={() => setShowPassage(!showPassage)}>{showPassage ? "Hide passage & retell" : "Show passage"}</Button>{showPassage && <p className="mt-3 leading-relaxed">{s.material.passage}</p>}</div>}
@@ -102,7 +103,7 @@ export default function FluencyPage() {
   if (s && data) return <Practice key={s.id} initial={s} connected={data.connected} onBack={() => { setS(null); window.history.replaceState(null, "", "/voice"); void load(); }} />;
   const rec = data?.recommendations[block], material = data?.materials.find(m => m.id === selected) ?? rec?.material;
   return <Page>
-    <PageHeader kicker="Speak · reflect · repeat" title="Fluency studio" description="Make room for more speaking reps. One useful adjustment at a time." actions={<div className="flex gap-2"><Button asChild variant="outline"><Link href="/voice/capture">Quick capture</Link></Button><Button asChild variant="outline"><Link href="/settings/fluency"><Settings2 size={16} />Manage practice</Link></Button></div>} />
+    <PageHeader title="Fluency studio" actions={<div className="flex gap-2"><Button asChild variant="outline"><Link href="/voice/capture">Quick capture</Link></Button><Button asChild variant="outline"><Link href="/settings/fluency"><Settings2 size={16} />Manage practice</Link></Button></div>} />
     {error && <p role="alert" className="mb-4 text-sm text-destructive">{error} <Button variant="ghost" onClick={() => void load()}>Retry</Button></p>}
     {!data ? <p role="status" className="p-6 text-muted-foreground">Loading your practice…</p> : <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
       <div className="space-y-5"><FlowSelector label="Speaking practice" value={block} onChange={(id) => { setBlock(id as Block); setSelected(""); }} options={(Object.keys(BLOCKS) as Block[]).map((id, index) => ({ id, label: BLOCKS[id], icon: [MessageCircle, BookOpen, Presentation][index % 3] }))} />

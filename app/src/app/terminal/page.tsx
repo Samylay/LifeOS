@@ -27,9 +27,7 @@ export default function TerminalPage() {
   return (
     <Page narrow>
       <PageHeader
-        kicker="Utility"
         title="Terminal"
-        description="Host shell and persistent tmux session. It opens in a new tab; the tailnet is the only gate."
         icon={SquareTerminal}
       />
       <div className="work-canvas flex min-h-72 flex-col items-center justify-center gap-4 p-8 text-center">

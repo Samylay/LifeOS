@@ -58,9 +58,7 @@ export default function ApprovalsPage() {
   return (
     <Page narrow className="max-w-xl">
       <PageHeader
-        kicker="Agents asking permission"
         title="Approvals"
-        description="Review requests and give your answer."
         icon={Inbox}
       />
       <Link

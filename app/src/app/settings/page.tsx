@@ -295,9 +295,7 @@ export default function SettingsPage() {
   return (
     <Page className="max-w-5xl">
       <PageHeader
-        kicker="System"
         title="Manage LifeOS"
-        description="Your routines, collections, and preferences in one place."
       />
 
       <Link href="/review" className="flex min-h-12 items-center justify-between gap-3 rounded-xl border border-border bg-card p-4 text-sm font-medium active:scale-[0.97]">Your notebook and the LifeOS overhaul <span aria-hidden="true">→</span></Link>

@@ -63,7 +63,7 @@ export default function EssaysPage() {
   }
 
   return <Page className="max-w-6xl">
-    <PageHeader kicker="Writing studio" title="Essay workshop" description="Find the argument that is already there, then strengthen the places where the reader has to guess." icon={Feather} actions={<EssayWritingGuide />} />
+    <PageHeader title="Essay workshop" icon={Feather} actions={<EssayWritingGuide />} />
 
     <form onSubmit={submit} className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_19rem]">
       <section className="enter rounded-2xl border border-border bg-card shadow-card">

@@ -119,9 +119,7 @@ export default function DiagramsPage() {
   return (
     <Page className="max-w-5xl">
       <PageHeader
-        kicker="Utility"
         title="Diagrams"
-        description="Describe a system or plan. Sonnet turns it into a Mermaid diagram."
         icon={Workflow}
       />
 

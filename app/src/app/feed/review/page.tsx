@@ -98,9 +98,7 @@ export default function InspirationReviewPage() {
   return (
     <Page narrow className="max-w-2xl">
       <PageHeader
-        kicker="Feed · inspiration"
         title="Review UI inspiration"
-        description="Keep the ideas worth returning to. Skip only hides an item on this device."
         actions={<Link href="/feed" className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm text-muted-foreground transition-transform duration-[var(--dur-fast)] active:scale-[0.97]"><ArrowLeft size={15} /> Back to feed</Link>}
       />
 

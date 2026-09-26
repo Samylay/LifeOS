@@ -40,9 +40,7 @@ export default function Crawl4AiPocPage() {
   return (
     <main className="mx-auto max-w-6xl space-y-6 p-6">
       <header className="space-y-2">
-        <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Internal experiment</p>
         <h1 className="text-3xl font-semibold tracking-tight">Crawl4AI PoC</h1>
-        <p className="max-w-3xl text-sm text-muted-foreground">Read-only browser crawling for source fetches, evidence, news, brief cards, knowledge, learning material, and UI references. Nothing is persisted.</p>
         <p className="text-xs text-muted-foreground">Service: <span className="font-mono">{health}</span></p>
       </header>
 

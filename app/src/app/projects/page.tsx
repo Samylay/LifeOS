@@ -202,9 +202,7 @@ export default function ProjectsPage() {
   return (
     <Page className="max-w-6xl">
       <PageHeader
-        kicker="Derived from your repos"
         title="Projects"
-        description="See what needs a decision or a next step."
         icon={FolderKanban}
       />
 

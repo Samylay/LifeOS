@@ -63,9 +63,7 @@ export default function LeadsPage() {
   return (
     <Page className="max-w-5xl">
       <PageHeader
-        kicker="Pipeline"
         title="Leads"
-        description="People to contact, with the context you need."
         icon={Radar}
         actions={leads.length > 0 ? (
           <Badge className="text-xs font-semibold">

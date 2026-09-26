@@ -170,9 +170,7 @@ export default function DispatchPage() {
   return (
     <Page className="mx-auto max-w-6xl px-4 pb-24 pt-6 sm:px-6 lg:px-8">
       <PageHeader
-        kicker="Codex workspace · dispatch"
         title="What should this become?"
-        description="Choose a reference and describe the outcome: a tool, experiment, design, lesson, or something else. Send the prepared work when ready."
         icon={Terminal}
         className="mb-6"
       />

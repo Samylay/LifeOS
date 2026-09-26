@@ -275,9 +275,7 @@ export default function VoiceHome() {
   return (
     <Page narrow className="flex min-h-full flex-col">
       <PageHeader
-        kicker="Capture"
         title="Quick capture"
-        description="Speak a thought. See where it lands."
         icon={Mic}
         actions={<Button asChild variant="outline"><Link href="/voice">Back to fluency</Link></Button>}
       />

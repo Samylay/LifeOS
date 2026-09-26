@@ -10,6 +10,12 @@
 - Hard floor even without the skill loaded: animate only `transform`/`opacity`/`clip-path`/`filter`; ≤300ms with custom easing vars (never default `ease`); `transition-all` banned; `active:scale-[0.97]` press feedback on actionable elements; `prefers-reduced-motion` block required in `globals.css`; optimistic UI on frequent mutations.
 - Approved deps for this doctrine (Samy, 2026-07-10): `sonner`, `vaul`.
 
+## Page headers (Samy, 2026-09-26)
+
+- Page headers contain the page title and useful actions. Do not add eyebrow labels, kickers, slogans, or explanatory taglines above or below the title. Samy explicitly rejected this pattern across all pages.
+- Keep necessary instructions next to the relevant control, and actual status or record metadata in the relevant content. Use `PageHeader`, whose API intentionally has no kicker or description props.
+- Apply this preference to future UI work unless Samy explicitly requests otherwise.
+
 ## Agent skills
 
 ### Issue tracker
