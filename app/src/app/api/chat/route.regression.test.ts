@@ -82,7 +82,7 @@ describe("existing chat provider paths", () => {
     create.mockResolvedValueOnce({ choices: [{ finish_reason: "tool_calls", message: { tool_calls: [{ id: "search-1", type: "function", function: { name: "search_lifeos_data", arguments: '{"query":"LifeOS"}' } }] } }] })
       .mockResolvedValueOnce({ choices: [{ finish_reason: "stop", message: { content: "Found LifeOS" } }] });
     const response = await POST(request("Find LifeOS"));
-    expect(executeHomelabTool).toHaveBeenCalledWith("search_lifeos_data", { query: "LifeOS" });
+    expect(executeHomelabTool).toHaveBeenCalledWith("search_lifeos_data", { query: "LifeOS" }, { requestId: undefined });
     expect(create.mock.calls[0][0].tools).toContainEqual(expect.objectContaining({ function: expect.objectContaining({ name: "search_lifeos_data" }) }));
     expect(create.mock.calls[1][0].messages).toContainEqual(expect.objectContaining({ role: "tool", content: JSON.stringify({ title: "LifeOS" }) }));
     expect(await response.json()).toMatchObject({ serverResults: [{ tool: "search_lifeos_data" }] });

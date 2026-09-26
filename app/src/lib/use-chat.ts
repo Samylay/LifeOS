@@ -20,6 +20,7 @@ export interface ChatMessage {
   // with an "Interrupted" label and a Retry affordance.
   interrupted?: boolean;
   timestamp: Date;
+  requestId?: string;
 }
 
 export interface ActionResult {
@@ -280,6 +281,7 @@ export function useChat(persistent = false) {
         if (validatedContent === null) return null;
         userMsg = {
           id: `msg-${++msgId}`,
+          requestId: newSessionId(),
           role: "user",
           content: validatedContent,
           timestamp: new Date(),
@@ -311,7 +313,7 @@ export function useChat(persistent = false) {
         const res = await fetch("/api/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ messages: history, context, sessionId: sessionRef.current }),
+          body: JSON.stringify({ messages: history, context, sessionId: sessionRef.current, requestId: `${sessionRef.current}:${userMsg.requestId ?? userMsg.id}` }),
           signal: controller.signal,
         });
 

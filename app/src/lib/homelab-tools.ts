@@ -4,6 +4,7 @@
 // host poller; decisionQueue verdicts): the chat can queue asynchronous host
 // Codex work for review or record rulings.
 import fs from "node:fs";
+import { startCodexSession, getCodexSessions } from "./codex-sessions";
 import { listDocs, createDoc, getDoc, updateDoc, deleteDoc } from "@/lib/server-db";
 import { getAllContainers } from "@/lib/system-health";
 import { getHostMetrics, getStandingGoals } from "@/lib/metrics";
@@ -216,16 +217,29 @@ export const HOMELAB_TOOLS = [
   {
     name: "queue_homelab_prompt",
     description:
-      "Queue a new instruction for a Codex session on the homelab. If Samy explicitly asks to run it now, set run_now true. This only adds a confirmation button to the chat; it does not dispatch the prompt.",
+      "Queue a new instruction for a Codex session on the homelab. If Samy explicitly asks to run it now, set run_now true. This launches a session immediately; omit run_now to save work for later.",
     parameters: {
       type: "object",
       properties: {
         title: { type: "string", description: "Short title for the queued work" },
         prompt: { type: "string", description: "Full instruction for the Codex session" },
-        run_now: { type: "boolean", description: "Set only when Samy explicitly asks to run it now. This adds a confirmation button but does not dispatch." },
+        run_now: { type: "boolean", description: "Set only when Samy explicitly asks to run it now. This launches immediately." },
       },
       required: ["title", "prompt"],
     },
+  },
+  {
+    name: "start_codex_session",
+    description: "Start a Codex session immediately for requested LifeOS implementation work. Use when the user asks to start, run, implement, or fix something now. This launches directly, with no review queue or confirmation button. Supply a complete scoped execution brief with preservation rules and observable verification. Return the real session id and status; completion or failure notifies the user through LifeOS.",
+    parameters: { type: "object", properties: {
+      title: { type: "string", description: "Short title for this work" },
+      prompt: { type: "string", description: "Exact requested outcome, scope, exclusions, preservation rules, relevant paths and verification" },
+    }, required: ["title", "prompt"] },
+  },
+  {
+    name: "get_codex_sessions",
+    description: "Monitor Codex sessions started from LifeOS. Returns live status, recent agent progress and the final answer. Use before answering questions about progress or completion. Omit id to list recent sessions.",
+    parameters: { type: "object", properties: { id: { type: "string", description: "Session id returned by start_codex_session" } }, required: [] },
   },
   {
     name: "get_service_health",
@@ -290,7 +304,9 @@ export const HOMELAB_TOOL_STATUS: Record<string, string> = {
   search_lifeos_data: "Searching LifeOS…",
   change_lifeos_data: "Updating LifeOS…",
   homelab_overview: "Checking what's queued…",
-  queue_homelab_prompt: "Queueing it for Codex…",
+  queue_homelab_prompt: "Preparing it for Codex…",
+  start_codex_session: "Starting Codex…",
+  get_codex_sessions: "Checking Codex progress…",
   get_service_health: "Checking service health…",
   get_autoloop_summary: "Reading the last nightly run…",
   list_pending_approvals: "Fetching pending approvals…",
@@ -329,7 +345,8 @@ function lastAutoloopRun(): { lines: string[]; summary: string | null } {
 
 export async function executeHomelabTool(
   tool: string,
-  input: Record<string, unknown>
+  input: Record<string, unknown>,
+  context?: { requestId?: string }
 ): Promise<HomelabToolResult> {
   switch (tool) {
     case "get_food_log": {
@@ -427,13 +444,29 @@ export async function executeHomelabTool(
         data,
       };
     }
+    case "start_codex_session": {
+      try {
+        const session = await startCodexSession(String(input.title || ""), String(input.prompt || ""), context?.requestId);
+        return { tool, summary: `Codex ${session.status}: ${session.title}`, data: { ...session, path: `/chat?codexSession=${session.id}` }, failed: session.status === "failed" };
+      } catch (error) {
+        return { tool, summary: "Failed to start Codex", data: { error: error instanceof Error ? error.message : "Launch failed" }, failed: true };
+      }
+    }
+    case "get_codex_sessions": {
+      try {
+        const sessions = await getCodexSessions(typeof input.id === "string" ? input.id : undefined);
+        return { tool, summary: `Checked ${sessions.length} Codex session(s)`, data: { sessions } };
+      } catch (error) {
+        return { tool, summary: "Could not check Codex progress", data: { error: error instanceof Error ? error.message : "Monitoring unavailable" }, failed: true };
+      }
+    }
     case "queue_homelab_prompt": {
       const title = String(input.title ?? "").slice(0, 160);
       const prompt = String(input.prompt ?? "");
       if (!title || !prompt) {
         return { tool, summary: "Failed: title and prompt required", data: { error: "title and prompt required" }, failed: true };
       }
-      const runNow = input.run_now === true;
+      if (input.run_now === true) return executeHomelabTool("start_codex_session", input, context);
       const id = createDoc(PROMPT_QUEUE, {
         itemId: `chat-${Date.now()}`,
         title,
@@ -441,19 +474,11 @@ export async function executeHomelabTool(
         status: "queued",
         queuedAt: { __date: new Date().toISOString() },
         source: "chat",
-        ...(runNow ? { runNowRequested: true } : {}),
       });
       return {
         tool,
-        summary: runNow ? `Queued "${title}" — tap Run now to launch it` : `Queued "${title}"`,
-        data: {
-          id,
-          status: "queued",
-          note: runNow
-            ? "Queued with a run-now request. It launches only when Samy taps the Run now confirm in the UI — tell him to tap it."
-            : "Queued only. Launch it from the /decide approve page — chat cannot start a session.",
-        },
-        ...(runNow ? { confirm: { promptId: id, title } } : {}),
+        summary: `Queued "${title}"`,
+        data: { id, status: "queued", note: "Saved for later. Explicit start requests use start_codex_session." },
       };
     }
     case "get_service_health": {

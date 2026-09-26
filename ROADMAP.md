@@ -4,6 +4,8 @@
 
 ## Context for the executor
 
+- Samy, 2026-09-26: explicit requests in assistant chat to start or implement LifeOS work launch a Codex session immediately and can be monitored from chat. Notify through LifeOS when the turn finishes or fails. This replaces T47's chat launch prohibition; queueing remains available only for explicit save-for-later requests.
+
 - App lives in `app/` (Next.js 16 + better-sqlite3); the repo root is also an Obsidian-style vault (`01-Inbox.md`, `02-Knowledge/`, …) — NEVER touch vault content.
 - Verify baseline for any code change: `cd app && npx tsc --noEmit && docker compose build && docker compose up -d`, then smoke `curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3000/` (expect 200) plus every route the change touched.
 - Serving topology: container binds `127.0.0.1:3000`, exposed to the tailnet via `tailscale serve`. Do not change ports, networks, or mounts except where a task explicitly says so; any `docker-compose.yml`/infra change must be its own commit whose message states the operational effect.

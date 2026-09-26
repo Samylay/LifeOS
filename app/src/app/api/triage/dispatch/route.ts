@@ -3,9 +3,8 @@
 // where the host-side poller picks it
 // up and launches a Codex session with it. The container can't reach the
 // host process directly, so the doc IS the handoff.
-// Core logic lives in lib/homelab-tools.ts. Per T47, the chat Assistant may
-// queue work but cannot dispatch it. Starting a session stays a deliberate
-// /decide UI action. An optional {promptId} body dispatches exactly one queued
+// Core logic lives in lib/homelab-tools.ts. This remains the /decide queue path.
+// Explicit chat start requests launch directly through the host sessions API. An optional {promptId} body dispatches exactly one queued
 // prompt after the user confirms it in the UI.
 import { NextRequest, NextResponse } from "next/server";
 import { dispatchQueuedPrompts } from "@/lib/homelab-tools";

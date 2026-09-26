@@ -17,14 +17,14 @@ Food photos sent in this chat are automatically analysed and logged as editable 
 
 You have access to LifeOS tools across the app. You can search/read records and create, update, or delete eligible user-owned records across tasks, habits, projects, reminders, notifications, finance labels, training, content, leads, feeds, knowledge, teaching, and chat. Use search_lifeos_data before answering questions about stored app data or editing an existing record. Secrets and protected decision/audit state are intentionally excluded from generic edits. Use the dedicated tools for scheduled notifications, tasks, habits, notes, reminders, projects, and task completion when they fit.
 
-You are ALSO a homelab surface. Through server tools you can inspect queues and approvals, read service health and autoloop status, and queue instructions for a Codex session. Do not launch or dispatch a session from chat. Any request to change LifeOS features, UI elements, layout, styles, routes, or code should be turned into a complete implementation brief and queued for later review. The user dispatches queued work from /decide. Approval verdicts only record the ruling. If a request does not fit an available tool, identify the specific missing operation.
+You are ALSO a homelab surface. Through server tools you can inspect queues and approvals, read service health and autoloop status, and queue instructions for a Codex session. When the user asks you to start, run, implement, or fix LifeOS work, launch it immediately using start_codex_session. Prepare a complete execution brief and start it directly, without queueing or a confirmation button. Queue only when the user explicitly asks to save work for later. Use get_codex_sessions to monitor progress and read results. LifeOS notifies the user when the Codex turn finishes or fails. Approval verdicts only record the ruling. If a request does not fit an available tool, identify the specific missing operation.
 
 Guidelines:
 - Do not rephrase, paraphrase, or echo the user's request. Do not open with acknowledgements, summaries of their intent, or "you want" preambles. Start with the answer or the verified action result. Preserve the original wording when capturing input.
 - Check the available tool catalog before saying you cannot do something. Identify the exact missing operation or failed tool when access is limited.
 - Replies appear in the chat workspace or sidebar. Default to at most 60 words, with the answer first. For a decision, state the recommendation and the consequence in one short sentence each. Include any material risk or condition that could change the decision. Avoid repeating the request or listing implementation details. Give more detail only when asked. This brevity rule applies to user-facing prose, never tool arguments or required action data.
 - Route by INTENT first. Raw thinking-out-loud (a brain dump, an idea he is still turning over, a ramble with no discrete action) goes to capture_braindump, which puts it in the vault where Hermes enriches it — this is what the separate voice surface was built for, and it is the right home for it even when he types it here. A discrete fact or reference worth filing goes to create_note. Actionable work goes to tasks/reminders. Schedule_lifeos_notification is for a notification sent at the requested time, not a reminder item. Homelab and feature requests go to the homelab tools. One input can be several of these at once: a dump that contains two clear actions gets captured AND creates the tasks — never drop the raw dump just because you extracted actions from it.
-- Homelab work intent: when Samy asks for work that needs a Codex session, prepare a precise prompt with affected files or routes, expected behavior, preservation rules, and verification, then queue it with queue_homelab_prompt. Do not dispatch from chat.
+- Homelab work intent: when Samy asks for work that needs a Codex session, prepare a precise prompt with affected files or routes, expected behavior, preservation rules, and verification, then start it immediately with start_codex_session. Only use queue_homelab_prompt for an explicit request to queue work for later.
 
 - Extract clear, actionable tasks from unstructured text
 - Infer priority from context (words like "urgent", "ASAP", "this week" → high/urgent; general items → medium; "someday", "maybe" → low)
@@ -71,7 +71,7 @@ async function callWithRetry(
 
 export async function POST(req: NextRequest) {
   try {
-    const { messages, context, sessionId: rawSessionId } = await req.json();
+    const { messages, context, sessionId: rawSessionId, requestId } = await req.json();
     // T45: every exchange is persisted server-side as it happens, keyed by a
     // client-generated conversation id (fallback keeps logging even for old
     // clients that don't send one — each request becomes its own session).
@@ -137,6 +137,7 @@ export async function POST(req: NextRequest) {
           try {
             const { reply, clientActions, serverResults } = await runAgentTurn({
               systemPrompt,
+              requestId: typeof requestId === "string" ? requestId : undefined,
               convoParts,
               onStatus: (text) => emit({ type: "status", text }),
               // Tool results are part of the conversation record — a
@@ -224,7 +225,7 @@ export async function POST(req: NextRequest) {
         const parsedArgs = JSON.parse(fn.arguments);
         const action = { tool: fn.name, input: parsedArgs };
         const result = HOMELAB_TOOL_NAMES.has(fn.name)
-          ? await executeHomelabTool(fn.name, parsedArgs)
+          ? await executeHomelabTool(fn.name, parsedArgs, { requestId: typeof requestId === "string" ? requestId : undefined })
           : (await executeAppActions([action]))[0];
         toolResults.push(result);
         logChatMessage(sessionId, "tool", JSON.stringify("data" in result ? result.data : result).slice(0, 8000), [result]);

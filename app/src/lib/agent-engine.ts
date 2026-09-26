@@ -244,6 +244,7 @@ const TOOL_CATALOG = CHAT_TOOLS
 
 export interface AgentTurnOptions {
   systemPrompt: string;
+  requestId?: string;
   /** Conversation lines ("USER: …", "ASSISTANT: …"). Mutated: homelab tool
    * rounds append their calls and TOOL_RESULT lines so the caller can persist
    * the full record if it wants to. */
@@ -288,7 +289,7 @@ export async function runAgentTurn(opts: AgentTurnOptions): Promise<AgentTurnOut
       "You can act by emitting tool calls. Available tools (JSON schema):",
       JSON.stringify(TOOL_CATALOG, null, 2),
       "",
-      `Server tools (${[...HOMELAB_TOOL_NAMES].join(", ")}) run immediately and return TOOL_RESULT lines. App-item tools are committed by the server after the final reply. You may combine app-item actions with server tools in the same turn. Preserve every app action across tool rounds; never repeat an action already emitted. Use search_lifeos_data to find/read the user's app records and change_lifeos_data to create, update, or remove eligible records. For requested LifeOS feature or UI/code changes, queue a complete implementation brief with queue_homelab_prompt. Do not claim a queued prompt has started; it must be dispatched from /decide. Never claim a tool or app capability is unavailable without checking the tool catalog.`,
+      `Server tools (${[...HOMELAB_TOOL_NAMES].join(", ")}) run immediately and return TOOL_RESULT lines. App-item tools are committed by the server after the final reply. You may combine app-item actions with server tools in the same turn. Preserve every app action across tool rounds; never repeat an action already emitted. Use search_lifeos_data to find/read the user's app records and change_lifeos_data to create, update, or remove eligible records. For requested LifeOS implementation work, start_codex_session launches immediately. Use queue_homelab_prompt only when the user asks to save or queue work for later. Monitor with get_codex_sessions. Report the returned session id and real status; never call a failed launch successful. Never claim a tool or app capability is unavailable without checking the tool catalog.`,
       "",
       "Conversation so far:",
       convoParts.join("\n\n"),
@@ -323,7 +324,7 @@ export async function runAgentTurn(opts: AgentTurnOptions): Promise<AgentTurnOut
     toolRounds++;
     for (const call of homelabCalls) {
       onStatus?.(HOMELAB_TOOL_STATUS[call.tool] ?? `Running ${call.tool}…`);
-      const result = await executeHomelabTool(call.tool, call.input ?? {});
+      const result = await executeHomelabTool(call.tool, call.input ?? {}, { requestId: opts.requestId });
       serverResults.push(result);
       onToolResult?.(result);
       convoParts.push(

@@ -1,7 +1,10 @@
-import { describe, it, expect, afterAll } from "vitest";
+import { describe, it, expect, afterAll, vi } from "vitest";
 import fs from "fs";
 import os from "os";
 import path from "path";
+
+const { startCodexSession, getCodexSessions } = vi.hoisted(() => ({ startCodexSession: vi.fn(), getCodexSessions: vi.fn() }));
+vi.mock("./codex-sessions", () => ({ startCodexSession, getCodexSessions }));
 
 // Throwaway DB before the lazy singleton opens (mirrors server-db.test.ts).
 // The singleton binds on first query, so the path can't change mid-file —
@@ -92,40 +95,36 @@ describe("dispatchQueuedPrompts batching", () => {
   });
 });
 
-describe("chat cannot dispatch work (T47)", () => {
-  it("exposes no direct execution tool", () => {
-    const names = HOMELAB_TOOLS.map((t) => t.name);
-    expect(names).not.toContain("execute_homelab_prompt");
-    expect(names.filter((name) => /launch|dispatch|execute_homelab_prompt/i.test(name))).toEqual([]);
-    expect(HOMELAB_TOOL_NAMES.has("execute_homelab_prompt")).toBe(false);
-    expect(Object.keys(HOMELAB_TOOL_STATUS)).not.toContain("execute_homelab_prompt");
+describe("explicit chat execution (Samy, 2026-09-26, replaces T47)", () => {
+  it("exposes direct start and monitoring tools", () => {
+    expect(HOMELAB_TOOL_NAMES.has("start_codex_session")).toBe(true);
+    expect(HOMELAB_TOOL_NAMES.has("get_codex_sessions")).toBe(true);
+    expect(HOMELAB_TOOL_STATUS.start_codex_session).toBeDefined();
   });
-
-  it("keeps run_now as a confirmation request, not a dispatch control", () => {
-    const q = HOMELAB_TOOLS.find((t) => t.name === "queue_homelab_prompt");
-    expect(q).toBeDefined();
-    expect(Object.keys(q!.parameters.properties)).toEqual(["title", "prompt", "run_now"]);
-    expect(q!.parameters.properties.run_now.type).toBe("boolean");
+  it("starts immediately without creating queue or dispatch records", async () => {
+    const beforeQueue = listDocs(QUEUE).length, beforeDispatch = listDocs(DISPATCH).length;
+    startCodexSession.mockResolvedValue({ id: "a".repeat(32), title: "Fix chat", status: "running" });
+    const result = await executeHomelabTool("start_codex_session", { title: "Fix chat", prompt: "Fix and verify" }, { requestId: "r1" });
+    expect(startCodexSession).toHaveBeenCalledWith("Fix chat", "Fix and verify", "r1");
+    expect(result.data).toMatchObject({ status: "running" });
+    expect(result.confirm).toBeUndefined();
+    expect(listDocs(QUEUE)).toHaveLength(beforeQueue);
+    expect(listDocs(DISPATCH)).toHaveLength(beforeDispatch);
   });
-
-  it("queues a run-now request with a confirm chip and does not dispatch", async () => {
-    const before = listDocs(DISPATCH, {}).length;
-    const r = await executeHomelabTool("queue_homelab_prompt", {
-      title: "t47 probe",
-      prompt: "launch this immediately",
-      run_now: true,
-    });
-    expect(r.failed).toBeFalsy();
-    expect(r.confirm).toMatchObject({ title: "t47 probe" });
-    const queued = listDocs(QUEUE, { where: [["status", "==", "queued"]] });
-    expect(queued.some((d) => (d as { title?: string }).title === "t47 probe")).toBe(true);
-    expect(listDocs(DISPATCH, {}).length).toBe(before);
+  it("launches legacy run_now requests directly", async () => {
+    const before = listDocs(QUEUE).length;
+    await executeHomelabTool("queue_homelab_prompt", { title: "Fix chat", prompt: "Fix and verify", run_now: true });
+    expect(listDocs(QUEUE)).toHaveLength(before);
   });
-
-  it("refuses an unknown direct execution tool", async () => {
-    const before = listDocs(DISPATCH, {}).length;
-    const r = await executeHomelabTool("execute_homelab_prompt", {});
-    expect(r.failed).toBe(true);
-    expect(listDocs(DISPATCH, {}).length).toBe(before);
+  it("reports a failed launch without queueing or claiming success", async () => {
+    startCodexSession.mockRejectedValueOnce(new Error("Host unavailable"));
+    const result = await executeHomelabTool("start_codex_session", { title: "Fix", prompt: "Fix it" });
+    expect(result.failed).toBe(true);
+    expect(result.data).toEqual({ error: "Host unavailable" });
+  });
+  it("reads actual session progress and final results", async () => {
+    getCodexSessions.mockResolvedValue([{ id: "a".repeat(32), status: "completed", answer: "Verified" }]);
+    const result = await executeHomelabTool("get_codex_sessions", { id: "a".repeat(32) });
+    expect(result.data).toMatchObject({ sessions: [{ status: "completed", answer: "Verified" }] });
   });
 });

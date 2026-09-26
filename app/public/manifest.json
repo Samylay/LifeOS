@@ -26,5 +26,9 @@
     "lifestyle"
   ],
   "scope": "/",
-  "lang": "en"
+  "lang": "en",
+  "id": "/",
+  "launch_handler": {
+    "client_mode": "navigate-existing"
+  }
 }

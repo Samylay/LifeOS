@@ -9,6 +9,8 @@ import { useVoiceRecorder } from "@/lib/use-voice-recorder";
 import { RunNowChip } from "@/components/run-now-chip";
 import { useChat } from "@/lib/use-chat";
 import { cn } from "@/lib/utils";
+import { PhotoInboxCapture } from "./photo-inbox-capture";
+import { CodexSessions } from "./codex-sessions";
 import { FoodPhotoCard } from "./food-photo-card";
 import { FoodDaySummary } from "./food-day-summary";
 import { prepareChatPhoto } from "@/lib/prepare-chat-photo";
@@ -97,15 +99,16 @@ export function ChatWorkspace() {
           <span className="flex size-7 items-center justify-center rounded-lg bg-primary/10 text-primary"><Sparkles size={15} /></span>
           LifeOS Assistant
         </div>
-        <button
+        <div className="flex items-center gap-2"><PhotoInboxCapture /><button
           type="button"
           onClick={() => { void stopLiveVoice(); cancelVoice(); clearMessages(); setInput(""); setDraft(null); }}
           disabled={restoring || uploading || preparing || (!conversation.length && !loading && voice === "idle" && !liveActive)}
           className="inline-flex h-8 items-center gap-2 rounded-lg px-2.5 text-xs text-muted-foreground transition-transform duration-150 ease-[var(--ease-out-custom)] hover:bg-muted hover:text-foreground disabled:opacity-40 active:scale-[0.97]"
         >
           <Plus size={14} /> New chat
-        </button>
+        </button></div>
       </header>
+      <CodexSessions />
       <FoodDaySummary photos={photos} />
 
       <div className="flex min-h-0 flex-1 flex-col">

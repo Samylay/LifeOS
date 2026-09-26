@@ -21,6 +21,7 @@
 // agent.
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import { PhotoInboxCapture } from "@/components/photo-inbox-capture";
 import { AlertTriangle, Check, FileText, Loader2, Mic, RotateCcw, Square, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useVoiceRecorder } from "@/lib/use-voice-recorder";
@@ -277,7 +278,7 @@ export default function VoiceHome() {
       <PageHeader
         title="Quick capture"
         icon={Mic}
-        actions={<Button asChild variant="outline"><Link href="/voice">Back to fluency</Link></Button>}
+        actions={<div className="flex items-center gap-2"><PhotoInboxCapture /><Button asChild variant="outline"><Link href="/voice">Back to fluency</Link></Button></div>}
       />
 
       {!reviewing ? (
