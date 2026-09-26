@@ -104,13 +104,13 @@ function NoteRow({
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 flex-wrap">
-            <p className="text-sm font-medium break-words text-foreground">{n.title}</p>
+            <p className="text-base font-medium break-words text-foreground">{n.title}</p>
             <Badge variant="secondary" className="rounded-md text-[10px] font-normal">
               {n.folder}
             </Badge>
             <span className="text-xs ml-auto shrink-0 text-muted-foreground/70">{timeAgo(n.mtime)}</span>
           </div>
-          {n.summary && <p className="text-xs mt-1 line-clamp-2 text-muted-foreground">{n.summary}</p>}
+          {n.summary && <p className="text-base leading-relaxed mt-2 text-muted-foreground">{n.summary}</p>}
           {n.tags && n.tags.length > 0 && (
             <div className="flex flex-wrap gap-1 mt-1.5">
               {n.tags.slice(0, 5).map((t) => (
@@ -134,9 +134,9 @@ export default function KnowledgePage() {
   const { toast } = useToast();
   const [active, setActive] = useState<Note | null>(null);
   const [showAllNotes, setShowAllNotes] = useState(false);
-  const [view, setView] = useState<"notes" | "graph">("notes");
+  const [view, setView] = useState<"learn" | "notes" | "graph">("learn");
   useEffect(() => {
-    const sync = () => setView(new URLSearchParams(window.location.search).get("view") === "graph" ? "graph" : "notes");
+    const sync = () => { const value = new URLSearchParams(window.location.search).get("view"); setView(value === "graph" || value === "notes" ? value : "learn"); };
     queueMicrotask(sync);
     window.addEventListener("popstate", sync);
     return () => window.removeEventListener("popstate", sync);
@@ -170,11 +170,10 @@ export default function KnowledgePage() {
 
   return (
     <Page className="max-w-6xl">
-      <PreparedMaterials />
       <PageHeader
-        kicker="Vault"
+        kicker="Learning centre"
         title="Knowledge"
-        description="Find a note, follow its connections, or continue learning."
+        description="Choose an interest. Find your next step. Learn at your own pace."
         icon={Brain}
         actions={
           enabled ? (
@@ -185,11 +184,12 @@ export default function KnowledgePage() {
         }
       />
 
-      <div className="flex gap-1" role="group" aria-label="Knowledge view">
-        <Button variant={view === "notes" ? "secondary" : "ghost"} aria-pressed={view === "notes"} onClick={() => { setView("notes"); window.history.replaceState(window.history.state, "", "/knowledge"); }}><FileText size={15} /> Notes & learning</Button>
+      <div className="flex flex-wrap gap-1" role="group" aria-label="Knowledge view">
+        <Button variant={view === "learn" ? "secondary" : "ghost"} aria-pressed={view === "learn"} onClick={() => { setView("learn"); window.history.replaceState(window.history.state, "", "/knowledge"); }}><Brain size={15} /> Learn</Button>
+        <Button variant={view === "notes" ? "secondary" : "ghost"} aria-pressed={view === "notes"} onClick={() => { setView("notes"); window.history.replaceState(window.history.state, "", "/knowledge?view=notes"); }}><FileText size={15} /> Notes</Button>
         <Button variant={view === "graph" ? "secondary" : "ghost"} aria-pressed={view === "graph"} onClick={() => { setView("graph"); window.history.replaceState(window.history.state, "", "/knowledge?view=graph"); }}><Network size={15} /> Graph</Button>
       </div>
-      {view === "graph" ? <KnowledgeGraph onOpenNote={async (path) => { const note = await readNote(path); if (note) openNote(note); else toast("Could not open note"); }} /> : <>
+      {view === "learn" ? <TeachSection /> : view === "graph" ? <KnowledgeGraph onOpenNote={async (path) => { const note = await readNote(path); if (note) openNote(note); else toast("Could not open note"); }} /> : <>
 
       {!enabled && !error && (
         <Card className="gap-0 rounded-xl p-4 text-sm text-muted-foreground">
@@ -197,11 +197,7 @@ export default function KnowledgePage() {
         </Card>
       )}
 
-      {/* Voice teaching sessions — queue, suggestions, session launcher.
-          The learning loop owns the fold; the note archive lives below. */}
-      <div className="enter" style={{ ["--enter-delay" as string]: "40ms" }}>
-        <TeachSection />
-      </div>
+      <PreparedMaterials />
 
       {/* Search */}
       {enabled && (
@@ -254,7 +250,7 @@ export default function KnowledgePage() {
           ) : (
             <>
               {query && <p className="px-1 text-xs text-muted-foreground">{notes.length} matching note{notes.length === 1 ? "" : "s"}</p>}
-              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">{(showAllNotes || query ? notes : notes.slice(0, 6)).map((n) => (
+              <div className="grid gap-3">{(showAllNotes || query ? notes : notes.slice(0, 6)).map((n) => (
                 <NoteRow key={n.path} note={n} readNote={readNote} openNote={openNote} toast={toast} />
               ))}</div>
             </>
