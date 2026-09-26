@@ -48,25 +48,26 @@ need a sibling checkout or a local file dependency. See
 navigation, and top-bar title. The most specific matching path owns the active
 state, so Approvals does not also mark Decide active.
 
-| Group | Destinations |
-| --- | --- |
-| Workspace | Today, Decide, Approvals, Projects, Content, Leads |
-| Personal | Voice, Knowledge, Training, Finance |
-| Explore | News, Feed, Recipes |
-| Utilities | Status, Terminal, Settings |
+`NAV_GROUPS` and `NAV_UTILITIES` contain the current destinations. Use those
+arrays as the inventory rather than copying a second list into feature code.
+Keep every functioning destination accessible in the full navigation.
 
-These reflect routes that actually exist. Do not remove a functioning route
-because an older planning document proposed retiring it.
+Mobile quick links are Today, Decide, Chat, and Fluency, plus a consistently
+named Menu. The full navigation has page search on phone and desktop. Desktop
+supports an icon rail with tooltips and the persisted collapse preference.
+Navigation switches to a focus-managed sheet below 1024px.
 
-Mobile quick links are Today, Decide, Voice, and Projects, plus Menu. Menu
-shows the current destination when it is outside the quick links. Desktop
-supports an icon rail with tooltips and the existing persisted collapse
-preference. Navigation switches to a focus-managed sheet below 1024px.
+Downward content scrolling dismisses the top bar and mobile navigation.
+Reverse scrolling and keyboard focus restore them. Only user scroll gestures
+trigger this behavior; restoring a conversation or streaming text must not
+hide navigation. Menus and sheets scroll independently of the page chrome.
 
 ## Page grammar
 
-`Page` sets readable width and spacing. `PageHeader` owns the title, one short
-sentence, and the main action slot. `FilterBar` groups local view choices.
+`Page` sets readable width and spacing. `PageHeader` owns the title and useful
+actions. No eyebrow, slogan, or explanatory tagline. Put instructions next to
+the control they explain. Related destinations live in the header navigation
+sheet. `FilterBar` groups local view choices in a horizontally scrollable row.
 `SectionHeader` introduces sections. `.work-canvas` marks a working region.
 
 One primary action per view; supporting actions use outline or ghost. On
@@ -125,3 +126,31 @@ Run TypeScript, the Vitest suite, lint, and the Docker build. Review desktop,
 390px and 320px layouts, mobile navigation focus, long decision text,
 selection and approval, undo, and error recovery with synthetic data. Never
 use live user data for mutation tests.
+
+## Content space and progressive disclosure
+
+Appllama reference study, 2026-09-26: conversational canvases from Sworkit,
+Minutes, Anotar and ChatBox; grouped navigation from Superlist; settings rows
+from OmniFocus and Cardhop. Apply their hierarchy within LifeOS's existing
+Mira tokens and dark palette. Private reference IDs and screenshots are under
+`.scratch/ux-overhaul/research/` at the repository root.
+
+- Chat owns one viewport, one header and one content scroll region. Keep the
+  composer visible above the visual viewport edge. Session history belongs in
+  Activity; only the running count belongs on its trigger. Notification links
+  open their selected session. Meal totals and cards scroll with messages.
+- Camera capture to inbox and food-photo logging are separate destinations.
+  State the destination in the preview before saving. Photo cards use the
+  conversation width instead of nesting inside another message bubble.
+- Keep primary content above navigation maps and configuration. Today places
+  workspace exploration after the daily content. Settings groups expand in
+  place and honor direct hash links. News reading options and bank connection
+  details are available on demand.
+- Histories support filtering and bounded batches with explicit Show more.
+  Preserve complete decision consequences and all records.
+- Touch controls are at least 44px. A checkbox's label supplies its hit area;
+  do not stretch the checkbox glyph to the size of a button. Mobile form text
+  stays 16px to avoid browser focus zoom.
+- Verify actual screenshots and scrolling, not HTTP success alone. Include
+  360px, 390px, tablet and desktop widths, reduced motion, focus restoration,
+  long content and a reduced visual viewport for the composer.

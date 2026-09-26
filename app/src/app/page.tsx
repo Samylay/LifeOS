@@ -181,7 +181,6 @@ export default function Today() {
 
       <CalibrationNudge />
       <WorkflowInboxLink />
-      <WorkspaceMap />
 
       <div className="flex flex-col gap-4 lg:gap-6 lg:grid lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start">
       {/* Morning brief — the live daily loop, anchor of this page; first on
@@ -318,6 +317,10 @@ export default function Today() {
 
       </div>
       </div>
+      <details className="rounded-xl border border-border bg-card">
+        <summary className="flex min-h-14 cursor-pointer items-center justify-between px-4 text-sm font-medium pressable active:scale-[0.97]">Explore LifeOS <span aria-hidden="true">+</span></summary>
+        <WorkspaceMap />
+      </details>
     </div>
   );
 }

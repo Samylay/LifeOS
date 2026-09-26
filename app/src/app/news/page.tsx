@@ -9,6 +9,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Page, PageHeader } from "@/components/ui/page";
+import { Sheet, SheetTrigger, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const BUCKET_ORDER: Bucket[] = ["news", "tech", "sec", "video"];
@@ -201,7 +202,11 @@ export default function NewsPage() {
         title="News digest"
         actions={
           <>
-          <div className="flex items-center rounded-lg border border-border p-0.5" aria-label="Card density" role="group">
+          <Sheet><SheetTrigger asChild><Button variant="ghost" size="icon" aria-label="News reading options"><Settings2 size={18} /></Button></SheetTrigger>
+            <SheetContent side="bottom" className="mx-auto max-w-lg rounded-t-2xl pb-[max(1rem,env(safe-area-inset-bottom))]">
+              <SheetHeader><SheetTitle>Reading options</SheetTitle><SheetDescription>Card density, sources and notifications.</SheetDescription></SheetHeader>
+              <div className="space-y-4 px-4">
+                <div className="flex items-center rounded-lg border border-border p-0.5" aria-label="Card density" role="group">
             <button
               type="button"
               onClick={() => changeDensity("compact")}
@@ -228,6 +233,10 @@ export default function NewsPage() {
               <Settings2 size={15} /> Manage feeds
             </Link>
           </Button>
+                <p className="text-sm text-muted-foreground">Daily reminder from 08:00, after quiet hours. {pushDevices === 0 ? <Link className="underline" href="/settings#settings-notifications">Enable device notifications</Link> : pushDevices !== null ? `${pushDevices} device${pushDevices === 1 ? "" : "s"} registered` : <Link className="underline" href="/settings#settings-notifications">Notification settings</Link>}</p>
+              </div>
+            </SheetContent>
+          </Sheet>
           {edition && (
             <Button
               onClick={refresh}
@@ -244,19 +253,19 @@ export default function NewsPage() {
         }
       />
 
-      <div className="mb-6 space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4">
+      <div className="space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex gap-2" role="group" aria-label="Reading view">
             <Button variant={view === "digest" ? "default" : "outline"} aria-pressed={view === "digest"} onClick={() => setView("digest")}>Skim digest</Button>
             <Button variant={view === "full" ? "default" : "outline"} aria-pressed={view === "full"} onClick={() => { setSelectedIssue(null); setView("full"); }}>Full newsletters</Button>
           </div>
-          <p className="text-xs text-muted-foreground">Daily reminder from 08:00, after quiet hours. {pushDevices === 0 ? <Link className="underline" href="/settings">Enable device notifications</Link> : pushDevices !== null ? `${pushDevices} device${pushDevices === 1 ? "" : "s"} registered` : <Link className="underline" href="/settings">Notification settings</Link>}</p>
+
         </div>
-        <div className="flex flex-col gap-3 sm:flex-row">
-          <label className="flex flex-1 items-center gap-2 rounded-lg border border-border px-3 py-2 focus-within:ring-2 focus-within:ring-primary/30"><Search size={16} className="text-muted-foreground" /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search headlines, topics, sources…" aria-label="Search news" className="w-full bg-transparent text-sm outline-none" /></label>
+        <div className="grid grid-cols-2 gap-2 sm:flex">
+          <label className="col-span-2 flex min-w-0 flex-1 items-center gap-2 rounded-lg border border-border px-3 focus-within:ring-2 focus-within:ring-primary/30"><Search size={16} className="text-muted-foreground" /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search headlines, topics, sources…" aria-label="Search news" className="w-full bg-transparent text-sm outline-none" /></label>
           {view === "digest" && <>
-            <select aria-label="Filter section" value={bucketFilter} onChange={(event) => setBucketFilter(event.target.value)} className="rounded-lg border border-border bg-background px-3 py-2 text-sm"><option value="">All sections</option>{BUCKET_ORDER.map((bucket) => <option key={bucket} value={bucket}>{BUCKET_LABELS[bucket]}</option>)}</select>
-            <select aria-label="Filter source" value={source} onChange={(event) => setSource(event.target.value)} className="rounded-lg border border-border bg-background px-3 py-2 text-sm"><option value="">All sources</option>{[...new Set(edition?.items.map((item) => item.source) ?? [])].sort().map((name) => <option key={name}>{name}</option>)}</select>
+            <select aria-label="Filter section" value={bucketFilter} onChange={(event) => setBucketFilter(event.target.value)} className="min-w-0 rounded-lg border border-border bg-background px-3 py-2 text-sm"><option value="">All sections</option>{BUCKET_ORDER.map((bucket) => <option key={bucket} value={bucket}>{BUCKET_LABELS[bucket]}</option>)}</select>
+            <select aria-label="Filter source" value={source} onChange={(event) => setSource(event.target.value)} className="min-w-0 rounded-lg border border-border bg-background px-3 py-2 text-sm"><option value="">All sources</option>{[...new Set(edition?.items.map((item) => item.source) ?? [])].sort().map((name) => <option key={name}>{name}</option>)}</select>
           </>}
         </div>
       </div>

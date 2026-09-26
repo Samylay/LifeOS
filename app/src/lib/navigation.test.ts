@@ -5,7 +5,7 @@ describe("navigation destinations", () => {
   it("selects Approvals without also selecting Decide", () => {
     expect(activeDestination("/decide/approvals")?.href).toBe("/decide/approvals");
     expect(activeDestination("/decide/dispatch")?.href).toBe("/decide");
-    expect(surfaceTitle("/decide/dispatch")).toBe("Send to Claude");
+    expect(surfaceTitle("/decide/dispatch")).toBe("Results");
   });
   it("matches path segments rather than prefixes", () => {
     expect(activeDestination("/knowledge/teach/session")?.href).toBe("/knowledge");

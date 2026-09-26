@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { toast as sonnerToast } from "sonner";
 import { useToast } from "@/components/toast";
 import {
-  Check, Loader2, X, Activity, Eye, EyeOff,
+  Check, Loader2, X, Activity, Eye, EyeOff, ChevronDown,
   BellRing, Sunrise, RefreshCw, Send, Layers, Newspaper, Radar, Landmark, ListChecks, Plug,
 } from "lucide-react";
 import { useGarmin } from "@/lib/use-garmin";
@@ -14,7 +14,6 @@ import { LeadsAvailabilityCard } from "@/components/leads-availability-card";
 import { BankAccountsCard } from "@/components/bank-accounts-card";
 import { Button } from "@/components/ui/button";
 import { Page, PageHeader } from "@/components/ui/page";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 
 const settingSections = [
@@ -28,15 +27,19 @@ const sectionId = (title: string) => `settings-${title.toLowerCase().replace(/[^
 // --- Shared bits ---------------------------------------------------------
 
 function Section({ title, sub, children }: { title: string; sub?: string; children: React.ReactNode }) {
-  return (
-    <Card id={sectionId(title)} className="gap-4 py-4 scroll-mt-24">
-      <CardHeader className="px-4">
-        <CardTitle className="section-label">{title}</CardTitle>
-        {sub && <CardDescription className="text-xs">{sub}</CardDescription>}
-      </CardHeader>
-      <CardContent className="px-4">{children}</CardContent>
-    </Card>
-  );
+  const ref = useRef<HTMLDetailsElement>(null);
+  useEffect(() => {
+    const reveal = () => { if (window.location.hash === `#${sectionId(title)}` && ref.current) ref.current.open = true; };
+    reveal(); window.addEventListener("hashchange", reveal);
+    return () => window.removeEventListener("hashchange", reveal);
+  }, [title]);
+  const Icon = settingSections.find(section => section.title === title)?.icon ?? Plug;
+  return <details ref={ref} id={sectionId(title)} className="group rounded-xl border border-border bg-card scroll-mt-20">
+    <summary className="flex min-h-16 cursor-pointer items-center gap-3 p-4 pressable active:scale-[0.97]">
+      <Icon size={20} className="shrink-0 text-muted-foreground" /><span className="min-w-0 flex-1"><span className="block text-sm font-medium">{title}</span>{sub && <span className="mt-1 block text-xs leading-5 text-muted-foreground">{sub}</span>}</span><ChevronDown size={16} className="shrink-0 group-open:rotate-180 transition-transform duration-[var(--dur-fast)] ease-[var(--ease-out-custom)]" />
+    </summary>
+    <div className="border-t border-border p-4">{children}</div>
+  </details>;
 }
 
 // --- Strava --------------------------------------------------------------
@@ -295,14 +298,11 @@ export default function SettingsPage() {
   return (
     <Page className="max-w-5xl">
       <PageHeader
-        title="Manage LifeOS"
+        title="Settings"
       />
 
       <Link href="/review" className="flex min-h-12 items-center justify-between gap-3 rounded-xl border border-border bg-card p-4 text-sm font-medium active:scale-[0.97]">Your notebook and the LifeOS overhaul <span aria-hidden="true">→</span></Link>
-      <nav aria-label="Settings sections" className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-        {settingSections.map(({ title, icon: Icon }) => <a key={title} href={`#${sectionId(title)}`} className="flex min-h-16 items-center gap-3 rounded-lg border border-border bg-card p-3 text-xs font-medium transition-transform duration-[var(--dur-fast)] ease-[var(--ease-out-custom)] active:scale-[0.97] hover:bg-secondary"><Icon size={18} className="shrink-0 text-muted-foreground" />{title}</a>)}
-      </nav>
-      <div className="grid items-start gap-4 lg:grid-cols-2">
+      <div className="grid items-start gap-3">
         <Section title="Habits & routines" sub="Keep your routines easy to change as life changes.">
           <div className="grid gap-2 sm:grid-cols-2">
             <Link href="/settings/habits" className="rounded-lg border border-border p-4 text-sm pressable active:scale-[0.97] hover:bg-muted"><span className="font-medium">Habits →</span><p className="mt-1 text-xs text-muted-foreground">Add, schedule, reorder, pause, or archive.</p></Link>
@@ -317,7 +317,7 @@ export default function SettingsPage() {
           <div className="flex flex-wrap gap-2"><Button asChild variant="outline"><Link href="/news/feeds">News sources</Link></Button><Button asChild variant="outline"><Link href="/decide">Saved-item decisions</Link></Button><Button asChild variant="outline"><Link href="/decide/dispatch">Queued work</Link></Button></div>
         </Section>
         {/* Notifications — first: the section touched most often */}
-        <Section title="Notifications" sub="Pager inbox + web-push to your devices (tailnet-only).">
+        <Section title="Notifications" sub="Phone notifications and your inbox.">
           <div className="mb-4">
             <PushSettings />
           </div>

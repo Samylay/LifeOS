@@ -572,7 +572,9 @@ function BurnOverview() {
   const nextSync = overview.nextSyncAt ? new Date(overview.nextSyncAt).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }) : null;
 
   return <div className="space-y-4">
-    <Card className="gap-2 p-4">
+    <details className="rounded-xl border border-border bg-card" open={!linked || !!(syncError || overview.syncError || error)}>
+      <summary className="flex min-h-14 cursor-pointer items-center justify-between gap-3 px-4 text-sm pressable active:scale-[0.97]"><span>Connected banks</span><span className="text-xs text-muted-foreground">{overview.lastSyncedLabel} · Details</span></summary>
+      <div className="space-y-3 border-t border-border p-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div><h2 className="text-sm font-semibold">Connected banks</h2><p className="mt-1 text-xs text-muted-foreground">{overview.lastSyncedLabel} · {linked && overview.configured ? "Automatic sync every 5 hours" : "Automatic sync starts after connection"}{nextSync ? ` · Next around ${nextSync}` : ""}</p></div>
         <div className="flex flex-wrap gap-2">
@@ -582,7 +584,7 @@ function BurnOverview() {
       </div>
       {!overview.configured && <p className="text-sm text-muted-foreground">Bank connection setup is incomplete. Your saved history is still available.</p>}
       {(syncError || overview.syncError || error) && <p role="alert" className="text-sm text-destructive">{syncError || overview.syncError || "Could not refresh this overview. Showing the last loaded data."}</p>}
-    </Card>
+    </div></details>
     {linked && <BurnBanner overview={overview} />}
     <Card className="gap-4 p-4 sm:p-5">
       <div className="flex flex-wrap items-baseline justify-between gap-2"><h2 className="text-lg font-semibold">{monthLabel(month)}</h2><span className="text-xs text-muted-foreground">EUR only{month === months.at(-1)?.burn.month ? " · Month in progress" : ""}</span></div>

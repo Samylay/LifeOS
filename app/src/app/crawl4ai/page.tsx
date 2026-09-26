@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 
+import { Page, PageHeader } from "@/components/ui/page";
+
 type Preset = { id: string; label: string; purpose: string };
 type Result = { preset: string; requestedUrl: string; canonicalUrl: string; title: string; markdown: string; fitMarkdown: string; links: Array<{ href: string; text?: string }>; media: Array<{ src: string; type?: string; alt?: string }>; success: boolean; error?: string; durationMs: number; persisted: false };
 
@@ -38,11 +40,9 @@ export default function Crawl4AiPocPage() {
   }
 
   return (
-    <main className="mx-auto max-w-6xl space-y-6 p-6">
-      <header className="space-y-2">
-        <h1 className="text-3xl font-semibold tracking-tight">Crawl4AI PoC</h1>
-        <p className="text-xs text-muted-foreground">Service: <span className="font-mono">{health}</span></p>
-      </header>
+    <Page className="max-w-6xl">
+      <PageHeader title="Source preview" />
+      <p role="status" className="text-sm text-muted-foreground">Service: {health}</p>
 
       <section className="grid gap-4 rounded-xl border border-border bg-card p-4 md:grid-cols-[220px_1fr_auto] md:items-end">
         <label className="space-y-2 text-sm"><span className="text-muted-foreground">PoC</span><select value={preset} onChange={(event) => setPreset(event.target.value)} className="w-full rounded-md border border-border bg-background px-3 py-2">{presets.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label>
@@ -55,6 +55,6 @@ export default function Crawl4AiPocPage() {
         {result.error && <p className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm">{result.error}</p>}
         {result.success && <div className="grid gap-4 lg:grid-cols-[1fr_260px]"><pre className="max-h-[560px] overflow-auto whitespace-pre-wrap rounded-md bg-background p-4 text-xs leading-relaxed">{result.fitMarkdown || result.markdown || "No Markdown returned."}</pre><div className="space-y-4 text-xs"><div><h3 className="mb-2 font-medium">Links ({result.links.length})</h3><ul className="space-y-1">{result.links.slice(0, 20).map((link) => <li key={link.href}><a className="break-all text-primary underline" href={link.href} target="_blank" rel="noreferrer">{link.text || link.href}</a></li>)}</ul></div><div><h3 className="mb-2 font-medium">Media ({result.media.length})</h3><p className="text-muted-foreground">Captured as metadata only in this PoC.</p></div></div></div>}
       </section>}
-    </main>
+    </Page>
   );
 }

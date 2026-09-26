@@ -45,9 +45,8 @@ function PageHeader({
           )}
           <h1 className="min-w-0 text-balance text-foreground">{title}</h1>
         </div>
-        <RelatedAreas />
       </div>
-      {actions && <div className="page-actions shrink-0">{actions}</div>}
+      <div className="page-actions shrink-0">{actions}<RelatedAreas /></div>
     </header>
   )
 }
@@ -87,7 +86,7 @@ function FilterBar({ className, ...props }: React.ComponentProps<"div">) {
     <div
       data-slot="filter-bar"
       className={cn(
-        "flex min-w-0 flex-wrap items-center gap-1 rounded-xl border border-border bg-muted/50 p-1",
+        "flex min-w-0 flex-nowrap items-center gap-1 overflow-x-auto rounded-xl border border-border bg-muted/50 p-1 [&>button]:shrink-0 [&>a]:shrink-0",
         className
       )}
       {...props}

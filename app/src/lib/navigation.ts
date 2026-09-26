@@ -47,6 +47,7 @@ export function activeDestination(pathname: string) {
     .sort((a, b) => b.href.length - a.href.length)[0];
 }
 export function surfaceTitle(pathname: string) {
+  if (pathname === "/crawl4ai") return "Source preview";
   if (pathname === "/review") return "Overhaul review";
   if (pathname === "/voice/capture") return "Quick capture";
   if (pathname === "/decide/dispatch") return "Results";

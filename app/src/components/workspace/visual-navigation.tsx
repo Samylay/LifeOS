@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ArrowUpRight, BookOpen, Brain, Clapperboard, CookingPot, Dumbbell, FolderKanban, Layers, Mic, Network, PenLine, Radar, Settings, Activity, Wallet, Newspaper, type LucideIcon } from "lucide-react";
+import { Sheet, SheetTrigger, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetClose } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 
 const areas: Record<string, { label: string; icon: LucideIcon; color: string; hint: string }> = {
@@ -45,14 +46,17 @@ export function RelatedAreas() {
   const path = usePathname();
   const links = related[path];
   if (!links) return null;
-  return <nav aria-label="Related areas" className="area-links">
-    <span className="area-links-origin" aria-hidden="true" />
-    {links.map((href) => {
-      const a = areas[href] ?? extra[href];
-      const Icon = a.icon;
-      return <Link key={href} href={href} className="area-link"><Icon size={13} aria-hidden="true" />{a.label}<ArrowUpRight size={11} aria-hidden="true" /></Link>;
-    })}
-  </nav>;
+  return <Sheet>
+    <SheetTrigger asChild><button type="button" aria-label="Related pages" title="Related pages" className="inline-flex size-11 shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted transition-transform duration-[var(--dur-fast)] ease-[var(--ease-out-custom)] active:scale-[0.97]"><ArrowUpRight size={18} /></button></SheetTrigger>
+    <SheetContent side="bottom" className="mx-auto max-w-lg rounded-t-2xl pb-[max(1rem,env(safe-area-inset-bottom))]">
+      <SheetHeader><SheetTitle>Related pages</SheetTitle><SheetDescription className="sr-only">Navigate to another LifeOS area.</SheetDescription></SheetHeader>
+      <nav aria-label="Related areas" className="px-4">
+        {links.map(href => { const a = areas[href] ?? extra[href]; const Icon = a.icon;
+          return <SheetClose key={href} asChild><Link href={href} className="flex min-h-14 items-center gap-3 rounded-lg px-3 text-sm hover:bg-muted transition-transform duration-[var(--dur-fast)] ease-[var(--ease-out-custom)] active:scale-[0.97]"><Icon size={19} /><span className="flex-1">{a.label}</span><ArrowUpRight size={16} /></Link></SheetClose>;
+        })}
+      </nav>
+    </SheetContent>
+  </Sheet>;
 }
 
 export function WorkspaceMap() {

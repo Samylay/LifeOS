@@ -89,6 +89,10 @@
 
 ## Log
 
+- 2026-09-26 (attended, Appllama UX overhaul): Studied 48 reference screen observations and audited every UI route. Added gesture-aware scroll chrome, a single viewport chat with Activity and inbox-photo sheets, full-width meal cards, searchable navigation, compact shared headers and selectors, grouped settings, and progressive disclosure for Today, news, finance and histories. Updated the style guide to remove obsolete header/navigation guidance. Preserved voice, tool execution, direct Codex launch, session deep links and data. Verified TypeScript, changed-file ESLint, 17 focused regressions, production Docker build/deploy, HTTP 200 on 38 routes, 96 responsive layouts plus 32 targeted rechecks, and 23 interaction checks including camera preview. Physical phone permissions and notification opening require on-device confirmation. Private research and browser evidence: `.scratch/ux-overhaul/`.
+  Pitch: give reading and conversation the screen; open secondary controls when needed.
+  Quiz: Should restoring chat history hide navigation? No, only a user's scroll gesture should dismiss it.
+
 - 2026-09-26 (attended, automatic workflows and calibration): Replaced manual saved-item prompt preparation with direct bounded workflows, including skill comparisons. Added short incoming/result cards, explicit intent feedback, a three-item daily review, and a recurring Todoist review task. Corrections enter extraction/workflow context and invalidate results based on earlier intent. Existing historical filing decisions are preserved. Verified TypeScript, changed-file ESLint, Python compilation, isolated production build/deploy, HTTP 200 on review/Decide/Workflows, legacy dispatch redirect, persisted user correction and Todoist recurrence read-back. No test suites run in this turn. Unrelated chat/nutrition edits excluded from the commit and final build.
   Pitch: one short answer should guide automatic work, without writing an agent prompt for every source.
   Quiz: Does confirming one source define a global interest? No; reuse for matching topics requires an explicit choice.

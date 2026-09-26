@@ -2,11 +2,13 @@
 
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
-import { Camera, LoaderCircle, X } from "lucide-react";
+import { Camera, LoaderCircle } from "lucide-react";
 import { toast } from "sonner";
 import { prepareChatPhoto } from "@/lib/prepare-chat-photo";
 
-export function PhotoInboxCapture() {
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "./ui/sheet";
+
+export function PhotoInboxCapture({ compact = false }: { compact?: boolean }) {
   const input = useRef<HTMLInputElement>(null);
   const [draft, setDraft] = useState<{ file: File; url: string } | null>(null);
   const [caption, setCaption] = useState("");
@@ -36,14 +38,18 @@ export function PhotoInboxCapture() {
   const press = "transition-transform duration-150 ease-[var(--ease-out-custom)] active:scale-[0.97]";
   return <div className="relative">
     <input ref={input} type="file" accept="image/*" capture="environment" className="hidden" onChange={event => { void choose(event.target.files?.[0]); event.target.value = ""; }} />
-    <button type="button" onClick={() => input.current?.click()} disabled={busy} aria-label="Capture photo to inbox" title="Capture photo to inbox" className={`inline-flex min-h-9 items-center gap-2 rounded-lg px-2 text-xs text-muted-foreground hover:bg-muted disabled:opacity-40 ${press}`}>
-      {busy ? <LoaderCircle size={16} className="animate-spin" /> : <Camera size={16} />}<span>Inbox photo</span>
+    <button type="button" onClick={() => input.current?.click()} disabled={busy} aria-label="Capture photo to inbox" title="Capture photo to inbox" className={`inline-flex min-h-11 items-center gap-2 rounded-lg px-2 text-xs text-muted-foreground hover:bg-muted disabled:opacity-40 ${press}`}>
+      {busy ? <LoaderCircle size={16} className="animate-spin" /> : <Camera size={16} />}<span className={compact ? "hidden sm:inline" : undefined}>Inbox photo</span>
     </button>
-    {draft && <div className="absolute right-0 top-full z-40 mt-2 w-72 rounded-xl border border-border bg-card p-3 shadow-xl">
-      <div className="mb-2 flex items-center justify-between text-sm font-medium">Save photo to inbox<button type="button" aria-label="Discard inbox photo" disabled={busy} onClick={() => setDraft(null)} className={`rounded-lg p-1 ${press}`}><X size={16} /></button></div>
-      <Image src={draft.url} alt="Photo to capture" width={264} height={160} unoptimized className="max-h-40 w-full rounded-lg object-contain" />
-      <textarea value={caption} onChange={event => setCaption(event.target.value)} maxLength={4000} placeholder="Optional caption" aria-label="Photo caption" className="my-2 w-full rounded-lg border border-border bg-background p-2 text-sm" />
-      <button type="button" onClick={() => void save()} disabled={busy} className={`w-full rounded-lg bg-primary p-2 text-sm text-primary-foreground disabled:opacity-40 ${press}`}>{busy ? "Saving" : "Save to inbox"}</button>
-    </div>}
+    <Sheet open={!!draft} onOpenChange={open => { if (!open && !busy) setDraft(null); }}>
+      <SheetContent side="bottom" className="mx-auto max-h-[90dvh] max-w-lg overflow-y-auto rounded-t-2xl pb-[max(1rem,env(safe-area-inset-bottom))]">
+        <SheetHeader><SheetTitle>Save photo to inbox</SheetTitle><SheetDescription>Add a caption to help you find it later.</SheetDescription></SheetHeader>
+        {draft && <div className="space-y-3 px-4">
+          <Image src={draft.url} alt="Photo to capture" width={480} height={240} unoptimized className="max-h-[30dvh] w-full rounded-lg object-contain" />
+          <textarea value={caption} onChange={event => setCaption(event.target.value)} maxLength={4000} placeholder="Optional caption" aria-label="Photo caption" className="min-h-24 w-full rounded-lg border border-border bg-background p-3 text-base" />
+          <button type="button" onClick={() => void save()} disabled={busy} className={`min-h-11 w-full rounded-lg bg-primary p-3 text-sm font-medium text-primary-foreground disabled:opacity-40 ${press}`}>{busy ? "Saving" : "Save to inbox"}</button>
+        </div>}
+      </SheetContent>
+    </Sheet>
   </div>;
 }

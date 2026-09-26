@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
+import { Search } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { SparklesIcon } from "@hugeicons/core-free-icons";
@@ -15,16 +17,18 @@ import {
 
 export function Sidebar() {
   const pathname = usePathname();
+  const [query, setQuery] = useState("");
   const active = activeDestination(pathname)?.href;
   const { setOpenMobile, state, isMobile } = useSidebar();
   const { setChatPanelOpen } = useAppStore();
   const { messages } = useNotifications();
   const unread = messages.filter((m) => !m.readAt).length;
-  const navigate = () => setOpenMobile(false);
+  const navigate = () => { setOpenMobile(false); setQuery(""); };
+  const matches = (item: { label: string; href: string }) => `${item.label} ${item.href}`.toLowerCase().includes(query.trim().toLowerCase());
 
   const links = (items: typeof NAV_UTILITIES) => (
     <SidebarMenu>
-      {items.map((item) => (
+      {items.filter(matches).map((item) => (
         <SidebarMenuItem key={item.href}>
           <SidebarMenuButton render={<Link href={item.href} />} isActive={active === item.href}
             aria-current={active === item.href ? "page" : undefined}
@@ -40,21 +44,26 @@ export function Sidebar() {
 
   return (
     <MiraSidebar collapsible="icon" variant="inset">
-      <SidebarHeader className="h-16 justify-center px-2">
+      <SidebarHeader className="justify-center px-2 py-3">
         <Link href="/" onClick={navigate} aria-label="LifeOS today"
           className="flex items-center gap-2.5 rounded-md p-2 pressable active:scale-[0.97]">
           <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-primary text-sm font-bold text-primary-foreground">L</span>
           {(state === "expanded" || isMobile) && <span className="text-base font-semibold tracking-tight">LifeOS</span>}
         </Link>
+        {(state === "expanded" || isMobile) && <label className="mx-1 flex min-h-11 items-center gap-2 rounded-lg border border-sidebar-border bg-background px-3">
+          <Search size={16} className="shrink-0 text-muted-foreground" />
+          <input type="search" value={query} onChange={event => setQuery(event.target.value)} aria-label="Search LifeOS pages" placeholder="Find a page…" className="min-w-0 w-full bg-transparent text-sm outline-none" />
+        </label>}
       </SidebarHeader>
       <SidebarContent>
         <nav aria-label="Main navigation">
-          {NAV_GROUPS.map((group) => (
+          {NAV_GROUPS.filter(group => group.items.some(matches)).map((group) => (
             <SidebarGroup key={group.label} className="py-1">
               <SidebarGroupLabel className="h-6 text-[11px] font-medium text-muted-foreground">{group.label}</SidebarGroupLabel>
               {links(group.items)}
             </SidebarGroup>
           ))}
+          {query && ![...NAV_GROUPS.flatMap(group => group.items), ...NAV_UTILITIES].some(matches) && <p role="status" className="px-4 py-6 text-sm text-muted-foreground">No pages match “{query}”.</p>}
         </nav>
       </SidebarContent>
       <SidebarFooter className="gap-2 border-t border-sidebar-border">

@@ -3,10 +3,11 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, ArrowUpRight } from "lucide-react";
 import { getDoc } from "@/lib/server-db";
 import { record, sourceClaims } from "@/lib/extraction-review";
+import { Page, PageHeader } from "@/components/ui/page";
 import { EvidenceDetails } from "@/components/decide/evidence-details";
 
 export const dynamic = "force-dynamic";
-const press = "inline-flex min-h-10 items-center gap-2 rounded-md text-sm text-primary underline-offset-4 hover:underline transition-transform duration-[var(--dur-fast)] ease-[var(--ease-out-custom)] active:scale-[0.97]";
+const press = "inline-flex min-h-11 items-center gap-2 rounded-md text-sm text-primary underline-offset-4 hover:underline transition-transform duration-[var(--dur-fast)] ease-[var(--ease-out-custom)] active:scale-[0.97]";
 const label = (value: unknown) => String(value ?? "").replace(/[_-]/g, " ");
 const time = (ms: number) => `${Math.floor(ms / 60000)}:${String(Math.floor(ms / 1000) % 60).padStart(2, "0")}`;
 
@@ -26,14 +27,10 @@ export default async function SourceReview({ params }: { params: Promise<{ id: s
   const sourceUrl = typeof item.url === "string" && /^https?:\/\//i.test(item.url) ? item.url : null;
 
   return (
-    <main className="mx-auto w-full max-w-6xl space-y-8 px-4 py-6 sm:px-8 sm:py-10">
+    <Page className="max-w-6xl">
       <Link href="/decide" className={press}><ArrowLeft size={16} aria-hidden />Back to saved sources</Link>
-      <header className="max-w-3xl space-y-3">
-        <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground">Source review</p>
-        <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">{String(proposal.title ?? "Saved source")}</h1>
-        <p className="text-base leading-relaxed text-muted-foreground">{String(proposal.summary ?? "The source is saved. Its extraction is not ready yet.")}</p>
-        {sourceUrl && <a href={sourceUrl} target="_blank" rel="noreferrer" className={press}>Open original<ArrowUpRight size={16} aria-hidden /></a>}
-      </header>
+      <PageHeader title={String(proposal.title ?? "Saved source")} actions={sourceUrl ? <a href={sourceUrl} target="_blank" rel="noreferrer" className={press}>Open original<ArrowUpRight size={16} aria-hidden /></a> : undefined} />
+      <p className="max-w-3xl text-base leading-relaxed text-muted-foreground">{String(proposal.summary ?? "The source is saved. Its extraction is not ready yet.")}</p>
       <div className="grid min-w-0 gap-8 lg:grid-cols-[minmax(0,1fr)_20rem]">
         <section className="min-w-0 space-y-5" aria-label="Source takeaways">
           <h2 className="text-lg font-semibold">What the source says</h2>
@@ -62,6 +59,6 @@ export default async function SourceReview({ params }: { params: Promise<{ id: s
         </aside>
       </div>
       <EvidenceDetails key={evidenceRef ?? id} evidenceRef={evidenceRef} assessmentRef={current ? assessmentRef : undefined} itemId={id} />
-    </main>
+    </Page>
   );
 }
