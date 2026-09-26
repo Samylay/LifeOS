@@ -87,6 +87,10 @@
 
 ## Log
 
+- 2026-09-26 (attended follow-up): Changed wide-screen feed cards to an image-left, text-right layout with reactions below the text. Desktop cards stay one viewport tall; unusually long text remains accessible through column overflow. Mobile stays stacked. Verified tsc, targeted ESLint, isolated Docker Compose build from HEAD plus the feed change, deployment, and HTTP 200 for / and /feed. Unrelated working-tree edits excluded from the build and commit. Browser verification unavailable because work-samy remains unreachable.
+  Pitch: spend desktop width on parallel image and text columns instead of a taller card.
+  Quiz: Where does overflow go on desktop? Only the text column, with reactions kept outside it.
+
 - 2026-09-26 (attended): Enlarged feed images, headings, body copy and quiz controls at desktop breakpoints; long cards can scroll without clipping. Added a searchable knowledge browser with note summaries and direct links, retaining the optional graph and example map. Replaced LifeOS areas with a live Docker service/network map, refreshing every 30 seconds with explicit health and unavailable states. Scope: Docker containers only; network membership is not a claimed application dependency. Verification: tsc, targeted ESLint, 2 topology tests, Docker build/deploy, and HTTP 200 on /, /feed, /mind-map, /api/system-map and /api/kb/graph. Live endpoint returned 22 services. Browser verification unavailable: no local Chrome, work-samy SSH timed out.
   Pitch: use the screen for readable content and show actual system observations instead of area shortcuts.
   Quiz: What does a line in the system map prove? Docker network membership, not traffic or a dependency.

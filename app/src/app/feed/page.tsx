@@ -251,118 +251,130 @@ function CardView({ card }: { card: ServedCard }) {
 
   const answered = picked !== null;
   const dimmed = status === "killed" || status === "flagged";
+  const hasImage = card.format !== "quiz" && !!card.images?.[0];
 
   return (
     <section
       ref={sectionRef}
-      className="relative flex min-h-dvh w-full snap-start flex-col justify-center px-6 pb-28 pt-20 lg:px-12"
+      className="relative flex min-h-dvh w-full snap-start flex-col justify-center px-6 pb-28 pt-20 lg:h-dvh lg:min-h-0 lg:px-10 lg:pb-8 2xl:px-16"
     >
-      <div className={cn("mx-auto w-full max-w-md lg:max-w-3xl 2xl:max-w-5xl transition-opacity duration-150 ease-[var(--ease-out-custom)]", dimmed && "opacity-30")}>
-        <div className="mb-3 flex flex-wrap items-center gap-2 text-xs lg:text-sm text-muted-foreground">
-          {card.origin === "explore" && (
-            <span className="rounded-full bg-secondary px-2 py-0.5 font-medium text-secondary-foreground">
-              explore · {card.domain}
-            </span>
-          )}
-          <span className="rounded-full border border-border px-2 py-0.5">
-            {FORMAT_LABEL[card.format]}
-          </span>
-          {card.category && (
-            <span className="rounded-full border border-border px-2 py-0.5">{card.category}</span>
-          )}
-        </div>
-
-        <h2 className="text-lg font-semibold leading-snug lg:text-3xl 2xl:text-4xl">{card.hook}</h2>
-        {card.subConcept && card.subConcept !== card.category && (
-          <p className="mt-1 text-xs lg:text-sm text-muted-foreground">{card.subConcept}</p>
+      <div className={cn(
+        "mx-auto flex w-full max-w-md flex-col transition-opacity duration-150 ease-[var(--ease-out-custom)] lg:h-full lg:min-h-0",
+        hasImage ? "lg:grid lg:max-w-[1600px] lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] lg:items-center lg:gap-10 2xl:gap-16" : "lg:max-w-3xl lg:justify-center",
+        dimmed && "opacity-30"
+      )}>
+        {hasImage && (
+          <figure className="order-2 mt-4 flex min-h-0 flex-col overflow-hidden rounded-xl border border-border bg-card lg:order-1 lg:mt-0 lg:h-full">
+            <img
+              src={card.images![0].url}
+              alt={card.images![0].alt || `${card.hook} experiment image`}
+              loading="lazy"
+              className="max-h-[38dvh] w-full object-contain lg:max-h-none lg:min-h-0 lg:flex-1"
+            />
+            {card.images![0].label && (
+              <figcaption className="shrink-0 px-3 py-2 text-xs lg:text-sm text-muted-foreground">
+                {card.images![0].label}
+              </figcaption>
+            )}
+          </figure>
         )}
-        {card.format !== "quiz" && (
-          <>
-            {card.images?.[0] && (
-              <figure className="mt-4 overflow-hidden rounded-xl border border-border bg-card">
-                <img
-                  src={card.images[0].url}
-                  alt={card.images[0].alt || `${card.hook} experiment image`}
-                  loading="lazy"
-                  className="max-h-[38dvh] w-full object-contain lg:max-h-[48dvh] 2xl:max-h-[52dvh]"
-                />
-                {card.images[0].label && (
-                  <figcaption className="px-3 py-2 text-xs lg:text-sm text-muted-foreground">
-                    {card.images[0].label}
-                  </figcaption>
+        <div className="contents lg:order-2 lg:flex lg:max-h-full lg:min-h-0 lg:flex-col">
+          <div className="contents lg:block lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain lg:pr-2">
+            <div className="order-1">
+              <div className="mb-3 flex flex-wrap items-center gap-2 text-xs lg:text-sm text-muted-foreground">
+                {card.origin === "explore" && (
+                  <span className="rounded-full bg-secondary px-2 py-0.5 font-medium text-secondary-foreground">
+                    explore · {card.domain}
+                  </span>
                 )}
-              </figure>
-            )}
-          <p className="mt-3 whitespace-pre-wrap text-base lg:text-xl 2xl:text-2xl leading-relaxed text-foreground/90">
-            {card.body}
-          </p>
-            {card.source && (
-              <a
-                href={card.source.url}
-                target="_blank"
-                rel="noreferrer"
-                className="mt-3 inline-flex min-h-11 items-center text-sm lg:text-base text-muted-foreground underline decoration-border underline-offset-4 transition-transform duration-[var(--dur-fast)] ease-[var(--ease-out-custom)] active:scale-[0.97]"
-              >
-                {card.source.label || "Read the source"}
-              </a>
-            )}
-          </>
-        )}
+                <span className="rounded-full border border-border px-2 py-0.5">
+                  {FORMAT_LABEL[card.format]}
+                </span>
+                {card.category && (
+                  <span className="rounded-full border border-border px-2 py-0.5">{card.category}</span>
+                )}
+              </div>
 
-        {card.quiz && (
-          <div className="mt-4">
-            <p className="text-base lg:text-xl 2xl:text-2xl leading-relaxed">{card.quiz.question}</p>
-            <div className="mt-3 flex flex-col gap-2">
-              {card.quiz.options.map((opt, idx) => {
-                const isRight = idx === card.quiz!.answerIndex;
-                const isPicked = idx === picked;
-                return (
-                  <button
-                    key={idx}
-                    onClick={() => answer(idx)}
-                    disabled={answered}
-                    className={cn(
-                      "min-h-11 rounded-lg border border-border px-4 py-2.5 text-left text-sm lg:text-lg 2xl:text-xl transition-transform duration-150 ease-[var(--ease-out-custom)] active:scale-[0.97]",
-                      !answered && "bg-card",
-                      answered && isRight && "border-primary bg-primary/15",
-                      answered && isPicked && !isRight && "border-destructive bg-destructive/15"
-                    )}
-                  >
-                    {opt}
-                    {answered && isRight && <Check className="ml-2 inline h-4 w-4 text-primary" />}
-                  </button>
-                );
-              })}
+              <h2 className="text-lg font-semibold leading-snug lg:text-3xl 2xl:text-4xl">{card.hook}</h2>
+              {card.subConcept && card.subConcept !== card.category && (
+                <p className="mt-1 text-xs lg:text-sm text-muted-foreground">{card.subConcept}</p>
+              )}
             </div>
-            {answered && (
-              <p className="enter mt-3 text-sm lg:text-lg leading-relaxed text-muted-foreground">
-                {card.quiz.why}
-              </p>
-            )}
-          </div>
-        )}
-      </div>
+            <div className="order-3">
+              {card.format !== "quiz" && (
+                <>
+                <p className="mt-3 whitespace-pre-wrap text-base lg:text-xl 2xl:text-2xl leading-relaxed text-foreground/90">
+                  {card.body}
+                </p>
+                  {card.source && (
+                    <a
+                      href={card.source.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mt-3 inline-flex min-h-11 items-center text-sm lg:text-base text-muted-foreground underline decoration-border underline-offset-4 transition-transform duration-[var(--dur-fast)] ease-[var(--ease-out-custom)] active:scale-[0.97]"
+                    >
+                      {card.source.label || "Read the source"}
+                    </a>
+                  )}
+                </>
+              )}
 
-      {/* Reactions — bottom-center thumb zone. Kill left, keep right.
-          (Flag removed from the UI: identical outcome to kill. The server
-          still accepts flag events from old data.) */}
-      <div className="absolute bottom-8 left-1/2 flex -translate-x-1/2 items-center gap-6">
-        <ReactionButton
-          label="Kill card"
-          onClick={() => react("kill")}
-          active={status === "killed"}
-          activeClass="text-destructive"
-        >
-          <X className="h-5 w-5" />
-        </ReactionButton>
-        <ReactionButton
-          label="Keep card"
-          onClick={() => react("keep")}
-          active={status === "kept"}
-          activeClass="text-primary"
-        >
-          <Bookmark className={cn("h-5 w-5", status === "kept" && "fill-current")} />
-        </ReactionButton>
+              {card.quiz && (
+                <div className="mt-4">
+                  <p className="text-base lg:text-xl 2xl:text-2xl leading-relaxed">{card.quiz.question}</p>
+                  <div className="mt-3 flex flex-col gap-2">
+                    {card.quiz.options.map((opt, idx) => {
+                      const isRight = idx === card.quiz!.answerIndex;
+                      const isPicked = idx === picked;
+                      return (
+                        <button
+                          key={idx}
+                          onClick={() => answer(idx)}
+                          disabled={answered}
+                          className={cn(
+                            "min-h-11 rounded-lg border border-border px-4 py-2.5 text-left text-sm lg:text-lg 2xl:text-xl transition-transform duration-150 ease-[var(--ease-out-custom)] active:scale-[0.97]",
+                            !answered && "bg-card",
+                            answered && isRight && "border-primary bg-primary/15",
+                            answered && isPicked && !isRight && "border-destructive bg-destructive/15"
+                          )}
+                        >
+                          {opt}
+                          {answered && isRight && <Check className="ml-2 inline h-4 w-4 text-primary" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {answered && (
+                    <p className="enter mt-3 text-sm lg:text-lg leading-relaxed text-muted-foreground">
+                      {card.quiz.why}
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+          {/* Reactions stay below the text on desktop and in the thumb zone on mobile.
+              (Flag removed from the UI: identical outcome to kill. The server
+              still accepts flag events from old data.) */}
+          <div className="absolute bottom-8 left-1/2 flex -translate-x-1/2 items-center gap-6 lg:static lg:mt-5 lg:translate-x-0 lg:shrink-0">
+            <ReactionButton
+              label="Kill card"
+              onClick={() => react("kill")}
+              active={status === "killed"}
+              activeClass="text-destructive"
+            >
+              <X className="h-5 w-5" />
+            </ReactionButton>
+            <ReactionButton
+              label="Keep card"
+              onClick={() => react("keep")}
+              active={status === "kept"}
+              activeClass="text-primary"
+            >
+              <Bookmark className={cn("h-5 w-5", status === "kept" && "fill-current")} />
+            </ReactionButton>
+          </div>
+        </div>
       </div>
     </section>
   );
