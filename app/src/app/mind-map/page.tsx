@@ -8,7 +8,7 @@ export default function MindMapPage() {
       <PageHeader
         kicker="Workspace"
         title="Mind map"
-        description="Explore your notes and their connections, or move between LifeOS areas."
+        description="Explore your knowledge, service connections, and example maps."
         icon={Network}
       />
       <MindMapWorkspace />

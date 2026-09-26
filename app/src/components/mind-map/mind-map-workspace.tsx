@@ -2,29 +2,34 @@
 
 import { useRef, useState } from "react";
 import { BookOpen, Network, Shapes, X } from "lucide-react";
+import { KnowledgeBrowser } from "./knowledge-browser";
 import { KnowledgeGraph } from "@/components/knowledge-graph";
+import { SystemMap } from "./system-map";
 import { WorkflowConnections } from "./workflow-connections";
 import { MindMapView } from "@/components/mind-map/mind-map-view";
-import { FlowSelector, WorkspaceMap } from "@/components/workspace/visual-navigation";
+import { FlowSelector } from "@/components/workspace/visual-navigation";
 import { useKnowledge, type Note } from "@/lib/use-kb";
 import { Button } from "@/components/ui/button";
 
 export function MindMapWorkspace() {
   const request = useRef(0);
+  const [knowledgeView, setKnowledgeView] = useState("browse");
   const [view, setView] = useState("knowledge");
   const [note, setNote] = useState<Note | null>(null);
   const [error, setError] = useState("");
   const [opening, setOpening] = useState(false);
   const { readNote } = useKnowledge();
+  const KnowledgeView = knowledgeView === "browse" ? KnowledgeBrowser : KnowledgeGraph;
   return <div className="space-y-5">
     <FlowSelector label="Map content" value={view} onChange={(id) => { request.current++; setOpening(false); setView(id); setNote(null); setError(""); }} options={[
       { id: "knowledge", label: "Your knowledge", icon: BookOpen },
       { id: "connections", label: "Source paths", icon: Network },
-      { id: "workspace", label: "LifeOS areas", icon: Network },
+      { id: "workspace", label: "LifeOS system", icon: Network },
       { id: "example", label: "Example map", icon: Shapes },
     ]} />
     {view === "knowledge" && <>
-      <KnowledgeGraph onOpenNote={async (path) => {
+      <FlowSelector label="Knowledge view" value={knowledgeView} onChange={setKnowledgeView} options={[{ id: "browse", label: "Browse notes", icon: BookOpen }, { id: "graph", label: "Graph", icon: Network }]} />
+      <KnowledgeView onOpenNote={async (path) => {
         const revision = ++request.current;
         setNote(null); setOpening(true); setError("");
         try {
@@ -42,7 +47,7 @@ export function MindMapWorkspace() {
       </section>}
     </>}
     {view === "connections" && <WorkflowConnections />}
-    {view === "workspace" && <><p className="text-sm text-muted-foreground">Choose an area to continue. Jump between the areas you use together.</p><WorkspaceMap /></>}
+    {view === "workspace" && <SystemMap />}
     {view === "example" && <MindMapView />}
   </div>;
 }

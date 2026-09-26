@@ -19,7 +19,8 @@ const WATCH: Record<string, string> = {
   node_exporter: "node-exporter",
 };
 
-interface DockerContainer {
+export interface DockerContainer {
+  NetworkSettings?: { Networks?: Record<string, unknown> };
   Names?: string[];
   State?: string;
   Status?: string;
@@ -56,13 +57,15 @@ function dockerContainers(): Promise<DockerContainer[] | null> {
         r.on("data", (c) => (buf += c));
         r.on("end", () => {
           try {
-            resolve(JSON.parse(buf));
+            const data = JSON.parse(buf);
+            resolve(r.statusCode === 200 && Array.isArray(data) ? data : null);
           } catch {
             resolve(null);
           }
         });
       }
     );
+    req.setTimeout(5000, () => { req.destroy(); resolve(null); });
     req.on("error", () => resolve(null));
     req.end();
   });
@@ -159,4 +162,19 @@ export function getHermesStatus(): HermesResult {
     processed: s.processed_count ?? 0,
     ranToday,
   };
+}
+
+/** Network membership is observed connectivity, not an application dependency. */
+export function mapSystemTopology(containers: DockerContainer[]) {
+  return containers.flatMap((container) => {
+    const name = container.Names?.[0]?.replace(/^\//, "");
+    if (!name) return [];
+    return [{ name, label: WATCH[name] ?? name, state: container.State ?? "unknown",
+      status: container.Status ?? "", networks: Object.keys(container.NetworkSettings?.Networks ?? {}).sort() }];
+  }).sort((a, b) => a.label.localeCompare(b.label));
+}
+
+export async function getSystemTopology() {
+  const containers = await dockerContainers();
+  return { ok: containers !== null, services: mapSystemTopology(containers ?? []), checkedAt: Date.now() };
 }
