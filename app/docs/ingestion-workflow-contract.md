@@ -213,3 +213,13 @@ Both publication endpoints additionally accept `expectedItemState`. Use the full
 Read-only source review is available at `/decide/sources/<item-id>` and from each extracted card. It shows timestamp-linked grounded claims, every channel's coverage, and expandable source evidence. Stale assessments do not appear as current claims.
 
 The contract above remains the target. Current explicit gaps: sampled frames do not provide continuous motion analysis; non-speech audio/music structure is unclassified; text-bearing PDF diagrams are unprocessed; repository acquisition covers a pinned source document, not every relevant implementation file. These channels carry partial/not-requested coverage rather than a claim of completeness. The acceptance run used a real X video; other providers have deterministic fixture coverage. Historical reprocessing has a resumable manifest/CLI, but the complete historical corpus is not claimed as reprocessed.
+
+## Explicit intention calibration
+
+`GET /api/triage/calibration?itemId=<id>` returns item-specific feedback and user-approved examples from matching topics. The extractor includes this context in its annotation input. Workflow detail responses include `intent`; workers must use it before choosing a use. An item can have several intended uses, with one primary workflow for the current run.
+
+`POST /api/triage/calibration` accepts `itemId`, current `evidenceRef`/`assessmentRef`, `verdict` (fits/corrected/not-for-me), optional exact `note`, primary `workflowKind`, and `scope` (item/similar). Similar-topic scope is explicit; defaults never generalize silence or age. Records are immutable receipts; the source retains its current calibration. Review does not overwrite the user's notes or original filing decision.
+
+The saved-card decision endpoint requires feedback. Right swipe confirms the short interpretation and starts automatic preparation. Source feedback IDs are bound to workflow runs; changing intent prevents application of an obsolete result. Accepted active evaluations are re-prepared automatically for the new intention. Manual prompt preparation is no longer part of the saved-content flow.
+
+Cards use short summaries and expandable details. `/decide/calibrate` offers three source interpretations per daily review, including when no new items await a swipe. Reminder tasks live in Todoist. Detailed evidence remains inspectable and approval consequences remain explicit.

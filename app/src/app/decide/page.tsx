@@ -1,4 +1,5 @@
 "use client";
+import { CalibrationNudge } from "@/components/decide/calibration-nudge";
 
 // /decide — Samy sorting inbound material. Stacks of swipeable cards sharing
 // one gesture component: "Saved" (captured items, each naming the action
@@ -34,7 +35,7 @@ const DECKS: Deck[] = ["saved", "proposals"];
 const TRIAGE_ACTIONS: DeckAction[] = [
   { id: "discard", label: "Discard", icon: X, direction: "left", tone: "danger" },
   { id: "defer", label: "Not now", icon: Clock, direction: "none", tone: "neutral" },
-  { id: "approve", label: "Approve", icon: Check, direction: "right", tone: "success" },
+  { id: "approve", label: "Fits, handle it", icon: Check, direction: "right", tone: "success" },
 ];
 
 // "Never" tombstones the tag permanently (map 11's only eligibility
@@ -132,7 +133,9 @@ function DecideInner() {
       id: item.id,
       action: action.id,
       params: action.params,
+      feedback: { verdict: action.id === "discard" ? "not-for-me" : "fits", evidenceRef: item.evidenceRef ?? null, assessmentRef: item.assessmentRef ?? null },
     });
+    window.dispatchEvent(new Event("lifeos-calibration"));
     return String(d.result ?? "");
   }, []);
 
@@ -151,6 +154,7 @@ function DecideInner() {
         title="Decide"
         icon={Layers}
       />
+      <CalibrationNudge />
       <FilterBar
         className="max-w-full overflow-x-auto"
         style={{ scrollbarWidth: "none" }}
@@ -177,11 +181,11 @@ function DecideInner() {
             {approvalCount > 0 && <span className="text-xs text-primary">{approvalCount}</span>}
           </Link>
           <Link
-            href="/decide/dispatch"
-            aria-label="Send to Codex"
+            href="/workflows"
+            aria-label="Automatic results"
             className="inline-flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-transform duration-[var(--dur-fast)] ease-[var(--ease-out-custom)] hover:text-foreground active:scale-[0.97] max-lg:[min-height:44px]"
           >
-            <Terminal size={14} aria-hidden /> Send
+            <Terminal size={14} aria-hidden /> Results
           </Link>
           <Link href="/decide/extracts" aria-label="Decision history" className="inline-flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-transform duration-[var(--dur-fast)] ease-[var(--ease-out-custom)] hover:text-foreground active:scale-[0.97]">History</Link>
       </FilterBar>
@@ -216,6 +220,7 @@ function DecideInner() {
           renderCard={(item) => (
             <TriageCard
               item={item}
+              onFeedback={() => void refresh()}
               action={actionFor(item)}
               onChangeAction={(action) =>
                 setOverrides((o) => ({ ...o, [item.id]: action }))}
@@ -248,7 +253,9 @@ function DecideInner() {
           onRestore={(item) => setTriage((xs) => [item, ...xs.filter((x) => x.id !== item.id)])}
           interpret={async (item, transcript) => {
             const d = await post("/api/triage/interpret", { id: item.id, transcript });
-            return String(d.reply || d.result || "");
+            window.dispatchEvent(new Event("lifeos-calibration"));
+            await refresh();
+            return { reply: String(d.reply || d.result || ""), resolved: d.resolved !== false };
           }}
           emptyLabel="No saved items to decide. Deferred cards return on their date."
         />

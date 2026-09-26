@@ -346,7 +346,7 @@ function validateItemIdentity(itemId: string, bundle: EvidenceBundle): void {
   }
 }
 
-export const EXTRACTION_STATE_FIELDS = ["url", "status", "evidenceRef", "assessmentRef", "note", "notes", "userNote", "annotations", "savedAt", "folder", "folderPath", "decision", "filedAs", "deferredUntil"] as const;
+export const EXTRACTION_STATE_FIELDS = ["url", "status", "evidenceRef", "assessmentRef", "note", "notes", "userNote", "annotations", "savedAt", "folder", "folderPath", "decision", "filedAs", "deferredUntil", "calibration"] as const;
 
 /** Compare the source snapshot inside the write transaction so a concurrent user edit wins. */
 export function extractionItemState(item: Record<string, unknown>): Record<string, unknown> {

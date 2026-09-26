@@ -37,7 +37,7 @@ const related: Record<string, string[]> = {
 };
 const extra: Record<string, { label: string; icon: LucideIcon }> = {
   "/decide/approvals": { label: "Approvals", icon: Layers }, "/decide/extracts": { label: "Extracts", icon: BookOpen },
-  "/decide/dispatch": { label: "Send to Codex", icon: ArrowUpRight }, "/terminal": { label: "Terminal", icon: Activity },
+  "/decide/dispatch": { label: "Results", icon: ArrowUpRight }, "/terminal": { label: "Terminal", icon: Activity },
 };
 
 /** Nearby destinations, not inferred relationships between the user's records. */

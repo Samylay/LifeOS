@@ -1,3 +1,4 @@
+import { calibrationContext } from "@/lib/calibration";
 import { NextRequest, NextResponse } from "next/server";
 import { getDoc, listDocs } from "@/lib/server-db";
 import { getRun, listRuns, sourceChoices, startWorkflow, decideWorkflow, WorkflowError, LIBRARY } from "@/lib/workflows/store";
@@ -10,7 +11,7 @@ export async function GET(req: NextRequest) {
     if (id) {
       const run = getRun(id);
       const evidence = run.evidenceRef ? getDoc("users/local/triageEvidence", run.evidenceRef) : null;
-      return NextResponse.json({ run, evidence });
+      return NextResponse.json({ run, evidence, intent: calibrationContext(run.itemId) });
     }
     if (req.nextUrl.searchParams.has("summary")) { const runs = listRuns(); return NextResponse.json({ ready: runs.filter((r) => r.state === "ready").length, active: runs.filter((r) => ["queued", "running", "applying", "awaiting-extraction"].includes(r.state)).length }); }
     if (req.nextUrl.searchParams.has("library")) return NextResponse.json({ items: listDocs(LIBRARY, { orderBy: ["createdAt", "desc"] }) });

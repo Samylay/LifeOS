@@ -1,29 +1,11 @@
 "use client";
-
-// One saved-content card. T-decide-rework-04: the card leads with the single
-// ACTION it would trigger and states, in plain terms, what happens on approval
-// — Samy approves an outcome, not an opinion. The assessment below it stops
-// rating the item and starts justifying that action.
-//
-// A card is only rendered for a decidable item (proposedAction() resolves).
-// The deck withholds the rest rather than showing an undecidable card.
-import { Fragment } from "react";
-import { Wrench, Bookmark, Archive, Lightbulb, ListTodo, Map, Trash2, HelpCircle } from "lucide-react";
-import type { LucideIcon } from "lucide-react";
-import { DecisionText, Provenance } from "@/components/ui/decision-context";
-import { Badge } from "@/components/ui/badge";
-import { categoryMeta } from "@/components/decide/category-colors";
-import { EvidenceDetails } from "@/components/decide/evidence-details";
-import { cn } from "@/lib/utils";
-import {
-  actionKey,
-  actionLabel,
-  describeEffect,
-  selectableDecideActions,
-  type Action,
-  type ActionId,
-} from "@/lib/decide/homelab-actions";
+import { useState } from "react";
+import { ArrowUpRight, MessageSquare, LoaderCircle } from "lucide-react";
+import { toast } from "sonner";
+import { actionKey, actionLabel, selectableDecideActions, type Action } from "@/lib/decide/homelab-actions";
+import { WORKFLOW_KINDS, WORKFLOW_META } from "@/lib/workflows/model";
 import type { TriageCategory } from "@/lib/triage";
+import { post } from "@/lib/decide/post";
 
 export interface TriageQueueItem {
   id: string;
@@ -42,8 +24,10 @@ export interface TriageQueueItem {
     issueCount?: number;
     quality?: string;
   };
+  calibration?: { note?: string; interpretation?: string; verdict?: string; workflowKind?: string; scope?: string };
   proposal?: {
     title?: string;
+    tags?: string[];
     category?: TriageCategory;
     summary?: string;
     why_relevant?: string;
@@ -55,177 +39,49 @@ export interface TriageQueueItem {
   };
 }
 
-const ACTION_ICONS: Record<ActionId, LucideIcon> = {
-  "homelab-develop": Lightbulb,
-  "homelab-skill": Wrench,
-  "homelab-reference": Bookmark,
-  "file-vault": Archive,
-  "file-idea-bank": Lightbulb,
-  "file-backlog": ListTodo,
-  "file-roadmap": Map,
-  discard: Trash2,
-  "hold-for-review": HelpCircle,
-};
-
-const VERDICT_COLORS: Record<string, string> = {
-  pursue: "var(--success)", adopt: "var(--success)",
-  maybe: "var(--warning)", try: "var(--warning)",
-  skim: "var(--muted-foreground)",
-  pass: "var(--destructive)", skip: "var(--destructive)",
-};
-
-// Confidence dot beside the action — a glanceable "how sure was the study
-// step about THIS action" instead of prose.
-const CONFIDENCE_COLORS: Record<string, string> = {
-  high: "var(--success)",
-  medium: "var(--warning)",
-  low: "var(--muted-foreground)",
-};
-
-function parseDate(v: TriageQueueItem["savedAt"]): string {
-  const iso = typeof v === "string" ? v : v?.__date;
-  if (!iso) return "";
-  return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
-}
-
-function Field({ label, value }: { label: string; value?: string }) {
-  if (!value || value === "none") return null;
-  return (
-    <div className="text-sm leading-relaxed [overflow-wrap:anywhere]">
-      <span className="font-medium text-muted-foreground">{label} </span>
-      <span className="text-foreground">{value}</span>
-    </div>
-  );
-}
-
-export function TriageCard({
-  item,
-  action,
-  onChangeAction,
-}: {
-  item: TriageQueueItem;
-  /** The action approving this card would commit — the proposal, or Samy's
-   *  correction of it. */
-  action: Action | null;
-  /** Correcting the action is one tap; approving is still the next gesture. */
-  onChangeAction?: (action: Action) => void;
-}) {
+const short = (text: string | undefined, count = 22) => { const words = (text || "").trim().split(/\s+/); return words.length > count ? words.slice(0, count).join(" ") + "…" : words.join(" "); };
+const press = "min-h-10 rounded-lg px-3 text-sm transition-transform duration-[var(--dur-fast)] ease-[var(--ease-out-custom)] active:scale-[0.97]";
+export function TriageCard({ item, action, onChangeAction, onFeedback }: { item: TriageQueueItem; action: Action | null; onChangeAction?: (action: Action) => void; onFeedback?: () => void }) {
   const p = item.proposal ?? {};
-  const a = p.assessment;
-  const cat = categoryMeta(p.category);
-  const CatIcon = cat.icon;
-  const isBiz = p.category === "business-idea";
-  const ActionIcon = action ? ACTION_ICONS[action.id] : HelpCircle;
-  const currentKey = action ? actionKey(action) : "";
-  // The card's own action is always among the chips, so a card that arrived
-  // with no resolvable action still has somewhere to go.
-  const alternatives = onChangeAction ? selectableDecideActions(item, action) : [];
-  const confidenceColor =
-    CONFIDENCE_COLORS[(p.confidence ?? "").toLowerCase()] ?? "var(--muted-foreground)";
-  const verdictColor = VERDICT_COLORS[(a?.verdict ?? "").split(/\W/)[0].toLowerCase()] ?? "var(--muted-foreground)";
-
-  return (
-    <div className="space-y-3 p-5">
-      <div className="flex items-center gap-2 text-xs">
-        <Badge variant="secondary" className="rounded font-medium uppercase tracking-wide">
-          {item.source}
-        </Badge>
-        <span className="inline-flex items-center gap-1 font-medium" style={{ color: cat.color }}>
-          <CatIcon size={12} aria-hidden /> {cat.label}
-        </span>
-        <span className="ml-auto text-muted-foreground">{parseDate(item.savedAt)}</span>
-      </div>
-
-      <h2 className="text-lg font-semibold leading-snug text-foreground [overflow-wrap:anywhere]">
-        {p.title ?? p.summary ?? item.url}
-      </h2>
-
-      {(action || alternatives.length > 0) && (
-        // The card's primary content: the action, then its effect in plain
-        // words. Approving commits exactly this. When nothing resolved, the
-        // banner asks for a pick instead of hiding the card — a card with no
-        // gesture is the backlog this deck refuses to hold.
-        <div className="space-y-1 rounded-lg border border-primary/25 bg-primary/[0.06] p-3">
-          <div className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
-            <ActionIcon size={14} aria-hidden className="text-primary" />
-            {action ? actionLabel(action) : "Pick an action"}
-            <span
-              aria-label={p.confidence ? `confidence: ${p.confidence}` : undefined}
-              title={p.confidence ? `confidence: ${p.confidence}` : undefined}
-              className="ml-auto h-1.5 w-1.5 rounded-full"
-              style={{ background: confidenceColor }}
-            />
-          </div>
-          <p className="text-sm leading-relaxed text-muted-foreground">
-            {action
-              ? describeEffect(action, item, { compact: true })
-              : "Choose a destination, then approve."}
-          </p>
-          {alternatives.length > 0 && (
-            // One tap re-aims the card. The chips sit inside the banner so
-            // correcting and approving read as the same decision.
-            <div className="flex flex-wrap gap-1.5 pt-1.5">
-              {alternatives.map((alt) => {
-                const key = actionKey(alt);
-                const AltIcon = ACTION_ICONS[alt.id];
-                const isCurrent = key === currentKey;
-                return (
-                  <Fragment key={key}>
-                  {alt.id === "homelab-skill" && <span className="w-full pt-1 text-[11px] font-medium text-muted-foreground">Homelab</span>}
-                  <button
-                    type="button"
-                    aria-pressed={isCurrent}
-                    onClick={() => onChangeAction?.(alt)}
-                    className={cn(
-                      "inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-medium transition-transform duration-[var(--dur-fast)] ease-[var(--ease-out-custom)] active:scale-[0.97] min-h-9 max-lg:[min-height:44px]",
-                      isCurrent
-                        ? "border-primary/50 bg-primary/10 text-foreground"
-                        : "border-border text-muted-foreground hover:text-foreground",
-                    )}
-                  >
-                    <AltIcon size={11} aria-hidden /> {actionLabel(alt)}
-                  </button>
-                  </Fragment>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      )}
-
-      {p.title && p.summary && <DecisionText className="text-muted-foreground">{p.summary}</DecisionText>}
-      {item.evidenceRef && <a href={`/decide/sources/${encodeURIComponent(item.id)}`} className="inline-flex min-h-9 items-center text-sm font-medium text-primary underline-offset-4 hover:underline transition-transform duration-[var(--dur-fast)] ease-[var(--ease-out-custom)] active:scale-[0.97]">Review extraction</a>}
-      <EvidenceDetails key={item.evidenceRef ?? "legacy"} evidenceRef={item.evidenceRef} assessmentRef={item.assessmentRef} itemId={item.id} />
-      {!item.evidenceRef && p.extraction?.quality && p.extraction.quality !== "usable" && (
-        <p className="rounded-lg border border-warning/30 bg-warning/10 p-3 text-sm leading-relaxed text-foreground [overflow-wrap:anywhere]">
-          <span className="font-medium">{p.extraction.quality === "unavailable" ? "Source could not be read." : "Only part of the source was read."}</span>{" "}
-          {p.extraction.detail} Check the source before acting.
-        </p>
-      )}
-      {a && (
-        // Why that action, not a rating of the item.
-        <div className="space-y-2 rounded-lg bg-muted p-3">
-          <div className="flex items-center gap-2 text-sm">
-            <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: verdictColor }}>
-              {a.verdict}
-            </span>
-            <span className="text-xs text-muted-foreground">
-              {isBiz ? "Opportunity" : "Suggested approach"}
-            </span>
-          </div>
-          <Field label="Next step:" value={a.apply} />
-          <Field label={isBiz ? "Why:" : "How it works:"} value={a.detail} />
-          <div className="grid gap-2 sm:grid-cols-2 sm:gap-x-3">
-            <Field label="Effort:" value={a.effort} />
-            <Field label="Benefit:" value={a.payoff} />
-          </div>
-        </div>
-      )}
-
-      <Field label="For you:" value={p.why_relevant} />
-      {p.rationale && <Field label="Why this destination:" value={p.rationale} />}
-
-      {/^https?:\/\//.test(item.url) && <Provenance label="Open source" href={item.url} />}
-    </div>
-  );
+  const [editing, setEditing] = useState(false);
+  const [note, setNote] = useState(item.calibration?.note || "");
+  const [kind, setKind] = useState(item.calibration?.workflowKind || "auto");
+  const [similar, setSimilar] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const meaning = short(item.calibration?.note || p.assessment?.apply || p.why_relevant || p.summary || "Explore this source and propose a useful next step.");
+  const tags = [...(item.topicTags || []), ...(item.vaultTags || []), ...(p.tags || [])];
+  const save = async () => {
+    setBusy(true);
+    try {
+      await post("/api/triage/calibration", { itemId: item.id, evidenceRef: item.evidenceRef ?? null, assessmentRef: item.assessmentRef ?? null, verdict: "corrected", note, workflowKind: kind, scope: similar ? "similar" : "item" });
+      setEditing(false); window.dispatchEvent(new Event("lifeos-calibration")); onFeedback?.(); toast.success("Remembered. Your intended use guides the work.");
+    } catch (e) { toast.error(e instanceof Error ? e.message : "Could not save your answer"); }
+    finally { setBusy(false); }
+  };
+  return <div className="space-y-5 p-5 sm:p-6">
+    <div className="flex items-center justify-between text-xs text-muted-foreground"><span>{item.source}</span><a href={item.url} target="_blank" rel="noreferrer" className={press}>Source <ArrowUpRight size={12} className="inline" /></a></div>
+    <h2 className="text-2xl font-semibold leading-snug [overflow-wrap:anywhere]">{short(p.title || p.summary || item.url, 12)}</h2>
+    <p className="text-base leading-relaxed text-muted-foreground">{short(p.summary, 25)}</p>
+    <section className="space-y-2 rounded-xl border border-primary/25 bg-primary/5 p-4">
+      <h3 className="text-xs font-medium text-primary">{item.calibration?.note ? "Your intended use" : "My read"}</h3>
+      <p className="text-base leading-relaxed">{meaning}</p>
+      <p className="text-sm text-muted-foreground">Does that fit why you saved it?</p>
+      <button type="button" onClick={() => setEditing(!editing)} className={`${press} -ml-3 text-primary`}><MessageSquare size={14} className="mr-2 inline" />Different use</button>
+    </section>
+    {editing && <section className="space-y-3" aria-label="Correct this interpretation">
+      <label className="block text-sm font-medium" htmlFor={`intent-${item.id}`}>What did you want from it?</label>
+      <textarea id={`intent-${item.id}`} value={note} onChange={e => setNote(e.target.value)} maxLength={2000} rows={3} placeholder="One sentence is enough. Multiple uses are welcome." className="w-full rounded-xl border border-border bg-background p-3 text-base" />
+      <label className="block text-sm">Start with <select value={kind} onChange={e => setKind(e.target.value)} className="ml-2 min-h-10 max-w-full rounded-lg border border-border bg-background px-2">{WORKFLOW_KINDS.map(k => <option key={k} value={k}>{WORKFLOW_META[k].label}</option>)}</select></label>
+      {tags.length > 0 && <label className="flex items-center gap-2 text-sm text-muted-foreground"><input type="checkbox" checked={similar} onChange={e => setSimilar(e.target.checked)} />Remember for these topics</label>}
+      {similar && <p className="text-xs text-muted-foreground">{tags.slice(0, 6).join(" · ")}</p>}
+      <button type="button" disabled={busy || !note.trim()} onClick={() => void save()} className={`${press} bg-primary text-primary-foreground disabled:opacity-50`}>{busy && <LoaderCircle size={14} className="mr-2 inline animate-spin" />}Remember this</button>
+    </section>}
+    <p className="text-sm font-medium">Swipe right: {action?.id === "homelab-develop" ? "yes, handle it" : action ? actionLabel(action) : "choose a use"}.</p>
+    {p.extraction?.quality && p.extraction.quality !== "usable" && <p className="text-xs text-warning">Some source details are missing. Results will flag the gaps.</p>}
+    <details className="text-sm"><summary className={`${press} -ml-3 cursor-pointer text-muted-foreground`}>Details & other actions</summary><div className="mt-2 space-y-3">
+      <p className="whitespace-pre-wrap leading-relaxed text-muted-foreground">{p.summary}</p>
+      {item.evidenceRef && <a href={`/decide/sources/${encodeURIComponent(item.id)}`} className={`${press} inline-flex items-center text-primary`}>Read extracted evidence</a>}
+      <div className="flex flex-wrap gap-2">{onChangeAction && selectableDecideActions(item, action).map(alt => <button type="button" key={actionKey(alt)} aria-pressed={!!action && actionKey(action) === actionKey(alt)} onClick={() => onChangeAction(alt)} className={`${press} border border-border`}>{actionLabel(alt)}</button>)}</div>
+    </div></details>
+  </div>;
 }

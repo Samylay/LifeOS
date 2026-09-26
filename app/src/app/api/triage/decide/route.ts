@@ -7,6 +7,7 @@
 // Approving performs the action here and now (T-decide-rework-05). There is no
 // holding pen: the response reports the concrete outcome, and a failed effect
 // returns an error with the card left un-handled.
+import { saveCalibration } from "@/lib/calibration";
 import { NextRequest, NextResponse } from "next/server";
 import { getDoc } from "@/lib/server-db";
 import { performAction } from "@/lib/brief/triage-apply";
@@ -40,6 +41,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: `item is ${item.status}, not open` }, { status: 409 });
   }
   try {
+    const feedback = (body as { feedback?: Record<string, unknown> }).feedback;
+    if (!feedback) return NextResponse.json({ error: "Answer the short interpretation question on the card first." }, { status: 409 });
+    saveCalibration(id, feedback);
     const result = isHomelabAction(action) ? performHomelabAction(item, action) : performAction(item, action);
     return NextResponse.json({ ok: true, result });
   } catch (e) {

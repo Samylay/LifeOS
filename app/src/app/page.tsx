@@ -1,4 +1,5 @@
 "use client";
+import { CalibrationNudge } from "@/components/decide/calibration-nudge";
 
 import { WorkflowInboxLink } from "@/components/workflows/workflow-links";
 
@@ -178,6 +179,7 @@ export default function Today() {
         </div>
       </div>
 
+      <CalibrationNudge />
       <WorkflowInboxLink />
       <WorkspaceMap />
 

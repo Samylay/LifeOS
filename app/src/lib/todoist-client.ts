@@ -36,7 +36,7 @@ const TASKS_URL = "https://api.todoist.com/api/v1/tasks";
  * injectable so tests never hit the wire. */
 export async function createTodoistTask(
   input: TodoistTaskInput,
-  opts: { transport?: TodoistTransport } = {}
+  opts: { transport?: TodoistTransport; requestId?: string } = {}
 ): Promise<TodoistWriteResult> {
   const token = process.env.TODOIST_API_TOKEN;
   if (!token) {
@@ -46,7 +46,7 @@ export async function createTodoistTask(
   try {
     const res = await transport(TASKS_URL, {
       method: "POST",
-      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json", ...(opts.requestId ? { "X-Request-Id": opts.requestId } : {}) },
       body: JSON.stringify(input),
       signal: AbortSignal.timeout(20_000),
     });

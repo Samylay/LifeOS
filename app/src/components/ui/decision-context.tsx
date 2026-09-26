@@ -9,15 +9,17 @@ export function ActionEffect({ label, children, icon, className }: { label: stri
   </div>;
 }
 export function ContextDetails({ children, label = "Details" }: { children: ReactNode; label?: string }) {
-  return <details open className="group/details border-t border-border pt-2">
+  return <details className="group/details border-t border-border pt-2">
     <summary className="flex min-h-9 items-center gap-1.5 rounded-md text-xs font-medium text-muted-foreground hover:text-foreground pressable active:scale-[0.97]">
       <ChevronDown size={13} className="pressable group-open/details:rotate-180" />{label}
     </summary>
     <div className="space-y-3 py-2 text-sm [overflow-wrap:anywhere]">{children}</div>
   </details>;
 }
-/** Decide shows complete text immediately, without an expansion step. */
+/** Short first reading; full wording remains available without dropping qualifiers. */
 export function DecisionText({ children, className }: { children: ReactNode; className?: string }) {
+  const words = typeof children === "string" ? children.trim().split(/\s+/) : [];
+  if (words.length > 28) return <div className={className}><p className="text-sm leading-relaxed">{words.slice(0, 28).join(" ")}…</p><details className="mt-1"><summary className="min-h-8 cursor-pointer text-xs text-muted-foreground active:scale-[0.97]">Full context</summary><p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed [overflow-wrap:anywhere]">{children}</p></details></div>;
   return <p className={cn("text-sm leading-relaxed whitespace-pre-wrap [overflow-wrap:anywhere]", className)}>{children}</p>;
 }
 export function Provenance({ label, href, children }: { label: string; href?: string; children?: ReactNode }) {

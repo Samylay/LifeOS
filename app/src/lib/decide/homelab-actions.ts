@@ -27,11 +27,11 @@ export function isHomelabAction(action: Action): action is HomelabAction {
 export function isPerformable(action: Action): boolean { return isHomelabAction(action) || canFile(action); }
 export function actionKey(action: Action): string { return isHomelabAction(action) ? action.id : filingKey(action); }
 export function actionLabel(action: Action): string {
-  return action.id === "homelab-develop" ? "Develop this idea" : action.id === "homelab-skill" ? "Queue skill install" : action.id === "homelab-reference" ? "Save UI reference" : filingLabel(action as FilingAction);
+  return action.id === "homelab-develop" ? "Handle it automatically" : action.id === "homelab-skill" ? "Compare this skill" : action.id === "homelab-reference" ? "Save UI reference" : filingLabel(action as FilingAction);
 }
 export function describeEffect(action: Action, item: ActionSubject, options?: { compact?: boolean }): string {
-  if (action.id === "homelab-develop") return "Extract this source and prepare the most relevant result automatically. Review results before any install or integration.";
-  if (action.id === "homelab-skill") return "Queue an install request for Codex. Start it from Send to Codex.";
+  if (action.id === "homelab-develop") return "Extract → prepare a result → show you the next action.";
+  if (action.id === "homelab-skill") return "Run the comparison automatically. Install only after you approve the result.";
   if (action.id === "homelab-reference") return "Save for future UI work. Relevant requests will bring it back.";
   return filingEffect(action as FilingAction, item, options);
 }

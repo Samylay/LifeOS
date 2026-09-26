@@ -46,7 +46,7 @@ export interface WorkflowReport {
 export interface WorkflowRun {
   id: string; itemId: string; title: string; sourceUrl: string; kind: WorkflowKind;
   state: WorkflowState; phase: "evaluate" | "apply"; evidenceRef: string | null;
-  createdAt: string; updatedAt: string; dispatchId?: string; reason?: string;
+  createdAt: string; updatedAt: string; intentRef?: string | null; dispatchId?: string; reason?: string;
   artifacts: WorkflowArtifact[]; report?: WorkflowReport; reportHash?: string;
   appliedSummary?: string; destination?: string; outcomeEvidence?: string[];
   history: { state: WorkflowState; at: string; detail: string }[];

@@ -56,7 +56,7 @@ interface CardStackProps<T extends { id: string }> {
   /** Action ids that need a second tap/swipe to commit (armed ~2s). */
   confirmIds?: string[];
   /** Voice: interpret + apply a transcript server-side; resolves to the reply. */
-  interpret?: (item: T, transcript: string) => Promise<string>;
+  interpret?: (item: T, transcript: string) => Promise<string | { reply: string; resolved: boolean }>;
   emptyLabel: string;
   /** Optional minimum height. The active card grows to fit its content. */
   minHeight?: number | string;
@@ -132,7 +132,9 @@ export function CardStack<T extends { id: string }>({
   const { state: voice, start: startVoice, stop: stopVoice } = useVoiceRecorder({
     onTranscript: async (transcript) => {
       if (!top || !interpret) return;
-      const reply = await interpret(top, transcript);
+      const response = await interpret(top, transcript);
+      if (typeof response !== "string" && !response.resolved) { toast.success(response.reply); return; }
+      const reply = typeof response === "string" ? response : response.reply;
       undoToast(top, reply);
       setExiting({ item: top, dir: "none" });
       onResolved(top);

@@ -30,6 +30,10 @@ function rawRun(id: string): WorkflowRun & { tokenHash?: string; callbackHash?: 
 }
 export function getRun(id: string): WorkflowRun {
   const { tokenHash: _secret, callbackHash: _callback, ...run } = rawRun(id); void _secret; void _callback;
+  const currentIntent = record(getDoc(SOURCES, run.itemId)?.calibration).id ?? null;
+  if (["queued", "running", "ready", "awaiting-extraction"].includes(run.state) && currentIntent !== (run.intentRef ?? null)) {
+    return { ...run, state: "blocked", reason: "Your intended use changed. This result belongs to the previous answer." };
+  }
   if (["queued", "running", "applying"].includes(run.state) && run.dispatchId) {
     const job = getDoc(DISPATCH, run.dispatchId);
     if (job && ["done", "failed", "error"].includes(String(job.status))) {
@@ -63,12 +67,14 @@ export function startWorkflow(itemId: string, kind: WorkflowKind = "auto"): Work
     const item = getDoc(SOURCES, itemId);
     if (!item) throw new WorkflowError("Saved item not found", 404);
     if (item.status === "discarded") throw new WorkflowError("Restore this item before developing it", 409);
+    const preference = record(item.calibration);
+    if (kind === "auto" && isWorkflowKind(preference.workflowKind)) kind = preference.workflowKind;
     const evidence = evidenceFor(item);
     // Repeated clicks cannot launch another evaluation of the same source/version/use.
-    const existing = listRuns().find((run) => run.itemId === itemId && run.kind === kind && run.evidenceRef === (evidence?.id ?? null) && run.state !== "dismissed");
+    const existing = listRuns().find((run) => run.itemId === itemId && run.kind === kind && run.evidenceRef === (evidence?.id ?? null) && run.state !== "dismissed" && (run.intentRef ?? null) === (preference.id ?? null));
     if (existing) return existing;
     const at = now(); const id = randomUUID(); const proposal = record(item.proposal);
-    const run: WorkflowRun = { id, itemId, kind, title: String(proposal.title || proposal.summary || item.url || "Saved item").slice(0, 300), sourceUrl: safeSourceUrl(item.url), state: "awaiting-extraction", phase: "evaluate", evidenceRef: evidence?.id ?? null, createdAt: at, updatedAt: at, artifacts: [], history: [{ state: "awaiting-extraction", at, detail: "Source accepted for a workflow" }] };
+    const run: WorkflowRun = { id, itemId, kind, intentRef: typeof preference.id === "string" ? preference.id : null, title: String(proposal.title || proposal.summary || item.url || "Saved item").slice(0, 300), sourceUrl: safeSourceUrl(item.url), state: "awaiting-extraction", phase: "evaluate", evidenceRef: evidence?.id ?? null, createdAt: at, updatedAt: at, artifacts: [], history: [{ state: "awaiting-extraction", at, detail: "Source accepted for a workflow" }] };
     setDoc(RUNS, id, { ...run });
     if (evidence) dispatch(run);
     return getRun(id);
@@ -92,6 +98,7 @@ export function authenticateReporter(id: string, token: string): WorkflowRun {
 }
 function sourceStillMatches(run: WorkflowRun) {
   const item = getDoc(SOURCES, run.itemId);
+  if (item && (record(item.calibration).id ?? null) !== (run.intentRef ?? null)) throw new WorkflowError("Your intended use changed. Prepare a result from the updated answer.", 409);
   if (!item || item.status === "discarded" || (item.evidenceRef ?? null) !== run.evidenceRef) throw new WorkflowError("The source evidence changed. Start a workflow for the current version.", 409);
 }
 function parseReport(input: unknown, run: WorkflowRun): WorkflowReport {
@@ -194,7 +201,7 @@ export function decideWorkflow(id: string, action: unknown, expectedHash: unknow
     if (action === "dismiss") {
       if (run.state === "dismissed") return run;
       if (!["ready", "awaiting-extraction", "blocked", "queued"].includes(run.state)) throw new WorkflowError("Work has already started; its outcome must be reconciled", 409);
-      if (run.state === "queued") {
+      if (run.state === "queued" || (run.state === "blocked" && rawRun(id).state === "queued")) {
         const job = run.dispatchId ? getDoc(DISPATCH, run.dispatchId) : null;
         if (job?.status !== "pending") throw new WorkflowError("Agent has claimed this work", 409);
         updateDoc(DISPATCH, run.dispatchId!, { status: "cancelled" });

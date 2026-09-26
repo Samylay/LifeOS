@@ -49,7 +49,7 @@ export function activeDestination(pathname: string) {
 export function surfaceTitle(pathname: string) {
   if (pathname === "/review") return "Overhaul review";
   if (pathname === "/voice/capture") return "Quick capture";
-  if (pathname === "/decide/dispatch") return "Send to Codex";
+  if (pathname === "/decide/dispatch") return "Results";
   if (pathname.startsWith("/prime")) return "Priming";
   if (pathname === "/diagrams") return "Diagrams";
   return activeDestination(pathname)?.label ?? "Today";
