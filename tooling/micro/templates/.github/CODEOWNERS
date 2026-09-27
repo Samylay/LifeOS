@@ -14,11 +14,11 @@
 *.test.* @Samylay
 *.spec.* @Samylay
 *config* @Samylay
-.eslint* @Samylay
-.prettier* @Samylay
-.*ignore @Samylay
+.* @Samylay
 /.gitattributes @Samylay
 /.gitmodules @Samylay
 /fixtures/ @Samylay
 /__fixtures__/ @Samylay
 /__mocks__/ @Samylay
+/.node-version @Samylay
+/.nvmrc @Samylay

@@ -23,7 +23,7 @@ DEFAULT_STATE = Path.home() / '.local/state/micro-factory'
 IMAGE_PATTERN = r'(?:[a-z0-9./:_-]+@)?sha256:[a-f0-9]{64}'
 PROTECTED_PATTERNS = ('package.json','package-lock.json','AGENTS.md','Dockerfile*',
     '.factory/*','.github/*','scripts/*','ci/*','tests/*','test/*','*.test.*','*.spec.*',
-    '*config*','.eslint*','.prettier*','.*ignore','.gitattributes','.gitmodules',
+    '*config*','.*','*/.*',
     'fixtures/*','__fixtures__/*','__mocks__/*','.node-version','.nvmrc')
 
 def run(argv, **kwargs):

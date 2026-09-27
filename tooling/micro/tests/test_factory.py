@@ -73,7 +73,7 @@ class FactoryTests(unittest.TestCase):
             (project/'src.mjs').write_text('export const behavior = 1;\n')
             sha=commit()
             self.assertEqual(len(micro.check_policy(project,'reviewed',sha,state)),64)
-            for file,content in [('package.json','{"scripts":{"test":"true"}}'),('vitest.config.ts','export default {test: {exclude: ["**/*"]}};'),('.gitattributes','* export-ignore\n')]:
+            for file,content in [('package.json','{"scripts":{"test":"true"}}'),('vitest.config.ts','export default {test: {exclude: ["**/*"]}};'),('.gitattributes','* export-ignore\n'),('.npmrc','script-shell=/bin/true\n')]:
                 previous=(project/file).read_bytes() if (project/file).exists() else None
                 (project/file).write_text(content); changed=commit()
                 with self.assertRaisesRegex(ValueError,'Independent review is required'):
