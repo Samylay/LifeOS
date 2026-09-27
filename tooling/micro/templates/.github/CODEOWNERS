@@ -1,0 +1,7 @@
+# Replace with the actual repository owner during GitHub onboarding.
+# Configure required review and required Micro candidate checks on main.
+# Protection is not active merely because this template exists.
+/.github/ @Samylay
+/.factory/ @Samylay
+/Dockerfile @Samylay
+/tests/acceptance/ @Samylay

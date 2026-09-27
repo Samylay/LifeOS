@@ -1,0 +1,14 @@
+node_modules/
+.next/
+dist/
+.expo/
+.scratch/
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+data/
+coverage/
+playwright-report/
+test-results/

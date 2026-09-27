@@ -1,0 +1,9 @@
+{
+  "enabled": false,
+  "image_digest": null,
+  "source_sha": null,
+  "smoke_predicate": null,
+  "backup_restore_evidence": null,
+  "data_rollback_compatible": null,
+  "distribution": null
+}

@@ -1,0 +1,32 @@
+name: Micro candidate
+on:
+  pull_request:
+  push:
+    branches: [main]
+  merge_group:
+permissions:
+  contents: read
+concurrency:
+  group: candidate-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '22'
+      - run: npm ci --ignore-scripts
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run test:e2e
+      - run: npm audit --audit-level=high
+      - run: python3 .factory/security.py install --output /tmp/micro-tools
+      - run: /tmp/micro-tools/gitleaks git . --no-banner --redact=100
+      - run: python3 .factory/security.py scan --source . --binaries /tmp/micro-tools --reports /tmp/micro-security

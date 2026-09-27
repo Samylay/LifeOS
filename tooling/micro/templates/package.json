@@ -1,0 +1,11 @@
+{
+  "name": "micro-product",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "lint": "node .factory/unconfigured.mjs",
+    "typecheck": "node .factory/unconfigured.mjs",
+    "test": "node .factory/unconfigured.mjs",
+    "test:e2e": "node .factory/unconfigured.mjs"
+  }
+}

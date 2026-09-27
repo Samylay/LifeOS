@@ -1,0 +1,6 @@
+*
+!Verifier.Dockerfile
+!scanners/
+!scanners/gitleaks
+!scanners/syft
+!scanners/grype

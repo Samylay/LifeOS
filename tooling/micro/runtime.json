@@ -1,0 +1,6 @@
+{
+  "image": "sha256:fa1b19db00f05c95f38c0c6cab71fdf367aef1d288fd8262d559951d42affdc1",
+  "toolchain": "node22-typescript5.9.3",
+  "build_definition": "Verifier.Dockerfile",
+  "security_tools": "tools-lock.json"
+}
