@@ -11,6 +11,10 @@ export interface MicroApp extends AppBrief {
 }
 export const EMPTY_BRIEF: AppBrief = { title: "", audience: "", problem: "", platform: "web", features: [], name: "", vibe: "", references: "", business: "" };
 export const STAGES = ["Features", "Name", "Vibe", "References", "Build"] as const;
+export function briefFromApp(app: AppBrief): AppBrief {
+  const { title, audience, problem, platform, features, name, vibe, references, business } = app;
+  return { title, audience, problem, platform, features, name, vibe, references, business };
+}
 
 function record(value: unknown): Record<string, unknown> {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("Supply an app brief.");

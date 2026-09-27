@@ -5,7 +5,7 @@ import { ArrowLeft, ArrowRight, Check, Download, FlaskConical, Plus, Rocket, Sav
 import { toast } from "sonner";
 import { Page, PageHeader } from "@/components/ui/page";
 import { Button } from "@/components/ui/button";
-import { EMPTY_BRIEF, STAGES, buildGaps, briefMarkdown, workspaceSlug, type AppBrief, type MicroApp } from "@/lib/micro/model";
+import { EMPTY_BRIEF, STAGES, buildGaps, briefMarkdown, briefFromApp, workspaceSlug, type AppBrief, type MicroApp } from "@/lib/micro/model";
 import type { CodexSession } from "@/lib/codex-sessions";
 
 const input = "w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring";
@@ -35,7 +35,7 @@ export default function MicroPage() {
   const [workspace, setWorkspace] = useState<CodexSession | null>(null);
   const [sessionError, setSessionError] = useState("");
   const currentId = useRef<string | null>(null);
-  const dirty = current ? JSON.stringify(brief) !== JSON.stringify(Object.fromEntries(Object.keys(EMPTY_BRIEF).map(key => [key, current[key as keyof AppBrief]]))) : creating;
+  const dirty = current ? JSON.stringify(brief) !== JSON.stringify(briefFromApp(current)) : creating;
   const update = <K extends keyof AppBrief>(key: K, value: AppBrief[K]) => setBrief(prev => ({ ...prev, [key]: value }));
   const refresh = useCallback(async () => { const data = await request<{ apps: MicroApp[] }>("/api/micro/apps"); setApps(data.apps); return data.apps; }, []);
   useEffect(() => { void refresh().catch(e => setError(e.message)).finally(() => setLoading(false)); }, [refresh]);
@@ -65,14 +65,14 @@ export default function MicroPage() {
   function open(app: MicroApp | null) {
     if (dirty && !window.confirm("Discard the unsaved changes to this brief?")) return;
     currentId.current = app?.id ?? null;
-    setCurrent(app); setCreating(!app); setBrief(app ? Object.fromEntries(Object.keys(EMPTY_BRIEF).map(key => [key, app[key as keyof AppBrief]])) as unknown as AppBrief : { ...EMPTY_BRIEF, features: [] });
+    setCurrent(app); setCreating(!app); setBrief(app ? briefFromApp(app) : { ...EMPTY_BRIEF, features: [] });
     setStage(0); setChoices([]); setResearch(null); setWorkspace(null); setError(""); setSessionError("");
   }
   async function save(): Promise<MicroApp> {
     const url = current ? `/api/micro/apps/${current.id}` : "/api/micro/apps";
     const data = await request<{ app: MicroApp }>(url, current ? "PUT" : "POST", current ? { brief, revision: current.revision } : brief);
     currentId.current = data.app.id;
-    setCurrent(data.app); setBrief(Object.fromEntries(Object.keys(EMPTY_BRIEF).map(key => [key, data.app[key as keyof AppBrief]])) as unknown as AppBrief); setCreating(false);
+    setCurrent(data.app); setBrief(briefFromApp(data.app)); setCreating(false);
     setApps(prev => [data.app, ...prev.filter(app => app.id !== data.app.id)]);
     return data.app;
   }
