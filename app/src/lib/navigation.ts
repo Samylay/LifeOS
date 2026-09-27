@@ -14,6 +14,7 @@ export const NAV_GROUPS = [
     { href: "/decide", label: "Decide", icon: Layers01Icon },
     { href: "/decide/approvals", label: "Approvals", icon: CheckListIcon },
     { href: "/projects", label: "Projects", icon: Folder01Icon },
+    { href: "/micro", label: "Micro", icon: ComputerTerminal01Icon },
     { href: "/workflows", label: "Workflows", icon: Layers01Icon },
     { href: "/teaching", label: "Teaching", icon: BookOpen01Icon },
     { href: "/mind-map", label: "Mind map", icon: NetworkIcon },
