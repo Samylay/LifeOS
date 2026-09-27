@@ -25,6 +25,15 @@ mount, no network, credentials, live data or Docker socket, and bounded CPU,
 memory, process count and time. This is container isolation, not a separate
 machine or a certification against kernel escape.
 
+Before the first run, an independent reviewer accepts the actual gate scripts,
+runner configuration and acceptance fixtures at a committed source SHA. Save
+that review as JSON with `source_sha`, `verdict: "accepted"`, `reviewer` and
+`evidence`, then run `micro approve-checks <project-id> --review <receipt.json>`.
+The trusted administrator records the protected-file hashes outside candidate
+source. Changes to scripts, tests, configs, archive rules or policy block the
+next verification until reviewed. The review record is an administrative
+attestation, not a cryptographic proof of a human or model identity.
+
 The trusted verifier image includes Node 22, TypeScript 5.9.3, Gitleaks 8.30.1,
 Syft 1.52.0 and Grype 0.119.0. Scanner release assets are SHA256 checked before
 extraction; versions and checksums live in tools-lock.json. Public advisory

@@ -61,7 +61,14 @@ review the actual browser/simulator flow, accessibility, empty/error/offline
 states, reduced motion and performance. Use domain tests for behavior, not
 tests that repeat implementation. Review the diff and spec independently.
 
-Commit the intended candidate, then `micro verify <project-id>` retains its
+Commit the intended candidate. An independent reviewer accepts the gate scripts,
+runner configuration and acceptance fixtures for that source SHA; record its
+JSON review (`source_sha`, `verdict: "accepted"`, `reviewer`, `evidence`) outside
+the product. The trusted operator runs `micro approve-checks <project-id>
+--review <receipt.json>`. Changes to protected checks/configs/fixtures/policy
+require another review. The host administrator is the trust boundary; the
+review record does not cryptographically prove reviewer identity.
+Then `micro verify <project-id>` retains its
 source SHA, image digest, logs and pass/fail receipt. The verifier has no
 network, credentials, production data or Docker socket, and a 600-second
 budget. It uses an offline image; dependency-heavy apps need a reviewed

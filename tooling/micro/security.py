@@ -30,10 +30,11 @@ def install(output, lock):
 
 def scan(source, binaries, reports):
     reports.mkdir(parents=True,exist_ok=True)
+    config=Path(__file__).with_name('scanner-config')
     commands=[
-        [str(binaries/'gitleaks'),'dir',str(source),'--no-banner','--redact=100','--report-format=json','--report-path='+str(reports/'secrets.json')],
-        [str(binaries/'syft'),'dir:'+str(source),'-o','cyclonedx-json='+str(reports/'sbom.cdx.json')],
-        [str(binaries/'grype'),'sbom:'+str(reports/'sbom.cdx.json'),'--fail-on','high','-o','json','--file',str(reports/'vulnerabilities.json')],
+        [str(binaries/'gitleaks'),'dir',str(source),'--config='+str(config/'gitleaks.toml'),'--no-banner','--redact=100','--report-format=json','--report-path='+str(reports/'secrets.json')],
+        [str(binaries/'syft'),'dir:'+str(source),'--config='+str(config/'syft.yaml'),'-o','cyclonedx-json='+str(reports/'sbom.cdx.json')],
+        [str(binaries/'grype'),'sbom:'+str(reports/'sbom.cdx.json'),'--config='+str(config/'grype.yaml'),'--fail-on','high','-o','json','--file',str(reports/'vulnerabilities.json')],
     ]
     for command in commands: subprocess.run(command,check=True,timeout=300)
 

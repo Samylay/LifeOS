@@ -3,6 +3,7 @@
 import argparse
 import fcntl
 import hashlib
+import fnmatch
 import io
 import json
 import os
@@ -20,6 +21,10 @@ KIT = Path(__file__).resolve().parent
 DEFAULT_ROOT = Path.home() / 'apps/micro'
 DEFAULT_STATE = Path.home() / '.local/state/micro-factory'
 IMAGE_PATTERN = r'(?:[a-z0-9./:_-]+@)?sha256:[a-f0-9]{64}'
+PROTECTED_PATTERNS = ('package.json','package-lock.json','AGENTS.md','Dockerfile*',
+    '.factory/*','.github/*','scripts/*','ci/*','tests/*','test/*','*.test.*','*.spec.*',
+    '*config*','.eslint*','.prettier*','.*ignore','.gitattributes','.gitmodules',
+    'fixtures/*','__fixtures__/*','__mocks__/*','.node-version','.nvmrc')
 
 def run(argv, **kwargs):
     return subprocess.run(argv, check=True, capture_output=True, timeout=30, **kwargs)
@@ -84,6 +89,7 @@ def initialize(root, slug, brief):
         shutil.copytree(KIT/'templates', destination, dirs_exist_ok=True)
         for source in ('security.py','tools-lock.json'):
             shutil.copyfile(KIT/source,destination/'.factory'/source)
+        shutil.copytree(KIT/'scanner-config',destination/'.factory/scanner-config')
         (destination/'brief.json').write_text(json.dumps(brief, indent=2)+'\n')
         (destination/'BRIEF.md').write_text(markdown(brief))
         (destination/'DESIGN.md').write_text('# Design direction\n\n'+brief['vibe']+'\n\n## Reference decisions\n'+brief['references']+'\n\n## Required states\nRecord loading, empty, error, offline, permission and recovery behavior for each applicable flow.\n')
@@ -121,6 +127,36 @@ def extract_source(archive, directory):
                 raise ValueError('Remove credential files from tracked source')
             tar.extract(member, directory, filter='data')
 
+def policy_snapshot(project, sha):
+    files=run(['git','-C',str(project),'ls-tree','-r','--name-only',sha]).stdout.decode().splitlines()
+    protected={}
+    for file in files:
+        if any(fnmatch.fnmatch(file,pattern) for pattern in PROTECTED_PATTERNS):
+            data=run(['git','-C',str(project),'show',sha+':'+file]).stdout
+            protected[file]=hashlib.sha256(data).hexdigest()
+    return protected
+
+def approve_policy(root, slug, review_file, state=DEFAULT_STATE):
+    project=project_path(root_path(root),slug)
+    if run(['git','-C',str(project),'status','--porcelain']).stdout.strip(): raise ValueError('Commit the reviewed candidate first')
+    sha=run(['git','-C',str(project),'rev-parse','HEAD']).stdout.decode().strip()
+    review=json.loads(Path(review_file).read_text())
+    if review.get('source_sha')!=sha or review.get('verdict')!='accepted' or not isinstance(review.get('reviewer'),str) or not review['reviewer'].strip() or not isinstance(review.get('evidence'),str) or not review['evidence'].strip():
+        raise ValueError('Supply an accepted independent review tied to this exact source SHA, with reviewer and evidence')
+    policies=Path(state)/'policies'; policies.mkdir(parents=True,exist_ok=True,mode=0o700)
+    data={'project':str(project.resolve()),'source_sha':sha,'protected_files':policy_snapshot(project,sha),'review':review,'accepted_at':time.time()}
+    destination=policies/(slug+'.json'); temporary=policies/(slug+'.'+uuid.uuid4().hex+'.tmp')
+    temporary.write_text(json.dumps(data,indent=2)+'\n'); temporary.chmod(0o600); temporary.replace(destination)
+    return destination
+
+def check_policy(project, slug, sha, state):
+    destination=Path(state)/'policies'/(slug+'.json')
+    if not destination.is_file(): raise ValueError('Checks have no reviewed baseline. Obtain an independent review and run micro approve-checks with that review receipt')
+    accepted=json.loads(destination.read_text())
+    if accepted.get('project')!=str(project.resolve()) or accepted.get('protected_files')!=policy_snapshot(project,sha):
+        raise ValueError('Protected checks or policy changed. Independent review is required before accepting this candidate')
+    return hashlib.sha256(destination.read_bytes()).hexdigest()
+
 def verify(root, slug, state=DEFAULT_STATE, policy=None):
     root = root_path(root); project = project_path(root, slug)
     if not (project/'.git').is_dir(): raise ValueError('Micro project must be a standalone Git repository')
@@ -136,10 +172,11 @@ def verify(root, slug, state=DEFAULT_STATE, policy=None):
         try: fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError: raise ValueError('The Micro verifier is busy; one candidate runs at a time')
         sha = run(['git','-C',str(project),'rev-parse','HEAD']).stdout.decode().strip()
-        archive = run(['git','-C',str(project),'archive','--format=tar','HEAD']).stdout
+        policy_hash=check_policy(project,slug,sha,state)
+        archive = run(['git','-C',str(project),'archive','--format=tar',sha]).stdout
         job = uuid.uuid4().hex; name = 'micro-verify-'+job
         directory = state/job; directory.mkdir(mode=0o700)
-        receipt = {'id':job,'project':slug,'source_sha':sha,'image':image,'source_archive_sha256':hashlib.sha256(archive).hexdigest(),'status':'running','started_at':time.time(),'automatic_retries':0}
+        receipt = {'id':job,'project':slug,'source_sha':sha,'image':image,'reviewed_policy_sha256':policy_hash,'source_archive_sha256':hashlib.sha256(archive).hexdigest(),'status':'running','started_at':time.time(),'automatic_retries':0}
         def save():
             temp = directory/'receipt.tmp'; temp.write_text(json.dumps(receipt,indent=2)+'\n'); temp.replace(directory/'receipt.json')
         save()
@@ -162,6 +199,7 @@ def verify(root, slug, state=DEFAULT_STATE, policy=None):
                 scanner=command[:-2]
                 scanner=scanner[:-1]+[
                     '--mount','type=bind,src='+str(KIT/'scan.mjs')+',dst=/scanner.mjs,readonly',
+                    '--mount','type=bind,src='+str(KIT/'scanner-config')+',dst=/scanner-config,readonly',
                     '--mount','type=bind,src='+str(reports)+',dst=/evidence',
                     '--mount','type=bind,src='+str(DEFAULT_STATE/'grype-db')+',dst=/db,readonly',
                     '--env','GRYPE_DB_AUTO_UPDATE=false','--env','GRYPE_DB_CACHE_DIR=/db',
@@ -193,7 +231,7 @@ def doctor(root=DEFAULT_ROOT):
     root = root_path(root)
     checks = {'root':str(root),'root_instructions':(root/'AGENTS.md').is_file(),
               'skill':(Path.home()/'.codex/skills/micro-studio/SKILL.md').is_file(),
-              'docker':shutil.which('docker') is not None,'codex':shutil.which('codex') is not None}
+              'docker':shutil.which('docker') is not None,'codex':(Path.home()/'.local/bin/codex').is_file() or shutil.which('codex') is not None}
     try:
         policy=read_policy(); run(['docker','image','inspect',policy['image']]); checks['verifier_image']=policy['image']
     except Exception: checks['verifier_image']=False
@@ -202,18 +240,19 @@ def doctor(root=DEFAULT_ROOT):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--root',type=Path,default=DEFAULT_ROOT)
     sub=parser.add_subparsers(dest='command',required=True)
     init=sub.add_parser('init'); init.add_argument('slug'); init.add_argument('--brief',type=Path,required=True)
     check=sub.add_parser('verify'); check.add_argument('slug')
+    admission=sub.add_parser('approve-checks'); admission.add_argument('slug'); admission.add_argument('--review',type=Path,required=True)
     sub.add_parser('doctor')
     args=parser.parse_args()
     try:
         if args.command=='init':
             if args.brief.stat().st_size>64000: raise ValueError('Brief exceeds 64 KB')
-            print(initialize(args.root,args.slug,json.loads(args.brief.read_text()))); return 0
-        if args.command=='doctor': return 0 if doctor(args.root) else 1
-        receipt,directory=verify(args.root,args.slug)
+            print(initialize(DEFAULT_ROOT,args.slug,json.loads(args.brief.read_text()))); return 0
+        if args.command=='doctor': return 0 if doctor(DEFAULT_ROOT) else 1
+        if args.command=='approve-checks': print(approve_policy(DEFAULT_ROOT,args.slug,args.review)); return 0
+        receipt,directory=verify(DEFAULT_ROOT,args.slug)
         print(json.dumps({'receipt':receipt,'evidence':str(directory)},indent=2))
         return 0 if receipt['status']=='passed' else 1
     except Exception as exc:

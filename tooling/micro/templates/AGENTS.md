@@ -19,6 +19,10 @@ Do not weaken checks to ship. Changes to .github/, .factory/, Dockerfiles,
 release policy or acceptance fixtures require explicit review.
 
 Run lint, typecheck, test and test:e2e. Report source SHA and check evidence.
+Before local factory verification, use an independent review tied to the source
+SHA to admit the gate scripts/configuration/fixtures through micro approve-checks.
+Protected-policy changes block verification until another review; do not
+approve your own weakened checks or invent a review receipt.
 Host Codex is an attended development session, not an isolated unattended
 worker. Untrusted PR code runs on hosted CI; never install a production-host
 self-hosted runner or expose the host Docker socket, vault, credentials or
