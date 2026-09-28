@@ -1,6 +1,7 @@
 # Micro
 
-Open **Micro → New app** in LifeOS. Write the feature list, separate the first
+Open **Micro → New app** in LifeOS. Draft the problem and feature list yourself
+or ask for AI ideas, then choose what enters the brief. Separate the first
 release, choose a name and visual direction, attach AppLlama research, then
 create a workspace. Open a new Codex task in the returned project directory.
 Its AGENTS.md loads `micro-studio`; no old task transcript is needed.

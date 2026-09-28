@@ -89,6 +89,10 @@
 
 ## Log
 
+- 2026-09-28 (attended, Micro suggestions): Added read-only AI ideas for problems and features on the first studio step. Unfinished briefs work, including a feature-first draft and an empty feature row. Ideas are opt-in, individually selectable and editable; nothing is saved until the user saves the brief. Verified 15 focused tests, TypeScript, scoped ESLint, Docker build/redeploy, route status checks, actual host-generated budgeting suggestions, select-and-save in a temporary database, and 390px browser layout without horizontal overflow. Updated the Micro skill and guide; no live brief was changed by verification.
+  Pitch: help shape a vague problem and propose testable features without taking control of the brief.
+  Quiz: Does requesting ideas save or replace the user’s draft? No; selection changes the local draft and Save brief persists it.
+
 - 2026-09-27 (attended, Micro app studio): Added Micro for app briefs, first/later features, naming, visual direction, AppLlama reference sessions and deterministic workspace creation. Installed the Micro launcher/skill, reviewed-check admission, bounded container verification, separate secret/SBOM/vulnerability scans and daily advisory refresh. Preserved perso/work and existing data. Verified TypeScript, scoped ESLint, 11 studio tests, 8 factory tests, independent reviews, real isolated lab checks/scans, host AppLlama connectivity, desktop/mobile browser flow, production Docker deployment and route smoke. The full suite retains 11 failures reproduced on unchanged baseline plus a local Node 24 native cleanup crash. Product publishing remains configured per app. Private evidence: `.scratch/micro-setup/verification.md`; operating guide: `tooling/micro/README.md`.
   Pitch: start with a feature brief and carry the selected product direction into a fresh coding task.
   Quiz: Does a generated CI template mean branch protection is active? No, configure it for the actual product repository and read it back.

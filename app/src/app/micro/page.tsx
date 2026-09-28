@@ -1,11 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ArrowLeft, ArrowRight, Check, Download, FlaskConical, Plus, Rocket, Save, Trash2 } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Download, FlaskConical, Plus, Rocket, Save, Sparkles, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Page, PageHeader } from "@/components/ui/page";
 import { Button } from "@/components/ui/button";
-import { EMPTY_BRIEF, STAGES, buildGaps, briefMarkdown, briefFromApp, workspaceSlug, type AppBrief, type MicroApp } from "@/lib/micro/model";
+import { EMPTY_BRIEF, STAGES, buildGaps, briefMarkdown, briefFromApp, ideaContext, workspaceSlug, type AppBrief, type FeatureIdea, type MicroApp } from "@/lib/micro/model";
 import type { CodexSession } from "@/lib/codex-sessions";
 
 const input = "w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring";
@@ -31,12 +31,22 @@ export default function MicroPage() {
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [choices, setChoices] = useState<Choice[]>([]);
+  const [problemIdeas, setProblemIdeas] = useState<string[]>([]);
+  const [featureIdeas, setFeatureIdeas] = useState<FeatureIdea[]>([]);
+  const [ideaError, setIdeaError] = useState<{ kind: "problem" | "features"; message: string } | null>(null);
   const [research, setResearch] = useState<CodexSession | null>(null);
   const [workspace, setWorkspace] = useState<CodexSession | null>(null);
   const [sessionError, setSessionError] = useState("");
   const currentId = useRef<string | null>(null);
   const dirty = current ? JSON.stringify(brief) !== JSON.stringify(briefFromApp(current)) : creating;
-  const update = <K extends keyof AppBrief>(key: K, value: AppBrief[K]) => setBrief(prev => ({ ...prev, [key]: value }));
+  const update = <K extends keyof AppBrief>(key: K, value: AppBrief[K]) => {
+    setBrief(prev => ({ ...prev, [key]: value }));
+    if (key === "features") setFeatureIdeas([]);
+    if (key === "title" || key === "audience" || key === "problem" || key === "platform" || key === "business") {
+      setProblemIdeas([]); setFeatureIdeas([]);
+    }
+    setIdeaError(null);
+  };
   const refresh = useCallback(async () => { const data = await request<{ apps: MicroApp[] }>("/api/micro/apps"); setApps(data.apps); return data.apps; }, []);
   useEffect(() => { void refresh().catch(e => setError(e.message)).finally(() => setLoading(false)); }, [refresh]);
   useEffect(() => {
@@ -66,7 +76,8 @@ export default function MicroPage() {
     if (dirty && !window.confirm("Discard the unsaved changes to this brief?")) return;
     currentId.current = app?.id ?? null;
     setCurrent(app); setCreating(!app); setBrief(app ? briefFromApp(app) : { ...EMPTY_BRIEF, features: [] });
-    setStage(0); setChoices([]); setResearch(null); setWorkspace(null); setError(""); setSessionError("");
+    setStage(0); setChoices([]); setProblemIdeas([]); setFeatureIdeas([]); setIdeaError(null);
+    setResearch(null); setWorkspace(null); setError(""); setSessionError("");
   }
   async function save(): Promise<MicroApp> {
     const url = current ? `/api/micro/apps/${current.id}` : "/api/micro/apps";
@@ -94,6 +105,25 @@ export default function MicroPage() {
       }
     } catch (e) { setError(e instanceof Error ? e.message : "Request failed."); } finally { setBusy(null); }
   }
+  async function suggest(kind: "problem" | "features") {
+    setBusy(kind); setIdeaError(null);
+    try {
+      const result = await request<{ suggestions: string[] | FeatureIdea[] }>("/api/micro/suggest", "POST", { kind, context: ideaContext(brief) });
+      if (kind === "problem") setProblemIdeas(result.suggestions as string[]);
+      else setFeatureIdeas(result.suggestions as FeatureIdea[]);
+    } catch (e) {
+      setIdeaError({ kind, message: e instanceof Error ? e.message : "Suggestions are unavailable." });
+    } finally { setBusy(null); }
+  }
+  function addFeatureIdea(idea: FeatureIdea) {
+    setBrief(prev => {
+      if (prev.features.some(feature => feature.title.trim().toLowerCase() === idea.title.toLowerCase())) return prev;
+      const empty = prev.features.findIndex(feature => !feature.title.trim() && !feature.acceptance.trim() && feature.scope === "first");
+      const feature = { id: empty < 0 ? crypto.randomUUID() : prev.features[empty].id, title: idea.title, scope: idea.scope, acceptance: idea.acceptance };
+      if (empty >= 0) return { ...prev, features: prev.features.map((item, index) => index === empty ? feature : item) };
+      return prev.features.length >= 60 ? prev : { ...prev, features: [...prev.features, feature] };
+    });
+  }
   function download() {
     const data = JSON.stringify({ ...brief, markdown: briefMarkdown(brief) }, null, 2);
     const url = URL.createObjectURL(new Blob([data], { type: "application/json" }));
@@ -115,7 +145,21 @@ export default function MicroPage() {
           <div className="grid gap-5 sm:grid-cols-2"><Field label="Working title"><input className={input} value={brief.title} maxLength={100} onChange={e => update("title", e.target.value)} placeholder="Budgeting app" /></Field><Field label="Platform"><select className={input} value={brief.platform} onChange={e => update("platform", e.target.value as AppBrief["platform"])}><option value="web">Web</option><option value="ios">iOS</option><option value="android">Android</option><option value="ios-android">iOS and Android</option></select></Field></div>
           <Field label="Who is it for?"><input className={input} value={brief.audience} maxLength={1000} onChange={e => update("audience", e.target.value)} placeholder="People with irregular income who want a clear monthly budget" /></Field>
           <Field label="What problem does it solve?" hint="Include the current workaround and any evidence you have."><textarea className={input} rows={3} value={brief.problem} maxLength={2000} onChange={e => update("problem", e.target.value)} /></Field>
-          <div className="space-y-3"><h2 className="text-base font-semibold">Features</h2>{brief.features.map((feature, index) => <div key={feature.id} className="space-y-3 rounded-xl border border-border p-4"><div className="flex items-start gap-2"><Field label={`Feature ${index + 1}`}><input className={input} value={feature.title} maxLength={200} onChange={e => update("features", brief.features.map(f => f.id === feature.id ? { ...f, title: e.target.value } : f))} /></Field><Button variant="ghost" size="icon" className="mt-7 shrink-0" aria-label={`Remove feature ${index + 1}`} onClick={() => update("features", brief.features.filter(f => f.id !== feature.id))}><Trash2 size={15} /></Button></div><div className="grid gap-3 sm:grid-cols-[160px_1fr]"><Field label="Scope"><select className={input} value={feature.scope} onChange={e => update("features", brief.features.map(f => f.id === feature.id ? { ...f, scope: e.target.value as "first" | "later" } : f))}><option value="first">First release</option><option value="later">Later</option></select></Field><Field label="How will we know it works?"><textarea className={input} rows={2} maxLength={1500} value={feature.acceptance} onChange={e => update("features", brief.features.map(f => f.id === feature.id ? { ...f, acceptance: e.target.value } : f))} placeholder="Given a new account, when I add income, the available budget updates correctly." /></Field></div></div>)}<Button variant="outline" disabled={brief.features.length >= 60} onClick={() => update("features", [...brief.features, { id: crypto.randomUUID(), title: "", scope: "first", acceptance: "" }])}><Plus size={15} />Add feature</Button></div>
+          <div className="-mt-2 space-y-3">
+            <Button variant="outline" onClick={() => void suggest("problem")} disabled={!brief.title.trim() && !brief.audience.trim() && !brief.problem.trim() && !brief.features.some(feature => feature.title.trim())}><Sparkles size={15} />{busy === "problem" ? "Suggesting problems…" : "Suggest problems"}</Button>
+            {ideaError?.kind === "problem" && <p role="alert" className="text-sm text-destructive">{ideaError.message}</p>}
+            {problemIdeas.length > 0 && <div className="grid gap-2" aria-label="Problem suggestions">{problemIdeas.map(idea => <button key={idea} className="pressable flex items-start justify-between gap-3 rounded-xl border border-border p-4 text-left text-sm leading-relaxed hover:border-primary/50 active:scale-[0.97]" onClick={() => update("problem", idea)}><span>{idea}</span><span className="shrink-0 text-xs font-medium text-primary">Use</span></button>)}</div>}
+          </div>
+          <div className="space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-base font-semibold">Features</h2><Button variant="outline" onClick={() => void suggest("features")} disabled={!brief.title.trim() && !brief.audience.trim() && !brief.problem.trim() && !brief.features.some(feature => feature.title.trim())}><Sparkles size={15} />{busy === "features" ? "Suggesting features…" : "Suggest features"}</Button></div>
+            {ideaError?.kind === "features" && <p role="alert" className="text-sm text-destructive">{ideaError.message}</p>}
+            {featureIdeas.length > 0 && <div className="grid gap-3 sm:grid-cols-2" aria-label="Feature suggestions">{featureIdeas.map((idea, index) => {
+              const added = brief.features.some(feature => feature.title.trim().toLowerCase() === idea.title.toLowerCase());
+              const room = brief.features.length < 60 || brief.features.some(feature => !feature.title.trim() && !feature.acceptance.trim() && feature.scope === "first");
+              return <button key={`${idea.title}-${index}`} disabled={added || !room} onClick={() => addFeatureIdea(idea)} className="pressable rounded-xl border border-border p-4 text-left disabled:cursor-default disabled:opacity-60 enabled:hover:border-primary/50 enabled:active:scale-[0.97]"><span className="flex items-start justify-between gap-3"><span className="font-medium">{idea.title}</span><span className="shrink-0 text-xs text-primary">{added ? "Added" : "+ Add"}</span></span><span className="mt-1 block text-xs text-muted-foreground">{idea.scope === "first" ? "First release" : "Later"}</span><span className="mt-3 block text-sm leading-relaxed text-muted-foreground">{idea.reason}</span><span className="mt-2 block text-xs leading-relaxed text-muted-foreground">Works when: {idea.acceptance}</span></button>;
+            })}</div>}
+            {brief.features.map((feature, index) => <div key={feature.id} className="space-y-3 rounded-xl border border-border p-4"><div className="flex items-start gap-2"><Field label={`Feature ${index + 1}`}><input className={input} value={feature.title} maxLength={200} onChange={e => update("features", brief.features.map(f => f.id === feature.id ? { ...f, title: e.target.value } : f))} /></Field><Button variant="ghost" size="icon" className="mt-7 shrink-0" aria-label={`Remove feature ${index + 1}`} onClick={() => update("features", brief.features.filter(f => f.id !== feature.id))}><Trash2 size={15} /></Button></div><div className="grid gap-3 sm:grid-cols-[160px_1fr]"><Field label="Scope"><select className={input} value={feature.scope} onChange={e => update("features", brief.features.map(f => f.id === feature.id ? { ...f, scope: e.target.value as "first" | "later" } : f))}><option value="first">First release</option><option value="later">Later</option></select></Field><Field label="How will we know it works?"><textarea className={input} rows={2} maxLength={1500} value={feature.acceptance} onChange={e => update("features", brief.features.map(f => f.id === feature.id ? { ...f, acceptance: e.target.value } : f))} placeholder="Given a new account, when I add income, the available budget updates correctly." /></Field></div></div>)}<Button variant="outline" disabled={brief.features.length >= 60} onClick={() => update("features", [...brief.features, { id: crypto.randomUUID(), title: "", scope: "first", acceptance: "" }])}><Plus size={15} />Add feature</Button>
+          </div>
           <Field label="Pricing and first value" hint="A hypothesis is enough. Explain what someone gets before an account or payment is required."><textarea className={input} rows={3} maxLength={2000} value={brief.business} onChange={e => update("business", e.target.value)} /></Field>
         </>}
         {(stage === 1 || stage === 2) && <>

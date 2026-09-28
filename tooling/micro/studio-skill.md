@@ -19,8 +19,10 @@ The existing personal Git identity is the Micro default unless Samy provides
 another identity. Do not replace perso/work profiles or credentials.
 
 For a new idea, capture the audience, problem, current workaround and evidence.
-Samy authors the feature list. Separate first release from later work and give
-each selected feature observable acceptance, including its recovery states.
+Samy chooses the feature list. AI can suggest problem statements and features
+from an unfinished brief; add only what Samy selects. Separate first release
+from later work and give each selected feature observable acceptance, including
+its recovery states.
 Ask about material product decisions, continue independent work while waiting.
 Do not invent demand, availability, revenue or a platform choice.
 

@@ -11,9 +11,20 @@ export interface MicroApp extends AppBrief {
 }
 export const EMPTY_BRIEF: AppBrief = { title: "", audience: "", problem: "", platform: "web", features: [], name: "", vibe: "", references: "", business: "" };
 export const STAGES = ["Features", "Name", "Vibe", "References", "Build"] as const;
+export interface IdeaContext {
+  title: string; audience: string; problem: string; platform: Platform;
+  features: Pick<Feature, "title" | "scope">[]; business: string;
+}
+export interface FeatureIdea { title: string; reason: string; acceptance: string; scope: Feature["scope"] }
 export function briefFromApp(app: AppBrief): AppBrief {
   const { title, audience, problem, platform, features, name, vibe, references, business } = app;
   return { title, audience, problem, platform, features, name, vibe, references, business };
+}
+export function ideaContext(brief: AppBrief): IdeaContext {
+  return {
+    title: brief.title, audience: brief.audience, problem: brief.problem, platform: brief.platform,
+    features: brief.features.map(({ title, scope }) => ({ title, scope })), business: brief.business,
+  };
 }
 
 function record(value: unknown): Record<string, unknown> {
@@ -23,6 +34,23 @@ function record(value: unknown): Record<string, unknown> {
 function text(value: unknown, field: string, max: number, required = false) {
   if (typeof value !== "string" || value.length > max || (required && !value.trim())) throw new Error(`Check ${field}.`);
   return value.trim();
+}
+export function parseIdeaContext(value: unknown): IdeaContext {
+  const v = record(value);
+  if (!PLATFORMS.includes(v.platform as Platform)) throw new Error("Choose a platform.");
+  if (!Array.isArray(v.features) || v.features.length > 60) throw new Error("Keep the feature list to 60 items.");
+  const features = v.features.map((value): Pick<Feature, "title" | "scope"> => {
+    const f = record(value);
+    if (f.scope !== "first" && f.scope !== "later") throw new Error("Choose a feature scope.");
+    return { title: text(f.title, "feature title", 200), scope: f.scope };
+  });
+  const context = {
+    title: text(v.title, "working title", 100), audience: text(v.audience, "audience", 1000),
+    problem: text(v.problem, "problem", 2000), platform: v.platform as Platform,
+    features, business: text(v.business, "business model", 2000),
+  };
+  if (!context.title && !context.audience && !context.problem && !context.features.some(feature => feature.title)) throw new Error("Check the working title, audience, problem, or a feature first.");
+  return context;
 }
 export function parseBrief(value: unknown): AppBrief {
   const v = record(value);
