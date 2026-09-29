@@ -1,8 +1,8 @@
 "use client";
 
-// "Teach me" — the curated learning queue + session launcher on /knowledge.
+// "Teach me" — the curated learning queue + session launcher on /knowledge/teach.
 // Topics arrive via Samy (here or the chat Assistant's add_learning_topic
-// tool). Starting a topic opens the voice session at /knowledge/teach/<sessionId>.
+// tool). Starting a topic opens its voice session at /knowledge/teach/<sessionId>.
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight, CalendarClock, GraduationCap, Loader2, Play, Plus } from "lucide-react";

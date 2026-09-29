@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useState } from "react";
 import { Flag, Circle, CheckCircle2 } from "lucide-react";
 import { useGoals } from "@/lib/use-goals";
@@ -40,14 +39,12 @@ export function GoalsCard() {
             This week
           </h2>
         </div>
-        <Link href="/projects" className="section-label">
-          Goals
-        </Link>
+        <span className="section-label">Goals</span>
       </div>
 
       {!goal ? (
         <p className="text-sm text-muted-foreground/70">
-          No active goal — <Link href="/projects" className="text-primary">set one</Link>.
+          No active goal.
         </p>
       ) : (
         <>
@@ -58,7 +55,7 @@ export function GoalsCard() {
             if (commits.length === 0)
               return (
                 <p className="text-sm text-muted-foreground/70">
-                  No commitments yet — <Link href="/projects" className="text-primary">plan the week</Link>.
+                  No commitments yet.
                 </p>
               );
             return (
@@ -100,9 +97,9 @@ export function GoalsCard() {
             {grillingPending.slice(0, 3).map((g) => (
               <li key={g.id} className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Circle size={13} className="shrink-0 text-primary/60" />
-                <Link href="/projects" className="truncate hover:text-foreground transition-transform duration-[var(--dur-fast)] ease-[var(--ease-out-custom)]">
+                <span className="truncate">
                   {g.title}
-                </Link>
+                </span>
               </li>
             ))}
           </ul>

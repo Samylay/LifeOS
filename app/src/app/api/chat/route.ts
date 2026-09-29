@@ -95,9 +95,6 @@ export async function POST(req: NextRequest) {
       if (context.existingHabits?.length) {
         systemPrompt += `- Existing habits: ${context.existingHabits.join(", ")}\n`;
       }
-      if (context.existingProjects?.length) {
-        systemPrompt += `- Existing projects: ${context.existingProjects.join(", ")}\n`;
-      }
       systemPrompt += `\nToday's date: ${new Date().toISOString().split("T")[0]}\n`;
       systemPrompt += `Avoid creating duplicates of existing items.`;
       if (context.foodPhotos) {

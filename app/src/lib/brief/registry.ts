@@ -44,7 +44,7 @@ import * as planning from "./fetchers/planning";
 import * as triage from "./fetchers/triage";
 
 // Surviving set (today-brief-rework 01): planning, work, triage, then the
-// digest cards. Removed: ships (data source destroyed by the /projects
+// digest cards. Removed: ships (data source destroyed by the project
 // rework), workout and objectives (dropped on Samy's call), prompt
 // (superseded by /prime leading the delivery), homelab (relocated to
 // /status, which already owns getStandingGoals()). This order is the

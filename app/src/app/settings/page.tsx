@@ -311,7 +311,7 @@ export default function SettingsPage() {
           </div>
         </Section>
         <Section title="Collections" sub="Go straight to the collection you want to work on.">
-          <div className="flex flex-wrap gap-2"><Button asChild variant="outline"><Link href="/knowledge">Knowledge & learning</Link></Button><Button asChild variant="outline"><Link href="/content">Content ideas</Link></Button></div>
+          <div className="flex flex-wrap gap-2"><Button asChild variant="outline"><Link href="/content">Content ideas</Link></Button></div>
         </Section>
         <Section title="Feed & decisions" sub="Manage news sources and review what happens to saved material.">
           <div className="flex flex-wrap gap-2"><Button asChild variant="outline"><Link href="/news/feeds">News sources</Link></Button><Button asChild variant="outline"><Link href="/decide">Saved-item decisions</Link></Button><Button asChild variant="outline"><Link href="/decide/dispatch">Queued work</Link></Button></div>

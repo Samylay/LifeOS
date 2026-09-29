@@ -127,18 +127,6 @@ export async function executeAppActions(actions: ChatAction[]): Promise<AppActio
           results.push({ tool: action.tool, summary: `Scheduled LifeOS notification for ${scheduledAt.toLocaleString("en-GB", { timeZone: "Europe/Paris" })}` });
           break;
         }
-        case "create_project": {
-          const p = action.input as { title: string; area?: string; status?: string };
-          createDoc(COLL("projects"), {
-            title: p.title,
-            status: p.status || "planning",
-            linkedTaskIds: [],
-            ...(p.area ? { area: p.area } : {}),
-            ...stamps(),
-          });
-          results.push({ tool: "create_project", summary: `Created project: "${p.title}"` });
-          break;
-        }
         case "complete_task": {
           const c = action.input as { title: string };
           const open = (listDocs(COLL("tasks")) as Array<{ id: string; title?: string; status?: string }>)

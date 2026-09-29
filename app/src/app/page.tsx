@@ -3,7 +3,6 @@ import { CalibrationNudge } from "@/components/decide/calibration-nudge";
 
 import { WorkflowInboxLink } from "@/components/workflows/workflow-links";
 
-import { WorkspaceMap } from "@/components/workspace/visual-navigation";
 
 import { useCallback, useEffect, useState } from "react";
 import {
@@ -249,9 +248,7 @@ export default function Today() {
       {/* Right rail on desktop; below the brief on mobile */}
       <div className="flex flex-col gap-4 lg:col-start-2 lg:row-start-1 min-w-0">
 
-      {/* Quick loop: Prime entry. Ship momentum lived here until
-          today-brief-rework 01 dropped it — the read moved out, the ship log
-          and its write path are untouched (deferred /projects rework). */}
+      {/* Quick loop: Prime entry. */}
       <div className="enter" style={{ ["--enter-delay" as string]: "30ms" }}>
         <Link href="/prime" className="block">
           <Card className="flex-row items-center gap-3 p-4 hover-lift">
@@ -317,10 +314,6 @@ export default function Today() {
 
       </div>
       </div>
-      <details className="rounded-xl border border-border bg-card">
-        <summary className="flex min-h-14 cursor-pointer items-center justify-between px-4 text-sm font-medium pressable active:scale-[0.97]">Explore LifeOS <span aria-hidden="true">+</span></summary>
-        <WorkspaceMap />
-      </details>
     </div>
   );
 }

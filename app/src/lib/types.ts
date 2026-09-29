@@ -5,7 +5,6 @@ export type AreaId = "health" | "career" | "finance" | "brand" | "admin";
 export type TaskStatus = "todo" | "in_progress" | "done" | "cancelled";
 export type TaskPriority = "low" | "medium" | "high" | "urgent";
 
-export type ProjectStatus = "planning" | "active" | "paused" | "completed" | "archived";
 
 // --- Core Models ---
 
@@ -42,31 +41,6 @@ export interface Note {
   tags: string[];
   createdAt: Date;
   processed: boolean;
-}
-
-export interface Project {
-  id: string;
-  title: string;
-  area?: AreaId;
-  status: ProjectStatus;
-  targetDate?: Date;
-  nextAction?: string;
-  // Concrete external contact point that counts as this project shipping
-  // (e.g. "demo to one JECT member", "screenshot + writeup posted").
-  // Required to be active — enforced in use-projects.ts, not by convention.
-  shippingEvent?: string;
-  // One-line reason recorded when a project is archived from active/planning.
-  // Kills are allowed and healthy, but they're a logged decision, not drift.
-  killReason?: string;
-  // Quarterly goal this project serves. Projects and goals share one surface:
-  // a project without a goal is "unaligned" and gets nudged.
-  goalId?: string;
-  linkedTaskIds: string[];
-  createdAt: Date;
-  // Last time any field was edited (status, next action, tasks, etc.).
-  // Stamped on every write in use-projects.ts; backfilled from createdAt for
-  // legacy docs via fallbackDates.
-  updatedAt: Date;
 }
 
 /** Normalize a user-typed tag: lowercase kebab, no leading '#'. */
@@ -788,4 +762,3 @@ export interface ContentIdea {
   createdAt: Date;
   updatedAt: Date;
 }
-
