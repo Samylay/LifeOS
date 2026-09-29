@@ -36,23 +36,28 @@ const DELTA_COLOR: Record<KpiCardDelta["direction"], string> = {
 /** Dense Card-based stat tile — label, big value, optional delta + sparkline. */
 export function KpiCard({ label, value, delta, icon, sparkline, className }: KpiCardProps) {
   const DeltaIcon = delta ? DELTA_ICON[delta.direction] : null;
+  const deltaSign = delta?.direction === "up" ? "+" : delta?.direction === "down" ? "−" : "±";
+  const deltaValue = delta?.value.replace(/^[+\-−±]/, "");
 
   return (
     <Card className={cn("gap-1.5 p-4", className)}>
-      <div className="flex items-center justify-between gap-2">
-        <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-          {icon}
-          {label}
-        </span>
+      <div className="flex items-start justify-between gap-2">
+        <span className="text-2xl font-semibold tabular-nums">{value}</span>
         {delta && DeltaIcon && (
-          <span className={cn("inline-flex items-center gap-0.5 text-[11px] font-medium tabular-nums", DELTA_COLOR[delta.direction])}>
-            <DeltaIcon size={11} />
-            {delta.value}
+          <span aria-label={`${delta.direction === "flat" ? "Unchanged" : delta.direction === "up" ? "Increased" : "Decreased"} by ${deltaValue}`} className={cn("inline-flex items-center gap-0.5 rounded-full bg-muted px-2 py-1 text-[11px] font-medium tabular-nums", DELTA_COLOR[delta.direction])}>
+            <DeltaIcon size={11} aria-hidden="true" />
+            <span aria-hidden="true">{deltaSign}{deltaValue}</span>
           </span>
         )}
       </div>
-      <span className="text-2xl font-semibold tabular-nums">{value}</span>
+      <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+        {icon}
+        {label}
+      </span>
       {sparkline && <div className="mt-1">{sparkline}</div>}
     </Card>
   );
 }
+
+/** Stat tile with a large value, descriptive label, optional delta and sparkline. */
+export const StatTile = KpiCard;

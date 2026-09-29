@@ -32,18 +32,18 @@ export function EmptyState({ icon: Icon, title, hint, action, compact = false, s
       )}
     >
       <span
-        className={cn("flex items-center justify-center rounded-full", success ? "text-success" : "text-muted-foreground")}
+        className={cn("flex items-center justify-center rounded-full", success ? "text-success" : "text-primary")}
         style={{
           width: compact ? 36 : 48,
           height: compact ? 36 : 48,
-          background: "color-mix(in srgb, var(--accent-ui) 14%, transparent)",
+          background: `color-mix(in srgb, ${success ? "var(--success)" : "var(--primary)"} 12%, transparent)`,
         }}
         aria-hidden
       >
         <Icon size={compact ? 16 : 20} />
       </span>
       {title && <p className="text-sm font-medium text-foreground">{title}</p>}
-      <p className="max-w-sm text-sm text-muted-foreground">{hint}</p>
+      <p className="max-w-sm truncate text-sm text-muted-foreground">{hint}</p>
       {action && <div className="mt-1">{action}</div>}
     </div>
   );

@@ -1,7 +1,9 @@
 "use client";
 
 import { CSSProperties, KeyboardEvent, useEffect, useRef, useState } from "react";
-import { SidebarTrigger } from "./ui/mira/sidebar";
+import Link from "next/link";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { Activity01Icon, Settings01Icon } from "@hugeicons/core-free-icons";
 import { ArrowUp, BookOpen, Camera, Check, ImagePlus, LoaderCircle, Plus, RotateCcw, Sparkles, Square, Mic, X } from "lucide-react";
 import { toast } from "sonner";
 import { useVoiceRecorder } from "@/lib/use-voice-recorder";
@@ -94,8 +96,11 @@ export function ChatWorkspace() {
   return (
     <section className="chat-workspace mx-auto flex min-h-0 w-full max-w-4xl flex-col" style={viewport.ready ? { "--chat-viewport": `${viewport.height}px` } as CSSProperties : undefined}>
       <header className="flex h-14 shrink-0 items-center justify-between gap-1 border-b border-border/70 px-3 sm:px-4">
-        <div className="flex min-w-0 items-center gap-2"><SidebarTrigger className="lg:hidden" aria-label="Open navigation" /><h1 className="truncate text-base font-semibold">Chat</h1></div>
-        <div className="flex items-center gap-1"><CodexSessions /><PhotoInboxCapture compact /><button
+        <h1 className="min-w-0 truncate text-base font-semibold">Assistant</h1>
+        <div className="flex items-center gap-1">
+          <Link href="/status" aria-label="System" title="System" className="grid size-11 place-items-center rounded-lg text-muted-foreground transition-transform duration-[var(--dur-fast)] hover:bg-muted hover:text-foreground active:scale-[0.97] lg:hidden"><HugeiconsIcon icon={Activity01Icon} size={18} /></Link>
+          <Link href="/settings" aria-label="Settings" title="Settings" className="grid size-11 place-items-center rounded-lg text-muted-foreground transition-transform duration-[var(--dur-fast)] hover:bg-muted hover:text-foreground active:scale-[0.97] lg:hidden"><HugeiconsIcon icon={Settings01Icon} size={18} /></Link>
+          <CodexSessions /><PhotoInboxCapture compact /><button
           type="button"
           aria-label="New chat"
           title="New chat"
