@@ -45,8 +45,7 @@ import * as triage from "./fetchers/triage";
 
 // Surviving set (today-brief-rework 01): planning, work, triage, then the
 // digest cards. Removed: ships (data source destroyed by the /projects
-// rework), workout and objectives (dropped on Samy's call), prompt
-// (superseded by /prime leading the delivery), homelab (relocated to
+// rework), workout, objectives and prompt (dropped on Samy's call), homelab (relocated to
 // /status, which already owns getStandingGoals()). This order is the
 // contract registry.test.ts asserts — add/remove a card here and nowhere
 // else.

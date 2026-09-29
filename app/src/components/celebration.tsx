@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 
-// Celebration (T38): rare-events-only flourish for goal-shipped and
-// prime-completion moments. A sage check bursts in with a springy scale +
+// Celebration (T38): rare-events-only flourish for goal-shipped moments. A
+// sage check bursts in with a springy scale +
 // fade — transform/opacity only, ≤400ms. Mount it conditionally; it removes
 // itself after the animation and reports back via onDone so the parent can
 // re-arm it. Skipped entirely under prefers-reduced-motion.

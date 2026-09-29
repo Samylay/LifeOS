@@ -40,9 +40,7 @@ export function ProposalCard({
         </p>
       </div>
       <p className="text-xs text-muted-foreground">
-        {item.source === "feed"
-          ? `You kept ${item.count} feed cards on this subject.`
-          : `${item.count} saved items share this tag.`}
+        {item.count} saved items share this tag.
       </p>
       <label className="mt-auto flex flex-col gap-1.5">
         <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">

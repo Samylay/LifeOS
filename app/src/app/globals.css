@@ -354,7 +354,7 @@ html[data-chrome="hidden"] .chat-workspace { padding-bottom: env(safe-area-inset
   animation-delay: var(--enter-delay, 0ms);
 }
 
-/* Celebration (T38) — rare events only: goal shipped, prime complete.
+/* Celebration (T38) — rare events only: goal shipped.
    Springy scale + fade, ≤400ms, transform/opacity only; the global
    prefers-reduced-motion block above collapses it to nothing. */
 @keyframes celebrate-pop {
@@ -543,10 +543,6 @@ summary::-webkit-details-marker { display: none; }
 .visual-board { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr)); gap:1rem; align-items:start; }
 .visual-lane { min-width:0; border:1px solid var(--border); border-radius:.8rem; padding:.8rem; background:var(--background); }
 .visual-lane-heading { display:flex; align-items:center; justify-content:space-between; gap:.5rem; margin-bottom:.8rem; font-size:.8rem; font-weight:500; }
-.recipe-preview { position:relative; display:flex; align-items:center; gap:1rem; padding:1.2rem; background:radial-gradient(circle,var(--border) .6px,transparent .8px) 0 0/16px 16px,var(--background); border-bottom:1px solid var(--border); min-height:112px; }
-.recipe-preview-center { display:grid; place-items:center; width:3.5rem; height:3.5rem; flex-shrink:0; border:1px solid var(--chart-5); border-radius:50%; color:var(--chart-5); background:var(--card); }
-.recipe-preview-ingredients { display:flex; flex-wrap:wrap; align-items:center; gap:.4rem; position:relative; }
-.recipe-preview-ingredients span { border:1px solid var(--border); border-radius:1rem; padding:.25rem .6rem; font-size:.7rem; color:var(--muted-foreground); background:var(--card); }
 .topic-node { position:relative; border:1px solid var(--border); border-radius:.85rem; background:var(--background); padding:1rem; }
 .topic-node::before { content:""; display:block; width:.6rem; height:.6rem; border:2px solid var(--chart-2); border-radius:50%; margin-bottom:.75rem; box-shadow:0 0 0 5px color-mix(in srgb,var(--chart-2) 8%,transparent); }
 .step-method { list-style:none; counter-reset:method; }

@@ -1,8 +1,8 @@
 import {
-  Home01Icon, Layers01Icon, CheckListIcon, Folder01Icon, Video01Icon,
+  Home01Icon, Layers01Icon, CheckListIcon, Folder01Icon,
   BookOpen01Icon, Mic01Icon, Dumbbell01Icon, Wallet01Icon, Search01Icon,
   Settings01Icon, Activity01Icon, News01Icon, Menu01Icon, ComputerTerminal01Icon,
-  Restaurant01Icon, PlayListIcon, ContentWritingIcon,
+  ContentWritingIcon,
   NetworkIcon, Chat01Icon,
 } from "@hugeicons/core-free-icons";
 
@@ -19,7 +19,6 @@ export const NAV_GROUPS = [
     { href: "/teaching", label: "Teaching", icon: BookOpen01Icon },
     { href: "/mind-map", label: "Mind map", icon: NetworkIcon },
     { href: "/chat", label: "Chat", icon: Chat01Icon },
-    { href: "/content", label: "Content", icon: Video01Icon },
   ]},
   { label: "Personal", items: [
     { href: "/voice", label: "Fluency", icon: Mic01Icon },
@@ -30,8 +29,6 @@ export const NAV_GROUPS = [
   ]},
   { label: "Explore", items: [
     { href: "/leads", label: "Leads", icon: Search01Icon },
-    { href: "/feed", label: "Feed", icon: PlayListIcon },
-    { href: "/recipes", label: "Recipes", icon: Restaurant01Icon },
   ]},
 ];
 export const NAV_UTILITIES = [
@@ -51,7 +48,5 @@ export function surfaceTitle(pathname: string) {
   if (pathname === "/review") return "Overhaul review";
   if (pathname === "/voice/capture") return "Quick capture";
   if (pathname === "/decide/dispatch") return "Results";
-  if (pathname.startsWith("/prime")) return "Priming";
-  if (pathname === "/diagrams") return "Diagrams";
   return activeDestination(pathname)?.label ?? "Today";
 }

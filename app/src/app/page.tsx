@@ -13,7 +13,6 @@ import {
   Check,
   AlertTriangle,
   RefreshCw,
-  Sunrise,
   BellRing,
   Flag,
 } from "lucide-react";
@@ -248,23 +247,6 @@ export default function Today() {
 
       {/* Right rail on desktop; below the brief on mobile */}
       <div className="flex flex-col gap-4 lg:col-start-2 lg:row-start-1 min-w-0">
-
-      {/* Quick loop: Prime entry. Ship momentum lived here until
-          today-brief-rework 01 dropped it — the read moved out, the ship log
-          and its write path are untouched (deferred /projects rework). */}
-      <div className="enter" style={{ ["--enter-delay" as string]: "30ms" }}>
-        <Link href="/prime" className="block">
-          <Card className="flex-row items-center gap-3 p-4 hover-lift">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg shrink-0 bg-accent">
-              <Sunrise size={18} className="text-accent-foreground" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-sm font-medium text-foreground">Daily Prime</p>
-              <p className="text-xs text-muted-foreground/70">Start the ritual →</p>
-            </div>
-          </Card>
-        </Link>
-      </div>
 
       {/* Goals */}
       <div className="enter" style={{ ["--enter-delay" as string]: "60ms" }}>
