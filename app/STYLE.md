@@ -3,7 +3,7 @@
 ## Principles
 
 1. Dark-only. Use the shared dark tokens throughout the app.
-2. Destinations are directly visible. Group links by purpose; never hide desktop destinations under More. On phones, one Menu opens the full navigation, with no nested disclosure.
+2. Keep destinations directly visible. Desktop uses one flat sidebar; phones use five bottom tabs with System and Settings in the top bar.
 3. Capture routes to the destination that owns it. Voice and the Assistant may capture thoughts; neither creates a separate inbox.
 4. Modern, familiar controls with low decision cost. Use the homelab component library before inventing a control.
 5. Built to be left quickly. No engagement mechanics or artificial urgency.
@@ -46,16 +46,11 @@ need a sibling checkout or a local file dependency. See
 
 `src/lib/navigation.ts` is the route inventory used by the sidebar, mobile
 navigation, and top-bar title. The most specific matching path owns the active
-state, so Approvals does not also mark Decide active.
+state, so subroutes mark their owning destination active.
 
-`NAV_GROUPS` and `NAV_UTILITIES` contain the current destinations. Use those
-arrays as the inventory rather than copying a second list into feature code.
-Keep every functioning destination accessible in the full navigation.
-
-Mobile quick links are Today, Decide, Chat, and Fluency, plus a consistently
-named Menu. The full navigation has page search on phone and desktop. Desktop
-supports an icon rail with tooltips and the persisted collapse preference.
-Navigation switches to a focus-managed sheet below 1024px.
+Use `NAV_ITEMS` as the destination inventory. Mobile tabs are Today, Inbox,
+Assistant, Training, and Money. System and Settings stay in the mobile top bar.
+Desktop supports an icon rail with tooltips and the persisted collapse preference.
 
 Downward content scrolling dismisses the top bar and mobile navigation.
 Reverse scrolling and keyboard focus restore them. Only user scroll gestures
@@ -119,6 +114,14 @@ and duration tokens, at most 300ms for daily interactions. No transition-all,
 no layout-property transitions, and no animated shadows or colors. Keyboard
 and constant actions stay instant. Pointer actions use 0.97 press feedback.
 Honor reduced motion, reduced transparency, and increased contrast.
+
+## Visual primitives
+
+- `ProgressRing({ value, goal, size?, label?, color?, strokeWidth?, className? })` draws bounded circular progress with a centered value and label.
+- `StatTile({ label, value, delta?, icon?, sparkline?, className? })` presents a large number, an optional signed delta, and a sparkline slot.
+- `EmptyState({ icon, title?, hint, action?, compact?, success?, className? })` shows a tinted icon, one hint line, and an optional action.
+- `SourceAvatar({ source, label?, size?, className? })` uses a source favicon with a deterministic monogram fallback.
+- `SectionHeader({ title, action?, className? })` introduces a section with an optional action link.
 
 ## Checks
 

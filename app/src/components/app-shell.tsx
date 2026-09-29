@@ -7,13 +7,13 @@ import { NotificationNavigation } from "./notification-navigation";
 import { Sidebar } from "./sidebar";
 import { TopBar } from "./top-bar";
 import { BottomNav } from "./bottom-nav";
-import { ChatPanel } from "./chat-panel";
 import { useAppStore } from "@/lib/store";
 import { SidebarProvider, SidebarInset } from "@/components/ui/mira/sidebar";
 import { TooltipProvider } from "@/components/ui/mira/tooltip";
 
 export function AppShell({ children }: { children: ReactNode }) {
-  const isChat = usePathname() === "/chat";
+  const pathname = usePathname();
+  const isChat = pathname === "/chat";
   const { sidebarExpanded, setSidebarExpanded } = useAppStore();
   return (
     <TooltipProvider>
@@ -25,11 +25,10 @@ export function AppShell({ children }: { children: ReactNode }) {
         <SidebarInset className="min-w-0 bg-background">
           {!isChat && <TopBar />}
           <main id="main-content" className={`app-main${isChat ? " app-main-chat" : ""}`} tabIndex={-1}>
-            <div className="app-content">{children}</div>
+            <div key={pathname} className="app-content page-transition">{children}</div>
           </main>
         </SidebarInset>
         <BottomNav />
-        <ChatPanel />
       </SidebarProvider>
     </TooltipProvider>
   );

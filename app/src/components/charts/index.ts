@@ -5,6 +5,8 @@ export { BarChart, type BarChartProps } from "./bar-chart";
 export { DonutChart, type DonutChartProps } from "./donut-chart";
 export { SparkChart, type SparkChartProps } from "./spark-chart";
 export { KpiCard, type KpiCardProps, type KpiCardDelta } from "./kpi-card";
+export { StatTile } from "./kpi-card";
+export { ProgressRing, type ProgressRingProps } from "./progress-ring";
 export { ProgressBar, type ProgressBarProps } from "./progress-bar";
 export { CategoryBar, type CategoryBarProps, type CategoryBarSegment } from "./category-bar";
 export { Tracker, type TrackerProps, type TrackerDatum } from "./tracker";

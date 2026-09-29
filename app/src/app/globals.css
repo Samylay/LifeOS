@@ -11,42 +11,6 @@
  * utilities. Feature code consumes semantic names, never palette values.
  */
 @theme inline {
-  --color-sage-50: #f0f5f2;
-  --color-sage-100: #dce8e0;
-  --color-sage-200: #b9d1c2;
-  --color-sage-300: #96baa3;
-  --color-sage-400: #7c9e8a;
-  --color-sage-500: #6b8e79;
-  --color-sage-600: #567363;
-  --color-sage-700: #44594d;
-  --color-sage-800: #334038;
-  --color-sage-900: #212924;
-  --color-sage-950: #111614;
-
-  --color-warm-50: #f5f2ee;
-  --color-warm-100: #ede9e3;
-  --color-warm-200: #ddd7cf;
-  --color-warm-300: #c4bcb2;
-  --color-warm-400: #a89f94;
-  --color-warm-500: #8a8279;
-  --color-warm-600: #6b6560;
-  --color-warm-700: #4a4540;
-  --color-warm-800: #2a2724;
-  --color-warm-900: #1a1917;
-  --color-warm-950: #0f0e0d;
-
-  /* Multi-hue data palettes remain raw tokens. */
-  --color-area-health: #14b8a6;
-  --color-area-career: #6366f1;
-  --color-area-finance: #f59e0b;
-  --color-area-brand: #8b5cf6;
-  --color-area-admin: #6b6560;
-  --color-tier-novice: #a89f94;
-  --color-tier-apprentice: #7c9e8a;
-  --color-tier-journeyman: #3b82f6;
-  --color-tier-adept: #8b5cf6;
-  --color-tier-expert: #f59e0b;
-  --color-tier-master: #ef4444;
   --color-danger: #fb7185;
   --color-info: #38bdf8;
 
@@ -352,6 +316,14 @@ html[data-chrome="hidden"] .chat-workspace { padding-bottom: env(safe-area-inset
 .enter {
   animation: enter-fade-up var(--dur-base) var(--ease-out-custom) both;
   animation-delay: var(--enter-delay, 0ms);
+}
+
+.page-transition {
+  animation: enter-fade-up 200ms var(--ease-out-custom) both;
+}
+
+.progress-ring-stroke {
+  transition: stroke-dashoffset 280ms var(--ease-out-custom);
 }
 
 /* Celebration (T38) — rare events only: goal shipped.

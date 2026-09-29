@@ -99,6 +99,46 @@ function AvatarGroupCount({
   )
 }
 
+function sourceHue(source: string) {
+  let hash = 0
+  for (const character of source) hash = (hash * 31 + character.charCodeAt(0)) >>> 0
+  return hash % 360
+}
+
+function sourceFavicon(source: string) {
+  try {
+    const url = new URL(source)
+    if (url.protocol !== "http:" && url.protocol !== "https:") return undefined
+    return `${url.origin}/favicon.ico`
+  } catch {
+    return undefined
+  }
+}
+
+function SourceAvatar({
+  source,
+  label = source,
+  size = "default",
+  className,
+}: {
+  source: string
+  label?: string
+  size?: "default" | "sm" | "lg"
+  className?: string
+}) {
+  const favicon = sourceFavicon(source)
+  const monogram = (label.trim().charAt(0) || "?").toLocaleUpperCase()
+  const hue = sourceHue(source)
+  return (
+    <Avatar size={size} className={className} role="img" aria-label={label}>
+      {favicon && <AvatarImage src={favicon} alt="" />}
+      <AvatarFallback style={{ backgroundColor: `hsl(${hue} 42% 30%)`, color: "white" }}>
+        {monogram}
+      </AvatarFallback>
+    </Avatar>
+  )
+}
+
 export {
   Avatar,
   AvatarImage,
@@ -106,4 +146,5 @@ export {
   AvatarBadge,
   AvatarGroup,
   AvatarGroupCount,
+  SourceAvatar,
 }
