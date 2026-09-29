@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import {
   AlertTriangle, Bookmark, Calendar, CheckSquare, ChevronDown, ExternalLink,
-  Link2, ShieldAlert,
+  Link2, ShieldAlert, ThumbsDown, ThumbsUp,
 } from "lucide-react";
 import type {
   Brief, BriefCard, FuiteBody, TriageBody, WorkBody,
@@ -25,6 +25,13 @@ const TYPE_ICON: Record<string, React.ReactNode> = {
   fuite: <ShieldAlert size={15} />,
   planning: <Calendar size={15} />,
   triage: <Bookmark size={15} />,
+};
+
+const TYPE_TINT: Record<string, string> = {
+  work: "var(--chart-2)",
+  fuite: "var(--destructive)",
+  planning: "var(--chart-3)",
+  triage: "var(--chart-4)",
 };
 
 const TRIAGE_DEST_COLOR: Record<string, string> = {
@@ -51,17 +58,18 @@ function oneLiner(card: BriefCard): string {
   }
 }
 
-function CardShell({ card, children }: { card: BriefCard; children: React.ReactNode }) {
+function CardShell({ card, children, compact = false }: { card: BriefCard; children: React.ReactNode; compact?: boolean }) {
   const isState = card.priority === "state";
-  const startCollapsed = isState && card.status === "green" && !card.error;
+  const startCollapsed = compact || (isState && card.status === "green" && !card.error);
   const cardStateKey = `${isState}:${card.status}:${card.error ?? ""}`;
-  const shouldAutoOpen = isState && (card.status !== "green" || Boolean(card.error));
+  const shouldAutoOpen = !compact && isState && (card.status !== "green" || Boolean(card.error));
   const [collapseState, setCollapseState] = useState(() => ({
     collapsed: startCollapsed,
     cardStateKey,
   }));
+  const [vote, setVote] = useState<"up" | "down" | null>(null);
   let collapsed = collapseState.collapsed;
-  const collapsible = isState;
+  const collapsible = compact || isState;
 
   // A card that turns red/amber after first render must re-open itself —
   // adjust state from the changed card props before React commits the render.
@@ -71,7 +79,7 @@ function CardShell({ card, children }: { card: BriefCard; children: React.ReactN
   }
 
   return (
-    <Card className="gap-0 py-0 rounded-xl transition-[transform,opacity]">
+    <Card className="gap-0 rounded-xl py-0 transition-[transform,opacity]">
       <div className="flex items-center">
         <button
           onClick={() =>
@@ -83,7 +91,7 @@ function CardShell({ card, children }: { card: BriefCard; children: React.ReactN
           }
           disabled={!collapsible}
           aria-expanded={collapsible ? !collapsed : undefined}
-          className="min-w-0 flex-1 flex items-center gap-2.5 px-4 py-3 text-left"
+          className="min-h-14 min-w-0 flex-1 flex items-center gap-2.5 px-4 py-3 text-left transition-transform duration-[var(--dur-fast)] ease-[var(--ease-out-custom)] active:scale-[0.99]"
           style={{ cursor: collapsible ? "pointer" : "default" }}
         >
           <span
@@ -93,8 +101,8 @@ function CardShell({ card, children }: { card: BriefCard; children: React.ReactN
               boxShadow: card.status === "green" ? "0 0 6px -1px var(--success)" : "none",
             }}
           />
-          <span className="text-muted-foreground">{TYPE_ICON[card.type] ?? <Link2 size={15} />}</span>
-          <span className="text-sm font-semibold text-foreground">
+          <span className="grid size-8 shrink-0 place-items-center rounded-lg" style={{ color: TYPE_TINT[card.type] ?? "var(--primary)", background: `color-mix(in srgb, ${TYPE_TINT[card.type] ?? "var(--primary)"} 14%, transparent)` }}>{TYPE_ICON[card.type] ?? <Link2 size={15} />}</span>
+          <span className="min-w-0 truncate text-sm font-semibold text-foreground">
             {card.title}
           </span>
           {collapsed && (
@@ -110,6 +118,12 @@ function CardShell({ card, children }: { card: BriefCard; children: React.ReactN
             />
           )}
         </button>
+        {compact && (
+          <div className="mr-2 flex items-center gap-1" aria-label="Rate this card">
+            <button type="button" aria-label={`Helpful: ${card.title}`} aria-pressed={vote === "up"} onClick={() => setVote(vote === "up" ? null : "up")} className={`grid size-10 place-items-center rounded-lg text-muted-foreground transition-transform duration-[var(--dur-fast)] ease-[var(--ease-out-custom)] active:scale-[0.97] ${vote === "up" ? "bg-success/15 text-success" : "hover:bg-muted"}`}><ThumbsUp size={15} /></button>
+            <button type="button" aria-label={`Not helpful: ${card.title}`} aria-pressed={vote === "down"} onClick={() => setVote(vote === "down" ? null : "down")} className={`grid size-10 place-items-center rounded-lg text-muted-foreground transition-transform duration-[var(--dur-fast)] ease-[var(--ease-out-custom)] active:scale-[0.97] ${vote === "down" ? "bg-destructive/15 text-destructive" : "hover:bg-muted"}`}><ThumbsDown size={15} /></button>
+          </div>
+        )}
         {/* Sibling of the toggle, not nested inside it (<a> in <button> is
             invalid HTML); p-2 pads the tap target out to a comfortable size. */}
         {card.link && !collapsed && (
@@ -246,7 +260,7 @@ interface PlanningCardBody {
   error_hint?: string;
 }
 
-function PlanningCard({ card }: { card: BriefCard }) {
+function PlanningCard({ card, readOnly = false }: { card: BriefCard; readOnly?: boolean }) {
   const b = card.body as unknown as PlanningCardBody;
   const [reply, setReply] = useState("");
   const [feedback, setFeedback] = useState<string | null>(null);
@@ -311,7 +325,7 @@ function PlanningCard({ card }: { card: BriefCard }) {
 
       {b.invite && <p className="text-xs text-muted-foreground/70">{b.invite}</p>}
 
-      <div className="flex items-center gap-2">
+      {!readOnly && <div className="flex items-center gap-2">
         <Input
           aria-label="Adjust today's plan"
           type="text" value={reply}
@@ -323,13 +337,13 @@ function PlanningCard({ card }: { card: BriefCard }) {
         <Button onClick={sendReply} disabled={sending} size="sm" className="text-xs">
           {sending ? "…" : "Send"}
         </Button>
-      </div>
+      </div>}
       {feedback && <p className="text-xs text-primary">{feedback}</p>}
     </div>
   );
 }
 
-function TriageCard({ card }: { card: BriefCard }) {
+function TriageCard({ card, readOnly = false }: { card: BriefCard; readOnly?: boolean }) {
   const b = card.body as unknown as TriageBody;
   const [reply, setReply] = useState("");
   const [feedback, setFeedback] = useState<string | null>(null);
@@ -381,7 +395,7 @@ function TriageCard({ card }: { card: BriefCard }) {
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-muted-foreground">{b.keep.length + b.drop.length} saved items in this brief.</p>
-        <Button asChild variant="outline" size="sm"><Link href="/decide">Open decisions</Link></Button>
+        {!readOnly && <Button asChild variant="outline" size="sm"><Link href="/decide">Open decisions</Link></Button>}
       </div>
       <details className="group/snapshot">
         <summary className="flex min-h-9 items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground">
@@ -401,7 +415,7 @@ function TriageCard({ card }: { card: BriefCard }) {
         </details>
       )}
       <p className="text-xs text-muted-foreground/70">{b.hint}</p>
-      <div className="flex items-center gap-2">
+      {!readOnly && <div className="flex items-center gap-2">
         <Input aria-label="Triage decisions" type="text" value={reply} onChange={(e) => setReply(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter") send(); }}
           placeholder='e.g. "1 approve, 4 to idea-bank, 2 skip"'
@@ -409,7 +423,7 @@ function TriageCard({ card }: { card: BriefCard }) {
         <Button onClick={send} disabled={sending} size="sm" className="text-xs">
           {sending ? "…" : "File"}
         </Button>
-      </div>
+      </div>}
       {feedback && <p className="text-xs text-primary">{feedback}</p>}
         </div>
       </details>
@@ -417,11 +431,11 @@ function TriageCard({ card }: { card: BriefCard }) {
   );
 }
 
-function CardBody({ card }: { card: BriefCard }) {
+function CardBody({ card, readOnly = false }: { card: BriefCard; readOnly?: boolean }) {
   if (card.error) return <ErrorBody error={card.error} />;
   switch (card.type) {
-    case "planning": return <PlanningCard card={card} />;
-    case "triage": return <TriageCard card={card} />;
+    case "planning": return <PlanningCard card={card} readOnly={readOnly} />;
+    case "triage": return <TriageCard card={card} readOnly={readOnly} />;
     case "work": return <WorkCard card={card} />;
     case "fuite": return <FuiteCard card={card} />;
     default:
@@ -433,21 +447,22 @@ function CardBody({ card }: { card: BriefCard }) {
   }
 }
 
-export function BriefCards({ brief }: { brief: Brief }) {
+export function BriefCards({ brief, compact = false, maxCards }: { brief: Brief; compact?: boolean; maxCards?: number }) {
   // Action cards first, stable order within each group; red/amber state cards
   // surface above green ones so a bad morning is visible without scrolling.
   const severity: Record<string, number> = { red: 0, amber: 1, neutral: 2, green: 3 };
-  const cards = brief.cards.sort((a, b) => {
+  const cards = [...brief.cards].sort((a, b) => {
     if (a.priority !== b.priority) return a.priority === "action" ? -1 : 1;
     if (a.priority === "state") return (severity[a.status] ?? 2) - (severity[b.status] ?? 2);
     return 0;
   });
 
+  const visibleCards = cards.slice(0, maxCards ?? cards.length);
   return (
     <div className="space-y-3">
-      {cards.map((card) => (
-        <CardShell key={card.id} card={card}>
-          <CardBody card={card} />
+      {visibleCards.map((card) => (
+        <CardShell key={card.id} card={card} compact={compact}>
+          <CardBody card={card} readOnly={compact} />
         </CardShell>
       ))}
     </div>
