@@ -106,7 +106,7 @@ export function BankAccountsCard() {
     <div className="space-y-3">
       {accounts.length === 0 ? (
         <p className="text-sm text-muted-foreground">
-          No bank connected yet — /finance stays hand-kept until one is.
+          No bank connected yet. Connect an account to start the synced money view.
         </p>
       ) : (
         <div>
