@@ -41,7 +41,7 @@ export interface TriageQueueItem {
 
 const short = (text: string | undefined, count = 22) => { const words = (text || "").trim().split(/\s+/); return words.length > count ? words.slice(0, count).join(" ") + "…" : words.join(" "); };
 const press = "min-h-10 rounded-lg px-3 text-sm transition-transform duration-[var(--dur-fast)] ease-[var(--ease-out-custom)] active:scale-[0.97]";
-export function TriageCard({ item, action, onChangeAction, onFeedback }: { item: TriageQueueItem; action: Action | null; onChangeAction?: (action: Action) => void; onFeedback?: () => void }) {
+export function TriageCard({ item, action, onChangeAction, onFeedback, onStartWorkflow }: { item: TriageQueueItem; action: Action | null; onChangeAction?: (action: Action) => void; onFeedback?: () => void; onStartWorkflow?: () => void }) {
   const p = item.proposal ?? {};
   const [editing, setEditing] = useState(false);
   const [note, setNote] = useState(item.calibration?.note || "");
@@ -77,6 +77,7 @@ export function TriageCard({ item, action, onChangeAction, onFeedback }: { item:
       <button type="button" disabled={busy || !note.trim()} onClick={() => void save()} className={`${press} bg-primary text-primary-foreground disabled:opacity-50`}>{busy && <LoaderCircle size={14} className="mr-2 inline animate-spin" />}Remember this</button>
     </section>}
     <p className="text-sm font-medium">Swipe right: {action?.id === "homelab-develop" ? "yes, handle it" : action ? actionLabel(action) : "choose a use"}.</p>
+    {onStartWorkflow && <button type="button" onClick={onStartWorkflow} className={`${press} border border-border`}>Start workflow</button>}
     {p.extraction?.quality && p.extraction.quality !== "usable" && <p className="text-xs text-warning">Some source details are missing. Results will flag the gaps.</p>}
     <details className="text-sm"><summary className={`${press} -ml-3 cursor-pointer text-muted-foreground`}>Details & other actions</summary><div className="mt-2 space-y-3">
       <p className="whitespace-pre-wrap leading-relaxed text-muted-foreground">{p.summary}</p>
