@@ -9,7 +9,7 @@ import type { NextRequest } from "next/server";
 const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "lifeos-notify-test-"));
 process.env.LIFEOS_DB_PATH = path.join(tmpDir, "test.db");
 
-const { createDoc, setDoc } = await import("@/lib/server-db");
+const { createDoc } = await import("@/lib/server-db");
 const { GET, POST } = await import("./route");
 
 const COLLECTION = "users/local/notifications";
@@ -97,10 +97,9 @@ describe("POST /api/notify deep-link path", () => {
     expect(await storedPath("deep-link me", { path: "/status" })).toBe("/status");
   });
 
-  it("defaults by stream when no path is given (capture -> /decide, alerts -> /pager, news -> /news)", async () => {
+  it("defaults by stream when no path is given", async () => {
     expect(await storedPath("📥 captured a reel")).toBe("/decide");
     expect(await storedPath("🚨 something broke")).toBe("/pager");
-    expect(await storedPath("a newsletter arrived", { stream: "news", severity: "normal" })).toBe("/news");
   });
 
   it("rejects non-path values back to the stream default (scheme, //, whitespace)", async () => {
@@ -108,13 +107,4 @@ describe("POST /api/notify deep-link path", () => {
     expect(await storedPath("bad path 2", { path: "//evil.example/x" })).toBe("/pager");
     expect(await storedPath("bad path 3", { path: "/pri me" })).toBe("/pager");
   });
-});
-
-
-it("allows requested news pushes while other normal streams remain off", async () => {
-  setDoc("users/local/settings", "notify", { quietStart: "00:00", quietEnd: "00:00", tz: "Europe/Paris", pushNormal: false });
-  const news = await (await post({ text: "News routing check", stream: "news", severity: "normal" })).json();
-  expect(news.push).toBe("no-subs");
-  const system = await (await post({ text: "System routing check", stream: "system", severity: "normal" })).json();
-  expect(system.push).toBe("skipped");
 });

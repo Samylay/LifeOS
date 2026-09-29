@@ -1,7 +1,7 @@
 import {
   Home01Icon, Layers01Icon, CheckListIcon,
-  Mic01Icon, Dumbbell01Icon, Wallet01Icon, Search01Icon,
-  Settings01Icon, Activity01Icon, News01Icon, Menu01Icon, ComputerTerminal01Icon,
+  Dumbbell01Icon, Wallet01Icon,
+  Settings01Icon, Activity01Icon, Menu01Icon,
   Chat01Icon,
 } from "@hugeicons/core-free-icons";
 
@@ -9,20 +9,14 @@ import {
 export const NAV_GROUPS = [
   { label: "Workspace", items: [
     { href: "/", label: "Today", icon: Home01Icon },
-    { href: "/news", label: "News", icon: News01Icon },
     { href: "/decide", label: "Decide", icon: Layers01Icon },
     { href: "/decide/approvals", label: "Approvals", icon: CheckListIcon },
-    { href: "/micro", label: "Micro", icon: ComputerTerminal01Icon },
     { href: "/workflows", label: "Workflows", icon: Layers01Icon },
     { href: "/chat", label: "Chat", icon: Chat01Icon },
   ]},
   { label: "Personal", items: [
-    { href: "/voice", label: "Fluency", icon: Mic01Icon },
     { href: "/workouts", label: "Training", icon: Dumbbell01Icon },
     { href: "/finance", label: "Finance", icon: Wallet01Icon },
-  ]},
-  { label: "Explore", items: [
-    { href: "/leads", label: "Leads", icon: Search01Icon },
   ]},
 ];
 export const NAV_UTILITIES = [
@@ -30,7 +24,7 @@ export const NAV_UTILITIES = [
   { href: "/settings", label: "Settings", icon: Settings01Icon },
 ];
 export const NAV_ITEMS = [...NAV_GROUPS.flatMap((g) => g.items), ...NAV_UTILITIES];
-export const MOBILE_ITEMS = ["/", "/decide", "/chat", "/voice"].map((href) => NAV_ITEMS.find((i) => i.href === href)!);
+export const MOBILE_ITEMS = ["/", "/decide", "/chat", "/workouts"].map((href) => NAV_ITEMS.find((i) => i.href === href)!);
 export { Menu01Icon };
 
 export function activeDestination(pathname: string) {
@@ -40,9 +34,6 @@ export function activeDestination(pathname: string) {
 export function surfaceTitle(pathname: string) {
   if (pathname === "/knowledge/teach") return "Teach";
   if (pathname.startsWith("/knowledge/teach/")) return "Teach session";
-  if (pathname === "/crawl4ai") return "Source preview";
-  if (pathname === "/review") return "Overhaul review";
-  if (pathname === "/voice/capture") return "Quick capture";
   if (pathname === "/decide/dispatch") return "Results";
   return activeDestination(pathname)?.label ?? "Today";
 }

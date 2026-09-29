@@ -6,11 +6,10 @@ import { toast as sonnerToast } from "sonner";
 import { useToast } from "@/components/toast";
 import {
   Check, Loader2, X, Activity, Eye, EyeOff, ChevronDown,
-  BellRing, Sunrise, RefreshCw, Send, Layers, Newspaper, Radar, Landmark, ListChecks, Plug,
+  BellRing, Sunrise, RefreshCw, Send, Layers, Rss, Landmark, ListChecks, Plug,
 } from "lucide-react";
 import { useGarmin } from "@/lib/use-garmin";
 import { PushSettings } from "@/components/push-settings";
-import { LeadsAvailabilityCard } from "@/components/leads-availability-card";
 import { BankAccountsCard } from "@/components/bank-accounts-card";
 import { Button } from "@/components/ui/button";
 import { Page, PageHeader } from "@/components/ui/page";
@@ -18,8 +17,8 @@ import { Input } from "@/components/ui/input";
 
 const settingSections = [
   { title: "Habits & routines", icon: ListChecks }, { title: "Collections", icon: Layers },
-  { title: "Feed & decisions", icon: Newspaper }, { title: "Notifications", icon: BellRing },
-  { title: "Leads", icon: Radar }, { title: "Integrations", icon: Plug },
+  { title: "Feed & decisions", icon: Rss }, { title: "Notifications", icon: BellRing },
+  { title: "Integrations", icon: Plug },
   { title: "Banks", icon: Landmark }, { title: "Morning brief", icon: Sunrise },
 ];
 const sectionId = (title: string) => `settings-${title.toLowerCase().replace(/[^a-z]+/g, "-")}`;
@@ -301,16 +300,14 @@ export default function SettingsPage() {
         title="Settings"
       />
 
-      <Link href="/review" className="flex min-h-12 items-center justify-between gap-3 rounded-xl border border-border bg-card p-4 text-sm font-medium active:scale-[0.97]">Your notebook and the LifeOS overhaul <span aria-hidden="true">→</span></Link>
       <div className="grid items-start gap-3">
         <Section title="Habits & routines" sub="Keep your routines easy to change as life changes.">
           <div className="grid gap-2 sm:grid-cols-2">
             <Link href="/settings/habits" className="rounded-lg border border-border p-4 text-sm pressable active:scale-[0.97] hover:bg-muted"><span className="font-medium">Habits →</span><p className="mt-1 text-xs text-muted-foreground">Add, schedule, reorder, pause, or archive.</p></Link>
-            <Link href="/settings/fluency" className="rounded-lg border border-border p-4 text-sm pressable active:scale-[0.97] hover:bg-muted"><span className="font-medium">Fluency practice →</span><p className="mt-1 text-xs text-muted-foreground">Your coach, exercises, and learning profile.</p></Link>
           </div>
         </Section>
-        <Section title="Decisions" sub="Review what happens to saved material.">
-          <div className="flex flex-wrap gap-2"><Button asChild variant="outline"><Link href="/news/feeds">News sources</Link></Button><Button asChild variant="outline"><Link href="/decide">Saved-item decisions</Link></Button><Button asChild variant="outline"><Link href="/decide/dispatch">Queued work</Link></Button></div>
+        <Section title="Decisions" sub="Review saved material and queued work.">
+          <div className="flex flex-wrap gap-2"><Button asChild variant="outline"><Link href="/decide">Saved-item decisions</Link></Button><Button asChild variant="outline"><Link href="/decide/dispatch">Queued work</Link></Button></div>
         </Section>
         {/* Notifications — first: the section touched most often */}
         <Section title="Notifications" sub="Phone notifications and your inbox.">
@@ -337,11 +334,6 @@ export default function SettingsPage() {
               Send test
             </Button>
           </div>
-        </Section>
-
-        {/* Leads availability switch (ticket 04) */}
-        <Section title="Leads" sub="Whether scout's demand surface is allowed to show you anything.">
-          <LeadsAvailabilityCard />
         </Section>
 
         {/* Integrations */}

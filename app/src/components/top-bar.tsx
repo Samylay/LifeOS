@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { Mic01Icon, SparklesIcon, ArrowRight01Icon } from "@hugeicons/core-free-icons";
+import { SparklesIcon, ArrowRight01Icon } from "@hugeicons/core-free-icons";
 import { Button } from "@/components/ui/button";
 import { SidebarTrigger } from "@/components/ui/mira/sidebar";
 import { useAppStore } from "@/lib/store";
@@ -18,7 +18,6 @@ export function TopBar() {
       <HugeiconsIcon icon={ArrowRight01Icon} size={12} className="hidden text-muted-foreground lg:block" />
       <span className="truncate text-sm font-medium">{surfaceTitle(pathname)}</span>
       <div className="flex-1" />
-      <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex"><Link href="/voice/capture"><HugeiconsIcon icon={Mic01Icon} size={16} />Capture</Link></Button>
       <Button variant="outline" size="sm" onClick={toggleChatPanel} aria-label={chatPanelOpen ? "Close assistant" : "Open assistant"} aria-expanded={chatPanelOpen}>
         <HugeiconsIcon icon={SparklesIcon} size={16} /><span className="hidden sm:inline">Assistant</span>
       </Button>

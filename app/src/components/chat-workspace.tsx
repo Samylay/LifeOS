@@ -2,9 +2,8 @@
 
 import { CSSProperties, KeyboardEvent, useEffect, useRef, useState } from "react";
 import { SidebarTrigger } from "./ui/mira/sidebar";
-import { ArrowUp, BookOpen, Camera, Check, ImagePlus, LoaderCircle, Plus, RotateCcw, Sparkles, Square, Mic, Volume2, X } from "lucide-react";
+import { ArrowUp, BookOpen, Camera, Check, ImagePlus, LoaderCircle, Plus, RotateCcw, Sparkles, Square, Mic, X } from "lucide-react";
 import { toast } from "sonner";
-import { useAssistantVoice } from "@/lib/use-assistant-voice";
 import { useVoiceRecorder } from "@/lib/use-voice-recorder";
 import { RunNowChip } from "@/components/run-now-chip";
 import { useChat } from "@/lib/use-chat";
@@ -36,8 +35,6 @@ export function ChatWorkspace() {
   const pinnedRef = useRef(true);
   const viewport = useVisualViewport();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const { liveVoice, liveVoiceAvailable, liveVoiceError, liveCaption, stopLiveVoice, toggleLiveVoice } = useAssistantVoice(sendMessage);
-  const liveActive = liveVoice !== "idle" && liveVoice !== "error";
   const { state: voice, start: startVoice, stop: stopVoice, cancel: cancelVoice } = useVoiceRecorder({
     onTranscript: (transcript) => {
       const text = transcript.trim();
@@ -71,7 +68,7 @@ export function ChatWorkspace() {
   }, [input]);
 
   const submit = () => {
-    if ((!input.trim() && !draft) || loading || restoring || uploading || preparing || voice !== "idle" || liveActive) return;
+    if ((!input.trim() && !draft) || loading || restoring || uploading || preparing || voice !== "idle") return;
     pinnedRef.current = true;
     if (draft) {
       setUploading(true);
@@ -102,8 +99,8 @@ export function ChatWorkspace() {
           type="button"
           aria-label="New chat"
           title="New chat"
-          onClick={() => { void stopLiveVoice(); cancelVoice(); clearMessages(); setInput(""); setDraft(null); }}
-          disabled={restoring || uploading || preparing || (!conversation.length && !loading && voice === "idle" && !liveActive)}
+          onClick={() => { cancelVoice(); clearMessages(); setInput(""); setDraft(null); }}
+          disabled={restoring || uploading || preparing || (!conversation.length && !loading && voice === "idle")}
           className="inline-flex size-11 items-center justify-center rounded-lg text-muted-foreground transition-transform duration-150 ease-[var(--ease-out-custom)] hover:bg-muted hover:text-foreground disabled:opacity-40 active:scale-[0.97]"
         ><Plus size={19} /></button></div>
       </header>
@@ -183,25 +180,20 @@ export function ChatWorkspace() {
             />
             <div className="flex items-center justify-between px-2 pb-2 pt-1">
               <div className="flex items-center gap-1">
-                <button type="button" onClick={() => setCameraOpen(true)} disabled={restoring || uploading || preparing || loading || liveActive} aria-label="Take a food photo" title="Take a food photo" className="flex size-11 items-center justify-center rounded-xl text-primary hover:bg-primary/10 transition-transform duration-150 ease-[var(--ease-out-custom)] active:scale-[0.97] disabled:opacity-40"><Camera size={20} /></button>
-                <button type="button" onClick={() => galleryRef.current?.click()} disabled={restoring || uploading || preparing || loading || liveActive} aria-label="Attach a photo" title="Attach a photo" className="flex size-11 items-center justify-center rounded-xl text-muted-foreground hover:bg-muted transition-transform duration-150 ease-[var(--ease-out-custom)] active:scale-[0.97] disabled:opacity-40"><ImagePlus size={19} /></button>
-                <button type="button" onClick={voice === "recording" ? stopVoice : () => void startVoice()} disabled={liveActive || (voice !== "recording" && (loading || voice !== "idle"))} aria-label={voice === "recording" ? "Stop recording" : "Dictate a message"} title={voice === "recording" ? "Stop recording" : "Dictate a message"} className="flex size-11 items-center justify-center rounded-xl text-muted-foreground hover:bg-muted transition-transform duration-150 ease-[var(--ease-out-custom)] active:scale-[0.97] disabled:opacity-40">
+                <button type="button" onClick={() => setCameraOpen(true)} disabled={restoring || uploading || preparing || loading} aria-label="Take a food photo" title="Take a food photo" className="flex size-11 items-center justify-center rounded-xl text-primary hover:bg-primary/10 transition-transform duration-150 ease-[var(--ease-out-custom)] active:scale-[0.97] disabled:opacity-40"><Camera size={20} /></button>
+                <button type="button" onClick={() => galleryRef.current?.click()} disabled={restoring || uploading || preparing || loading} aria-label="Attach a photo" title="Attach a photo" className="flex size-11 items-center justify-center rounded-xl text-muted-foreground hover:bg-muted transition-transform duration-150 ease-[var(--ease-out-custom)] active:scale-[0.97] disabled:opacity-40"><ImagePlus size={19} /></button>
+                <button type="button" onClick={voice === "recording" ? stopVoice : () => void startVoice()} disabled={voice !== "recording" && (loading || voice !== "idle")} aria-label={voice === "recording" ? "Stop recording" : "Dictate a message"} title={voice === "recording" ? "Stop recording" : "Dictate a message"} className="flex size-11 items-center justify-center rounded-xl text-muted-foreground hover:bg-muted transition-transform duration-150 ease-[var(--ease-out-custom)] active:scale-[0.97] disabled:opacity-40">
                   {voice === "recording" ? <Square size={14} className="text-destructive" /> : voice === "transcribing" ? <LoaderCircle size={16} className="animate-spin" /> : <Mic size={18} />}
                 </button>
-                <button type="button" onClick={() => void toggleLiveVoice()} disabled={!liveVoiceAvailable || (!liveActive && (loading || voice !== "idle")) || liveVoice === "connecting"} aria-label={liveActive ? "End voice conversation" : "Start voice conversation"} title={liveVoiceAvailable ? "Talk to LifeOS" : "Live voice is not configured"} className={cn("flex size-11 items-center justify-center rounded-xl transition-transform duration-150 ease-[var(--ease-out-custom)] active:scale-[0.97] disabled:opacity-40", liveActive ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted")}>
-                  {liveVoice === "connecting" ? <LoaderCircle size={16} className="animate-spin" /> : liveActive ? <Square size={14} /> : <Volume2 size={18} />}
-                </button>
-                <p role="status" className="pl-2 text-[11px] text-muted-foreground">{voice === "recording" ? "Recording" : voice === "transcribing" ? "Transcribing" : liveActive ? liveVoice === "listening" ? "Listening" : liveVoice === "speaking" ? "Speaking" : liveVoice === "thinking" ? "Thinking" : "Connecting" : ""}</p>
+                <p role="status" className="pl-2 text-[11px] text-muted-foreground">{voice === "recording" ? "Recording" : voice === "transcribing" ? "Transcribing" : ""}</p>
               </div>
               {loading ? (
                 <button type="button" onClick={stop} aria-label="Stop response" className="flex size-11 items-center justify-center rounded-xl bg-foreground text-background transition-transform duration-150 ease-[var(--ease-out-custom)] active:scale-[0.97]"><Square size={14} fill="currentColor" /></button>
               ) : (
-                <button type="button" onClick={submit} disabled={(!input.trim() && !draft) || voice !== "idle" || liveActive || restoring || uploading || preparing} aria-label={draft ? "Send photo" : "Send message"} className="flex size-11 items-center justify-center rounded-xl bg-primary text-primary-foreground transition-[transform,opacity] duration-150 ease-[var(--ease-out-custom)] active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-40">{uploading || preparing ? <LoaderCircle size={18} className="animate-spin" /> : <ArrowUp size={18} />}</button>
+                <button type="button" onClick={submit} disabled={(!input.trim() && !draft) || voice !== "idle" || restoring || uploading || preparing} aria-label={draft ? "Send photo" : "Send message"} className="flex size-11 items-center justify-center rounded-xl bg-primary text-primary-foreground transition-[transform,opacity] duration-150 ease-[var(--ease-out-custom)] active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-40">{uploading || preparing ? <LoaderCircle size={18} className="animate-spin" /> : <ArrowUp size={18} />}</button>
               )}
             </div>
           </div>
-          {liveVoiceError && <p role="alert" className="mx-auto mt-2 max-w-3xl text-xs text-destructive">{liveVoiceError}</p>}
-          {liveActive && liveCaption && <p aria-live="polite" className="mx-auto mt-2 max-w-3xl text-xs text-muted-foreground">{liveCaption}</p>}
           {(uploading || preparing || restoring) && <p role="status" className="mx-auto mt-2 max-w-3xl text-center text-xs text-muted-foreground">{uploading ? "Uploading photo. Keep this page open until it is saved." : preparing ? "Preparing your photo" : "Loading your conversation"}</p>}
         </div>
       </div>

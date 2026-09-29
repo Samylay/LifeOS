@@ -150,8 +150,7 @@ export async function executeAppActions(actions: ChatAction[]): Promise<AppActio
         case "capture_braindump": {
           // Raw thinking belongs in the vault inbox, not the notes table:
           // `01-Inbox/voice/<date>.md` is what Hermes' classify.py sweeps and
-          // enriches. This is the route /voice already takes (see
-          // /api/voice/save) — exposing it as a chat tool means a dump typed
+          // enriches. This is the save path (/api/voice/save) — exposing it as a chat tool means a dump typed
           // or spoken into the assistant lands in the same place as one
           // captured through the VoicePal surface, instead of dead-ending as
           // a `notes` row nothing ever reads again.

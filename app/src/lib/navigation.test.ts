@@ -16,7 +16,7 @@ describe("navigation destinations", () => {
   });
   it("has one direct entry per destination", () => {
     expect(new Set(NAV_ITEMS.map((item) => item.href)).size).toBe(NAV_ITEMS.length);
-    for (const href of ["/decide/approvals", "/voice", "/finance", "/workouts", "/status"]) {
+    for (const href of ["/decide/approvals", "/finance", "/workouts", "/status"]) {
       expect(NAV_ITEMS.some((item) => item.href === href)).toBe(true);
     }
   });

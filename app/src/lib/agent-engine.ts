@@ -1,5 +1,5 @@
-// The shared agent turn behind BOTH the Assistant chat panel and the /voice
-// VoicePal surface. `Codex CLI` has no native function calling, so the tool
+// The shared agent turn behind the Assistant chat panel. `Codex CLI` has no
+// native function calling, so the tool
 // catalog (app-item tools + homelab tools) is described in the prompt and the
 // model returns a { reply, actions } JSON envelope. Homelab tools execute HERE
 // in a bounded loop — each round's TOOL_RESULT lines are appended to the
@@ -225,8 +225,7 @@ export interface AgentTurnOptions {
    * the full record if it wants to. */
   convoParts: string[];
   maxRounds?: number;
-  /** When true the envelope also carries `followUps` (the /voice Shadow
-   * Reader questions). */
+  /** When true the envelope also carries short follow-up questions. */
   includeFollowUps?: boolean;
   /** Live tool-activity line, streamed to the UI while a tool runs. */
   onStatus?: (text: string) => void;

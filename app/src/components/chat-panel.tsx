@@ -14,7 +14,6 @@ import {
   ClipboardPaste,
   Mic,
   Square,
-  Volume2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -22,7 +21,6 @@ import { cn } from "@/lib/utils";
 import { useAppStore } from "@/lib/store";
 import { useChat, type ActionResult } from "@/lib/use-chat";
 import { RunNowChip } from "@/components/run-now-chip";
-import { useAssistantVoice } from "@/lib/use-assistant-voice";
 import { useVoiceRecorder } from "@/lib/use-voice-recorder";
 import { useVisualViewport } from "@/lib/use-visual-viewport";
 
@@ -48,7 +46,6 @@ export function ChatPanel() {
   const isMobile = useIsMobile();
   const { messages, loading, statusText, sendMessage, clearMessages, stop, retryLast } =
     useChat();
-  const { liveVoice, liveVoiceAvailable, liveVoiceError, liveCaption, stopLiveVoice, toggleLiveVoice } = useAssistantVoice(sendMessage, chatPanelOpen);
   // The soft keyboard shrinks the visual viewport only, so a 100vh panel would
   // hide its composer underneath the keyboard. Track the visible area instead.
   const viewport = useVisualViewport();
@@ -161,22 +158,11 @@ export function ChatPanel() {
             <Dialog.Title className="text-sm font-semibold text-foreground">Assistant</Dialog.Title>
           </div>
           <div className="flex items-center gap-1">
-            <Button
-              variant={liveVoice !== "idle" && liveVoice !== "error" ? "default" : "ghost"}
-              size="icon-sm"
-              onClick={() => void toggleLiveVoice()}
-              disabled={!liveVoiceAvailable || (liveVoice === "idle" && (loading || voice !== "idle")) || liveVoice === "connecting"}
-              aria-label={liveVoice !== "idle" && liveVoice !== "error" ? "End voice conversation" : "Start voice conversation"}
-              title={liveVoice !== "idle" && liveVoice !== "error" ? "End voice conversation" : liveVoiceAvailable ? "Talk to LifeOS" : "Live voice is not configured"}
-              className="active:scale-[0.97]"
-            >
-              {liveVoice === "connecting" ? <Loader2 size={15} className="animate-spin" /> : liveVoice === "listening" || liveVoice === "thinking" || liveVoice === "speaking" ? <Square size={13} /> : <Volume2 size={16} />}
-            </Button>
             {messages.length > 0 && (
               <Button
                 variant="ghost"
                 size="icon-sm"
-                onClick={() => { void stopLiveVoice(); clearMessages(); }}
+                onClick={clearMessages}
                 className="text-muted-foreground"
                 title="Clear conversation"
                 aria-label="Clear conversation"
@@ -189,14 +175,6 @@ export function ChatPanel() {
             </Dialog.Close>
           </div>
         </div>
-
-        {(liveVoice !== "idle" || liveVoiceError) && (
-          <div className="shrink-0 border-b border-border bg-muted/40 px-4 py-2" aria-live="polite">
-            <p className="text-xs font-medium text-primary">{liveVoice === "connecting" ? "Connecting microphone…" : liveVoice === "listening" ? "Listening. Speak naturally." : liveVoice === "thinking" ? "LifeOS is thinking…" : liveVoice === "speaking" ? "LifeOS is speaking" : liveVoice === "error" ? "Voice disconnected" : "Voice conversation ended"}</p>
-            {liveVoiceError && <p role="alert" className="mt-1 text-xs text-destructive">{liveVoiceError}</p>}
-            {liveCaption && <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{liveCaption}</p>}
-          </div>
-        )}
 
         {/* Messages */}
         <div
