@@ -1,14 +1,16 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
-import { ArrowDownLeft, ArrowUpRight, ArrowLeftRight, Pencil, Search } from "lucide-react";
+import { ArrowDownLeft, ArrowUpRight, ArrowLeftRight, Pencil, Landmark } from "lucide-react";
 import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { EmptyState } from "@/components/empty-state";
+import { SourceAvatar } from "@/components/ui/avatar";
 import { formatMoney, SPENDING_CATEGORIES, type FinanceActivity, type SpendingCategory } from "@/lib/finance-activity";
-import { monthLabel } from "./month-history";
 
 function EditLabel({ item, close, refresh, returnFocus }: { item: FinanceActivity; close: () => void; refresh: () => Promise<void>; returnFocus: () => void }) {
   const [label, setLabel] = useState(item.label);
@@ -29,76 +31,48 @@ function EditLabel({ item, close, refresh, returnFocus }: { item: FinanceActivit
       <DialogHeader><DialogTitle>Edit merchant label</DialogTitle><DialogDescription>Used for this merchant’s past and future transactions. Amounts stay as reported by your bank.</DialogDescription></DialogHeader>
       <form onSubmit={(event) => { event.preventDefault(); void save(); }} className="space-y-4">
         <label className="block space-y-1 text-sm">Name<Input autoFocus value={label} maxLength={100} onChange={(event) => setLabel(event.target.value)} /></label>
-        {item.direction === "out" && !item.isTransfer && <label className="block space-y-1 text-sm">Category
-          <select value={category} onChange={(event) => setCategory(event.target.value as SpendingCategory)} className="min-h-11 w-full rounded-md border border-input bg-background px-3 text-base">
-            {SPENDING_CATEGORIES.map((value) => <option key={value}>{value}</option>)}
-          </select>
-        </label>}
+        {item.direction === "out" && !item.isTransfer && <label className="block space-y-1 text-sm">Category<select value={category} onChange={(event) => setCategory(event.target.value as SpendingCategory)} className="min-h-11 w-full rounded-md border border-input bg-background px-3 text-base">{SPENDING_CATEGORIES.map((value) => <option key={value}>{value}</option>)}</select></label>}
         <p className="break-words text-xs text-muted-foreground">Bank description: {item.bankLabel}</p>
-        <div className="flex flex-wrap gap-2">
-          <Button type="submit" disabled={saving || !label.trim()}>{saving ? "Saving…" : "Save label"}</Button>
-          <Button type="button" variant="ghost" disabled={saving} onClick={close}>Cancel</Button>
-          {item.corrected && <Button type="button" variant="outline" disabled={saving} onClick={() => void save(true)}>Reset label</Button>}
-        </div>
+        <div className="flex flex-wrap gap-2"><Button type="submit" disabled={saving || !label.trim()}>{saving ? "Saving…" : "Save label"}</Button><Button type="button" variant="ghost" disabled={saving} onClick={close}>Cancel</Button>{item.corrected && <Button type="button" variant="outline" disabled={saving} onClick={() => void save(true)}>Reset label</Button>}</div>
       </form>
     </DialogContent>
   </Dialog>;
 }
 
-export function ActivityLedger({ activity, month, refresh }: { activity: FinanceActivity[]; month: string; refresh: () => Promise<void> }) {
-  const [query, setQuery] = useState("");
-  const [category, setCategory] = useState("All");
+function dateLabel(date: string) {
+  const day = new Date(`${date}T00:00:00Z`).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" });
+  return date === new Date().toISOString().slice(0, 10) ? `Today · ${day}` : day;
+}
+
+export function ActivityLedger({ activity, refresh }: { activity: FinanceActivity[]; refresh: () => Promise<void> }) {
+  const [limit, setLimit] = useState(20);
   const [editing, setEditing] = useState<FinanceActivity | null>(null);
-  const [showAll, setShowAll] = useState(false);
   const editTrigger = useRef<HTMLButtonElement | null>(null);
-  const searchInput = useRef<HTMLInputElement | null>(null);
-  const monthly = useMemo(() => activity.filter((item) => item.date?.startsWith(month)), [activity, month]);
-  const breakdown = useMemo(() => {
-    const totals = new Map<string, number>();
-    for (const item of monthly) if (item.direction === "out" && !item.isTransfer && item.included && item.currency === "EUR") {
-      totals.set(item.category, (totals.get(item.category) ?? 0) + Math.round(item.amount * 100));
+  const shown = useMemo(() => activity.filter((item) => !item.isTransfer).slice(0, limit), [activity, limit]);
+  const groups = useMemo(() => {
+    const dates = new Map<string, FinanceActivity[]>();
+    for (const item of shown) {
+      const key = item.date ?? "undated";
+      dates.set(key, [...(dates.get(key) ?? []), item]);
     }
-    return [...totals].sort((a, b) => b[1] - a[1]);
-  }, [monthly]);
-  const shown = monthly.filter((item) => !item.isTransfer && (category === "All" || item.category === category) && `${item.label} ${item.bankLabel} ${item.category}`.toLowerCase().includes(query.trim().toLowerCase()));
-  const recent = showAll ? shown : shown.slice(0, 4);
-  const total = breakdown.reduce((sum, [, cents]) => sum + cents, 0);
+    return [...dates];
+  }, [shown]);
   return <>
     <Card className="gap-3 p-4">
-      <div><h2 className="text-sm font-semibold">Where your money went</h2><p className="text-xs text-muted-foreground">{monthLabel(month)} · EUR spending · select a category to filter</p></div>
-      {breakdown.length ? <div className="grid gap-x-6 gap-y-2 sm:grid-cols-2">
-        {breakdown.map(([name, cents]) => <button key={name} aria-pressed={category === name} onClick={() => setCategory(category === name ? "All" : name)} className="min-h-11 space-y-1 rounded-md p-2 text-left transition-transform duration-150 ease-[var(--ease-out-custom)] hover:bg-muted active:scale-[0.97]">
-          <span className="flex justify-between gap-2 text-sm"><span>{name}</span><span className="tabular-nums">{formatMoney(cents / 100)}</span></span>
-          <span className="block h-1.5 overflow-hidden rounded bg-muted"><span className="block h-full origin-left rounded bg-chart-2" style={{ transform: `scaleX(${total ? cents / total : 0})` }} /></span>
-        </button>)}
-      </div> : <p className="text-sm text-muted-foreground">No EUR spending recorded for this month.</p>}
+      <div className="flex items-center justify-between gap-3"><h2 className="text-sm font-semibold">Activity</h2><span className="text-xs tabular-nums text-muted-foreground">{shown.length} of {activity.length}</span></div>
+      {groups.length ? <div>{groups.map(([date, items]) => <section key={date}>
+        <h3 className="sticky top-0 border-b border-border bg-card py-2 text-xs font-medium text-muted-foreground">{date === "undated" ? "Date unavailable" : dateLabel(date)}</h3>
+        {items.map((item) => {
+          const Icon = item.isTransfer ? ArrowLeftRight : item.direction === "in" ? ArrowDownLeft : ArrowUpRight;
+          return <div key={item.transactionId} className="flex items-center gap-2 border-b border-border/60 py-2.5 last:border-0">
+            <SourceAvatar source={item.label} label={item.label} size="sm" className="shrink-0" />
+            <div className="min-w-0 flex-1"><p className="truncate text-sm font-medium">{item.label}</p><Badge variant="secondary" className="mt-1 max-w-full truncate px-1.5 py-0 text-[10px] font-normal">{item.category}</Badge></div>
+            <div className="flex shrink-0 items-center gap-1"><Icon aria-hidden size={13} className="text-muted-foreground" /><span className="text-right text-sm tabular-nums">{item.direction === "in" ? "+" : item.direction === "out" ? "−" : ""}{formatMoney(item.amount, item.currency)}</span><Button ref={editTrigger} variant="ghost" size="icon-sm" aria-label={`Edit label for ${item.label}`} onClick={() => setEditing(item)} className="active:scale-[0.97]"><Pencil size={12} /></Button></div>
+          </div>;
+        })}
+      </section>)}</div> : <EmptyState icon={Landmark} hint="Synced transactions will appear here, grouped by day." compact />}
+      {activity.length > shown.length && <Button variant="outline" onClick={() => setLimit((current) => current + 20)} className="active:scale-[0.97]">Show more transactions</Button>}
     </Card>
-    <Card className="gap-3 p-4">
-      <div className="flex flex-wrap items-center justify-between gap-2"><h2 className="text-sm font-semibold">Transactions · {monthLabel(month)}</h2><span className="text-xs text-muted-foreground">{shown.length > 4 && !showAll ? `4 most recent of ${shown.length}` : `${shown.length} transaction${shown.length === 1 ? "" : "s"}`}</span></div>
-      <div className="flex flex-wrap gap-2">
-        <label className="relative min-w-0 basis-full sm:basis-auto flex-1"><Search aria-hidden size={15} className="absolute left-3 top-3.5 text-muted-foreground" /><Input ref={searchInput} aria-label="Search transactions" placeholder="Search merchant or description" value={query} onChange={(event) => setQuery(event.target.value)} className="min-h-11 pl-9" /></label>
-        <select aria-label="Filter transaction category" value={category} onChange={(event) => setCategory(event.target.value)} className="min-h-11 max-w-full rounded-md border border-input bg-background px-3 text-base">
-          {["All", ...SPENDING_CATEGORIES, "Income", "Needs review"].map((value) => <option key={value}>{value}</option>)}
-        </select>
-      </div>
-      <p className="text-xs text-muted-foreground">Categories are suggested. Edit a label once to reuse it for this merchant.</p>
-      {recent.map((item) => {
-        const Icon = item.isTransfer ? ArrowLeftRight : item.direction === "in" ? ArrowDownLeft : ArrowUpRight;
-        return <div key={item.transactionId} className="flex items-start gap-2 border-b border-border py-3 last:border-0">
-          <span className="mt-1 rounded-full bg-muted p-2"><Icon aria-hidden size={14} /></span>
-          <div className="min-w-0 flex-1">
-            <p className="break-words text-sm font-medium">{item.label}</p>
-            <p className="mt-1 text-xs text-muted-foreground">{item.date ? new Date(`${item.date}T00:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" }) : "Date unavailable"} · {item.category}{item.corrected ? " · Your label" : ""}</p>
-          </div>
-          <div className="flex shrink-0 flex-col items-end gap-1">
-            <span className="text-sm font-medium tabular-nums">{item.direction === "in" ? "+" : item.direction === "out" ? "−" : ""}{formatMoney(item.amount, item.currency)}</span>
-            <Button variant="ghost" size="sm" aria-label={`Edit label for ${item.label}`} onClick={(event) => { editTrigger.current = event.currentTarget; setEditing(item); }}><Pencil size={12} /> Label</Button>
-          </div>
-        </div>;
-      })}
-      {shown.length > 4 && <Button variant="outline" onClick={() => setShowAll(!showAll)}>{showAll ? "Show fewer" : `Show all ${shown.length}`}</Button>}
-      {!shown.length && <div className="space-y-2 py-4 text-sm text-muted-foreground"><p>{monthly.length ? "No transactions match these filters." : "No transactions recorded for this month."}</p>{(query || category !== "All") && <Button variant="outline" onClick={() => { setQuery(""); setCategory("All"); }}>Clear filters</Button>}</div>}
-    </Card>
-    {editing && <EditLabel key={editing.transactionId} item={editing} close={() => setEditing(null)} refresh={refresh} returnFocus={() => { if (editTrigger.current?.isConnected) editTrigger.current.focus(); else searchInput.current?.focus(); }} />}
+    {editing && <EditLabel key={editing.transactionId} item={editing} close={() => setEditing(null)} refresh={refresh} returnFocus={() => editTrigger.current?.focus()} />}
   </>;
 }
