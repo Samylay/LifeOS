@@ -309,9 +309,6 @@ export default function SettingsPage() {
             <Link href="/settings/fluency" className="rounded-lg border border-border p-4 text-sm pressable active:scale-[0.97] hover:bg-muted"><span className="font-medium">Fluency practice →</span><p className="mt-1 text-xs text-muted-foreground">Your coach, exercises, and learning profile.</p></Link>
           </div>
         </Section>
-        <Section title="Collections" sub="Go straight to the collection you want to work on.">
-          <div className="flex flex-wrap gap-2"><Button asChild variant="outline"><Link href="/knowledge">Knowledge & learning</Link></Button></div>
-        </Section>
         <Section title="Decisions" sub="Review what happens to saved material.">
           <div className="flex flex-wrap gap-2"><Button asChild variant="outline"><Link href="/news/feeds">News sources</Link></Button><Button asChild variant="outline"><Link href="/decide">Saved-item decisions</Link></Button><Button asChild variant="outline"><Link href="/decide/dispatch">Queued work</Link></Button></div>
         </Section>

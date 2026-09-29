@@ -1,9 +1,8 @@
 import {
-  Home01Icon, Layers01Icon, CheckListIcon, Folder01Icon,
-  BookOpen01Icon, Mic01Icon, Dumbbell01Icon, Wallet01Icon, Search01Icon,
+  Home01Icon, Layers01Icon, CheckListIcon,
+  Mic01Icon, Dumbbell01Icon, Wallet01Icon, Search01Icon,
   Settings01Icon, Activity01Icon, News01Icon, Menu01Icon, ComputerTerminal01Icon,
-  ContentWritingIcon,
-  NetworkIcon, Chat01Icon,
+  Chat01Icon,
 } from "@hugeicons/core-free-icons";
 
 // One route inventory for desktop, mobile, and the current-page label.
@@ -13,17 +12,12 @@ export const NAV_GROUPS = [
     { href: "/news", label: "News", icon: News01Icon },
     { href: "/decide", label: "Decide", icon: Layers01Icon },
     { href: "/decide/approvals", label: "Approvals", icon: CheckListIcon },
-    { href: "/projects", label: "Projects", icon: Folder01Icon },
     { href: "/micro", label: "Micro", icon: ComputerTerminal01Icon },
     { href: "/workflows", label: "Workflows", icon: Layers01Icon },
-    { href: "/teaching", label: "Teaching", icon: BookOpen01Icon },
-    { href: "/mind-map", label: "Mind map", icon: NetworkIcon },
     { href: "/chat", label: "Chat", icon: Chat01Icon },
   ]},
   { label: "Personal", items: [
     { href: "/voice", label: "Fluency", icon: Mic01Icon },
-    { href: "/essays", label: "Essays", icon: ContentWritingIcon },
-    { href: "/knowledge", label: "Knowledge", icon: BookOpen01Icon },
     { href: "/workouts", label: "Training", icon: Dumbbell01Icon },
     { href: "/finance", label: "Finance", icon: Wallet01Icon },
   ]},
@@ -44,6 +38,8 @@ export function activeDestination(pathname: string) {
     .sort((a, b) => b.href.length - a.href.length)[0];
 }
 export function surfaceTitle(pathname: string) {
+  if (pathname === "/knowledge/teach") return "Teach";
+  if (pathname.startsWith("/knowledge/teach/")) return "Teach session";
   if (pathname === "/crawl4ai") return "Source preview";
   if (pathname === "/review") return "Overhaul review";
   if (pathname === "/voice/capture") return "Quick capture";

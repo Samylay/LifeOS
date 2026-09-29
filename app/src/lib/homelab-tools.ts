@@ -283,7 +283,7 @@ export const HOMELAB_TOOLS = [
   {
     name: "add_learning_topic",
     description:
-      "Add a topic to the user's teaching queue (the 'Teach me' section on /knowledge) when he says he wants to learn/study/go deep on something. Prefer asking why first — it grounds every future lesson. But if he hasn't said (e.g. a quick one-handed phone message), still call this without mission: it lands as a draft topic on /knowledge until he gives it a why there. Never invent a mission for him.",
+      "Add a topic to the user's teaching queue (the 'Teach me' section on /knowledge/teach) when he says he wants to learn/study/go deep on something. Prefer asking why first — it grounds every future lesson. But if he hasn't said (e.g. a quick one-handed phone message), still call this without mission: it lands as a draft topic on /knowledge/teach until he gives it a why there. Never invent a mission for him.",
     parameters: {
       type: "object",
       properties: {
@@ -570,14 +570,14 @@ export async function executeHomelabTool(
         return {
           tool,
           summary: `Queued "${topic.slice(0, 60)}" as a draft — needs a why`,
-          data: { id, note: "It's a draft on /knowledge until you give it a mission there; it won't show up for a session until then." },
+          data: { id, note: "It's a draft on /knowledge/teach until you give it a mission there; it won't show up for a session until then." },
         };
       }
       const id = addTopic(topic, mission);
       return {
         tool,
         summary: `Queued "${topic.slice(0, 60)}" for teaching`,
-        data: { id, note: "Visible in the Teach me section on /knowledge; schedule or start a session from there." },
+        data: { id, note: "Visible in the Teach me section on /knowledge/teach; schedule or start a session from there." },
       };
     }
     default:

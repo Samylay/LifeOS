@@ -3,7 +3,6 @@ import { CalibrationNudge } from "@/components/decide/calibration-nudge";
 
 import { WorkflowInboxLink } from "@/components/workflows/workflow-links";
 
-import { WorkspaceMap } from "@/components/workspace/visual-navigation";
 
 import { useCallback, useEffect, useState } from "react";
 import {
@@ -299,10 +298,6 @@ export default function Today() {
 
       </div>
       </div>
-      <details className="rounded-xl border border-border bg-card">
-        <summary className="flex min-h-14 cursor-pointer items-center justify-between px-4 text-sm font-medium pressable active:scale-[0.97]">Explore LifeOS <span aria-hidden="true">+</span></summary>
-        <WorkspaceMap />
-      </details>
     </div>
   );
 }

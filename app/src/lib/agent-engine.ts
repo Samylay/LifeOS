@@ -170,31 +170,6 @@ export const APP_TOOLS: OpenAI.ChatCompletionTool[] = [
   {
     type: "function",
     function: {
-      name: "create_project",
-      description:
-        "Create a project. Projects group related tasks and have a status lifecycle (planning → active → completed).",
-      parameters: {
-        type: "object",
-        properties: {
-          title: { type: "string", description: "Project title" },
-          area: {
-            type: "string",
-            enum: ["health", "career", "finance", "brand", "admin"],
-            description: "Life area (optional)",
-          },
-          status: {
-            type: "string",
-            enum: ["planning", "active", "paused"],
-            description: "Initial project status",
-          },
-        },
-        required: ["title"],
-      },
-    },
-  },
-  {
-    type: "function",
-    function: {
       name: "capture_braindump",
       description:
         "Capture raw, unstructured thinking — a brain dump, a rambling idea, a voice ramble with no clear action in it — into the vault voice inbox, where Hermes picks it up and enriches it. Use this INSTEAD of create_note when the input is thinking-out-loud rather than a discrete fact or reference to file. If the dump also contains clear actions, capture the dump AND create the tasks.",

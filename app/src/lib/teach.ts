@@ -239,7 +239,7 @@ export async function retryTodoistSchedules(): Promise<{ retried: string[] }> {
 
 /** Date of the most recent learning record, parsed from its `YYYY-MM-DD: `
  * prefix (the format `endSession` writes) — the "last-taught date" shown on
- * `/knowledge` (map 03). Never taught yet ⇒ null, not a fabricated date. */
+ * `/knowledge/teach`. Never taught yet ⇒ null, not a fabricated date. */
 export function lastTaughtDate(topic: Pick<TeachTopic, "learningRecords">): string | null {
   const records = topic.learningRecords || [];
   for (let i = records.length - 1; i >= 0; i--) {

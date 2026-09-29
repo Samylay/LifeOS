@@ -8,13 +8,15 @@ describe("navigation destinations", () => {
     expect(surfaceTitle("/decide/dispatch")).toBe("Results");
   });
   it("matches path segments rather than prefixes", () => {
-    expect(activeDestination("/knowledge/teach/session")?.href).toBe("/knowledge");
+    expect(activeDestination("/knowledge/teach/session")).toBeUndefined();
+    expect(surfaceTitle("/knowledge/teach")).toBe("Teach");
+    expect(surfaceTitle("/knowledge/teach/session")).toBe("Teach session");
     expect(activeDestination("/newsroom")).toBeUndefined();
     expect(activeDestination("/")?.href).toBe("/");
   });
   it("has one direct entry per destination", () => {
     expect(new Set(NAV_ITEMS.map((item) => item.href)).size).toBe(NAV_ITEMS.length);
-    for (const href of ["/decide/approvals", "/voice", "/knowledge", "/finance", "/workouts", "/status"]) {
+    for (const href of ["/decide/approvals", "/voice", "/finance", "/workouts", "/status"]) {
       expect(NAV_ITEMS.some((item) => item.href === href)).toBe(true);
     }
   });
