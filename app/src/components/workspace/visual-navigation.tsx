@@ -31,14 +31,14 @@ const related: Record<string, string[]> = {
   "/voice": ["/essays", "/knowledge"], "/content": ["/decide", "/essays", "/projects"],
   "/projects": ["/mind-map", "/decide/approvals", "/status"], "/finance": ["/leads", "/settings"],
   "/news": ["/decide", "/knowledge"], "/feed": ["/decide", "/knowledge"],
-  "/leads": ["/projects", "/finance"], "/status": ["/terminal", "/settings"],
+  "/leads": ["/projects", "/finance"], "/status": ["/settings"],
   "/decide": ["/workflows", "/decide/dispatch", "/decide/approvals"],
   "/decide/dispatch": ["/decide", "/projects"], "/decide/extracts": ["/decide", "/knowledge"],
   "/decide/approvals": ["/projects", "/decide"], "/settings": ["/status", "/workouts"],
 };
 const extra: Record<string, { label: string; icon: LucideIcon }> = {
   "/decide/approvals": { label: "Approvals", icon: Layers }, "/decide/extracts": { label: "Extracts", icon: BookOpen },
-  "/decide/dispatch": { label: "Results", icon: ArrowUpRight }, "/terminal": { label: "Terminal", icon: Activity },
+  "/decide/dispatch": { label: "Results", icon: ArrowUpRight },
 };
 
 /** Nearby destinations, not inferred relationships between the user's records. */

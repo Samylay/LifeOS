@@ -36,7 +36,6 @@ export const NAV_GROUPS = [
 ];
 export const NAV_UTILITIES = [
   { href: "/status", label: "Status", icon: Activity01Icon },
-  { href: "/terminal", label: "Terminal", icon: ComputerTerminal01Icon },
   { href: "/settings", label: "Settings", icon: Settings01Icon },
 ];
 export const NAV_ITEMS = [...NAV_GROUPS.flatMap((g) => g.items), ...NAV_UTILITIES];
