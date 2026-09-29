@@ -16,6 +16,11 @@
 - Keep necessary instructions next to the relevant control, and actual status or record metadata in the relevant content. Use `PageHeader`, whose API intentionally has no kicker or description props.
 - Apply this preference to future UI work unless Samy explicitly requests otherwise.
 
+## Deploy (Samy, 2026-09-29)
+
+- After adding a feature, deploy it without asking: `cd app && npx tsc --noEmit && docker compose build && docker compose up -d`, then smoke `/` and every touched route. Restarting the `lifeos` service is part of shipping.
+- `docker-compose.yml` requires `CRAWL4AI_API_TOKEN`, which is in no env file. Export it from the running container's env (`docker inspect lifeos`), never print it, run compose, then unset it. Never invent a token.
+
 ## Agent skills
 
 ### Issue tracker
