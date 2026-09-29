@@ -1,6 +1,5 @@
-// Nightly feed-card generation, mirroring the news scheduler: run at
-// RUN_HOUR in BRIEF_TZ with catch-up on boot. 03:00 sits between news (04:00)
-// and nothing — the feed just needs cards before Samy wakes up. Guarded so a
+// Nightly feed-card generation: run at RUN_HOUR in BRIEF_TZ with catch-up on
+// boot. The feed just needs cards before Samy wakes up. Guarded so a
 // restart inside the same day doesn't regenerate (cards created in the last
 // 20h ⇒ the night already ran; the fresh-buffer caps bound the damage anyway).
 import { runFeedGeneration } from "./feed-generator";

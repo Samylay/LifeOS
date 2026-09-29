@@ -9,12 +9,12 @@ describe("navigation destinations", () => {
   });
   it("matches path segments rather than prefixes", () => {
     expect(activeDestination("/knowledge/teach/session")?.href).toBe("/knowledge");
-    expect(activeDestination("/newsroom")).toBeUndefined();
+    expect(activeDestination("/knowledgebase")).toBeUndefined();
     expect(activeDestination("/")?.href).toBe("/");
   });
   it("has one direct entry per destination", () => {
     expect(new Set(NAV_ITEMS.map((item) => item.href)).size).toBe(NAV_ITEMS.length);
-    for (const href of ["/decide/approvals", "/voice", "/knowledge", "/finance", "/workouts", "/status"]) {
+    for (const href of ["/decide/approvals", "/knowledge", "/finance", "/workouts", "/status"]) {
       expect(NAV_ITEMS.some((item) => item.href === href)).toBe(true);
     }
   });

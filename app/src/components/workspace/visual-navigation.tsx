@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ArrowUpRight, BookOpen, Brain, Clapperboard, CookingPot, Dumbbell, FolderKanban, Layers, Mic, Network, PenLine, Radar, Settings, Activity, Wallet, Newspaper, type LucideIcon } from "lucide-react";
+import { ArrowUpRight, BookOpen, Brain, Clapperboard, CookingPot, Dumbbell, FolderKanban, Layers, Network, PenLine, Settings, Activity, Wallet, type LucideIcon } from "lucide-react";
 import { Sheet, SheetTrigger, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetClose } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 
@@ -15,23 +15,20 @@ const areas: Record<string, { label: string; icon: LucideIcon; color: string; hi
   "/workouts": { label: "Training", icon: Dumbbell, color: "var(--chart-4)", hint: "Open your program" },
   "/recipes": { label: "Recipes", icon: CookingPot, color: "var(--chart-5)", hint: "Choose what to cook" },
   "/content": { label: "Content", icon: Clapperboard, color: "var(--chart-2)", hint: "Develop your ideas" },
-  "/voice": { label: "Fluency", icon: Mic, color: "var(--chart-4)", hint: "Practice speaking" },
   "/essays": { label: "Essays", icon: PenLine, color: "var(--chart-2)", hint: "Practice writing" },
   "/finance": { label: "Finance", icon: Wallet, color: "var(--chart-3)", hint: "Follow your money" },
   "/mind-map": { label: "Mind map", icon: Network, color: "var(--chart-2)", hint: "Explore connections" },
-  "/leads": { label: "Leads", icon: Radar, color: "var(--chart-5)", hint: "Find opportunities" },
-  "/news": { label: "News", icon: Newspaper, color: "var(--chart-4)", hint: "Explore your sources" },
   "/status": { label: "Status", icon: Activity, color: "var(--chart-3)", hint: "Check your services" },
   "/settings": { label: "Settings", icon: Settings, color: "var(--muted-foreground)", hint: "Manage connections" },
 };
 const related: Record<string, string[]> = {
   "/workflows": ["/decide", "/knowledge", "/projects"], "/teaching": ["/knowledge", "/content", "/projects"],
   "/recipes": ["/workouts", "/decide"], "/workouts": ["/recipes", "/settings"],
-  "/knowledge": ["/mind-map", "/teaching", "/essays", "/voice"], "/essays": ["/knowledge", "/voice", "/content"],
-  "/voice": ["/essays", "/knowledge"], "/content": ["/decide", "/essays", "/projects"],
-  "/projects": ["/mind-map", "/decide/approvals", "/status"], "/finance": ["/leads", "/settings"],
-  "/news": ["/decide", "/knowledge"], "/feed": ["/decide", "/knowledge"],
-  "/leads": ["/projects", "/finance"], "/status": ["/settings"],
+  "/knowledge": ["/mind-map", "/teaching", "/essays"], "/essays": ["/knowledge", "/content"],
+  "/content": ["/decide", "/essays", "/projects"],
+  "/projects": ["/mind-map", "/decide/approvals", "/status"], "/finance": ["/settings"],
+  "/feed": ["/decide", "/knowledge"],
+  "/status": ["/settings"],
   "/decide": ["/workflows", "/decide/dispatch", "/decide/approvals"],
   "/decide/dispatch": ["/decide", "/projects"], "/decide/extracts": ["/decide", "/knowledge"],
   "/decide/approvals": ["/projects", "/decide"], "/settings": ["/status", "/workouts"],

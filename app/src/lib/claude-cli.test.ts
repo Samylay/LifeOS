@@ -24,7 +24,7 @@ vi.mock("./ollama", () => ({
   ollamaGenerate: (p: string) => ollamaGenerate(p),
 }));
 
-import { generateText, generateReadOnlyJson, generateReviewJson, isLimitError } from "./claude-cli";
+import { generateText, generateReadOnlyJson, isLimitError } from "./claude-cli";
 
 beforeEach(() => {
   execBehavior = { stdout: "" };
@@ -48,17 +48,6 @@ describe("isLimitError", () => {
 });
 
 describe("runClaude limit fallback", () => {
-  it("runs fluency reviews without tools or custom MCP servers", async () => {
-    const previous = process.env.GEN_PROVIDER;
-    process.env.GEN_PROVIDER = "codex";
-    execBehavior = { stdout: JSON.stringify({ result: '{"feedback":"Clear"}' }) };
-    try {
-      expect(await generateReviewJson("review")).toEqual({ feedback: "Clear" });
-      const flags = execArgs[1] as string[];
-      expect(flags).toEqual(expect.arrayContaining(["--safe-mode", "--strict-mcp-config", "--no-session-persistence"]));
-      expect(flags[flags.indexOf("--tools") + 1]).toBe("");
-    } finally { if (previous === undefined) delete process.env.GEN_PROVIDER; else process.env.GEN_PROVIDER = previous; }
-  });
   it("uses a feature-owned system prompt for generic read-only reviews", async () => {
     const previous = process.env.GEN_PROVIDER;
     process.env.GEN_PROVIDER = "codex";

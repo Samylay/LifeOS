@@ -23,7 +23,6 @@ const STATUS_COLOR: Record<string, string> = {
 const TYPE_ICON: Record<string, React.ReactNode> = {
   work: <CheckSquare size={15} />,
   fuite: <ShieldAlert size={15} />,
-  quorky_digest: <Link2 size={15} />,
   planning: <Calendar size={15} />,
   triage: <Bookmark size={15} />,
 };
@@ -47,8 +46,6 @@ function oneLiner(card: BriefCard): string {
       const n = (card.body as unknown as FuiteBody).entries?.length ?? 0;
       return n === 0 ? "no new leaks" : `${n} ${n === 1 ? "entry" : "entries"}`;
     }
-    case "quorky_digest":
-      return "today's edition";
     default:
       return "";
   }
@@ -240,40 +237,6 @@ function FuiteCard({ card }: { card: BriefCard }) {
   );
 }
 
-interface DigestCardBody {
-  edition_date?: string;
-  total?: number;
-  headlines?: { title: string; link: string; source: string; section: string; score: number; summary: string }[];
-}
-
-function DigestCard({ card }: { card: BriefCard }) {
-  const body = card.body as unknown as DigestCardBody;
-  const headlines = body.headlines ?? [];
-  const mark = (s: number) => (s >= 5 ? "🔥" : s >= 4 ? "⭐" : "•");
-  return (
-    <div className="space-y-2">
-      {headlines.map((h, i) => (
-        <a
-          key={i}
-          href={h.link}
-          target="_blank"
-          rel="noreferrer"
-          className="block text-sm text-foreground pressable active:scale-[0.99]"
-        >
-          <span aria-hidden>{mark(h.score)}</span> {h.title}
-          <span className="ml-2 text-[10px] uppercase tracking-wide text-muted-foreground/70">
-            {h.source}
-          </span>
-        </a>
-      ))}
-      <Link href={card.link ?? "/news"} className="flex items-center gap-2 text-sm text-primary">
-        {body.total && body.total > headlines.length ? `View all ${body.total} in News` : "Open News"}{" "}
-        <ExternalLink size={12} />
-      </Link>
-    </div>
-  );
-}
-
 interface PlanningCardBody {
   date?: string;
   blocks?: { eventId: string; title: string; startIso: string; endIso: string }[];
@@ -461,7 +424,6 @@ function CardBody({ card }: { card: BriefCard }) {
     case "triage": return <TriageCard card={card} />;
     case "work": return <WorkCard card={card} />;
     case "fuite": return <FuiteCard card={card} />;
-    case "quorky_digest": return <DigestCard card={card} />;
     default:
       return (
         <p className="text-xs text-muted-foreground/70">
@@ -475,9 +437,7 @@ export function BriefCards({ brief }: { brief: Brief }) {
   // Action cards first, stable order within each group; red/amber state cards
   // surface above green ones so a bad morning is visible without scrolling.
   const severity: Record<string, number> = { red: 0, amber: 1, neutral: 2, green: 3 };
-  // ft_headlines is retired from the brief — news lives at /news (the
-  // quorky_digest card links there).
-  const cards = brief.cards.filter((c) => c.type !== "ft_headlines").sort((a, b) => {
+  const cards = brief.cards.sort((a, b) => {
     if (a.priority !== b.priority) return a.priority === "action" ? -1 : 1;
     if (a.priority === "state") return (severity[a.status] ?? 2) - (severity[b.status] ?? 2);
     return 0;

@@ -1,6 +1,5 @@
 "use client";
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { ArrowDown, ArrowUp, BookOpen, GraduationCap, Plus, Save, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Page, PageHeader } from "@/components/ui/page";
@@ -50,6 +49,5 @@ export default function TeachingPage() {
       </div>
     </fieldset>}
     <PreparedMaterials area="/teaching" />
-    <Link href="/review?topic=teaching_ai" className="inline-flex min-h-10 items-center gap-2 text-sm text-muted-foreground underline">Your teaching notes and how they were interpreted</Link>
   </Page>;
 }

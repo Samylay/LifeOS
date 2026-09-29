@@ -3,10 +3,8 @@
 // it only ever hands raw text to passages.ts, which is the only place that
 // text is turned into anything stored.
 //
-// Reuses the news engine's plain-text-via-Jina pattern
-// (src/lib/news/engine.ts: JINA_PREFIX + Accept: text/plain, wrapped in an
-// AbortSignal timeout) rather than inventing a second fetcher. Unlike the
-// news engine, this module also refuses to even attempt a login-walled
+// Fetches plain text via Jina (Accept: text/plain, wrapped in an
+// AbortSignal timeout). This module refuses to even attempt a login-walled
 // source — X/Instagram require a session no fetch here has, and Jina would
 // either fail or return a login page, neither of which is a source of
 // truth. Skipping before the request keeps that a policy decision, not an
@@ -18,8 +16,8 @@ import { inferSource } from "../triage";
 
 const JINA_PREFIX = "https://r.jina.ai/";
 const FETCH_TIMEOUT_MS = 25_000;
-// Mirrors news/engine.ts's article-body cap — long enough for a real
-// article's substance, short enough to keep candidate selection cheap.
+// Article-body cap, long enough for substance and short enough to keep
+// candidate selection cheap.
 const MAX_SOURCE_CHARS = 20_000;
 
 const isYouTube = (url: string) => url.includes("youtube.com") || url.includes("youtu.be");

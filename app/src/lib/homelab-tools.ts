@@ -23,7 +23,7 @@ const AUTOLOOP_LOG = "/home/quorky/services/autoloop/autoloop.log";
 const LIFEOS_READ_COLLECTIONS = new Set([
   "tasks", "habits", "projects", "notes", "reminders", "scheduledNotifications",
   "notifications", "bodyMeasurements", "dailyBlocks", "contentIdeas", "contentTypes",
-  "financeMerchantLabels", "fluency", "leads", "feedCards", "feedConceptMaps",
+  "financeMerchantLabels", "feedCards", "feedConceptMaps",
   "hookFormulas", "knowledgePassages", "teachTopics", "teachSessions", "teachTurns",
   "topicTags", "topicTagProposals", "chatSessions", "chatMessages", "voicePending",
   "settings", "projectArchive", "triageQueue", "triageAssessments", "triageEvidence",
@@ -33,7 +33,7 @@ const LIFEOS_READ_COLLECTIONS = new Set([
 const LIFEOS_WRITE_COLLECTIONS = new Set([
   "tasks", "habits", "projects", "projectArchive", "notes", "reminders", "scheduledNotifications",
   "notifications", "settings", "bodyMeasurements", "dailyBlocks", "contentIdeas", "contentTypes", "financeMerchantLabels",
-  "fluency", "leads", "feedCards", "feedConceptMaps", "hookFormulas", "knowledgePassages",
+  "feedCards", "feedConceptMaps", "hookFormulas", "knowledgePassages",
   "teachTopics", "teachSessions", "teachTurns", "topicTags", "voicePending",
 ]);
 
@@ -186,7 +186,7 @@ export const HOMELAB_TOOLS = [
     parameters: {
       type: "object",
       properties: {
-        collection: { type: "string", description: "LifeOS collection such as tasks, habits, leads, feedCards, teachTopics, financeMerchantLabels, triageQueue, chatSessions, or chatMessages" },
+        collection: { type: "string", description: "LifeOS collection such as tasks, habits, feedCards, teachTopics, financeMerchantLabels, triageQueue, chatSessions, or chatMessages" },
         query: { type: "string", description: "Optional case-insensitive search across record fields" },
         limit: { type: "number", description: "Maximum records (default 20, maximum 100)" },
       },
