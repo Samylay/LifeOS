@@ -175,7 +175,7 @@ export function ProgramCard() {
           hint="No weekly program set up."
           action={
             <button onClick={() => void seed()} disabled={seeding} className={btnPrimary}>
-              {seeding ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />} {seeding ? "Loading plan…" : "Load PPLPPL plan"}
+              {seeding ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />} {seeding ? "Loading plan…" : "Load gym plan"}
             </button>
           }
         />

@@ -383,3 +383,30 @@ export async function fetchWeight(
     return null;
   }
 }
+
+/**
+ * Creates the planned runs as structured Garmin Connect workouts and schedules
+ * each on its date, so the watch shows them after its next sync. Names are
+ * "LifeOS W<week> <Tue|Thu|Sat> <type>"; an existing name is skipped, so
+ * re-running is safe.
+ */
+export async function pushRunWorkouts(
+  userId: string,
+  planned: Array<{ name: string; description: string; date: string; workout: object }>
+): Promise<{ created: string[]; skipped: string[] }> {
+  return withClient(userId, async (c) => {
+    const existing = await c.getWorkouts(0, 200);
+    const have = new Set(existing.map((w) => w.workoutName));
+    const base = (c as unknown as { url: { GC_API: string } }).url.GC_API;
+    const created: string[] = [];
+    const skipped: string[] = [];
+    for (const p of planned) {
+      if (have.has(p.name)) { skipped.push(p.name); continue; }
+      const made = (await c.client.post(`${base}/workout-service/workout`, p.workout)) as { workoutId?: string | number };
+      if (!made?.workoutId) throw new Error(`Garmin did not return an id for ${p.name}`);
+      await c.client.post(`${base}/workout-service/schedule/${made.workoutId}`, { date: p.date });
+      created.push(p.name);
+    }
+    return { created, skipped };
+  });
+}

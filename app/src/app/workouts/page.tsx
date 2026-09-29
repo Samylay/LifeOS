@@ -9,6 +9,7 @@ import { useGarmin } from "@/lib/use-garmin";
 import TrainingAnalytics from "@/components/training-analytics";
 import { StrengthCard } from "@/components/strength-card";
 import { ProgramCard } from "@/components/program-card";
+import { TrainingPlanCard } from "@/components/training-plan-card";
 import { NutritionCard } from "@/components/nutrition-card";
 import { FlowSelector } from "@/components/workspace/visual-navigation";
 import { Page, PageHeader } from "@/components/ui/page";
@@ -50,7 +51,7 @@ export default function TrainingPage() {
         { id: "strength", label: "Strength", icon: Dumbbell },
         { id: "nutrition", label: "Nutrition", icon: Utensils },
       ]} />
-      <section hidden={view !== "program"} aria-label="Weekly training program"><ProgramCard /></section>
+      <section hidden={view !== "program"} aria-label="Weekly training program" className="space-y-4"><TrainingPlanCard /><ProgramCard /></section>
       <section hidden={view !== "activity"} aria-label="Activity and recovery"><TrainingAnalytics /></section>
       <section hidden={view !== "strength"} aria-label="Strength training"><StrengthCard /></section>
       <section hidden={view !== "nutrition"} aria-label="Nutrition">
