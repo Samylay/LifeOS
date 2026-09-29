@@ -8,8 +8,6 @@ export async function register() {
     startBriefScheduler();
     const { startNewsScheduler } = await import("@/lib/news/scheduler");
     startNewsScheduler();
-    const { startFeedScheduler } = await import("@/lib/feed-scheduler");
-    startFeedScheduler();
     const { startBodyMeasurementsScheduler } = await import("@/lib/body-measurements-scheduler");
     startBodyMeasurementsScheduler();
     const { startBankSyncScheduler } = await import("@/lib/bank-sync-scheduler");

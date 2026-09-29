@@ -94,7 +94,7 @@ describe("POST /api/notify deep-link path", () => {
   }
 
   it("stores the caller's in-app path on the pager row", async () => {
-    expect(await storedPath("deep-link me", { path: "/prime" })).toBe("/prime");
+    expect(await storedPath("deep-link me", { path: "/status" })).toBe("/status");
   });
 
   it("defaults by stream when no path is given (capture -> /decide, alerts -> /pager, news -> /news)", async () => {

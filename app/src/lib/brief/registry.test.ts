@@ -8,8 +8,8 @@ import { REGISTRY } from "./registry";
 const SURVIVING_IDS = ["planning", "work", "triage", "fuite", "ft_headlines", "quorky_digest"];
 
 // Removed on Samy's call (2026-09-06): ships (data source destroyed by the
-// /projects rework), workout and objectives (dropped), prompt (superseded by
-// /prime), homelab (relocated to /status).
+// /projects rework), workout, objectives and prompt (dropped), homelab
+// (relocated to /status).
 const REMOVED_IDS = ["ships", "workout", "prompt", "objectives", "homelab"];
 
 describe("brief registry", () => {

@@ -57,7 +57,6 @@ export default function TrainingPage() {
       <section hidden={view !== "nutrition"} aria-label="Nutrition">
         <NutritionCard />
         {!garmin.connection.connected && <p className="rounded-xl border border-border bg-card p-6 text-sm text-muted-foreground">Connect Garmin in Settings to see nutrition and weight.</p>}
-        <Link href="/recipes" className="mt-4 inline-flex items-center gap-2 rounded-lg border border-border px-4 py-3 text-sm pressable active:scale-[0.97]"><Utensils size={16} /> Choose a recipe →</Link>
       </section>
     </Page>
   );

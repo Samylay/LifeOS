@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ArrowUpRight, BookOpen, Brain, Clapperboard, CookingPot, Dumbbell, FolderKanban, Layers, Mic, Network, PenLine, Radar, Settings, Activity, Wallet, Newspaper, type LucideIcon } from "lucide-react";
+import { ArrowUpRight, BookOpen, Brain, Dumbbell, FolderKanban, Layers, Mic, Network, PenLine, Radar, Settings, Activity, Wallet, Newspaper, type LucideIcon } from "lucide-react";
 import { Sheet, SheetTrigger, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetClose } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 
@@ -13,8 +13,6 @@ const areas: Record<string, { label: string; icon: LucideIcon; color: string; hi
   "/projects": { label: "Projects", icon: FolderKanban, color: "var(--chart-3)", hint: "Find the next step" },
   "/knowledge": { label: "Knowledge", icon: Brain, color: "var(--chart-2)", hint: "Explore and learn" },
   "/workouts": { label: "Training", icon: Dumbbell, color: "var(--chart-4)", hint: "Open your program" },
-  "/recipes": { label: "Recipes", icon: CookingPot, color: "var(--chart-5)", hint: "Choose what to cook" },
-  "/content": { label: "Content", icon: Clapperboard, color: "var(--chart-2)", hint: "Develop your ideas" },
   "/voice": { label: "Fluency", icon: Mic, color: "var(--chart-4)", hint: "Practice speaking" },
   "/essays": { label: "Essays", icon: PenLine, color: "var(--chart-2)", hint: "Practice writing" },
   "/finance": { label: "Finance", icon: Wallet, color: "var(--chart-3)", hint: "Follow your money" },
@@ -26,11 +24,11 @@ const areas: Record<string, { label: string; icon: LucideIcon; color: string; hi
 };
 const related: Record<string, string[]> = {
   "/workflows": ["/decide", "/knowledge", "/projects"], "/teaching": ["/knowledge", "/content", "/projects"],
-  "/recipes": ["/workouts", "/decide"], "/workouts": ["/recipes", "/settings"],
-  "/knowledge": ["/mind-map", "/teaching", "/essays", "/voice"], "/essays": ["/knowledge", "/voice", "/content"],
-  "/voice": ["/essays", "/knowledge"], "/content": ["/decide", "/essays", "/projects"],
+  "/workouts": ["/settings"],
+  "/knowledge": ["/mind-map", "/teaching", "/essays", "/voice"], "/essays": ["/knowledge", "/voice"],
+  "/voice": ["/essays", "/knowledge"],
   "/projects": ["/mind-map", "/decide/approvals", "/status"], "/finance": ["/leads", "/settings"],
-  "/news": ["/decide", "/knowledge"], "/feed": ["/decide", "/knowledge"],
+  "/news": ["/decide", "/knowledge"],
   "/leads": ["/projects", "/finance"], "/status": ["/settings"],
   "/decide": ["/workflows", "/decide/dispatch", "/decide/approvals"],
   "/decide/dispatch": ["/decide", "/projects"], "/decide/extracts": ["/decide", "/knowledge"],
@@ -63,7 +61,7 @@ export function WorkspaceMap() {
   return <nav className="workspace-map" aria-label="Explore LifeOS">
     <div className="workspace-map-center"><Network size={19} aria-hidden="true" /><span>Your workspace</span><Link href="/mind-map" className="pressable active:scale-[0.97]">Open mind map <ArrowUpRight size={12} /></Link></div>
     <div className="workspace-map-branches">
-      {["/projects", "/knowledge", "/workouts", "/content", "/recipes", "/finance"].map((href) => {
+      {["/projects", "/knowledge", "/workouts", "/finance"].map((href) => {
         const a = areas[href]; const Icon = a.icon;
         return <Link href={href} key={href} className="workspace-node" style={{ "--node-color": a.color } as React.CSSProperties}>
           <span className="workspace-node-icon"><Icon size={19} strokeWidth={1.6} aria-hidden="true" /></span>

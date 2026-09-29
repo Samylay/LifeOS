@@ -49,7 +49,7 @@ const COLLECTION = "users/local/notifications";
 
 type PagerAction = { label: string; kind: "ack" };
 
-// Deep-link target per message: callers pass an in-app `path` ("/prime",
+// Deep-link target per message: callers pass an in-app `path` ("/status",
 // "/decide", …); when they don't, the stream picks a sensible screen. Every
 // delivery channel consumes it — pager row link, web-push URL.
 const STREAM_PATHS: Record<Stream, string> = {

@@ -306,14 +306,13 @@ export default function SettingsPage() {
         <Section title="Habits & routines" sub="Keep your routines easy to change as life changes.">
           <div className="grid gap-2 sm:grid-cols-2">
             <Link href="/settings/habits" className="rounded-lg border border-border p-4 text-sm pressable active:scale-[0.97] hover:bg-muted"><span className="font-medium">Habits →</span><p className="mt-1 text-xs text-muted-foreground">Add, schedule, reorder, pause, or archive.</p></Link>
-            <Link href="/prime/manage" className="rounded-lg border border-border p-4 text-sm pressable active:scale-[0.97] hover:bg-muted"><span className="font-medium">Morning routine →</span><p className="mt-1 text-xs text-muted-foreground">Edit your affirmations, prompts, and principles.</p></Link>
             <Link href="/settings/fluency" className="rounded-lg border border-border p-4 text-sm pressable active:scale-[0.97] hover:bg-muted"><span className="font-medium">Fluency practice →</span><p className="mt-1 text-xs text-muted-foreground">Your coach, exercises, and learning profile.</p></Link>
           </div>
         </Section>
         <Section title="Collections" sub="Go straight to the collection you want to work on.">
-          <div className="flex flex-wrap gap-2"><Button asChild variant="outline"><Link href="/knowledge">Knowledge & learning</Link></Button><Button asChild variant="outline"><Link href="/content">Content ideas</Link></Button></div>
+          <div className="flex flex-wrap gap-2"><Button asChild variant="outline"><Link href="/knowledge">Knowledge & learning</Link></Button></div>
         </Section>
-        <Section title="Feed & decisions" sub="Manage news sources and review what happens to saved material.">
+        <Section title="Decisions" sub="Review what happens to saved material.">
           <div className="flex flex-wrap gap-2"><Button asChild variant="outline"><Link href="/news/feeds">News sources</Link></Button><Button asChild variant="outline"><Link href="/decide">Saved-item decisions</Link></Button><Button asChild variant="outline"><Link href="/decide/dispatch">Queued work</Link></Button></div>
         </Section>
         {/* Notifications — first: the section touched most often */}
