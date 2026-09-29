@@ -1,14 +1,24 @@
 # Micro
 
-Open **Micro → New app** in LifeOS. Draft the problem and feature list yourself
-or ask for AI ideas, then choose what enters the brief. Separate the first
-release, choose a name and visual direction, attach AppLlama research, then
-create a workspace. Open a new Codex task in the returned project directory.
-Its AGENTS.md loads `micro-studio`; no old task transcript is needed.
+Start with `micro` on the host and the project's brief/artifacts. Where the
+LifeOS checkout exposes **Micro → New app**, its studio can collect the same
+decisions: problem, selected features, first release, name, visual direction
+and AppLlama references. The current UI-integration checkout removed that
+surface; the CLI factory remains. Open a new Codex task in the actual project
+directory. Its AGENTS.md loads `micro-studio`; no old task transcript is needed.
+
+Read the [software factory playbook](standards/README.md) for sixteen lifecycle
+pillars, a curated skills catalogue and a full adoption guide. The
+[control audit](standards/installed-audit.md) separates implemented checks from
+templates and proposed improvements. New project instructions point to the
+playbook; existing repositories can reference it explicitly in a new task.
 
 From the host, `micro` opens Codex in the Micro root. `micro doctor` checks
 installation. `micro init <project-id> --brief <json-file>` creates a new
-workspace and refuses an existing directory. The studio exports the JSON.
+workspace and refuses an existing directory. Use the
+[synthetic brief example](standards/templates/example-brief.json) as the input
+schema, replacing its fixture content with the actual chosen product decisions.
+The earlier studio exported the same JSON shape.
 
 ## Installed controls
 
