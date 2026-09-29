@@ -22,18 +22,18 @@ const AUTOLOOP_LOG = "/home/quorky/services/autoloop/autoloop.log";
 // this generic surface; their purpose-built tools remain available as needed.
 const LIFEOS_READ_COLLECTIONS = new Set([
   "tasks", "habits", "projects", "notes", "reminders", "scheduledNotifications",
-  "notifications", "bodyMeasurements", "dailyBlocks", "contentIdeas", "contentTypes",
-  "financeMerchantLabels", "fluency", "leads", "feedCards", "feedConceptMaps",
-  "hookFormulas", "knowledgePassages", "teachTopics", "teachSessions", "teachTurns",
+  "notifications", "bodyMeasurements", "dailyBlocks",
+  "financeMerchantLabels",
+  "knowledgePassages", "teachTopics", "teachSessions", "teachTurns",
   "topicTags", "topicTagProposals", "chatSessions", "chatMessages", "voicePending",
   "settings", "projectArchive", "triageQueue", "triageAssessments", "triageEvidence",
-  "feedEvents", "feedMeta", "homelabResources", "decisionQueue", "promptQueue",
+  "homelabResources", "decisionQueue", "promptQueue",
   "promptDispatch", "proposalSurfaced", "notifyLog", "pushDelivery", "homelabAudit",
 ]);
 const LIFEOS_WRITE_COLLECTIONS = new Set([
   "tasks", "habits", "projects", "projectArchive", "notes", "reminders", "scheduledNotifications",
-  "notifications", "settings", "bodyMeasurements", "dailyBlocks", "contentIdeas", "contentTypes", "financeMerchantLabels",
-  "fluency", "leads", "feedCards", "feedConceptMaps", "hookFormulas", "knowledgePassages",
+  "notifications", "settings", "bodyMeasurements", "dailyBlocks", "financeMerchantLabels",
+  "knowledgePassages",
   "teachTopics", "teachSessions", "teachTurns", "topicTags", "voicePending",
 ]);
 
@@ -182,11 +182,11 @@ export const HOMELAB_TOOLS = [
   {
     name: "search_lifeos_data",
     description:
-      "Search and read LifeOS records across its task, habit, project, reminder, notification, finance, training, content, lead, feed, knowledge, teaching, chat, and triage surfaces. Use this before answering questions about app data or before changing an existing record. Secrets and service credentials are redacted.",
+      "Search and read LifeOS records across its task, habit, project, reminder, notification, finance, training, lead, knowledge, teaching, chat, and triage surfaces. Use this before answering questions about app data or before changing an existing record. Secrets and service credentials are redacted.",
     parameters: {
       type: "object",
       properties: {
-        collection: { type: "string", description: "LifeOS collection such as tasks, habits, leads, feedCards, teachTopics, financeMerchantLabels, triageQueue, chatSessions, or chatMessages" },
+        collection: { type: "string", description: "LifeOS collection such as tasks, habits, teachTopics, financeMerchantLabels, triageQueue, chatSessions, or chatMessages" },
         query: { type: "string", description: "Optional case-insensitive search across record fields" },
         limit: { type: "number", description: "Maximum records (default 20, maximum 100)" },
       },
@@ -283,7 +283,7 @@ export const HOMELAB_TOOLS = [
   {
     name: "add_learning_topic",
     description:
-      "Add a topic to the user's teaching queue (the 'Teach me' section on /knowledge) when he says he wants to learn/study/go deep on something. Prefer asking why first — it grounds every future lesson. But if he hasn't said (e.g. a quick one-handed phone message), still call this without mission: it lands as a draft topic on /knowledge until he gives it a why there. Never invent a mission for him.",
+      "Add a topic to the user's teaching queue (the 'Teach me' section on /knowledge/teach) when he says he wants to learn/study/go deep on something. Prefer asking why first — it grounds every future lesson. But if he hasn't said (e.g. a quick one-handed phone message), still call this without mission: it lands as a draft topic on /knowledge/teach until he gives it a why there. Never invent a mission for him.",
     parameters: {
       type: "object",
       properties: {
@@ -570,14 +570,14 @@ export async function executeHomelabTool(
         return {
           tool,
           summary: `Queued "${topic.slice(0, 60)}" as a draft — needs a why`,
-          data: { id, note: "It's a draft on /knowledge until you give it a mission there; it won't show up for a session until then." },
+          data: { id, note: "It's a draft on /knowledge/teach until you give it a mission there; it won't show up for a session until then." },
         };
       }
       const id = addTopic(topic, mission);
       return {
         tool,
         summary: `Queued "${topic.slice(0, 60)}" for teaching`,
-        data: { id, note: "Visible in the Teach me section on /knowledge; schedule or start a session from there." },
+        data: { id, note: "Visible in the Teach me section on /knowledge/teach; schedule or start a session from there." },
       };
     }
     default:

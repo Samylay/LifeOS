@@ -39,7 +39,7 @@ import { listPushSubs, sendPushToAll } from "@/lib/web-push-channel";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const STREAMS = ["alerts", "nightly", "weekly", "capture", "system", "news"] as const;
+const STREAMS = ["alerts", "nightly", "weekly", "capture", "system"] as const;
 // Legacy pager vocabulary + the gateway vocabulary — both accepted on POST.
 const SEVERITIES = ["page", "info", "low", "high", "normal"] as const;
 type Stream = (typeof STREAMS)[number];
@@ -49,7 +49,7 @@ const COLLECTION = "users/local/notifications";
 
 type PagerAction = { label: string; kind: "ack" };
 
-// Deep-link target per message: callers pass an in-app `path` ("/prime",
+// Deep-link target per message: callers pass an in-app `path` ("/status",
 // "/decide", …); when they don't, the stream picks a sensible screen. Every
 // delivery channel consumes it — pager row link, web-push URL.
 const STREAM_PATHS: Record<Stream, string> = {
@@ -58,7 +58,6 @@ const STREAM_PATHS: Record<Stream, string> = {
   weekly: "/pager",
   capture: "/decide", // captured items land in the triage deck
   system: "/pager",
-  news: "/news",
 };
 
 // Absolute in-app path only — no scheme, no protocol-relative "//", no
@@ -176,10 +175,7 @@ export async function POST(req: NextRequest) {
   // low never. A failed/refused endpoint prunes the subscription.
   const settings = getNotifySettings();
   const quiet = isQuietHours(new Date(), settings);
-  // News is an explicitly requested daily subscription. Keep quiet hours,
-  // without enabling normal pushes for unrelated streams.
-  const pushSettings = stream === "news" ? { ...settings, pushNormal: true } : settings;
-  const decision = decidePush(level, quiet, pushSettings, listPushSubs().length);
+  const decision = decidePush(level, quiet, settings, listPushSubs().length);
   let pushOutcome: ChannelOutcome = decision === "send" ? "error" : decision;
   let pushInfo: string | undefined;
   if (decision === "send") {

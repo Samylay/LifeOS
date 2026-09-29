@@ -1,35 +1,23 @@
 "use client";
-import { CalibrationNudge } from "@/components/decide/calibration-nudge";
-
-import { WorkflowInboxLink } from "@/components/workflows/workflow-links";
-
-import { WorkspaceMap } from "@/components/workspace/visual-navigation";
 
 import { useCallback, useEffect, useState } from "react";
-import {
-  Sun,
-  Moon,
-  Bell,
-  Check,
-  AlertTriangle,
-  RefreshCw,
-  Sunrise,
-  BellRing,
-  Flag,
-} from "lucide-react";
 import Link from "next/link";
-import { useHabits } from "@/lib/use-habits";
-import { habitCompleted, habitDue, scheduledToggle } from "@/lib/habit-schedule";
+import { BellRing, Check, RotateCw } from "lucide-react";
 import { toast } from "sonner";
-import { useReminders } from "@/lib/use-reminders";
-import { useNotifications } from "@/lib/use-notifications";
-import { useTeachProgress } from "@/lib/use-teach-progress";
-import { Celebration } from "@/components/celebration";
-import { GoalsCard } from "@/components/goals-card";
+import { ProgressRing } from "@/components/charts";
 import { BriefCards } from "@/components/brief/brief-cards";
+import { Celebration } from "@/components/celebration";
+import { EmptyState } from "@/components/empty-state";
+import { GoalsCard } from "@/components/goals-card";
 import { Skeleton } from "@/components/skeleton";
-import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Page, PageHeader } from "@/components/ui/page";
+import { habitCompleted, habitDue, scheduledToggle } from "@/lib/habit-schedule";
+import { localDayOf } from "@/lib/types";
+import { useGarmin } from "@/lib/use-garmin";
+import { useHabits } from "@/lib/use-habits";
+import { useNotifications } from "@/lib/use-notifications";
+import { useReminders } from "@/lib/use-reminders";
 import type { Brief } from "@/lib/brief-types";
 
 interface BriefResponse {
@@ -37,37 +25,17 @@ interface BriefResponse {
   brief: Brief;
 }
 
-function greeting(now: Date | null) {
-  // The server cannot know the browser's local time. Keep the initial HTML
-  // deterministic, then switch to the local greeting after hydration.
-  if (!now) return "Welcome back";
-  const h = now.getHours();
-  if (h < 5) return "Late night";
-  if (h < 12) return "Good morning";
-  if (h < 18) return "Good afternoon";
-  return "Good evening";
-}
-
 export default function Today() {
   const { habits, toggleToday } = useHabits();
-  const { overdue: overdueReminders, dueToday: todayReminders } = useReminders();
+  const { connection: garminConnection, activities, syncActivities } = useGarmin();
+  const { overdue, dueToday } = useReminders();
   const { messages } = useNotifications();
-  const teachProgress = useTeachProgress();
-
-  // Do not read the clock during the server render or the first client render:
-  // the two can have different time zones (or cross a minute boundary), which
-  // makes React discard the server tree. Refresh each minute so the date and
-  // greeting also roll over correctly at midnight.
   const [now, setNow] = useState<Date | null>(null);
   const [brief, setBrief] = useState<BriefResponse | null>(null);
   const [briefErr, setBriefErr] = useState(false);
   const [briefRefreshing, setBriefRefreshing] = useState(false);
-
-  // Optimistic overlay for habit ticks — flips instantly, server catches up.
   const [optimistic, setOptimistic] = useState<Record<string, boolean>>({});
   const [habitSaving, setHabitSaving] = useState<Record<string, boolean>>({});
-
-  // T38: celebrate a habit crossing a weekly streak milestone (7, 14, 21…).
   const [celebrating, setCelebrating] = useState(false);
 
   useEffect(() => {
@@ -80,9 +48,9 @@ export default function Today() {
   const loadBrief = useCallback(async () => {
     setBriefRefreshing(true);
     try {
-      const res = await fetch("/api/brief-json");
-      if (!res.ok) throw new Error();
-      setBrief(await res.json());
+      const response = await fetch("/api/brief-json");
+      if (!response.ok) throw new Error("Could not load the brief.");
+      setBrief(await response.json());
       setBriefErr(false);
     } catch {
       setBriefErr(true);
@@ -92,235 +60,120 @@ export default function Today() {
   }, []);
 
   useEffect(() => {
-    loadBrief();
+    void loadBrief();
   }, [loadBrief]);
 
-  // Local-date YYYY-MM-DD for the stale-brief check (the brief is written in
-  // local time; UTC would flag it stale every evening).
-  const todayLocal = new Date().toLocaleDateString("en-CA");
-  const todayHabits = habits.filter((h) => habitDue(h, now ?? new Date()));
-  const isDone = (h: (typeof todayHabits)[number]) =>
-    h.id in optimistic
-      ? optimistic[h.id]
-      : habitCompleted(h, now ?? new Date());
-  const habitsDone = todayHabits.filter(isDone).length;
+  useEffect(() => {
+    if (garminConnection.connected) void syncActivities(0, 20);
+  }, [garminConnection.connected, syncActivities]);
 
-  useEffect(() => { setOptimistic({}); }, [habits, now]);
+  useEffect(() => {
+    setOptimistic({});
+  }, [habits, now]);
+
+  const todayHabits = now ? habits.filter((habit) => habitDue(habit, now)).slice(0, 3) : [];
+  const hasTrainingToday = Boolean(now && activities.some((activity) => activity.startTimeLocal.slice(0, 10) === localDayOf(now)));
+  const isTraining = (habit: (typeof todayHabits)[number]) => habit.name.trim().toLowerCase() === "training";
+  const isAutoCompleted = (habit: (typeof todayHabits)[number]) => isTraining(habit) && hasTrainingToday;
+  const isDone = (habit: (typeof todayHabits)[number]) =>
+    isAutoCompleted(habit) || (habit.id in optimistic ? optimistic[habit.id] : Boolean(now && habitCompleted(habit, now)));
 
   const handleToggle = async (id: string, currentlyDone: boolean) => {
     if (habitSaving[id]) return;
     setHabitSaving((current) => ({ ...current, [id]: true }));
-    setOptimistic((o) => ({ ...o, [id]: !currentlyDone }));
-    // T37 haptics: a short buzz only on completion (not un-ticks), fired here
-    // in the UI layer so the hook's data logic stays pure.
+    setOptimistic((current) => ({ ...current, [id]: !currentlyDone }));
     if (!currentlyDone) {
       navigator.vibrate?.(10);
-      // T38: rare-events-only celebration on a weekly streak milestone
-      // (7, 14, 21…). Recompute with the same pure helper the hook uses so
-      // this stays in sync with what actually gets written, no server
-      // round-trip needed to know whether today's tick crossed one.
-      const habit = habits.find((h) => h.id === id);
+      const habit = habits.find((item) => item.id === id);
       if (habit) {
         const { streak } = scheduledToggle(habit);
         if (streak > 0 && streak % 7 === 0) setCelebrating(true);
       }
     }
-    try { await toggleToday(id); }
-    catch (e) {
-      setOptimistic((current) => { const next = { ...current }; delete next[id]; return next; });
-      toast.error(e instanceof Error ? e.message : "Could not save your completion.");
-    } finally { setHabitSaving((current) => ({ ...current, [id]: false })); }
+    try {
+      await toggleToday(id);
+    } catch (error) {
+      setOptimistic((current) => {
+        const next = { ...current };
+        delete next[id];
+        return next;
+      });
+      toast.error(error instanceof Error ? error.message : "Could not save your completion.");
+    } finally {
+      setHabitSaving((current) => ({ ...current, [id]: false }));
+    }
   };
 
-  const nextReminder = [...overdueReminders, ...todayReminders][0];
-  const pagerUnread = messages.filter((m) => !m.readAt).length;
+  const unreadAlerts = messages.filter((message) => !message.readAt).length;
+  const alertCount = unreadAlerts + overdue.length + dueToday.length;
+  const cards = brief?.brief.cards ?? [];
 
   return (
-    // Phone is a feed, desktop is a cockpit: one scrolling column on mobile;
-    // at lg the brief takes the main column and the quick loop / goals /
-    // habits stack becomes a right rail, so the whole day is above the fold.
-    <div className="page max-w-2xl lg:max-w-6xl">
+    <Page narrow className="max-w-3xl">
       {celebrating && <Celebration onDone={() => setCelebrating(false)} />}
-      {/* Header */}
-      <div className="page-header flex-wrap enter">
-        <div className="min-w-0 max-w-full">
-          <h1 className="flex items-center gap-2 text-foreground">
-            {!now || now.getHours() < 18 ? <Sun size={20} className="text-primary" /> : <Moon size={20} className="text-primary" />}
-            {greeting(now)}, Samy
-          </h1>
-          <p className="text-sm mt-0.5 text-muted-foreground/70">
-            {now?.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" }) ?? "Today"}
-          </p>
-          {teachProgress && (
-            <p className="text-xs mt-1 text-muted-foreground/70 truncate max-w-md">
-              Learning — {teachProgress.text}
+      <PageHeader
+        title={
+          <div>
+            <span>Today</span>
+            <p className="mt-1 text-sm font-normal text-muted-foreground">
+              {now?.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" }) ?? " "}
             </p>
-          )}
-        </div>
-        <div className="flex flex-wrap items-center gap-2 text-xs">
-          <Link
-            href="/status"
-            className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 font-medium pressable active:scale-[0.97] ${
-              pagerUnread > 0 ? "bg-accent text-accent-foreground" : "bg-muted text-muted-foreground"
-            }`}
-          >
-            <BellRing size={12} /> {pagerUnread > 0 ? `${pagerUnread} unread` : "Pager"}
+          </div>
+        }
+        actions={alertCount > 0 ? (
+          <Link href="/status" className="inline-flex min-h-11 items-center gap-2 rounded-lg px-3 text-sm text-muted-foreground transition-transform duration-[var(--dur-fast)] ease-[var(--ease-out-custom)] active:scale-[0.97] hover:bg-muted">
+            <BellRing size={16} /> {alertCount} alerts
           </Link>
-          {nextReminder && (
-            <span
-              className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 font-medium ${
-                overdueReminders.length > 0 ? "bg-destructive/10 text-destructive" : "bg-muted text-muted-foreground"
-              }`}
-            >
-              {overdueReminders.length > 0 ? <AlertTriangle size={12} /> : <Bell size={12} />}
-              {nextReminder.title}
-            </span>
-          )}
-        </div>
-      </div>
+        ) : undefined}
+      />
 
-      <CalibrationNudge />
-      <WorkflowInboxLink />
-
-      <div className="flex flex-col gap-4 lg:gap-6 lg:grid lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start">
-      {/* Morning brief — the live daily loop, anchor of this page; first on
-          mobile and the main column on desktop */}
-      <div className="enter lg:col-start-1 lg:row-start-1 min-w-0" style={{ ["--enter-delay" as string]: "120ms" }}>
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex flex-wrap items-center gap-2 min-w-0">
-            <h2 className="section-label flex items-center gap-2">
-              <Flag size={14} className="text-primary" /> Morning brief
-            </h2>
-            {brief && brief.source !== "live" && (
-              <span className="rounded-full bg-warning/15 px-2 py-0.5 text-[10px] font-medium text-warning">
-                Fixture — brief not built
-              </span>
-            )}
-            {brief?.brief?.date && brief.brief.date < todayLocal && (
-              <span className="rounded-full bg-warning/15 px-2 py-0.5 text-[10px] font-medium text-warning">
-                Stale · {brief.brief.date}
-              </span>
-            )}
-            {brief?.brief?.generated_at && (
-              <span className="text-[10px] font-medium text-muted-foreground/70">
-                Generated{" "}
-                {new Date(brief.brief.generated_at).toLocaleTimeString(undefined, {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })}
-              </span>
-            )}
-            {briefErr && brief && (
-              <span className="rounded-full bg-destructive/10 px-2 py-0.5 text-[10px] font-medium text-destructive">
-                Refresh failed
-              </span>
-            )}
-          </div>
-          <Button
-            onClick={loadBrief}
-            disabled={briefRefreshing}
-            aria-label="Refresh brief"
-            title="Refresh brief"
-            variant="ghost"
-            size="icon-sm"
-            className="text-muted-foreground/70 bg-muted active:scale-[0.92]"
-          >
-            <RefreshCw size={14} className={briefRefreshing ? "animate-spin" : undefined} />
-          </Button>
-        </div>
-        {briefErr && !brief && (
-          <Card className="flex-row items-center justify-between gap-3 p-4 text-sm text-muted-foreground">
-            <span>Couldn&apos;t load the brief.</span>
-            <Button onClick={loadBrief} disabled={briefRefreshing} size="sm" variant="secondary" className="shrink-0">
-              <RefreshCw size={14} className={briefRefreshing ? "animate-spin" : undefined} /> Retry
-            </Button>
-          </Card>
-        )}
-        {!brief && !briefErr && (
-          <div className="space-y-2">
-            {Array.from({ length: 3 }).map((_, i) => (
-              <Skeleton key={i} className="h-24" />
-            ))}
-          </div>
-        )}
-        {brief?.brief && <BriefCards brief={brief.brief} />}
-      </div>
-
-      {/* Right rail on desktop; below the brief on mobile */}
-      <div className="flex flex-col gap-4 lg:col-start-2 lg:row-start-1 min-w-0">
-
-      {/* Quick loop: Prime entry. Ship momentum lived here until
-          today-brief-rework 01 dropped it — the read moved out, the ship log
-          and its write path are untouched (deferred /projects rework). */}
-      <div className="enter" style={{ ["--enter-delay" as string]: "30ms" }}>
-        <Link href="/prime" className="block">
-          <Card className="flex-row items-center gap-3 p-4 hover-lift">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg shrink-0 bg-accent">
-              <Sunrise size={18} className="text-accent-foreground" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-sm font-medium text-foreground">Daily Prime</p>
-              <p className="text-xs text-muted-foreground/70">Start the ritual →</p>
-            </div>
-          </Card>
-        </Link>
-      </div>
-
-      {/* Goals */}
-      <div className="enter" style={{ ["--enter-delay" as string]: "60ms" }}>
-        <GoalsCard />
-      </div>
-
-      {/* Habits */}
-      {(
-        <Card className="p-4 lg:p-5 gap-3 enter" style={{ ["--enter-delay" as string]: "90ms" }}>
-          <div className="flex items-center justify-between">
-            <h2 className="section-label">
-              Habits
-            </h2>
-            <div className="flex items-center gap-3"><Link href="/settings/habits" className="text-xs text-muted-foreground pressable active:scale-[0.97] hover:text-foreground">Manage</Link><span className="text-xs font-mono text-primary">
-              {habitsDone}/{todayHabits.length}
-            </span></div>
-          </div>
-          {/* lg keeps one column: two columns cramp inside the 340px rail */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-2">
-            {todayHabits.map((habit) => {
-              const done = isDone(habit);
-              return (
-                <button
-                  key={habit.id}
-                  onClick={() => handleToggle(habit.id, done)}
-                  disabled={habitSaving[habit.id]}
-                  aria-pressed={done}
-                  className="flex items-center gap-3 w-full rounded-lg px-3 py-2.5 text-left pressable active:scale-[0.97] bg-muted"
-                >
-                  <div
-                    className={`shrink-0 h-5 w-5 rounded flex items-center justify-center ${
-                      done ? "bg-primary border-none" : "border-[1.5px] border-muted-foreground/70 bg-transparent"
-                    }`}
-                  >
-                    {done && <Check size={12} className="text-primary-foreground" />}
-                  </div>
-                  <span
-                    className={`text-sm flex-1 truncate ${done ? "text-foreground line-through opacity-60" : "text-foreground"}`}
-                  >
-                    {habit.name}
-                    {habit.frequency === "weekly" && <span className="ml-1 text-xs text-muted-foreground">this week</span>}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-          {todayHabits.length === 0 && <p className="text-sm text-muted-foreground">{habits.length ? "No habits scheduled today." : "Add your first habit from Manage."}</p>}
-        </Card>
+      {todayHabits.length > 0 && (
+        <section aria-label="Habits" className="flex justify-center gap-2 overflow-x-auto py-1 sm:gap-8">
+          {todayHabits.map((habit) => {
+            const done = isDone(habit);
+            return (
+              <button
+                key={habit.id}
+                type="button"
+                aria-label={isAutoCompleted(habit) ? `${habit.name} completed from Garmin activity` : `${done ? "Mark incomplete" : "Complete"} ${habit.name}; ${habit.streak} streak`}
+                aria-pressed={done}
+                disabled={habitSaving[habit.id] || isAutoCompleted(habit)}
+                onClick={() => void handleToggle(habit.id, done)}
+                className="flex min-h-11 min-w-24 flex-col items-center gap-1 rounded-xl px-2 py-1 text-center transition-transform duration-[var(--dur-fast)] ease-[var(--ease-out-custom)] active:scale-[0.97]"
+              >
+                <span aria-hidden="true">
+                  <ProgressRing value={done ? 1 : 0} goal={1} size={76} strokeWidth={6} label={done ? <Check size={16} /> : habit.name} />
+                </span>
+                <span className="max-w-28 truncate text-xs font-medium text-foreground">{habit.name}</span>
+                <span className="text-[11px] tabular-nums text-muted-foreground">{isAutoCompleted(habit) ? `Garmin · ${habit.streak} streak` : `${habit.streak} streak`}</span>
+              </button>
+            );
+          })}
+        </section>
       )}
 
-      </div>
-      </div>
-      <details className="rounded-xl border border-border bg-card">
-        <summary className="flex min-h-14 cursor-pointer items-center justify-between px-4 text-sm font-medium pressable active:scale-[0.97]">Explore LifeOS <span aria-hidden="true">+</span></summary>
-        <WorkspaceMap />
-      </details>
-    </div>
+      <section aria-label="What needs attention" className="space-y-3">
+        {briefErr && !brief && (
+          <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card p-4 text-sm text-muted-foreground">
+            <span>Couldn&apos;t load the brief.</span>
+            <Button onClick={loadBrief} disabled={briefRefreshing} size="sm" variant="secondary" className="shrink-0 active:scale-[0.97]">
+              <RotateCw size={14} className={briefRefreshing ? "animate-spin" : undefined} /> Retry
+            </Button>
+          </div>
+        )}
+        {!brief && !briefErr && (
+          <div className="space-y-3" aria-label="Loading today">
+            <Skeleton className="h-24" />
+            <Skeleton className="h-24" />
+          </div>
+        )}
+        {brief && cards.length === 0 && (
+          <EmptyState icon={Check} title="Nothing needs you" hint="Your day is clear." />
+        )}
+        {brief?.brief && cards.length > 0 && <BriefCards brief={brief.brief} compact maxCards={5} />}
+      </section>
+
+      <GoalsCard />
+    </Page>
   );
 }

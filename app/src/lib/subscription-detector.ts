@@ -260,7 +260,7 @@ export async function normalizeMerchantLabel(rawLabel: string, generate: Generat
 
 /**
  * Behaviour prose over a set of already-detected subscriptions, same
- * house rule as finance.ts's `habitLines`: capped at 3 sentences, dense,
+ * house rule: capped at 3 sentences, dense,
  * specific numbers over vague adjectives. Falls back to an empty array on
  * any model failure — a broken LLM call must never crash the panel it feeds,
  * it just means no sentences render that render cycle.

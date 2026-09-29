@@ -6,7 +6,6 @@ import { notifyTaskCompleted } from "./task-notifications";
 import { useHabits } from "./use-habits";
 import { useNotes } from "./use-notes";
 import { useReminders } from "./use-reminders";
-import { useProjects } from "./use-projects";
 import { validateChatInput } from "./chat-input";
 import type { ChatAction } from "@/app/api/chat/route";
 import type { FoodPhoto } from "./food-model";
@@ -107,7 +106,6 @@ export function useChat(persistent = false) {
   const { habits, createHabit } = useHabits();
   const { createNote } = useNotes();
   const { createReminder } = useReminders();
-  const { projects, createProject } = useProjects();
 
   const executeActions = useCallback(
     async (actions: ChatAction[]): Promise<ActionResult[]> => {
@@ -199,24 +197,6 @@ export function useChat(persistent = false) {
               });
               break;
             }
-            case "create_project": {
-              const p = action.input as {
-                title: string;
-                area?: "health" | "career" | "finance" | "brand" | "admin";
-                status?: "planning" | "active" | "paused";
-              };
-              await createProject({
-                title: p.title,
-                area: p.area,
-                status: p.status || "planning",
-                linkedTaskIds: [],
-              });
-              results.push({
-                tool: "create_project",
-                summary: `Created project: "${p.title}"`,
-              });
-              break;
-            }
             case "complete_task": {
               const c = action.input as { title: string };
               const target = tasks.find(
@@ -258,7 +238,6 @@ export function useChat(persistent = false) {
       createHabit,
       createNote,
       createReminder,
-      createProject,
     ]
   );
 
@@ -298,7 +277,6 @@ export function useChat(persistent = false) {
           taskCount: tasks.length,
           existingTasks: tasks.slice(0, 30).map((t) => t.title),
           existingHabits: habits.map((h) => h.name),
-          existingProjects: projects.map((p) => p.title),
         };
 
         // Build message history for API (last 20 messages)
@@ -424,7 +402,7 @@ export function useChat(persistent = false) {
         }
       }
     },
-    [loading, restoring, messages, tasks, habits, projects, executeActions, persistent, refreshPhotos]
+    [loading, restoring, messages, tasks, habits, executeActions, persistent, refreshPhotos]
   );
 
   // Stop the in-flight request; the AbortError handler records the

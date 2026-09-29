@@ -1,20 +1,8 @@
-// Server-side only — read/search/write access to the Obsidian knowledge base
-// that Hermes manages (mounted at KB_PATH, default /vault).
-//
-// LifeOS is the cockpit: it browses and searches the notes Hermes enriches,
-// and can capture new notes back into the vault — Hermes then appends its
-// `## Hermes` summary/tags on the next file-watch pass.
+// Server-side read access for notes used by the Decide extracts view.
 import fs from "node:fs";
 import path from "node:path";
-import { syncFtsIndex, searchFts, type IndexableFile } from "@/lib/kb-search";
 
 const KB_PATH = process.env.KB_PATH || "";
-// Container runs as root but the vault is owned by the host user; chown
-// notes we create so Hermes (running as that user) can enrich them.
-const KB_UID = process.env.KB_UID ? Number(process.env.KB_UID) : 1000;
-const KB_GID = process.env.KB_GID ? Number(process.env.KB_GID) : 1000;
-
-const IGNORE_DIRS = new Set([".obsidian", ".trash", ".git", "node_modules"]);
 const HERMES_HEADER = "## Hermes";
 
 export function kbEnabled(): boolean {
@@ -22,9 +10,9 @@ export function kbEnabled(): boolean {
 }
 
 export interface NoteMeta {
-  path: string; // vault-relative, e.g. "01-Inbox/idea.md"
+  path: string;
   title: string;
-  folder: string; // top-level folder, e.g. "01-Inbox"
+  folder: string;
   mtime: number;
   summary?: string;
   tags?: string[];
@@ -34,9 +22,6 @@ export interface Note extends NoteMeta {
   content: string;
 }
 
-// --- Path safety -------------------------------------------------------------
-
-/** Resolve a vault-relative path, refusing anything that escapes KB_PATH. */
 function safeResolve(relPath: string): string {
   const full = path.resolve(KB_PATH, relPath);
   const root = path.resolve(KB_PATH);
@@ -46,8 +31,6 @@ function safeResolve(relPath: string): string {
   return full;
 }
 
-// --- Parsing -----------------------------------------------------------------
-
 function parseHermes(content: string): { summary?: string; tags?: string[] } {
   const idx = content.indexOf(HERMES_HEADER);
   if (idx === -1) return {};
@@ -55,151 +38,19 @@ function parseHermes(content: string): { summary?: string; tags?: string[] } {
   const summary = section.match(/Summary:\s*(.+)/i)?.[1]?.trim();
   const tagsLine = section.match(/Tags:\s*(.+)/i)?.[1]?.trim();
   const tags = tagsLine
-    ? tagsLine.split(",").map((t) => t.trim().replace(/^#/, "")).filter(Boolean)
+    ? tagsLine.split(",").map((tag) => tag.trim().replace(/^#/, "")).filter(Boolean)
     : undefined;
   return { summary, tags };
 }
 
 function deriveTitle(content: string, file: string): string {
-  // Frontmatter `title:`
-  const fm = content.match(/^---\n([\s\S]*?)\n---/);
-  if (fm) {
-    const t = fm[1].match(/^title:\s*(.+)$/m)?.[1]?.trim().replace(/^["']|["']$/g, "");
-    if (t) return t;
+  const frontmatter = content.match(/^---\n([\s\S]*?)\n---/);
+  if (frontmatter) {
+    const title = frontmatter[1].match(/^title:\s*(.+)$/m)?.[1]?.trim().replace(/^['"]|['"]$/g, "");
+    if (title) return title;
   }
-  // First H1
-  const h1 = content.match(/^#\s+(.+)$/m)?.[1]?.trim();
-  if (h1) return h1;
-  // Filename without extension
-  return path.basename(file, ".md");
-}
-
-// --- Listing / search --------------------------------------------------------
-
-function walk(dir: string, acc: string[]): void {
-  let entries: fs.Dirent[];
-  try {
-    entries = fs.readdirSync(dir, { withFileTypes: true });
-  } catch {
-    return;
-  }
-  for (const e of entries) {
-    if (e.name.startsWith(".") || IGNORE_DIRS.has(e.name)) continue;
-    const full = path.join(dir, e.name);
-    if (e.isDirectory()) walk(full, acc);
-    else if (e.isFile() && e.name.endsWith(".md")) acc.push(full);
-  }
-}
-
-function readNoteMeta(root: string, rel: string): NoteMeta | null {
-  const full = path.join(root, rel);
-  let content: string;
-  let mtime: number;
-  try {
-    content = fs.readFileSync(full, "utf-8");
-    mtime = fs.statSync(full).mtimeMs;
-  } catch {
-    return null;
-  }
-  const { summary, tags } = parseHermes(content);
-  return {
-    path: rel,
-    title: deriveTitle(content, full),
-    folder: rel.split(path.sep)[0] || "",
-    mtime,
-    summary,
-    tags,
-  };
-}
-
-/**
- * List notes, newest first (no query — byte-identical to the original
- * full-vault listing). When `q` is given, tokenizes it and AND-matches every
- * term (order-independent) against title/content/tags via the FTS5 index in
- * kb-search.ts, with a one-typo-tolerant fallback when the exact match is
- * empty — see searchNotes() for the fallback/suggestions signal.
- */
-export function listNotes(q?: string, limit = 200): NoteMeta[] {
-  if (!kbEnabled()) return [];
-  const root = path.resolve(KB_PATH);
-  const query = q?.trim();
-
-  if (!query) {
-    const files: string[] = [];
-    walk(root, files);
-    const out: NoteMeta[] = [];
-    for (const file of files) {
-      let content: string;
-      let mtime: number;
-      try {
-        content = fs.readFileSync(file, "utf-8");
-        mtime = fs.statSync(file).mtimeMs;
-      } catch {
-        continue;
-      }
-      const rel = path.relative(root, file);
-      const { summary, tags } = parseHermes(content);
-      out.push({
-        path: rel,
-        title: deriveTitle(content, file),
-        folder: rel.split(path.sep)[0] || "",
-        mtime,
-        summary,
-        tags,
-      });
-    }
-    out.sort((a, b) => b.mtime - a.mtime);
-    return out.slice(0, limit);
-  }
-
-  return searchNotes(query, limit).notes;
-}
-
-export interface SearchResult {
-  notes: NoteMeta[];
-  usedFallback: boolean;
-  suggestions?: NoteMeta[];
-}
-
-/** Query-path search: syncs the FTS index against the current vault, then searches it. */
-export function searchNotes(query: string, limit = 200): SearchResult {
-  if (!kbEnabled()) return { notes: [], usedFallback: false };
-  const root = path.resolve(KB_PATH);
-  const files: string[] = [];
-  walk(root, files);
-
-  const indexable: IndexableFile[] = [];
-  for (const file of files) {
-    let content: string;
-    let mtime: number;
-    try {
-      content = fs.readFileSync(file, "utf-8");
-      mtime = fs.statSync(file).mtimeMs;
-    } catch {
-      continue;
-    }
-    const rel = path.relative(root, file);
-    const { tags } = parseHermes(content);
-    indexable.push({ relpath: rel, mtime, title: deriveTitle(content, file), content, tags: tags || [] });
-  }
-  syncFtsIndex(indexable);
-
-  const { relpaths, usedFallback } = searchFts(query, limit);
-  const notes = relpaths
-    .map((rel) => readNoteMeta(root, rel))
-    .filter((n): n is NoteMeta => n !== null);
-
-  if (notes.length === 0) {
-    const suggestions = indexable
-      .slice()
-      .sort((a, b) => b.mtime - a.mtime)
-      .slice(0, 5)
-      .map((f) => readNoteMeta(root, f.relpath))
-      .filter((n): n is NoteMeta => n !== null);
-    return { notes: [], usedFallback: false, suggestions };
-  }
-
-  return { notes, usedFallback };
+  const heading = content.match(/^#\s+(.+)$/m)?.[1]?.trim();
+  return heading || path.basename(file, ".md");
 }
 
 export function readNote(relPath: string): Note | null {
@@ -223,75 +74,4 @@ export function readNote(relPath: string): Note | null {
     tags,
     content,
   };
-}
-
-/** Read-only graph input. The existing walker excludes hidden files and symlinks. */
-export function graphNotes(limit = 2000): { notes: Note[]; totalNotes: number } {
-  if (!kbEnabled()) return { notes: [], totalNotes: 0 };
-  const root = path.resolve(KB_PATH);
-  const files: string[] = [];
-  walk(root, files);
-  files.sort();
-  const notes = files.slice(0, limit).map((file) => readNote(path.relative(root, file))).filter((note): note is Note => note !== null);
-  return { notes, totalNotes: files.length };
-}
-
-// --- Write-back --------------------------------------------------------------
-
-function slugify(s: string): string {
-  return (
-    s
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-+|-+$/g, "")
-      .slice(0, 60) || "note"
-  );
-}
-
-/**
- * Create a new note in the vault (default folder 01-Inbox). Only ever creates
- * new files — never edits existing notes — so Hermes' enrichment is never
- * clobbered. Returns the vault-relative path written.
- */
-export function createNote(opts: {
-  title: string;
-  content?: string;
-  folder?: string;
-}): string {
-  if (!kbEnabled()) throw new Error("knowledge base not configured");
-  const folder = (opts.folder || "01-Inbox").replace(/^\/+|\/+$/g, "");
-  const dir = safeResolve(folder);
-  fs.mkdirSync(dir, { recursive: true });
-
-  let slug = slugify(opts.title);
-  let filename = `${slug}.md`;
-  // Avoid collisions rather than overwriting.
-  if (fs.existsSync(path.join(dir, filename))) {
-    slug = `${slug}-${Date.now().toString(36)}`;
-    filename = `${slug}.md`;
-  }
-  const full = path.join(dir, filename);
-
-  const created = new Date().toISOString().split("T")[0];
-  const body = [
-    "---",
-    `title: ${opts.title}`,
-    `created: ${created}`,
-    "source: lifeos",
-    "---",
-    "",
-    `# ${opts.title}`,
-    "",
-    (opts.content || "").trim(),
-    "",
-  ].join("\n");
-
-  fs.writeFileSync(full, body, "utf-8");
-  // Hand ownership to the host user so Hermes can append its section.
-  try {
-    fs.chownSync(full, KB_UID, KB_GID);
-  } catch {
-    // Not running as root / unsupported — best-effort, note still created.
-  }
-  return path.relative(path.resolve(KB_PATH), full);
 }

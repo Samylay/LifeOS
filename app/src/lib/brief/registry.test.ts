@@ -5,15 +5,15 @@
 import { describe, it, expect } from "vitest";
 import { REGISTRY } from "./registry";
 
-const SURVIVING_IDS = ["planning", "work", "triage", "fuite", "ft_headlines", "quorky_digest"];
+const SURVIVING_IDS = ["planning", "work", "triage", "fuite"];
 
 // Removed on Samy's call (2026-09-06): ships (data source destroyed by the
-// /projects rework), workout and objectives (dropped), prompt (superseded by
-// /prime), homelab (relocated to /status).
+// /projects rework), workout, objectives and prompt (dropped), homelab
+// (relocated to /status).
 const REMOVED_IDS = ["ships", "workout", "prompt", "objectives", "homelab"];
 
 describe("brief registry", () => {
-  it("contains exactly the surviving card ids, in the fixed order: plan, work, triage, then digest", () => {
+  it("contains exactly the surviving card ids in the fixed order", () => {
     expect(REGISTRY.map((r) => r.meta.id)).toEqual(SURVIVING_IDS);
   });
 

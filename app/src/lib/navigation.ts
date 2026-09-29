@@ -1,57 +1,35 @@
 import {
-  Home01Icon, Layers01Icon, CheckListIcon, Folder01Icon, Video01Icon,
-  BookOpen01Icon, Mic01Icon, Dumbbell01Icon, Wallet01Icon, Search01Icon,
-  Settings01Icon, Activity01Icon, News01Icon, Menu01Icon, ComputerTerminal01Icon,
-  Restaurant01Icon, PlayListIcon, ContentWritingIcon,
-  NetworkIcon, Chat01Icon,
+  Home01Icon, CheckListIcon, Chat01Icon,
+  Dumbbell01Icon, Wallet01Icon,
+  Settings01Icon, Activity01Icon,
 } from "@hugeicons/core-free-icons";
 
 // One route inventory for desktop, mobile, and the current-page label.
-export const NAV_GROUPS = [
-  { label: "Workspace", items: [
-    { href: "/", label: "Today", icon: Home01Icon },
-    { href: "/news", label: "News", icon: News01Icon },
-    { href: "/decide", label: "Decide", icon: Layers01Icon },
-    { href: "/decide/approvals", label: "Approvals", icon: CheckListIcon },
-    { href: "/projects", label: "Projects", icon: Folder01Icon },
-    { href: "/micro", label: "Micro", icon: ComputerTerminal01Icon },
-    { href: "/workflows", label: "Workflows", icon: Layers01Icon },
-    { href: "/teaching", label: "Teaching", icon: BookOpen01Icon },
-    { href: "/mind-map", label: "Mind map", icon: NetworkIcon },
-    { href: "/chat", label: "Chat", icon: Chat01Icon },
-    { href: "/content", label: "Content", icon: Video01Icon },
-  ]},
-  { label: "Personal", items: [
-    { href: "/voice", label: "Fluency", icon: Mic01Icon },
-    { href: "/essays", label: "Essays", icon: ContentWritingIcon },
-    { href: "/knowledge", label: "Knowledge", icon: BookOpen01Icon },
-    { href: "/workouts", label: "Training", icon: Dumbbell01Icon },
-    { href: "/finance", label: "Finance", icon: Wallet01Icon },
-  ]},
-  { label: "Explore", items: [
-    { href: "/leads", label: "Leads", icon: Search01Icon },
-    { href: "/feed", label: "Feed", icon: PlayListIcon },
-    { href: "/recipes", label: "Recipes", icon: Restaurant01Icon },
-  ]},
-];
-export const NAV_UTILITIES = [
-  { href: "/status", label: "Status", icon: Activity01Icon },
+export const NAV_ITEMS = [
+  { href: "/", label: "Today", icon: Home01Icon },
+  { href: "/decide", label: "Inbox", icon: CheckListIcon },
+  { href: "/chat", label: "Assistant", icon: Chat01Icon },
+  { href: "/workouts", label: "Training", icon: Dumbbell01Icon },
+  { href: "/finance", label: "Money", icon: Wallet01Icon },
+  { href: "/status", label: "System", icon: Activity01Icon },
   { href: "/settings", label: "Settings", icon: Settings01Icon },
 ];
-export const NAV_ITEMS = [...NAV_GROUPS.flatMap((g) => g.items), ...NAV_UTILITIES];
-export const MOBILE_ITEMS = ["/", "/decide", "/chat", "/voice"].map((href) => NAV_ITEMS.find((i) => i.href === href)!);
-export { Menu01Icon };
+export const MOBILE_ITEMS = NAV_ITEMS.filter((item) =>
+  ["/", "/decide", "/chat", "/workouts", "/finance"].includes(item.href)
+);
 
 export function activeDestination(pathname: string) {
+  if (pathname === "/workflows" || pathname.startsWith("/workflows/")) {
+    return NAV_ITEMS.find((item) => item.href === "/decide");
+  }
+  if (pathname === "/pager" || pathname.startsWith("/pager/")) {
+    return NAV_ITEMS.find((item) => item.href === "/status");
+  }
   return NAV_ITEMS.filter((item) => pathname === item.href || (item.href !== "/" && pathname.startsWith(`${item.href}/`)))
     .sort((a, b) => b.href.length - a.href.length)[0];
 }
 export function surfaceTitle(pathname: string) {
-  if (pathname === "/crawl4ai") return "Source preview";
-  if (pathname === "/review") return "Overhaul review";
-  if (pathname === "/voice/capture") return "Quick capture";
-  if (pathname === "/decide/dispatch") return "Results";
-  if (pathname.startsWith("/prime")) return "Priming";
-  if (pathname === "/diagrams") return "Diagrams";
+  if (pathname === "/knowledge/teach") return "Teach";
+  if (pathname.startsWith("/knowledge/teach/")) return "Teach session";
   return activeDestination(pathname)?.label ?? "Today";
 }

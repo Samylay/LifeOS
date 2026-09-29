@@ -5,7 +5,6 @@ export type AreaId = "health" | "career" | "finance" | "brand" | "admin";
 export type TaskStatus = "todo" | "in_progress" | "done" | "cancelled";
 export type TaskPriority = "low" | "medium" | "high" | "urgent";
 
-export type ProjectStatus = "planning" | "active" | "paused" | "completed" | "archived";
 
 // --- Core Models ---
 
@@ -42,31 +41,6 @@ export interface Note {
   tags: string[];
   createdAt: Date;
   processed: boolean;
-}
-
-export interface Project {
-  id: string;
-  title: string;
-  area?: AreaId;
-  status: ProjectStatus;
-  targetDate?: Date;
-  nextAction?: string;
-  // Concrete external contact point that counts as this project shipping
-  // (e.g. "demo to one JECT member", "screenshot + writeup posted").
-  // Required to be active — enforced in use-projects.ts, not by convention.
-  shippingEvent?: string;
-  // One-line reason recorded when a project is archived from active/planning.
-  // Kills are allowed and healthy, but they're a logged decision, not drift.
-  killReason?: string;
-  // Quarterly goal this project serves. Projects and goals share one surface:
-  // a project without a goal is "unaligned" and gets nudged.
-  goalId?: string;
-  linkedTaskIds: string[];
-  createdAt: Date;
-  // Last time any field was edited (status, next action, tasks, etc.).
-  // Stamped on every write in use-projects.ts; backfilled from createdAt for
-  // legacy docs via fallbackDates.
-  updatedAt: Date;
 }
 
 /** Normalize a user-typed tag: lowercase kebab, no leading '#'. */
@@ -293,83 +267,6 @@ export interface Reminder {
   lastCompletedDate?: string; // YYYY-MM-DD
   createdAt: Date;
 }
-
-// --- Ingredient categories (used by recipes) ---
-
-export type ShoppingCategory =
-  | "groceries"
-  | "household"
-  | "personal_care"
-  | "snacks"
-  | "beverages"
-  | "frozen"
-  | "other";
-
-export const SHOPPING_CATEGORIES: Record<ShoppingCategory, { label: string; color: string }> = {
-  groceries: { label: "Groceries", color: "#22C55E" },
-  household: { label: "Household", color: "#6366F1" },
-  personal_care: { label: "Personal Care", color: "#EC4899" },
-  snacks: { label: "Snacks", color: "#F59E0B" },
-  beverages: { label: "Beverages", color: "#06B6D4" },
-  frozen: { label: "Frozen", color: "#8B5CF6" },
-  other: { label: "Other", color: "#64748B" },
-};
-
-// --- Recipes & Meal Plan ---
-
-export interface RecipeIngredient {
-  name: string;
-  quantity?: string;
-  category?: ShoppingCategory;
-}
-
-export interface Recipe {
-  id: string;
-  name: string;
-  ingredients: RecipeIngredient[];
-  steps?: string[];
-  tags?: string[];
-  servings?: number;
-  prepMinutes?: number;
-  notes?: string;
-  source?: string; // URL or free-text origin
-  keepsDays?: number; // fridge life once prepped
-  // Energy layer: per-serving numbers a future workout agent reads to match
-  // meals against a session's energy demand. Estimates are fine; keep them
-  // per serving, not per batch.
-  kcalPerServing?: number;
-  proteinPerServingG?: number;
-  createdAt: Date;
-  updatedAt?: Date;
-}
-
-export type MealDay = "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
-export type MealSlot = "lunch" | "dinner";
-
-export interface MealPlanEntry {
-  recipeId?: string;
-  recipeName?: string; // free-text if no recipe linked
-  text?: string; // free-text note instead of a recipe
-}
-
-export interface MealPlan {
-  id: string; // week identifier, e.g. ISO date of Monday "YYYY-MM-DD"
-  weekOf: string; // YYYY-MM-DD (Monday)
-  meals: Partial<Record<MealDay, Partial<Record<MealSlot, MealPlanEntry>>>>;
-  updatedAt: Date;
-}
-
-export const MEAL_DAYS: MealDay[] = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
-export const MEAL_DAY_LABELS: Record<MealDay, string> = {
-  mon: "Monday",
-  tue: "Tuesday",
-  wed: "Wednesday",
-  thu: "Thursday",
-  fri: "Friday",
-  sat: "Saturday",
-  sun: "Sunday",
-};
-export const MEAL_SLOTS: MealSlot[] = ["lunch", "dinner"];
 
 // --- Body Measurements ---
 
@@ -656,76 +553,6 @@ export function calendarDaysBetween(a: Date, b: Date): number {
   return Math.round((Date.UTC(by, bm - 1, bd) - Date.UTC(ay, am - 1, ad)) / 86_400_000);
 }
 
-// --- Daily Prime (morning priming ritual) ---
-//
-// Two stacked steps run each morning: read-aloud affirmations, and one spoken
-// journaling prompt under a soft timer. The affirmation/prompt content lives
-// in editable banks; each morning composes a `PrimeDay` from them and
-// persists acknowledgements.
-
-export type AffirmationType = "anchor" | "rotating" | "contextual";
-
-export interface Affirmation {
-  id: string;
-  text: string;
-  type: AffirmationType; // anchors show most days; rotating/contextual swap in
-  active: boolean;
-  order: number;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export type PromptCategory = "concrete" | "abstract";
-
-export interface PrimePrompt {
-  id: string;
-  text: string;
-  category: PromptCategory; // concrete leads; abstract mixed in later
-  weight: number; // how often it rotates in (relative)
-  active: boolean;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export interface Principle {
-  id: string;
-  text: string; // standing principle, e.g. "Prayers are rituals."
-  active: boolean;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-// A single morning's record. id = the date string (YYYY-MM-DD).
-export interface PrimeDay {
-  date: string; // YYYY-MM-DD
-  affirmations: {
-    id: string;
-    text: string;
-    type: AffirmationType;
-    acknowledged: boolean;
-  }[];
-  principleOfDay?: string; // optional standing-principle slot for the day
-  prompt: { id: string; text: string; category: PromptCategory };
-  promptAcknowledged: boolean;
-  completedAt?: Date; // set once every step is acknowledged
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export interface PrimeSettings {
-  // Soft-timer floor in seconds — a target to reach, not a countdown. Raise
-  // over time (60 → 90 → 120) as fluency builds.
-  timerFloorSec: number;
-}
-
-export const PRIME_TIMER_FLOORS = [60, 90, 120] as const;
-export const DEFAULT_PRIME_SETTINGS: PrimeSettings = { timerFloorSec: 60 };
-
-/** Local date as YYYY-MM-DD (used as the PrimeDay id). */
-export function todayKey(d: Date = new Date()): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
-
 // --- Things to Learn ---
 //
 // A deliberately minimal learning backlog: topics parked until there's time.
@@ -739,52 +566,6 @@ export interface LearnItem {
   why: string; // what pulled you toward it
   firstStep?: string; // smallest concrete entry point
   status: LearnStatus;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-// --- Content OS ---
-//
-// Operational layer for the content system documented in the Obsidian vault
-// (01-Inbox/content-os/). The vault holds the playbook (brand, strategy,
-// SOP); these types hold the two things that change weekly: the idea bank
-// and the post tracker.
-
-export type ContentPillar = "build-log" | "workflow-win" | "under-the-hood";
-
-// Production pipeline, matching the weekly batch SOP (script Mon → record
-// Tue → edit Wed → publish Thu–Sun).
-// Three states, not five (T-content-rework-02). `scripted`/`recorded`/`edited`
-// are gone; migrateStatus in lib/content/idea-status.ts maps legacy rows.
-export type ContentIdeaStatus = "idea" | "ready" | "posted";
-
-export interface ContentIdea {
-  id: string;
-  title: string;
-  pillar: ContentPillar | ""; // "" = banked unsorted (e.g. by bookmark triage), needs a pillar before scripting
-  hookFormula?: number; // 1–12 from the hook library; unset = topic, not script-ready
-  episode?: number; // Build Log serial number
-  notes?: string;
-  // Samy's own writing: the hook and beats, in his words. This is the point of
-  // the record — what he posts is his.
-  body?: string;
-  // Brainstorm output, stored SEPARATELY from `body` and never merged into it
-  // (T-content-rework-04). Keeping them in different fields is what makes
-  // "which words are mine" answerable rather than a matter of memory.
-  brainstorm?: {
-    angles: string[];
-    questions: string[];
-    contentType: string | null;
-    hooks: number[];
-    at: Date;
-  };
-  /** @deprecated Output of the deleted script generator. Kept so no row loses
-   *  data, never rendered: showing him a postable script is the thing this
-   *  vertical was rebuilt to stop doing. */
-  script?: string;
-  /** @deprecated As `script`. */
-  caption?: string;
-  status: ContentIdeaStatus;
   createdAt: Date;
   updatedAt: Date;
 }

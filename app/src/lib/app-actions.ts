@@ -127,18 +127,6 @@ export async function executeAppActions(actions: ChatAction[]): Promise<AppActio
           results.push({ tool: action.tool, summary: `Scheduled LifeOS notification for ${scheduledAt.toLocaleString("en-GB", { timeZone: "Europe/Paris" })}` });
           break;
         }
-        case "create_project": {
-          const p = action.input as { title: string; area?: string; status?: string };
-          createDoc(COLL("projects"), {
-            title: p.title,
-            status: p.status || "planning",
-            linkedTaskIds: [],
-            ...(p.area ? { area: p.area } : {}),
-            ...stamps(),
-          });
-          results.push({ tool: "create_project", summary: `Created project: "${p.title}"` });
-          break;
-        }
         case "complete_task": {
           const c = action.input as { title: string };
           const open = (listDocs(COLL("tasks")) as Array<{ id: string; title?: string; status?: string }>)
@@ -162,8 +150,7 @@ export async function executeAppActions(actions: ChatAction[]): Promise<AppActio
         case "capture_braindump": {
           // Raw thinking belongs in the vault inbox, not the notes table:
           // `01-Inbox/voice/<date>.md` is what Hermes' classify.py sweeps and
-          // enriches. This is the route /voice already takes (see
-          // /api/voice/save) — exposing it as a chat tool means a dump typed
+          // enriches. This is the save path (/api/voice/save) — exposing it as a chat tool means a dump typed
           // or spoken into the assistant lands in the same place as one
           // captured through the VoicePal surface, instead of dead-ending as
           // a `notes` row nothing ever reads again.

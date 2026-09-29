@@ -14,6 +14,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { AlertCircle, ArrowUpRight, CheckCheck } from "lucide-react";
+import { EmptyState } from "@/components/empty-state";
 import { cn } from "@/lib/utils";
 import { PAGER_STREAMS, useNotifications, type PagerMessage, type PagerStream } from "@/lib/use-notifications";
 
@@ -31,8 +32,9 @@ function Row({ m, onRead }: { m: PagerMessage; onRead: () => void }) {
   const inner = (
     <div className="flex items-start gap-2">
       <span
+        role="img"
+        aria-label={m.readAt ? "Read" : "Unread"}
         className={cn("mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full", m.readAt ? "bg-transparent" : "bg-primary")}
-        aria-label={m.readAt ? undefined : "unread"}
       />
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium text-foreground">{m.title}</p>
@@ -51,7 +53,7 @@ function Row({ m, onRead }: { m: PagerMessage; onRead: () => void }) {
   );
 
   const className = cn(
-    "block rounded-lg border border-border px-3 py-2 transition-transform duration-[var(--dur-fast)] ease-[var(--ease-out-custom)] active:scale-[0.99]",
+    "block rounded-lg border border-border px-3 py-2 transition-transform duration-[var(--dur-fast)] ease-[var(--ease-out-custom)] active:scale-[0.97]",
     !m.readAt && "bg-card",
   );
 
@@ -67,10 +69,21 @@ export function AlertInbox() {
   const { messages, loading, markRead, markAllRead } = useNotifications();
   const [stream, setStream] = useState<PagerStream | "all">("all");
   const [expanded, setExpanded] = useState(false);
-
-  const visible = messages.filter((m) => stream === "all" || m.stream === stream);
-  const unread = messages.filter((m) => !m.readAt).length;
-  const shown = expanded ? visible.slice(0, 100) : visible.slice(0, 8);
+  const [cutoff] = useState(() => Date.now() - 7 * 24 * 60 * 60 * 1000);
+  const recent = messages.filter((m) => m.createdAt.getTime() >= cutoff);
+  const olderCount = messages.length - recent.length;
+  const visible = recent
+    .filter((m) => stream === "all" || m.stream === stream)
+    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  const unread = visible.filter((m) => !m.readAt).length;
+  const shown = expanded ? visible : visible.slice(0, 8);
+  const groups = shown.reduce<Array<{ day: string; items: PagerMessage[] }>>((all, message) => {
+    const day = message.createdAt.toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" });
+    const last = all[all.length - 1];
+    if (last?.day === day) last.items.push(message);
+    else all.push({ day, items: [message] });
+    return all;
+  }, []);
 
   if (loading) return null;
 
@@ -92,14 +105,14 @@ export function AlertInbox() {
 
       <div className="flex flex-wrap gap-1.5">
         {(["all", ...PAGER_STREAMS] as const).map((s) => {
-          const n = s === "all" ? messages.length : messages.filter((m) => m.stream === s).length;
+          const n = s === "all" ? recent.length : recent.filter((m) => m.stream === s).length;
           if (n === 0 && s !== "all") return null;
           return (
             <button
               key={s}
               onClick={() => setStream(s)}
               className={cn(
-                "rounded-full px-2.5 py-1 text-xs font-medium transition-transform duration-[var(--dur-fast)]",
+                "min-h-11 rounded-full px-3 text-xs font-medium transition-transform duration-[var(--dur-fast)] ease-[var(--ease-out-custom)] active:scale-[0.97]",
                 stream === s ? "bg-surface-3 text-foreground" : "bg-muted text-muted-foreground",
               )}
             >
@@ -110,23 +123,29 @@ export function AlertInbox() {
       </div>
 
       {visible.length === 0 ? (
-        <p className="rounded-lg border border-border px-3 py-4 text-center text-sm text-muted-foreground">
-          Nothing here.
-        </p>
+        <EmptyState compact title="No recent alerts" hint="Notifications from the last seven days appear here." icon={CheckCheck} />
       ) : (
-        <ul className="space-y-1.5">
-          {shown.map((m) => (
-            <li key={m.id}>
-              <Row m={m} onRead={() => { if (!m.readAt) markRead(m.id); }} />
-            </li>
+        <div className="space-y-3">
+          {groups.map((group) => (
+            <section key={group.day} aria-label={group.day}>
+              <h3 className="mb-1.5 text-xs font-medium text-muted-foreground">{group.day}</h3>
+              <ul className="space-y-1.5">
+                {group.items.map((m) => (
+                  <li key={m.id}>
+                    <Row m={m} onRead={() => { if (!m.readAt) markRead(m.id); }} />
+                  </li>
+                ))}
+              </ul>
+            </section>
           ))}
-        </ul>
+        </div>
       )}
 
+      {olderCount > 0 && <p className="text-xs text-muted-foreground">{olderCount} older hidden</p>}
       {!expanded && visible.length > shown.length && (
         <button
           onClick={() => setExpanded(true)}
-          className="text-xs font-medium text-primary transition-transform duration-[var(--dur-fast)] ease-[var(--ease-out-custom)] active:scale-[0.97]"
+          className="min-h-11 text-xs font-medium text-primary transition-transform duration-[var(--dur-fast)] ease-[var(--ease-out-custom)] active:scale-[0.97]"
         >
           Show {visible.length - shown.length} more
         </button>

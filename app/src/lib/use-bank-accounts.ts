@@ -2,8 +2,8 @@
 
 // Client hook for the /finance connected-accounts panel (T71). Read-only:
 // fetches the bank-fed side (accounts + balances + recent synced
-// transactions) on mount, distinct from useFinance's hand-kept flows. See
-// bank-db.listConnectedAccounts/listRecentBankTransactions for the shape.
+// transactions) on mount. See bank-db.listConnectedAccounts and
+// bank-db.listRecentBankTransactions for the shape.
 import { useCallback, useEffect, useState } from "react";
 
 export interface ConnectedAccount {

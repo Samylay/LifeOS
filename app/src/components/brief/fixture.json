@@ -35,16 +35,6 @@
       "error": null
     },
     {
-      "id": "quorky_digest",
-      "type": "quorky_digest",
-      "priority": "state",
-      "status": "neutral",
-      "title": "Quorky Digest",
-      "body": {},
-      "link": "https://example.com/digest/2026-07-02",
-      "error": null
-    },
-    {
       "id": "broken_source",
       "type": "fuite",
       "priority": "state",

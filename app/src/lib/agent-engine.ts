@@ -1,5 +1,5 @@
-// The shared agent turn behind BOTH the Assistant chat panel and the /voice
-// VoicePal surface. `Codex CLI` has no native function calling, so the tool
+// The shared agent turn behind the Assistant chat panel. `Codex CLI` has no
+// native function calling, so the tool
 // catalog (app-item tools + homelab tools) is described in the prompt and the
 // model returns a { reply, actions } JSON envelope. Homelab tools execute HERE
 // in a bounded loop — each round's TOOL_RESULT lines are appended to the
@@ -170,31 +170,6 @@ export const APP_TOOLS: OpenAI.ChatCompletionTool[] = [
   {
     type: "function",
     function: {
-      name: "create_project",
-      description:
-        "Create a project. Projects group related tasks and have a status lifecycle (planning → active → completed).",
-      parameters: {
-        type: "object",
-        properties: {
-          title: { type: "string", description: "Project title" },
-          area: {
-            type: "string",
-            enum: ["health", "career", "finance", "brand", "admin"],
-            description: "Life area (optional)",
-          },
-          status: {
-            type: "string",
-            enum: ["planning", "active", "paused"],
-            description: "Initial project status",
-          },
-        },
-        required: ["title"],
-      },
-    },
-  },
-  {
-    type: "function",
-    function: {
       name: "capture_braindump",
       description:
         "Capture raw, unstructured thinking — a brain dump, a rambling idea, a voice ramble with no clear action in it — into the vault voice inbox, where Hermes picks it up and enriches it. Use this INSTEAD of create_note when the input is thinking-out-loud rather than a discrete fact or reference to file. If the dump also contains clear actions, capture the dump AND create the tasks.",
@@ -250,8 +225,7 @@ export interface AgentTurnOptions {
    * the full record if it wants to. */
   convoParts: string[];
   maxRounds?: number;
-  /** When true the envelope also carries `followUps` (the /voice Shadow
-   * Reader questions). */
+  /** When true the envelope also carries short follow-up questions. */
   includeFollowUps?: boolean;
   /** Live tool-activity line, streamed to the UI while a tool runs. */
   onStatus?: (text: string) => void;

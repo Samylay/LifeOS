@@ -6,21 +6,19 @@ import { toast as sonnerToast } from "sonner";
 import { useToast } from "@/components/toast";
 import {
   Check, Loader2, X, Activity, Eye, EyeOff, ChevronDown,
-  BellRing, Sunrise, RefreshCw, Send, Layers, Newspaper, Radar, Landmark, ListChecks, Plug,
+  BellRing, RefreshCw, Send, ListChecks, Plug, Info,
 } from "lucide-react";
 import { useGarmin } from "@/lib/use-garmin";
 import { PushSettings } from "@/components/push-settings";
-import { LeadsAvailabilityCard } from "@/components/leads-availability-card";
 import { BankAccountsCard } from "@/components/bank-accounts-card";
 import { Button } from "@/components/ui/button";
 import { Page, PageHeader } from "@/components/ui/page";
 import { Input } from "@/components/ui/input";
+import appPackage from "../../../package.json";
 
 const settingSections = [
-  { title: "Habits & routines", icon: ListChecks }, { title: "Collections", icon: Layers },
-  { title: "Feed & decisions", icon: Newspaper }, { title: "Notifications", icon: BellRing },
-  { title: "Leads", icon: Radar }, { title: "Integrations", icon: Plug },
-  { title: "Banks", icon: Landmark }, { title: "Morning brief", icon: Sunrise },
+  { title: "Connections", icon: Plug }, { title: "Notifications", icon: BellRing },
+  { title: "Habits", icon: ListChecks }, { title: "About", icon: Info },
 ];
 const sectionId = (title: string) => `settings-${title.toLowerCase().replace(/[^a-z]+/g, "-")}`;
 
@@ -91,11 +89,14 @@ function StravaCard() {
             <Activity size={18} style={{ color: "#FC5200" }} />
           </div>
           <div className="min-w-0">
-            <p className="text-sm font-medium text-foreground">Strava</p>
+            <p className="flex items-center gap-2 text-sm font-medium text-foreground">
+              <span aria-hidden="true" className="size-2 rounded-full" style={{ background: ok ? "var(--success)" : summary === null ? "var(--muted-foreground)" : "var(--warning)" }} />
+              Strava
+            </p>
             <p className="text-xs text-muted-foreground">
               {summary === null ? "Checking…"
                 : ok ? `Connected · ${summary.weekCount ?? 0} activities / ${summary.weekKm ?? 0} km this week`
-                : `Not configured (${summary.reason}) — set the STRAVA_* env vars`}
+                : `Not connected (${summary.reason}) — Strava credentials are configured by the server`}
             </p>
           </div>
         </div>
@@ -176,17 +177,20 @@ function GarminCard() {
             </svg>
           </div>
           <div>
-            <p className="text-sm font-medium text-foreground">Garmin Connect</p>
+            <p className="flex items-center gap-2 text-sm font-medium text-foreground">
+              <span aria-hidden="true" className="size-2 rounded-full" style={{ background: garmin.connection.connected ? "var(--success)" : "var(--muted-foreground)" }} />
+              Garmin Connect
+            </p>
             <p className="text-xs text-muted-foreground">
               {garmin.connection.connected
-                ? `Connected as ${garmin.connection.displayName || "Garmin user"}`
-                : "Sleep, HRV, and health data on the Training page"}
+                ? `Connected as ${garmin.connection.displayName || "Garmin user"} · ${garmin.connection.lastSyncedAt ? `synced ${new Date(garmin.connection.lastSyncedAt).toLocaleString()}` : "not synced this session"}`
+                : "Not connected · health data syncs from Garmin Connect"}
             </p>
           </div>
         </div>
         {garmin.connection.connected && (
           <div className="flex items-center gap-2">
-            <span className="flex items-center gap-1 rounded px-2 py-1 text-xs font-medium text-success">
+              <span className="flex items-center gap-1 rounded px-2 py-1 text-xs font-medium text-success">
               <Check size={12} /> Active
             </span>
             <Button
@@ -252,26 +256,7 @@ function GarminCard() {
 
 export default function SettingsPage() {
   const { toast } = useToast();
-  const [briefRunning, setBriefRunning] = useState(false);
   const [testSending, setTestSending] = useState(false);
-
-  const rebuildBrief = async () => {
-    setBriefRunning(true);
-    try {
-      const res = await fetch("/api/brief/run?force=1", { method: "POST" });
-      const data = await res.json();
-      if (data.ran) {
-        const errs = (data.cards || []).filter((c: { error?: string | null }) => c.error).length;
-        toast(`Brief rebuilt for ${data.date}${errs ? ` — ${errs} card${errs === 1 ? "" : "s"} errored` : ""}`);
-      } else {
-        toast(`Brief did not run: ${data.reason}`, "error");
-      }
-    } catch {
-      toast("Brief rebuild failed", "error");
-    } finally {
-      setBriefRunning(false);
-    }
-  };
 
   const sendTestNotification = async () => {
     setTestSending(true);
@@ -301,23 +286,15 @@ export default function SettingsPage() {
         title="Settings"
       />
 
-      <Link href="/review" className="flex min-h-12 items-center justify-between gap-3 rounded-xl border border-border bg-card p-4 text-sm font-medium active:scale-[0.97]">Your notebook and the LifeOS overhaul <span aria-hidden="true">→</span></Link>
       <div className="grid items-start gap-3">
-        <Section title="Habits & routines" sub="Keep your routines easy to change as life changes.">
-          <div className="grid gap-2 sm:grid-cols-2">
-            <Link href="/settings/habits" className="rounded-lg border border-border p-4 text-sm pressable active:scale-[0.97] hover:bg-muted"><span className="font-medium">Habits →</span><p className="mt-1 text-xs text-muted-foreground">Add, schedule, reorder, pause, or archive.</p></Link>
-            <Link href="/prime/manage" className="rounded-lg border border-border p-4 text-sm pressable active:scale-[0.97] hover:bg-muted"><span className="font-medium">Morning routine →</span><p className="mt-1 text-xs text-muted-foreground">Edit your affirmations, prompts, and principles.</p></Link>
-            <Link href="/settings/fluency" className="rounded-lg border border-border p-4 text-sm pressable active:scale-[0.97] hover:bg-muted"><span className="font-medium">Fluency practice →</span><p className="mt-1 text-xs text-muted-foreground">Your coach, exercises, and learning profile.</p></Link>
+        <Section title="Connections">
+          <div className="space-y-3">
+            <StravaCard />
+            <GarminCard />
+            <BankAccountsCard />
           </div>
         </Section>
-        <Section title="Collections" sub="Go straight to the collection you want to work on.">
-          <div className="flex flex-wrap gap-2"><Button asChild variant="outline"><Link href="/knowledge">Knowledge & learning</Link></Button><Button asChild variant="outline"><Link href="/content">Content ideas</Link></Button></div>
-        </Section>
-        <Section title="Feed & decisions" sub="Manage news sources and review what happens to saved material.">
-          <div className="flex flex-wrap gap-2"><Button asChild variant="outline"><Link href="/news/feeds">News sources</Link></Button><Button asChild variant="outline"><Link href="/decide">Saved-item decisions</Link></Button><Button asChild variant="outline"><Link href="/decide/dispatch">Queued work</Link></Button></div>
-        </Section>
-        {/* Notifications — first: the section touched most often */}
-        <Section title="Notifications" sub="Phone notifications and your inbox.">
+        <Section title="Notifications">
           <div className="mb-4">
             <PushSettings />
           </div>
@@ -343,44 +320,18 @@ export default function SettingsPage() {
           </div>
         </Section>
 
-        {/* Leads availability switch (ticket 04) */}
-        <Section title="Leads" sub="Whether scout's demand surface is allowed to show you anything.">
-          <LeadsAvailabilityCard />
+        <Section title="Habits">
+          <Link href="/settings/habits" className="flex min-h-12 items-center justify-between rounded-lg border border-border px-4 text-sm pressable active:scale-[0.97] hover:bg-muted">
+            <span className="font-medium">Manage habits</span><span className="text-muted-foreground" aria-hidden="true">→</span>
+          </Link>
         </Section>
-
-        {/* Integrations */}
-        <Section title="Integrations" sub="Training data sources. Status is live.">
-          <div className="space-y-4">
-            <StravaCard />
-            <GarminCard />
-          </div>
-        </Section>
-
-        {/* Bank connections — Enable Banking consent + sync (moved off /finance). */}
-        <Section title="Banks" sub="Read-only account access via Enable Banking. Consent lasts 180 days.">
-          <BankAccountsCard />
-        </Section>
-
-        {/* Morning brief */}
-        <Section title="Morning brief" sub="Generated daily at 06:00 — rebuild if a card looks stale or errored.">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
-                <Sunrise size={18} className="text-primary" />
-              </div>
-              <p className="text-sm text-muted-foreground">
-                Force a fresh build of today&apos;s brief.
-              </p>
+        <Section title="About">
+          <div className="space-y-3 text-sm">
+            <div className="flex items-center justify-between gap-3"><span className="text-muted-foreground">LifeOS version</span><span className="font-mono tabular-nums">{appPackage.version}</span></div>
+            <div className="flex flex-wrap gap-x-4 gap-y-2 border-t border-border pt-3">
+              <Link href="/status" className="min-h-11 inline-flex items-center text-primary pressable active:scale-[0.97]">System status</Link>
+              <Link href="/" className="min-h-11 inline-flex items-center text-primary pressable active:scale-[0.97]">LifeOS home</Link>
             </div>
-            <Button
-              onClick={rebuildBrief}
-              disabled={briefRunning}
-              size="sm"
-              className="text-xs active:scale-[0.97]"
-            >
-              {briefRunning ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
-              {briefRunning ? "Rebuilding…" : "Rebuild now"}
-            </Button>
           </div>
         </Section>
       </div>

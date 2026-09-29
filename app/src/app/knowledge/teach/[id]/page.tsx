@@ -49,7 +49,7 @@ export default function TeachSessionPage({ params }: { params: Promise<{ id: str
     const res = await fetch(`/api/teach/session/${id}`);
     if (!res.ok) {
       toast("Session not found", "error");
-      router.push("/knowledge");
+      router.push("/knowledge/teach");
       return;
     }
     const data = await res.json();
@@ -84,11 +84,11 @@ export default function TeachSessionPage({ params }: { params: Promise<{ id: str
       if (data.progress) setProgress(data.progress as SessionProgress);
       // Budget spent: the server already ended and routed the session
       // (learnerTurn) — this is a completion, not the abandonment path, so
-      // land him back on /knowledge the same way a manual "End session" does.
+      // land him back on the teaching queue the same way a manual "End session" does.
       if (data.ended) {
         setStatus("routed");
         toast("Session complete — filed to the vault", "success");
-        setTimeout(() => router.push("/knowledge"), 1200);
+        setTimeout(() => router.push("/knowledge/teach"), 1200);
       }
     },
     onTranscript: () => {},
@@ -106,7 +106,7 @@ export default function TeachSessionPage({ params }: { params: Promise<{ id: str
       const data = await res.json();
       if (!res.ok || data.error) throw new Error(data.error || `HTTP ${res.status}`);
       toast("Session filed to the vault — Hermes will enrich it", "success");
-      router.push("/knowledge");
+      router.push("/knowledge/teach");
     } catch (e) {
       toast(e instanceof Error ? e.message : "couldn't end the session", "error");
       setEnding(false);
@@ -121,8 +121,8 @@ export default function TeachSessionPage({ params }: { params: Promise<{ id: str
         <Button
           variant="ghost"
           size="icon-sm"
-          onClick={() => router.push("/knowledge")}
-          aria-label="Back to knowledge"
+          onClick={() => router.push("/knowledge/teach")}
+          aria-label="Back to teaching queue"
           className="text-muted-foreground"
         >
           <ArrowLeft size={18} />

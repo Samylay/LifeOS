@@ -18,7 +18,6 @@ import { createDoc, deleteDoc, listDocs } from "./server-db";
 import { TRIAGE_COLLECTION } from "./triage-ingest";
 import type { TriageItem } from "./triage";
 import { addTopic, isTagTombstoned, neverProposeTag, toMs, type TeachTopic } from "./teach";
-import { exploreKeepCounts } from "./feed";
 
 const TOPICS = "users/local/teachTopics";
 const TOPIC_TAGS = "users/local/topicTags";
@@ -33,8 +32,6 @@ export const CLUSTER_MIN = 3;
 // proposals)" — ticket 11's resolution, copied verbatim (compost.sh has no
 // reusable code, only this number — see ROADMAP T58).
 export const WEEKLY_CAP = 3;
-// Feed explore lane: keeps needed before a domain proposes itself as a topic.
-export const FEED_EXPLORE_KEEP_MIN = 2;
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
 export interface TagProposal {
@@ -48,9 +45,6 @@ export interface TopicProposal {
   kind: "topic";
   tag: string;
   count: number;
-  /** Provenance shown on the deck card: triage tag-cluster (default) or the
-   * feed's explore lane (count = kept feed cards, threshold 2 not 3). */
-  source?: "triage" | "feed";
 }
 
 export type Proposal = TagProposal | TopicProposal;
@@ -96,24 +90,6 @@ export function previewProposals(): Proposal[] {
     if (owned.has(tag)) continue; // a topic already owns this tag — map 11
     if (isTagTombstoned(tag)) continue; // he already said never
     topicProposals.push({ id: `topic:${tag}`, kind: "topic", tag, count });
-  }
-
-  // Feed explore lane (2026-07-20): a KEPT explore card is a deliberate
-  // curation act, stronger than an ingested save — 2 keeps stand as a
-  // cluster. Same deck, same accept/never flow, same tombstone law; the
-  // domain string is tag-shaped by generation contract.
-  const proposedIds = new Set(topicProposals.map((p) => p.id));
-  for (const [domain, keeps] of exploreKeepCounts()) {
-    if (keeps < FEED_EXPLORE_KEEP_MIN) continue;
-    if (owned.has(domain) || proposedIds.has(`topic:${domain}`)) continue;
-    if (isTagTombstoned(domain)) continue;
-    topicProposals.push({
-      id: `topic:${domain}`,
-      kind: "topic",
-      tag: domain,
-      count: keeps,
-      source: "feed",
-    });
   }
 
   return [...tagProposals, ...topicProposals];

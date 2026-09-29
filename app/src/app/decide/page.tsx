@@ -1,297 +1,208 @@
 "use client";
-import { CalibrationNudge } from "@/components/decide/calibration-nudge";
 
-// /decide — Samy sorting inbound material. Stacks of swipeable cards sharing
-// one gesture component: "Saved" (captured items, each naming the action
-// approving it commits) and "Proposals" (tag/topic proposals). Swipe right =
-// approve, left = discard; "Not now" defers; voice for anything nuanced.
-//
-// ROADMAP approvals moved to /decide/approvals (T-decide-rework-07): an agent
-// asking permission is a different interruption from sorting bookmarks, and
-// the two no longer interleave in one deck.
-import { Suspense, useCallback, useEffect, useState } from "react";
-import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
-import { Check, Clock, Inbox, Layers, RefreshCw, Terminal, X } from "lucide-react";
-import { TriageBulkBar, bulkTarget } from "@/components/decide/triage-bulk-bar";
-import { cn } from "@/lib/utils";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { toast } from "sonner";
+import { Check, Clock3, FileText, FlaskConical, Inbox, RefreshCw, Tag, Workflow, X } from "lucide-react";
+import { ProgressBar } from "@/components/charts";
+import { Page, PageHeader } from "@/components/ui/page";
+import { EmptyState } from "@/components/empty-state";
+import { SourceAvatar } from "@/components/ui/avatar";
 import { CardStack, type DeckAction } from "@/components/decide/card-stack";
 import { TriageCard, type TriageQueueItem } from "@/components/decide/triage-card";
-import { isPerformable, proposedAction, type Action } from "@/lib/decide/homelab-actions";
-import { post } from "@/lib/decide/post";
 import { ProposalCard } from "@/components/decide/proposal-card";
+import { DecisionCard } from "@/components/decide/decision-card";
+import { ResultCard } from "@/components/workflows/result-card";
+import type { DecisionItem } from "@/lib/decisions";
 import type { Proposal } from "@/lib/proposals";
-import { FilterBar, Page, PageHeader } from "@/components/ui/page";
+import { post } from "@/lib/decide/post";
+import { capSavedItems, SAVED_LIMIT, type SavedInboxItem } from "@/lib/decide/inbox-cap";
+import { isPerformable, proposedAction, type Action } from "@/lib/decide/homelab-actions";
+import { STATE_LABEL, type WorkflowRun } from "@/lib/workflows/model";
+import { cn } from "@/lib/utils";
 
-type Deck = "saved" | "proposals";
+type Tab = "all" | "saved" | "agents" | "results";
+type ExtractData = { groups: { id: string; title: string; items: { title: string; state: string; summary: string; source?: string; session?: string }[] }[]; rulings: { title: string; state: string; summary: string; source?: string }[] };
+type DispatchItem = { id: string; title: string; url: string; filedAt?: { __date?: string } | string };
+type SavedItem = (TriageQueueItem & { type: "triage" }) | (Proposal & { type: "proposal"; id: string });
+type Entry =
+  | { id: string; group: "saved"; kind: "triage"; title: string; subtitle: string; age: string; source: string; item: TriageQueueItem }
+  | { id: string; group: "saved"; kind: "proposal"; title: string; subtitle: string; age: string; source: string; item: Proposal }
+  | { id: string; group: "agents"; kind: "agent"; title: string; subtitle: string; age: string; source: string; item: DecisionItem }
+  | { id: string; group: "results"; kind: "workflow"; title: string; subtitle: string; age: string; source: string; item: WorkflowRun }
+  | { id: string; group: "results"; kind: "extract" | "dispatch"; title: string; subtitle: string; age: string; source: string; item: { title: string; state: string; summary: string; source?: string } };
 
-const DECKS: Deck[] = ["saved", "proposals"];
-
-// Two gestures, because the card already names the one action approving
-// commits (T-decide-rework-04). The old Vault / Idea / Backlog buttons are
-// gone: they overrode the proposal with an untyped verb, and the Backlog one
-// silently defaulted to the polymath centre when no centre was given.
-// Choosing a different action comes back, properly typed, in ticket 06.
-const TRIAGE_ACTIONS: DeckAction[] = [
+const tabs: { id: Tab; label: string }[] = [{ id: "all", label: "All" }, { id: "saved", label: "Saved" }, { id: "agents", label: "Agents" }, { id: "results", label: "Results" }];
+const RESULTS_LIMIT = 10;
+const actions: DeckAction[] = [
   { id: "discard", label: "Discard", icon: X, direction: "left", tone: "danger" },
-  { id: "defer", label: "Not now", icon: Clock, direction: "none", tone: "neutral" },
-  { id: "approve", label: "Fits, handle it", icon: Check, direction: "right", tone: "success" },
+  { id: "defer", label: "Defer", icon: Clock3, direction: "none", tone: "neutral" },
+  { id: "approve", label: "Approve", icon: Check, direction: "right", tone: "success" },
 ];
-
-// "Never" tombstones the tag permanently (map 11's only eligibility
-// mechanism) — this is what stops `[humor]`×12 from re-proposing "learn
-// humor" every night.
-const PROPOSAL_ACTIONS: DeckAction[] = [
-  { id: "never", label: "Never", icon: X, direction: "left", tone: "danger" },
-  { id: "accept", label: "Accept", icon: Check, direction: "right", tone: "success" },
-];
+const actionClass = "inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-border px-3 text-sm transition-transform duration-[var(--dur-fast)] ease-[var(--ease-out-custom)] active:scale-[0.97]";
+const asDate = (v: unknown): number | null => { const iso = typeof v === "string" ? v : v && typeof v === "object" && "__date" in v ? String((v as { __date?: string }).__date ?? "") : ""; const n = Date.parse(iso); return Number.isFinite(n) ? n : null; };
+const ageLabel = (value: unknown) => { const ms = asDate(value); if (ms === null) return ""; const days = Math.max(0, Math.floor((Date.now() - ms) / 86400000)); return days === 0 ? "Today" : days === 1 ? "1d" : `${days}d`; };
 
 export default function DecidePage() {
-  // useSearchParams needs a Suspense boundary for prerendering.
-  return (
-    <Suspense fallback={null}>
-      <DecideInner />
-    </Suspense>
-  );
+  return <Suspense fallback={<div className="page"><div className="shimmer h-16 rounded-xl bg-card" /></div>}><InboxContent /></Suspense>;
 }
 
-function DecideInner() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const paramDeck = searchParams.get("deck");
-  // Approvals moved to their own surface; old links and push payloads still
-  // point at ?deck=approvals, so send them on rather than showing an empty tab.
-  useEffect(() => {
-    if (paramDeck === "approvals") router.replace("/decide/approvals");
-  }, [paramDeck, router]);
-  const [deck, setDeckState] = useState<Deck>(
-    DECKS.includes(paramDeck as Deck) ? (paramDeck as Deck) : "saved",
-  );
+function InboxContent() {
+  const params = useSearchParams();
+  const requested = params.get("tab");
+  const requestedItem = params.get("item");
+  const [tab, setTab] = useState<Tab>(tabs.some((t) => t.id === requested) ? requested as Tab : "all");
   const [triage, setTriage] = useState<TriageQueueItem[]>([]);
-  // Samy's corrections, keyed by item id. A card with no entry commits the
-  // action the study step proposed.
-  const [overrides, setOverrides] = useState<Record<string, Action>>({});
-  // Only the pending count, to link across without loading the other deck.
-  const [approvalCount, setApprovalCount] = useState(0);
   const [proposals, setProposals] = useState<Proposal[]>([]);
-  const [missionDrafts, setMissionDrafts] = useState<Record<string, string>>({});
+  const [decisions, setDecisions] = useState<DecisionItem[]>([]);
+  const [runs, setRuns] = useState<WorkflowRun[]>([]);
+  const [extracts, setExtracts] = useState<ExtractData | null>(null);
+  const [dispatch, setDispatch] = useState<DispatchItem[]>([]);
+  const [missions, setMissions] = useState<Record<string, string>>({});
+  const [overrides, setOverrides] = useState<Record<string, Action>>({});
+  const [selectedId, setSelectedId] = useState("");
   const [loading, setLoading] = useState(true);
-  const [errors, setErrors] = useState<Partial<Record<Deck, boolean>>>({});
-
-  // Keep the chosen deck in the URL so a refresh / shared link lands on it.
-  const setDeck = useCallback((d: Deck) => {
-    setDeckState(d);
-    window.history.replaceState(null, "", d === "saved" ? "/decide" : `/decide?deck=${d}`);
-  }, []);
+  const [failed, setFailed] = useState(false);
+  const [auxFailed, setAuxFailed] = useState(false);
 
   const refresh = useCallback(async () => {
-    // null = the fetch itself failed; distinguish that from an empty deck so
-    // a dead API never renders as a false "queue is clear".
-    const get = (url: string): Promise<{ items?: unknown[] } | null> =>
-      fetch(url)
-        .then((r) => (r.ok ? r.json() : null))
-        .catch(() => null);
-    const [t, d, pr] = await Promise.all([
-      get("/api/triage/queue"),
-      get("/api/decide/queue"),
-      get("/api/proposals"),
-    ]);
-    setApprovalCount(d?.items?.length ?? 0);
-    // Every item is shown. One that arrived with no resolvable action asks
-    // Samy to pick one rather than being hidden — a hidden pile with no
-    // gesture is the backlog this deck refuses to hold.
-    setTriage((t?.items as TriageQueueItem[]) ?? []);
-    setProposals((pr?.items as Proposal[]) ?? []);
-    setErrors({ saved: t === null, proposals: pr === null });
-    setLoading(false);
+    const get = async (url: string) => { try { const r = await fetch(url); return r.ok ? await r.json() : null; } catch { return null; } };
+    try {
+      const [t, a, p, w, e, d] = await Promise.all([
+        get("/api/triage/queue"), get("/api/decide/queue"), get("/api/proposals"),
+        get("/api/workflows"), get("/api/decide/extracts"), get("/api/triage/dispatchable"),
+      ]);
+      if (!t || !a || !p || !w) throw new Error("Core inbox data unavailable");
+      setTriage(t.items ?? []); setDecisions(a.items ?? []); setProposals(p.items ?? []); setRuns(w.runs ?? []); setExtracts(e); setDispatch(d?.items ?? []); setAuxFailed(!e || !d); setFailed(false);
+    } catch { setFailed(true); }
+    finally { setLoading(false); }
   }, []);
+  useEffect(() => { queueMicrotask(() => void refresh()); }, [refresh]);
+  useEffect(() => { const onVis = () => { if (document.visibilityState === "visible") void refresh(); }; document.addEventListener("visibilitychange", onVis); return () => document.removeEventListener("visibilitychange", onVis); }, [refresh]);
+
+  const saved = useMemo(() => {
+    const rows: SavedItem[] = [
+      ...triage.map((item) => ({ ...item, type: "triage" as const })),
+      ...proposals.map((item) => ({ ...item, type: "proposal" as const, id: item.id })),
+    ];
+    return capSavedItems(rows as (SavedItem & SavedInboxItem)[]);
+  }, [triage, proposals]);
+  const entries = useMemo<Entry[]>(() => {
+    const savedEntries: Entry[] = saved.visible.map((row) => row.type === "triage"
+      ? { id: row.id, group: "saved", kind: "triage", title: row.proposal?.title || row.proposal?.summary || row.url, subtitle: row.source, age: ageLabel(row.savedAt), source: row.source, item: row }
+      : { id: row.id, group: "saved", kind: "proposal", title: `${row.kind === "tag" ? "Tag" : "Topic"}: ${row.tag}`, subtitle: row.kind === "topic" ? `${row.count} saved items` : "Suggested tag", age: "", source: "Saved", item: row });
+    const agentEntries: Entry[] = decisions.map((item) => ({ id: `agent:${item.id}`, group: "agents", kind: "agent", title: item.title, subtitle: item.project, age: ageLabel((item as DecisionItem & { createdAt?: unknown }).createdAt), source: item.project, item }));
+    const resultEntries: Entry[] = [
+      ...runs.map((item) => ({ id: `run:${item.id}`, group: "results" as const, kind: "workflow" as const, title: item.title, subtitle: STATE_LABEL[item.state], age: ageLabel(item.updatedAt), source: "Workflow", item })),
+      ...(extracts?.groups.flatMap((group) => group.items.map((item, i) => ({ id: `extract:${group.id}:${i}`, group: "results" as const, kind: "extract" as const, title: item.title, subtitle: `${group.title} · ${item.state}`, age: "", source: item.source || "Extract", item }))) ?? []),
+      ...dispatch.map((item) => ({ id: `dispatch:${item.id}`, group: "results" as const, kind: "dispatch" as const, title: item.title, subtitle: "Ready to dispatch", age: ageLabel(item.filedAt), source: "Dispatch", item: { title: item.title, state: "Ready", summary: item.url, source: item.url } })),
+    ];
+    return [...savedEntries, ...agentEntries, ...resultEntries.slice(0, RESULTS_LIMIT)];
+  }, [saved, decisions, runs, extracts, dispatch]);
+  const filtered = entries.filter((entry) => tab === "all" || entry.group === tab);
+  const selected = filtered.find((entry) => entry.id === selectedId) ?? filtered[0];
   useEffect(() => {
-    queueMicrotask(() => void refresh());
+    if (!requestedItem) return;
+    const match = entries.find((entry) => entry.id === requestedItem || entry.id === `run:${requestedItem}` || entry.id === `agent:${requestedItem}` || entry.id.endsWith(`:${requestedItem}`));
+    if (match) setSelectedId(match.id);
+  }, [requestedItem, entries]);
+  useEffect(() => { if (selected && selected.id !== selectedId) setSelectedId(selected.id); }, [selected, selectedId]);
+  const counts = { all: entries.length, saved: saved.visible.length, agents: decisions.length, results: entries.filter((e) => e.group === "results").length };
+  const resultsHidden = Math.max(0, runs.length + (extracts?.groups.reduce((count, group) => count + group.items.length, 0) ?? 0) + dispatch.length - RESULTS_LIMIT);
+
+  const actionFor = useCallback((item: TriageQueueItem) => {
+    const action = overrides[item.id] ?? (/^https?:\/\//i.test(item.url) ? { id: "homelab-develop", params: {} } as const : proposedAction(item));
+    return action && isPerformable(action) ? action : null;
+  }, [overrides]);
+  const decideSaved = useCallback(async (entry: Extract<Entry, { group: "saved" }>, actionId: string) => {
+    if (entry.kind === "triage") {
+      if (actionId === "defer") await post("/api/triage/defer", { id: entry.item.id });
+      else { const action = actionId === "discard" ? { id: "discard", params: {} } as const : actionFor(entry.item); if (!action) throw new Error("Choose a destination first."); await post("/api/triage/decide", { id: entry.item.id, action: action.id, params: action.params }); }
+    } else {
+      const mission = missions[entry.item.id] || "";
+      if (actionId === "approve" && entry.item.kind === "topic" && !mission.trim()) throw new Error("Write what you want to learn before accepting.");
+      await post("/api/proposals/verdict", { id: entry.item.id, action: actionId === "discard" ? "never" : "accept", mission: entry.item.kind === "topic" ? mission : undefined });
+    }
+    await refresh();
+  }, [actionFor, missions, refresh]);
+  const decideAgent = useCallback(async (item: DecisionItem, verdict: string) => { await post("/api/decide/verdict", { id: item.id, verdict }); await refresh(); }, [refresh]);
+  const decideWorkflow = useCallback(async (run: WorkflowRun, action: string) => { const response = await fetch("/api/workflows", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: run.id, action, reportHash: run.reportHash }) }); if (!response.ok) throw new Error((await response.json()).error || "Workflow action failed"); await refresh(); }, [refresh]);
+  const startWorkflow = useCallback(async (itemId: string) => {
+    try {
+      const response = await fetch("/api/workflows", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "start", itemId, kind: "auto" }) });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Could not start workflow");
+      await refresh();
+      setTab("results");
+      setSelectedId(`run:${data.run.id}`);
+      toast.success("Workflow started");
+    } catch (error) { toast.error(error instanceof Error ? error.message : "Could not start workflow"); }
   }, [refresh]);
 
-  // Coming back to the tab (phone-first: the app sleeps a lot) refetches, so
-  // decks decided elsewhere or grown overnight are never stale.
   useEffect(() => {
-    const onVis = () => { if (document.visibilityState === "visible") refresh(); };
-    document.addEventListener("visibilitychange", onVis);
-    return () => document.removeEventListener("visibilitychange", onVis);
-  }, [refresh]);
+    const onKey = (event: KeyboardEvent) => {
+      if (document.documentElement.clientWidth < 1024 || event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement || event.target instanceof HTMLSelectElement) return;
+      if (event.key === "j" || event.key === "k") {
+        event.preventDefault();
+        const index = filtered.findIndex((entry) => entry.id === selected?.id);
+        const next = Math.min(filtered.length - 1, Math.max(0, index + (event.key === "j" ? 1 : -1)));
+        if (filtered[next]) setSelectedId(filtered[next].id);
+      } else if (event.key === "Enter" && selected) {
+        document.querySelector<HTMLElement>("[aria-live='polite']")?.focus();
+      } else if (selected?.group === "saved" && selected.kind === "triage") {
+        if (event.key === "a") void decideSaved(selected, "approve");
+        if (event.key === "d") void decideSaved(selected, "defer");
+        if (event.key === "x") void decideSaved(selected, "discard");
+      } else if (selected?.kind === "agent") {
+        if (event.key === "a") void decideAgent(selected.item, "approved");
+        if (event.key === "d") void decideAgent(selected.item, "deferred");
+        if (event.key === "x") void decideAgent(selected.item, "rejected");
+      } else if (selected?.kind === "workflow" && selected.item.state === "ready" && event.key === "a") {
+        void decideWorkflow(selected.item, "approve");
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [filtered, selected, decideSaved, decideAgent, decideWorkflow]);
 
-  // The action a card would commit: Samy's correction if he made one, else
-  // the study step's proposal.
-  const actionFor = useCallback(
-    (item: TriageQueueItem): Action | null => {
-      const action = overrides[item.id] ?? (/^https?:\/\//i.test(item.url) ? { id: "homelab-develop", params: {} } as const : proposedAction(item));
-      return action && isPerformable(action) ? action : null;
-    },
-    [overrides],
-  );
+  const renderDetail = (entry: Entry) => <div className="min-w-0 space-y-4" key={entry.id}>
+    {entry.kind === "triage" && <><TriageCard item={entry.item} action={actionFor(entry.item)} onChangeAction={(action) => setOverrides((old) => ({ ...old, [entry.item.id]: action }))} onFeedback={() => void refresh()} onStartWorkflow={() => void startWorkflow(entry.item.id)} />{entry.item.evidenceRef && <a className={actionClass} href={`/decide/sources/${encodeURIComponent(entry.item.id)}`}>Read extracted evidence</a>}</>}
+    {entry.kind === "proposal" && <><ProposalCard item={entry.item} mission={missions[entry.item.id] || ""} onMissionChange={(value) => setMissions((old) => ({ ...old, [entry.item.id]: value }))} /><div className="flex gap-2"><button className={actionClass} onClick={() => void decideSaved(entry, "discard")}>Never</button><button className={`${actionClass} bg-primary text-primary-foreground`} onClick={() => void decideSaved(entry, "approve")}>Accept</button></div></>}
+    {entry.kind === "agent" && <><DecisionCard item={entry.item} /><div className="flex flex-wrap gap-2 px-4 pb-4"><button className={actionClass} onClick={() => void decideAgent(entry.item, "rejected")}>Reject</button><button className={actionClass} onClick={() => void decideAgent(entry.item, "deferred")}>Defer</button><button className={`${actionClass} bg-primary text-primary-foreground`} onClick={() => void decideAgent(entry.item, "approved")}>Approve</button><kbd className="hidden self-center text-xs text-muted-foreground xl:inline">a approve · d defer · x reject</kbd></div></>}
+    {entry.kind === "workflow" && <><ResultCard run={entry.item} />{entry.item.state === "ready" && <div className="flex gap-2"><button className={actionClass} onClick={() => void decideWorkflow(entry.item, "dismiss")}>Dismiss</button><button className={`${actionClass} bg-primary text-primary-foreground`} onClick={() => void decideWorkflow(entry.item, "approve")}>Approve result</button></div>}{entry.item.state === "blocked" && entry.item.phase === "evaluate" && <button className={actionClass} onClick={() => void decideWorkflow(entry.item, "retry")}>Retry</button>}</>}
+    {(entry.kind === "extract" || entry.kind === "dispatch") && <article className="rounded-2xl border border-border bg-card p-5"><span className="text-xs text-muted-foreground">{entry.subtitle}</span><h2 className="mt-3 text-xl font-semibold">{entry.item.title}</h2><p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">{entry.item.summary}</p>{entry.item.source && <a href={entry.item.source} target="_blank" rel="noreferrer" className={`${actionClass} mt-4`}>Open source</a>}</article>}
+  </div>;
 
-  // One approval, typed: action id + its parameters, never the item's text.
-  const approveOne = useCallback(async (item: TriageQueueItem, action: Action) => {
-    const d = await post("/api/triage/decide", {
-      id: item.id,
-      action: action.id,
-      params: action.params,
-      feedback: { verdict: action.id === "discard" ? "not-for-me" : "fits", evidenceRef: item.evidenceRef ?? null, assessmentRef: item.assessmentRef ?? null },
-    });
-    window.dispatchEvent(new Event("lifeos-calibration"));
-    return String(d.result ?? "");
-  }, []);
+  const mobileSaved: SavedItem[] = saved.visible;
+  const savedActions: DeckAction[] = [actions[0], actions[1], { ...actions[2], label: "Accept / approve" }];
 
-  const bulk = deck === "saved" ? bulkTarget(triage, actionFor) : null;
-
-  const tabs: { id: Deck; label: string; count: number }[] = [
-    { id: "saved", label: "Saved", count: triage.length },
-    ...(proposals.length > 0 || deck === "proposals"
-      ? [{ id: "proposals" as Deck, label: "Proposals", count: proposals.length }]
-      : []),
-  ];
-
-  return (
-    <Page narrow className="max-w-xl">
-      <PageHeader
-        title="Decide"
-        icon={Layers}
-      />
-      <CalibrationNudge />
-      <FilterBar
-        className="max-w-full overflow-x-auto"
-        style={{ scrollbarWidth: "none" }}
-      >
-        {/* overflow-x-auto: keeps the switcher scrollable instead of
-            overflowing the viewport on narrow phones (scrollbar hidden). */}
-          {tabs.map((t) => (
-            <button key={t.id} aria-pressed={deck === t.id} onClick={() => setDeck(t.id)}
-              className={cn(
-                "shrink-0 rounded-lg px-3 py-2 text-sm font-medium transition-transform duration-[var(--dur-fast)] ease-[var(--ease-out-custom)] active:scale-[0.97] max-lg:[min-height:44px]",
-                deck === t.id
-                  ? "bg-surface-3 text-foreground shadow-card"
-                  : "text-muted-foreground hover:text-foreground"
-              )}>
-              {t.label}{t.count > 0 && <span className="ml-1.5 text-xs text-primary">{t.count}</span>}
-            </button>
-          ))}
-          {/* Approvals is a separate surface, one tap away and never buried. */}
-          <Link
-            href="/decide/approvals"
-            className="ml-auto inline-flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-transform duration-[var(--dur-fast)] ease-[var(--ease-out-custom)] hover:text-foreground active:scale-[0.97] max-lg:[min-height:44px]"
-          >
-            <Inbox size={14} aria-hidden /> Approvals
-            {approvalCount > 0 && <span className="text-xs text-primary">{approvalCount}</span>}
-          </Link>
-          <Link
-            href="/workflows"
-            aria-label="Automatic results"
-            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-transform duration-[var(--dur-fast)] ease-[var(--ease-out-custom)] hover:text-foreground active:scale-[0.97] max-lg:[min-height:44px]"
-          >
-            <Terminal size={14} aria-hidden /> Results
-          </Link>
-          <Link href="/decide/extracts" aria-label="Decision history" className="inline-flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-transform duration-[var(--dur-fast)] ease-[var(--ease-out-custom)] hover:text-foreground active:scale-[0.97]">History</Link>
-      </FilterBar>
-
-      {loading ? (
-        <div className="shimmer rounded-xl bg-card p-10 text-center text-sm text-muted-foreground">
-          Loading decisions…
-        </div>
-      ) : errors[deck] ? (
-        // A failed fetch is not an empty deck — say so and offer a retry.
-        <div className="space-y-3 rounded-xl border border-border bg-card p-10 text-center">
-          <p className="text-sm text-muted-foreground">Couldn&apos;t load this deck.</p>
-          <button onClick={() => refresh()}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-accent px-3 py-2 text-sm font-medium text-accent-foreground transition-transform duration-150 active:scale-[0.97] max-lg:[min-height:44px]">
-            <RefreshCw size={14} /> Retry
-          </button>
-        </div>
-      ) : deck === "saved" ? (
-        <>
-        {bulk && (
-          <TriageBulkBar
-            target={bulk}
-            approve={approveOne}
-            onResolved={(landed) => {
-              const ids = new Set(landed.map((i) => i.id));
-              setTriage((xs) => xs.filter((x) => !ids.has(x.id)));
-            }}
-          />
-        )}
-        <CardStack
-          items={triage}
-          renderCard={(item) => (
-            <TriageCard
-              item={item}
-              onFeedback={() => void refresh()}
-              action={actionFor(item)}
-              onChangeAction={(action) =>
-                setOverrides((o) => ({ ...o, [item.id]: action }))}
-            />
-          )}
-          actions={TRIAGE_ACTIONS}
-          swipeLeftId="discard"
-          swipeRightId="approve"
-          // Approving a card that has no action yet would be a verdict with no
-          // meaning — spring it back and say what is missing.
-          guard={(item, actionId) =>
-            actionId === "approve" && !actionFor(item)
-              ? "Choose a destination first."
-              : null}
-          // The request carries the action id and its typed parameters only —
-          // never the item's own text. Approving commits exactly the action
-          // the card named.
-          perform={async (item, actionId) => {
-            // "Not now" is its own verdict — no filing side effect runs.
-            if (actionId === "defer") {
-              return String((await post("/api/triage/defer", { id: item.id })).result ?? "");
-            }
-            const action =
-              actionId === "discard" ? ({ id: "discard", params: {} } as const) : actionFor(item);
-            if (!action) throw new Error("no action proposed for this card");
-            return approveOne(item, action);
-          }}
-          onResolved={(item) => setTriage((xs) => xs.filter((x) => x.id !== item.id))}
-          undo={async (item) => { await post("/api/triage/restore", { id: item.id }); }}
-          onRestore={(item) => setTriage((xs) => [item, ...xs.filter((x) => x.id !== item.id)])}
-          interpret={async (item, transcript) => {
-            const d = await post("/api/triage/interpret", { id: item.id, transcript });
-            window.dispatchEvent(new Event("lifeos-calibration"));
-            await refresh();
-            return { reply: String(d.reply || d.result || ""), resolved: d.resolved !== false };
-          }}
-          emptyLabel="No saved items to decide. Deferred cards return on their date."
-        />
-        </>
-      ) : deck === "proposals" ? (
-        <CardStack
-          items={proposals}
-          renderCard={(item) => (
-            <ProposalCard
-              item={item}
-              mission={missionDrafts[item.id] || ""}
-              onMissionChange={(v) => setMissionDrafts((m) => ({ ...m, [item.id]: v }))}
-            />
-          )}
-          actions={PROPOSAL_ACTIONS}
-          swipeLeftId="never"
-          swipeRightId="accept"
-          // A topic without its mission 400s server-side — block the accept
-          // up front instead of eating the card.
-          guard={(item, actionId) =>
-            actionId === "accept" && item.kind === "topic" && !(missionDrafts[item.id] || "").trim()
-              ? "Write what you want to learn, then accept."
-              : null}
-          // "Never" tombstones the tag permanently: two taps/swipes to commit.
-          confirmIds={["never"]}
-          perform={async (item, actionId) =>
-            String((await post("/api/proposals/verdict", {
-              id: item.id,
-              action: actionId,
-              mission: item.kind === "topic" ? missionDrafts[item.id] : undefined,
-            })).result ?? "")}
-          onResolved={(item) => setProposals((xs) => xs.filter((x) => x.id !== item.id))}
-          onRestore={(item) => setProposals((xs) => [item, ...xs.filter((x) => x.id !== item.id)])}
-          emptyLabel="No new tags or topics to decide."
-        />
-      ) : null}
-    </Page>
-  );
+  return <Page className="max-w-7xl">
+    <PageHeader title="Inbox" icon={Inbox} actions={<button className={actionClass} onClick={() => void refresh()} aria-label="Refresh inbox"><RefreshCw size={15} />Refresh</button>} />
+    <div className="flex gap-1 overflow-x-auto rounded-xl border border-border bg-muted/50 p-1" role="tablist" aria-label="Inbox groups">
+      {tabs.map((item) => <button key={item.id} role="tab" aria-selected={tab === item.id} onClick={() => { setTab(item.id); window.history.replaceState(null, "", item.id === "all" ? "/decide" : `/decide?tab=${item.id}`); }} className={cn("min-h-10 shrink-0 rounded-lg px-3 text-sm transition-transform duration-[var(--dur-fast)] ease-[var(--ease-out-custom)] active:scale-[0.97]", tab === item.id ? "bg-surface-3 text-foreground shadow-card" : "text-muted-foreground hover:text-foreground")}>{item.label}<span className="ml-1.5 text-xs text-primary">{counts[item.id]}</span></button>)}
+    </div>
+    {(tab === "all" || tab === "saved") && <ProgressBar value={saved.visible.length} max={SAVED_LIMIT} label="Saved items today" showValue valueFormatter={(value, max) => `${value}/${max}`} className="max-w-sm" />}
+    {resultsHidden > 0 && (tab === "all" || tab === "results") && <p className="text-xs text-muted-foreground">{resultsHidden} older result items hidden</p>}
+    {auxFailed && tab === "results" && <p role="status" className="text-xs text-muted-foreground">Some result sources are unavailable. <button className="underline" onClick={() => void refresh()}>Retry</button></p>}
+    {saved.capped + saved.expired > 0 && (tab === "all" || tab === "saved") && <p className="text-xs text-muted-foreground">{saved.capped + saved.expired} older items hidden</p>}
+    {loading ? <div className="grid gap-4 lg:grid-cols-[minmax(320px,0.9fr)_minmax(0,1.5fr)]"><div className="shimmer h-80 rounded-xl bg-card"/><div className="shimmer h-80 rounded-xl bg-card"/></div> : failed ? <div role="alert" className="rounded-xl border border-warning/30 p-5 text-sm">Couldn&apos;t load the inbox. <button className="underline" onClick={() => void refresh()}>Retry</button></div> : filtered.length === 0 ? <EmptyState icon={Check} title="Inbox zero" hint="Nothing is waiting for your verdict." success /> : <>
+      <div className="hidden min-h-[68vh] gap-4 lg:grid lg:grid-cols-[minmax(320px,0.9fr)_minmax(0,1.5fr)]">
+        <nav aria-label="Inbox items" className="max-h-[74vh] space-y-1 overflow-y-auto rounded-xl border border-border bg-card p-2">
+          {filtered.map((entry) => <button key={entry.id} aria-current={selected?.id === entry.id ? "true" : undefined} onClick={() => setSelectedId(entry.id)} className={cn("flex w-full items-center gap-3 rounded-lg p-3 text-left transition-transform duration-[var(--dur-fast)] ease-[var(--ease-out-custom)] active:scale-[0.97]", selected?.id === entry.id ? "bg-secondary" : "hover:bg-muted/70")}>
+            <SourceAvatar source={entry.source} label={entry.source} size="sm" />
+            <span className="grid size-7 shrink-0 place-items-center rounded-md bg-muted text-primary">{entry.kind === "agent" ? <Inbox size={14}/> : entry.kind === "workflow" ? <FlaskConical size={14}/> : entry.kind === "proposal" ? <Tag size={14}/> : entry.kind === "extract" ? <FileText size={14}/> : <Workflow size={14}/>}</span>
+            <span className="min-w-0 flex-1"><span className="block truncate text-sm font-medium">{entry.title}</span><span className="mt-1 block truncate text-xs text-muted-foreground">{entry.subtitle}</span></span>
+            <span className="shrink-0 text-[11px] text-muted-foreground">{entry.age}</span>
+          </button>)}
+        </nav>
+        <section className="min-w-0 overflow-y-auto rounded-xl border border-border bg-background p-2" aria-live="polite">
+          {selected && renderDetail(selected)}
+          {selected?.group === "saved" && selected.kind === "triage" && <div className="flex flex-wrap gap-2 px-4 pb-4"><button className={actionClass} onClick={() => void decideSaved(selected, "discard")}>Discard <kbd className="ml-1 text-[10px]">x</kbd></button><button className={actionClass} onClick={() => void decideSaved(selected, "defer")}>Defer <kbd className="ml-1 text-[10px]">d</kbd></button><button className={`${actionClass} bg-primary text-primary-foreground`} onClick={() => void decideSaved(selected, "approve")}>Approve <kbd className="ml-1 text-[10px]">a</kbd></button></div>}
+        </section>
+      </div>
+      <div className="lg:hidden">
+        {tab === "saved" ? <CardStack key="saved-phone" items={mobileSaved} renderCard={(item) => item.type === "triage" ? <TriageCard item={item} action={actionFor(item)} onChangeAction={(action) => setOverrides((old) => ({ ...old, [item.id]: action }))} onStartWorkflow={() => void startWorkflow(item.id)} /> : <ProposalCard item={item} mission={missions[item.id] || ""} onMissionChange={(value) => setMissions((old) => ({ ...old, [item.id]: value }))} />} actions={savedActions} swipeLeftId="discard" swipeRightId="approve" guard={(item, id) => item.type === "triage" && id === "approve" && !actionFor(item) ? "Choose a destination first." : item.type === "proposal" && id === "approve" && item.kind === "topic" && !missions[item.id]?.trim() ? "Write what you want to learn first." : null} perform={async (item, id) => { const entry = entries.find((x) => x.id === item.id) as Extract<Entry, {group:"saved"}>; await decideSaved(entry, id); return "Saved"; }} onResolved={(item) => { setTriage((xs) => xs.filter((x) => x.id !== item.id)); setProposals((xs) => xs.filter((x) => x.id !== item.id)); }} undo={async (item) => { if (item.type === "triage") await post("/api/triage/restore", { id: item.id }); }} onRestore={() => void refresh()} emptyLabel="No saved items are waiting." /> : tab === "agents" ? <CardStack items={decisions} renderCard={(item) => <DecisionCard item={item} />} actions={[{ id: "rejected", label: "Reject", icon: X, direction: "left", tone: "danger" }, { id: "deferred", label: "Defer", icon: Clock3, direction: "none", tone: "neutral" }, { id: "approved", label: "Approve", icon: Check, direction: "right", tone: "success" }]} swipeLeftId="rejected" swipeRightId="approved" perform={async (item, id) => { await decideAgent(item, id); return id; }} onResolved={(item) => setDecisions((xs) => xs.filter((x) => x.id !== item.id))} onRestore={() => void refresh()} emptyLabel="No agent approvals are waiting." /> : <div className="space-y-3">{(tab === "all" ? filtered.slice(0, 1) : filtered).map((entry) => <button key={entry.id} onClick={() => setSelectedId(entry.id)} className="w-full rounded-xl border border-border bg-card p-3 text-left"><span className="text-xs text-muted-foreground">{entry.subtitle}</span><span className="mt-1 block font-medium">{entry.title}</span></button>)}{tab === "all" && selected && <div className="flex justify-between"><button className={actionClass} onClick={() => { const i = filtered.findIndex((e) => e.id === selected.id); setSelectedId(filtered[Math.max(0, i - 1)]?.id || ""); }}>Previous</button><button className={actionClass} onClick={() => { const i = filtered.findIndex((e) => e.id === selected.id); setSelectedId(filtered[Math.min(filtered.length - 1, i + 1)]?.id || ""); }}>Next</button></div>}{selected && renderDetail(selected)}</div>}
+      </div>
+    </>}
+  </Page>;
 }
