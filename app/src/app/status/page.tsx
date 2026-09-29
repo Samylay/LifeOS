@@ -7,16 +7,17 @@ import {
   Boxes,
   Cpu,
   ExternalLink,
+  Check,
   HardDrive,
   MemoryStick,
   RefreshCw,
 } from "lucide-react";
+import Link from "next/link";
 
-import { CountUp } from "@/components/count-up";
-import { ProgressBar } from "@/components/charts";
+import { ProgressRing } from "@/components/charts";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Page, PageHeader, SectionHeader } from "@/components/ui/page";
+import { Page, PageHeader } from "@/components/ui/page";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AlertInbox } from "@/components/status/alert-inbox";
 import { createRequestGate } from "@/lib/knowledge-request";
@@ -73,16 +74,6 @@ interface StatusData {
   delivery?: { subscriptions: number; lastDeliveredAt: string | null };
   problems?: Problem[];
   verdict?: "clear" | "problems" | "unknown";
-}
-
-function since(iso: string | null | undefined): string {
-  if (!iso) return "never";
-  const ms = Date.now() - new Date(iso).getTime();
-  if (Number.isNaN(ms)) return "unknown";
-  const h = Math.floor(ms / 3_600_000);
-  if (h < 1) return "under an hour ago";
-  if (h < 48) return `${h}h ago`;
-  return `${Math.floor(h / 24)}d ago`;
 }
 
 function gb(bytes: number | null): string {
@@ -174,16 +165,23 @@ function MetricCard({
   detail: string;
 }) {
   return (
-    <Card className="enter gap-3 p-4">
-      <div className="flex items-center gap-2 text-muted-foreground">
+    <Card className="enter flex items-center gap-4 p-4">
+      <ProgressRing
+        value={percent === null ? 0 : Math.round(percent)}
+        goal={100}
+        size={88}
+        strokeWidth={7}
+        label={label}
+        color={barColor(percent)}
+        className="[&>span>span:first-child]:text-base [&>span>span:first-child>span]:hidden"
+      />
+      <div className="min-w-0">
+        <div className="flex items-center gap-2 text-muted-foreground">
         {icon}
-        <span className="section-label">{label}</span>
-        <span className="ml-auto font-mono text-lg tabular-nums" style={{ color: barColor(percent) }}>
-          {percent === null ? "–" : <CountUp value={Math.round(percent)} suffix="%" />}
-        </span>
+          <span className="section-label">{label}</span>
+        </div>
+        <p className="mt-1 text-xs text-muted-foreground">{detail}</p>
       </div>
-      <ProgressBar value={percent ?? 0} max={100} color={barColor(percent)} />
-      <p className="text-xs text-muted-foreground">{detail}</p>
     </Card>
   );
 }
@@ -194,6 +192,7 @@ export default function StatusPage() {
   const containers = data?.containers.containers ?? [];
   const sorted = [...containers].sort((a, b) => Number(a.up) - Number(b.up));
   const running = containers.filter((container) => container.up).length;
+  const goals = data?.goals;
   const ageSeconds = updatedAt === null ? null : Math.max(0, Math.round((now - updatedAt) / 1_000));
   const stale = updatedAt !== null && now - updatedAt > STALE_AFTER_MS;
 
@@ -225,59 +224,61 @@ export default function StatusPage() {
         }
       />
 
-      {ageSeconds !== null && (
+      {ageSeconds !== null && ((data?.problems?.length ?? 0) > 0 || !data) && (
         <p className={`-mt-3 text-xs ${stale || error ? "text-destructive" : "text-muted-foreground"}`} role="status">
           {host?.uptimeSeconds != null && <>Host up {uptime(host.uptimeSeconds)} · </>}
           Updated {ageSeconds}s ago{error ? " · last refresh failed" : ""}
         </p>
       )}
 
-      {/* Problems ARE the content; health is their absence. When nothing is
-          wrong this collapses to one line, which is the point of the surface:
-          a five-second phone check that owes a verdict, not dashboards. */}
       {data && (
         <section className="space-y-2">
           {(data.problems?.length ?? 0) === 0 ? (
-            <p className="rounded-xl border border-border bg-card px-4 py-3 text-sm text-success">
-              {data.verdict === "unknown"
-                ? "Nothing reported as broken — but the goal watchdog signal is missing, so this is not a clean bill of health."
-                : "All clear — no failing goals, every container up, delivery working."}
-            </p>
+            <div className="flex items-center gap-3 rounded-xl border border-success/30 bg-success/5 px-4 py-3 text-sm text-success">
+              <ProgressRing value={1} goal={1} size={42} strokeWidth={4} color="var(--success)" label={<Check size={13} />} />
+              <span>
+                <span className="block font-medium">{data.verdict === "unknown" ? "No active failures" : "All clear"}</span>
+                <span className="text-xs text-muted-foreground">
+                  {data.verdict === "unknown" ? "Goal watchdog signal is missing." : "No failing goals, containers, or delivery checks."}
+                  {ageSeconds !== null ? ` Last checked ${ageSeconds}s ago.` : " Checking now."}
+                </span>
+              </span>
+            </div>
           ) : (
-            <ul className="space-y-1.5">
+            <ul className="space-y-2">
               {data.problems!.map((p) => (
                 <li
                   key={`${p.kind}:${p.title}`}
-                  className="flex items-start gap-2 rounded-lg border px-3 py-2"
+                  className="flex items-start gap-3 rounded-xl border p-4"
                   style={{
                     borderColor: p.severity === "down" ? "var(--destructive)" : "var(--warning)",
                     background: `color-mix(in srgb, ${p.severity === "down" ? "var(--destructive)" : "var(--warning)"} 8%, transparent)`,
                   }}
                 >
                   <AlertTriangle
-                    size={14}
+                    size={18}
                     className="mt-0.5 shrink-0"
                     style={{ color: p.severity === "down" ? "var(--destructive)" : "var(--warning)" }}
                     aria-hidden
                   />
                   <div className="min-w-0">
                     <p className="text-sm font-medium text-foreground">{p.title}</p>
-                    <p className="text-xs text-muted-foreground">{p.detail}</p>
+                    <p className="mt-1 text-sm text-muted-foreground">{p.detail}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">Seen in check {ageSeconds ?? 0}s ago</p>
+                    <Link
+                      href={p.kind === "delivery" ? "/settings" : p.kind === "host" && GRAFANA_URL ? GRAFANA_URL : p.kind === "host" ? "#host-metrics" : p.kind === "container" ? "#container-details" : "#goal-details"}
+                      target={p.kind === "host" && GRAFANA_URL ? "_blank" : undefined}
+                      rel={p.kind === "host" && GRAFANA_URL ? "noreferrer" : undefined}
+                      className="mt-2 inline-flex min-h-11 items-center gap-1 text-sm font-medium text-primary pressable active:scale-[0.97]"
+                    >
+                      {p.kind === "delivery" ? "Review notifications" : p.kind === "host" && GRAFANA_URL ? "Open host metrics" : p.kind === "host" ? "Review host metrics" : p.kind === "container" ? "Review containers" : "Review goals"}
+                      <ExternalLink size={13} aria-hidden="true" />
+                    </Link>
                   </div>
                 </li>
               ))}
             </ul>
           )}
-
-          <p className="text-xs text-muted-foreground">
-            {data.goals?.enabled
-              ? `${data.goals.ok}/${data.goals.total} standing goals passing`
-              : "standing goals: unknown"}
-            {data.goals?.lastRunAgeSeconds != null &&
-              ` · watchdog ran ${Math.floor(data.goals.lastRunAgeSeconds / 3600)}h ago`}
-            {data.delivery &&
-              ` · ${data.delivery.subscriptions} push subscription${data.delivery.subscriptions === 1 ? "" : "s"}, last delivery ${since(data.delivery.lastDeliveredAt)}`}
-          </p>
         </section>
       )}
 
@@ -286,13 +287,14 @@ export default function StatusPage() {
       <AlertInbox />
 
       {error && !data && (
-        <Card className="p-4 text-sm text-destructive">
-          Couldn&apos;t reach the status API. Refresh to try again.
+        <Card className="flex flex-wrap items-center justify-between gap-3 p-4 text-sm text-destructive">
+          <span>Couldn&apos;t reach the status API.</span>
+          <Button variant="outline" size="sm" onClick={() => void load()} disabled={refreshing}>Retry</Button>
         </Card>
       )}
 
       {host ? (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div id="host-metrics" className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <MetricCard
             icon={<Cpu size={15} />}
             label="CPU"
@@ -324,17 +326,18 @@ export default function StatusPage() {
         <p className="text-sm text-warning">Host metrics are offline. Container health is still available below.</p>
       )}
 
-      <section className="space-y-3">
-        <SectionHeader
-          title="Containers"
-          description="Failures first."
-          action={<span className="font-mono text-xs text-muted-foreground tabular-nums">{running}/{containers.length}</span>}
-        />
-        {data && sorted.length === 0 ? (
-          <Card className="p-5 text-sm text-muted-foreground">No containers were returned by the status API.</Card>
-        ) : (
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            {sorted.map((container) => (
+      <div id="system-details" className="space-y-3">
+        <details id="container-details" className="group rounded-xl border border-border bg-card">
+          <summary className="flex min-h-14 cursor-pointer items-center gap-3 p-4 text-sm font-medium pressable active:scale-[0.97]">
+            <Boxes size={16} className="text-muted-foreground" />
+            <span className="flex-1">All {containers.length} containers {running === containers.length ? "healthy" : "checked"}</span>
+            <span className="font-mono text-xs text-muted-foreground tabular-nums">{running}/{containers.length}</span>
+          </summary>
+          {data && sorted.length === 0 ? (
+            <p className="border-t border-border p-4 text-sm text-muted-foreground">No containers were returned by the status API.</p>
+          ) : (
+            <div className="grid gap-2 border-t border-border p-3 sm:grid-cols-2 xl:grid-cols-3">
+              {sorted.map((container) => (
               <div key={container.name} className="enter flex min-w-0 flex-wrap items-center gap-3 rounded-xl border border-border bg-card p-4">
                 <span
                   aria-hidden="true"
@@ -352,10 +355,24 @@ export default function StatusPage() {
                   {container.up ? `Running · ${container.status}` : `Down · ${container.state}`}
                 </span>
               </div>
-            ))}
+              ))}
+            </div>
+          )}
+        </details>
+        <details id="goal-details" className="group rounded-xl border border-border bg-card">
+          <summary className="flex min-h-14 cursor-pointer items-center gap-3 p-4 text-sm font-medium pressable active:scale-[0.97]">
+            <Activity size={16} className="text-muted-foreground" />
+            <span className="flex-1">All {goals?.total ?? 0} goals {goals?.enabled && goals.ok === goals.total ? "passing" : "checked"}</span>
+            <span className="font-mono text-xs text-muted-foreground tabular-nums">{goals?.enabled ? `${goals.ok}/${goals.total}` : "unknown"}</span>
+          </summary>
+          <div className="space-y-2 border-t border-border p-4 text-sm">
+            {!goals?.enabled ? <p className="text-warning">Goal metrics are unavailable.</p> : goals.total === 0 ? <p className="text-muted-foreground">No standing goals reported.</p> : <p className="text-muted-foreground">{goals.ok} of {goals.total} standing goals passing.</p>}
+            {goals?.lastRunAgeSeconds != null && <p className="text-xs text-muted-foreground">Watchdog ran {Math.floor(goals.lastRunAgeSeconds / 3600)}h ago.</p>}
+            {goals?.violated.map((goal) => <p key={goal} className="text-destructive">Failing: {goal}</p>)}
+            {goals?.flapped24h.map((goal) => <p key={goal} className="text-warning">Recovered after a dip: {goal}</p>)}
           </div>
-        )}
-      </section>
+        </details>
+      </div>
     </Page>
   );
 }
