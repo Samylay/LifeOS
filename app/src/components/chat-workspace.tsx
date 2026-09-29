@@ -10,6 +10,7 @@ import { RunNowChip } from "@/components/run-now-chip";
 import { useChat } from "@/lib/use-chat";
 import { cn } from "@/lib/utils";
 import { PhotoInboxCapture } from "./photo-inbox-capture";
+import { CameraCapture } from "./camera-capture";
 import { CodexSessions } from "./codex-sessions";
 import { FoodPhotoCard } from "./food-photo-card";
 import { FoodDaySummary } from "./food-day-summary";
@@ -29,6 +30,7 @@ export function ChatWorkspace() {
   const [preparing, setPreparing] = useState(false);
   const [uploading, setUploading] = useState(false);
   const cameraRef = useRef<HTMLInputElement>(null);
+  const [cameraOpen, setCameraOpen] = useState(false);
   const galleryRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const pinnedRef = useRef(true);
@@ -113,7 +115,7 @@ export function ChatWorkspace() {
             </div>
             <h2 className="max-w-lg text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">What would you like to do?</h2>
             <p className="mt-3 max-w-md text-sm leading-6 text-muted-foreground">Send a food photo to log your meal, talk about training, or ask anything.</p>
-            <button type="button" disabled={restoring || preparing} onClick={() => cameraRef.current?.click()} className="mt-5 inline-flex min-h-11 items-center gap-2 rounded-xl bg-primary px-5 text-sm font-medium text-primary-foreground transition-transform duration-150 ease-[var(--ease-out-custom)] active:scale-[0.97] disabled:opacity-40"><Camera size={18} />Take a food photo</button>
+            <button type="button" disabled={restoring || preparing} onClick={() => setCameraOpen(true)} className="mt-5 inline-flex min-h-11 items-center gap-2 rounded-xl bg-primary px-5 text-sm font-medium text-primary-foreground transition-transform duration-150 ease-[var(--ease-out-custom)] active:scale-[0.97] disabled:opacity-40"><Camera size={18} />Take a food photo</button>
             <div className="mt-8 grid w-full max-w-xl gap-2 sm:grid-cols-2">
               {starters.map(({ icon: Icon, title, prompt }) => (
                 <button
@@ -164,6 +166,7 @@ export function ChatWorkspace() {
               <div className="min-w-0 flex-1"><p className="text-xs font-medium">Ready to log your meal</p><p className="text-[11px] text-muted-foreground">Add details below, or send the photo on its own.</p></div>
               <button type="button" aria-label="Remove photo" disabled={uploading} onClick={() => setDraft(null)} className="flex size-10 shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted transition-transform duration-150 ease-[var(--ease-out-custom)] active:scale-[0.97]"><X size={16} /></button>
             </div>}
+            {cameraOpen && <CameraCapture onClose={() => setCameraOpen(false)} onCapture={(file) => { setCameraOpen(false); void choosePhoto(file); }} onUnavailable={() => { setCameraOpen(false); cameraRef.current?.click(); }} />}
             <input ref={cameraRef} type="file" accept="image/*" capture="environment" aria-label="Take a photo" className="hidden" onChange={(event) => { void choosePhoto(event.target.files?.[0]); event.target.value = ""; }} />
             <input ref={galleryRef} type="file" accept="image/*" aria-label="Choose a photo" className="hidden" onChange={(event) => { void choosePhoto(event.target.files?.[0]); event.target.value = ""; }} />
             <textarea
@@ -180,7 +183,7 @@ export function ChatWorkspace() {
             />
             <div className="flex items-center justify-between px-2 pb-2 pt-1">
               <div className="flex items-center gap-1">
-                <button type="button" onClick={() => cameraRef.current?.click()} disabled={restoring || uploading || preparing || loading || liveActive} aria-label="Take a food photo" title="Take a food photo" className="flex size-11 items-center justify-center rounded-xl text-primary hover:bg-primary/10 transition-transform duration-150 ease-[var(--ease-out-custom)] active:scale-[0.97] disabled:opacity-40"><Camera size={20} /></button>
+                <button type="button" onClick={() => setCameraOpen(true)} disabled={restoring || uploading || preparing || loading || liveActive} aria-label="Take a food photo" title="Take a food photo" className="flex size-11 items-center justify-center rounded-xl text-primary hover:bg-primary/10 transition-transform duration-150 ease-[var(--ease-out-custom)] active:scale-[0.97] disabled:opacity-40"><Camera size={20} /></button>
                 <button type="button" onClick={() => galleryRef.current?.click()} disabled={restoring || uploading || preparing || loading || liveActive} aria-label="Attach a photo" title="Attach a photo" className="flex size-11 items-center justify-center rounded-xl text-muted-foreground hover:bg-muted transition-transform duration-150 ease-[var(--ease-out-custom)] active:scale-[0.97] disabled:opacity-40"><ImagePlus size={19} /></button>
                 <button type="button" onClick={voice === "recording" ? stopVoice : () => void startVoice()} disabled={liveActive || (voice !== "recording" && (loading || voice !== "idle"))} aria-label={voice === "recording" ? "Stop recording" : "Dictate a message"} title={voice === "recording" ? "Stop recording" : "Dictate a message"} className="flex size-11 items-center justify-center rounded-xl text-muted-foreground hover:bg-muted transition-transform duration-150 ease-[var(--ease-out-custom)] active:scale-[0.97] disabled:opacity-40">
                   {voice === "recording" ? <Square size={14} className="text-destructive" /> : voice === "transcribing" ? <LoaderCircle size={16} className="animate-spin" /> : <Mic size={18} />}
