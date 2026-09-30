@@ -21,6 +21,10 @@ receipts before promotion.
   verifies its actual policy, captures bounded results, and removes only its
   own verified container. Its successful result is an identity inspection,
   not permission, source, vulnerability or device acceptance.
+- `recovery_store.py` validates the complete quiescent synthetic SQLite file set
+  in a sandbox. It checks hashes, schema, record identities and values, including
+  committed WAL data. It is fixture-specific and does not demonstrate a device
+  restore or provide a customer backup format.
 
 The acquisition proxy is only for trusted fixture dependency preparation. Run
 its client on an owned internal bridge with isolated gateway mode. Only the
