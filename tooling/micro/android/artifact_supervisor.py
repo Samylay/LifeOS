@@ -178,8 +178,9 @@ def inspect_apk(apk, image, output):
                            '--mount=type=bind,src='+str(script.resolve())+',dst=/inspector.py,readonly',
                            '--workdir=/tmp', '--entrypoint=python3', image, '/inspector.py'], 'create')
         require_command(created)
-        identifier = (output/'create.log').read_text().strip()
-        if not re.fullmatch(r'[0-9a-f]{64}', identifier): raise ValueError('Invalid Docker container identity')
+        created_id = (output/'create.log').read_text().strip()
+        if not re.fullmatch(r'[0-9a-f]{64}', created_id): raise ValueError('Invalid Docker container identity')
+        identifier = created_id
         before = command(['docker', 'inspect', identifier], 'inspect-before'); require_command(before)
         observed = json.loads((output/'inspect-before.log').read_text())[0]
         if observed.get('Name') != '/' + name: raise ValueError('Inspector exact container name changed')

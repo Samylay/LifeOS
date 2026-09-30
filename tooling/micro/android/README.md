@@ -25,6 +25,11 @@ receipts before promotion.
   in a sandbox. It checks hashes, schema, record identities and values, including
   committed WAL data. It is fixture-specific and does not demonstrate a device
   restore or provide a customer backup format.
+- `sign_fixture.py` runs the fixed fixture signer without network or business
+  credentials. It accepts only the known public Expo test key and the reviewed
+  fixture package, version, permissions and x86_64 ABI. It retains unsigned and
+  signed digests, actual runtime observations and exact owned cleanup. Signing
+  execution remains pending; passing boundary tests does not demonstrate an APK.
 
 The acquisition proxy is only for trusted fixture dependency preparation. Run
 its client on an owned internal bridge with isolated gateway mode. Only the
