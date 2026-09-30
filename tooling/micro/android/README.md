@@ -30,6 +30,12 @@ receipts before promotion.
   fixture package, version, permissions and x86_64 ABI. It retains unsigned and
   signed digests, actual runtime observations and exact owned cleanup. Signing
   execution remains pending; passing boundary tests does not demonstrate an APK.
+- `security_native.py` runs the pinned offline scanners against the accepted
+  advisory database. `security_inventory.mjs` preserves Syft's report and adds
+  every exact locked npm dependency, including build and optional inputs, before
+  vulnerability scanning. Actual resolved Maven inputs are scanned separately
+  when available. Input coverage does not establish packaged native coverage.
+  Secret, unavailable-scanner, database and known-vulnerability failures block.
 
 The acquisition proxy is only for trusted fixture dependency preparation. Run
 its client on an owned internal bridge with isolated gateway mode. Only the
