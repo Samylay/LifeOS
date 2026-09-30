@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import hashlib
+import json
 from io import BytesIO
 import os
 from pathlib import Path
@@ -26,11 +27,12 @@ from PIL import Image
 try:
     from . import admission
     from .pipeline import Registry, load_registry
-    from . import fixture_health
+    from . import fixture_health, fixture_private_store
 except ImportError:
     import admission
     from pipeline import Registry, load_registry
     import fixture_health
+    import fixture_private_store
 
 ROOT = Path('/home/quorky/apps/lifeos/.scratch/software-factory-benchmark/run-20260930/controller/native-device')
 EXECUTABLE = '/home/quorky/Android/sdk/emulator/qemu/linux-x86_64/qemu-system-x86_64-headless'
@@ -80,27 +82,43 @@ def _leases() -> dict:
     return store.json(store.describe('leases.json', 64 * 1024))
 
 
-def _transport(argv: tuple[str, ...], timeout: float, maximum: int) -> bytes:
+def _transport(argv: tuple[str, ...], timeout: float, maximum: int, input_bytes: bytes | None = None) -> bytes:
     """Bound a fixed ADB client; require the existing loopback server.
 
     Explicit remote-host mode prevents the client starting a local server.
     No start-server, kill-server, root, emulator control or arbitrary shell is
     available. Only the owned ADB client is killed on deadline/output failure.
     """
+    if input_bytes is not None and (not isinstance(input_bytes,bytes) or len(input_bytes)>fixture_private_store.ARCHIVE_LIMIT):
+        raise admission.Rejected('Fixed fixture stdin byte bound')
     with socket.create_connection(('127.0.0.1', 5037), timeout=1):
         pass
     started = time.monotonic(); data = bytearray()
-    process = subprocess.Popen(argv, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+    process = subprocess.Popen(argv, stdin=subprocess.PIPE if input_bytes is not None else subprocess.DEVNULL, stdout=subprocess.PIPE,
                                stderr=subprocess.PIPE, env={'PATH': '/usr/bin:/bin'},
                                start_new_session=True)
-    selection = selectors.DefaultSelector()
-    selection.register(process.stdout, selectors.EVENT_READ, 'stdout')
-    selection.register(process.stderr, selectors.EVENT_READ, 'stderr')
+    selection = None
+    sent=0
     errors = bytearray()
+    first_error=None
     try:
+        selection = selectors.DefaultSelector()
+        selection.register(process.stdout, selectors.EVENT_READ, 'stdout')
+        selection.register(process.stderr, selectors.EVENT_READ, 'stderr')
+        if input_bytes is not None:
+            os.set_blocking(process.stdin.fileno(),False)
+            selection.register(process.stdin,selectors.EVENT_WRITE,'stdin')
         while selection.get_map():
             if time.monotonic()-started > timeout: raise admission.Rejected('Owned ADB client deadline exceeded')
             for key, _ in selection.select(.1):
+                if key.data=='stdin':
+                    if sent<len(input_bytes):
+                        try: count=os.write(key.fileobj.fileno(),input_bytes[sent:sent+65536])
+                        except BlockingIOError: continue
+                        if count<=0:raise admission.Rejected('Fixed fixture stdin made no progress')
+                        sent+=count
+                    if sent==len(input_bytes):selection.unregister(key.fileobj);key.fileobj.close()
+                    continue
                 chunk = os.read(key.fileobj.fileno(), 65536)
                 if not chunk:
                     selection.unregister(key.fileobj); continue
@@ -109,19 +127,36 @@ def _transport(argv: tuple[str, ...], timeout: float, maximum: int) -> bytes:
                 if len(data) > maximum or len(errors) > 64*1024:
                     raise admission.Rejected('Owned ADB client output exceeded limit')
         code = process.wait(timeout=3)
+        if input_bytes is not None and sent!=len(input_bytes):raise admission.Rejected('Fixed fixture stdin incomplete')
         if code != 0: raise admission.Rejected('Fixed ADB operation failed: '+errors.decode(errors='replace')[:800])
         return bytes(data)
     except Exception as error:
+        first_error=error
         error.stdout_prefix = bytes(data[:1024])
         error.stderr_prefix = bytes(errors[:1024])
         error.transport_facts = {'stdoutBytes': len(data), 'stderrBytes': len(errors),
-                                 'seconds': time.monotonic()-started}
+                                 'seconds': time.monotonic()-started,'stdinBytes':sent,
+                                 'stdinExpectedBytes':len(input_bytes) if input_bytes is not None else 0}
         raise
     finally:
-        selection.close()
+        cleanup_errors=[]
+        def clean(callback):
+            try:callback()
+            except Exception as error:cleanup_errors.append({'type':type(error).__name__,'reason':str(error)[:800]})
+        if selection is not None:clean(selection.close)
         if process.poll() is None:
-            process.kill(); process.wait(timeout=3)
-        process.stdout.close(); process.stderr.close()
+            clean(process.kill);clean(lambda:process.wait(timeout=3))
+        clean(process.stdout.close);clean(process.stderr.close)
+        if input_bytes is not None:clean(process.stdin.close)
+        if cleanup_errors:
+            if first_error is not None:
+                first_error.transport_cleanup_failure=cleanup_errors
+                first_error.add_note('Owned ADB client cleanup failed: '+str(cleanup_errors)[:800])
+            else:
+                error=admission.Rejected('Owned ADB client cleanup unknown')
+                error.transport_cleanup_failure=cleanup_errors
+                error.stdout_prefix=bytes(data[:1024]);error.stderr_prefix=bytes(errors[:1024])
+                raise error
 
 
 @dataclass(frozen=True)
@@ -133,6 +168,7 @@ class Backend:
     transport: Callable[[tuple[str, ...], float, int], bytes] = _transport
     clock: Callable[[], float] = time.time
     health_stream: Callable[[str, int], object] | None = None
+    transport_input: Callable[[tuple[str, ...], float, int, bytes], bytes] | None = None
 
 
 def validate_png(data: bytes) -> tuple[int, int]:
@@ -196,7 +232,7 @@ class Device:
                  artifact_security: admission.Evidence | None = None):
         if role not in ROLES: raise admission.Rejected('Unknown controlled device role')
         self.role = role
-        self.backend = backend or Backend(health_stream=fixture_health.EventStream)
+        self.backend = backend or Backend(health_stream=fixture_health.EventStream,transport_input=_transport)
         self.registry = registry
         self.store = store
         self.artifact_security = artifact_security
@@ -482,6 +518,142 @@ class Device:
             'stream': stream, 'expectedStops': window['stops'], 'failure': failure,
             'cleanupFailure': cleanup_failure,
             'summary': summary, 'imageCalibration': fixture_health.IMAGE_CALIBRATION})
+
+
+
+    def observe_fixture_store_capabilities(self) -> admission.Evidence:
+        """Read fixed synthetic package facts only, never enables the capability."""
+        if self.role not in ('factory-source','factory-target') or self.store is None:
+            raise admission.Rejected('Fixed fixture role and protected Store required')
+        self._ensure_installed()
+        token=uuid4().hex;directory='fixture-store-capability/'+self.role+'/'+token
+        self.store.path(directory).mkdir(mode=0o700,parents=True,exist_ok=False)
+        facts={'schema':'micro.android.fixture-store-capability/1','role':self.role,
+               'observations':[],'failure':None,'status':'availability-unproved'}
+        commands=[
+            ('shell','getprop','ro.build.type'),
+            ('shell','getprop','ro.build.fingerprint'),
+            ('exec-out','/system/xbin/su','0','/system/bin/id'),
+            ('exec-out','/system/xbin/su','0','/system/bin/sh','-c',
+             'for p in /data/user/0 /data/user/0/app.micro.factory.fixture /data/user/0/app.micro.factory.fixture/files; do '
+             'printf "PATH|%s\\n" "$p"; '
+             'if [ -L "$p" ]; then printf "ALIAS|"; readlink "$p"; '
+             'elif [ -e "$p" ]; then stat -c "META|%u|%g|%a|%h|%s" "$p"; ls -Zd "$p"; '
+             'else printf "ABSENT|observed\\n"; fi; done')]
+        try:
+            for index,args in enumerate(commands):
+                self._ensure_installed()
+                raw=self._call(args,timeout=10,maximum=16384)
+                path=self.store.path(directory+'/'+str(index)+'.txt')
+                self.store.budget()
+                with path.open('xb') as output:output.write(raw)
+                path.chmod(0o400);reference=self.store.describe(path.relative_to(self.store.root).as_posix(),16384)
+                facts['observations'].append({'argv':list(args),'raw':reference.json()})
+            self._ensure_installed();facts['status']='observed-calibration-pending'
+        except Exception as error:facts['failure']=fixture_private_store.failure(error)
+        facts['leaseSha256']=self._lease_pin
+        facts['apkSha256']=self._installed['apkSha256'] if self._installed else None
+        return self.store.write(directory+'/receipt.json',facts)
+
+
+    def _fixture_private_scope(self):
+        if self.role not in ('factory-source','factory-target') or self.spec.package!=fixture_private_store.PACKAGE or self.store is None:
+            raise admission.Rejected('Private store requires fixed fixture role and protected Store')
+        if self._health_windows:
+            raise admission.Rejected('Stop/finalize the fixture UI health window before private-store work')
+        calibration=fixture_private_store.DEVICE_CALIBRATION
+        if not isinstance(calibration,dict) or calibration.get('status')!='reviewed':
+            raise admission.Rejected('Actual fixture private-store capability calibration pending')
+
+    def _fixture_private_operation(self, operation, *, owner=None, uid=None, gid=None,
+                                   label=None, sizes=None, input_bytes=None, expected_sha256=None):
+        """Internal fixed operation enum, never a caller-selected command."""
+        self._fixture_private_scope();self._ensure_installed()
+        raw=self._call(('shell','pm','list','packages','-U',fixture_private_store.PACKAGE),maximum=8192)
+        match=re.fullmatch(rb'package:app\.micro\.factory\.fixture uid:([0-9]+)\n?',raw)
+        if not match:raise admission.Rejected('Unknown actual private-store package UID')
+        actual_uid=int(match[1])
+        if not 10000<=actual_uid<100000 or (uid is not None and uid!=actual_uid):
+            raise admission.Rejected('Private-store package UID changed')
+        uid=actual_uid
+        scripts={'inventory','collect','stage-inventory','bootstrap','transfer','helper-cleanup'}
+        maximum=16384
+        if operation in scripts:
+            script=fixture_private_store.fixed_script(operation,uid,owner=owner,label=label,gid=gid)
+            args=('exec-out','/system/xbin/su','0','/system/bin/toybox','timeout','-s','KILL','20','/system/bin/sh','-c',script)
+            if operation=='collect':maximum=fixture_private_store.ARCHIVE_LIMIT
+        elif operation in ('metadata','prepare','seal','commit','cleanup'):
+            if not isinstance(owner,str) or not fixture_private_store.OWNER.fullmatch(owner):
+                raise admission.Rejected('Generated helper owner required')
+            if not isinstance(sizes,dict) or not set(sizes)<=set(fixture_private_store.NAMES) or 'factory-fixture.db' not in sizes:
+                raise admission.Rejected('Exact complete fixture size manifest required')
+            if any(type(v) is not int or not 0<v<=fixture_private_store.LIMIT for v in sizes.values()) or sum(sizes.values())>fixture_private_store.LIMIT:
+                raise admission.Rejected('Fixture size manifest byte bound')
+            self._fixture_private_operation('verify-helper',owner=owner,uid=uid,
+                expected_sha256=fixture_private_store.HELPER_BINARY_SHA256)
+            binary_path=fixture_private_store.ROOT+'/files/.micro-fixture-helper-'+owner+'/helper'
+            args=('exec-out','/system/xbin/su','0',binary_path,operation,owner,str(uid),
+                  *(str(sizes.get(n,0)) for n in fixture_private_store.NAMES))
+        elif operation=='verify-helper':
+            if not isinstance(owner,str) or not fixture_private_store.OWNER.fullmatch(owner) or not isinstance(expected_sha256,str) or expected_sha256!=fixture_private_store.HELPER_BINARY_SHA256:
+                raise admission.Rejected('Exact admitted helper hash/owner required')
+            path=fixture_private_store.ROOT+'/files/.micro-fixture-helper-'+owner+'/helper'
+            script=fixture_private_store.fixed_script('inventory',uid).split('meta()')[0]
+            script+=('D="$P/files/.micro-fixture-helper-'+owner+'"\n'
+                '[ -d "$D" ] && [ ! -L "$D" ] && [ -f "$D/helper" ] && [ ! -L "$D/helper" ] || exit 66\n'
+                '[ -f "$D/owner" ] && [ ! -L "$D/owner" ] && [ "$(stat -c %h "$D/owner")" = 1 ] && [ "$(stat -c %s "$D/owner")" = 32 ] || exit 69\n'
+                '[ "$(cat "$D/owner")" = '+owner+' ] || exit 67\n'
+                '[ "$(stat -c %u "$D/helper")" = '+str(uid)+' ] && [ "$(stat -c %h "$D/helper")" = 1 ] && [ "$(stat -c %a "$D/helper")" = 500 ] || exit 68\n'
+                'sha256sum "$D/helper"\n')
+            args=('exec-out','/system/xbin/su','0','/system/bin/toybox','timeout','-s','KILL','20','/system/bin/sh','-c',script)
+        else:raise admission.Rejected('Unknown fixed private-store operation')
+        self._ensure_installed()
+        if input_bytes is None:
+            if operation in ('bootstrap','transfer'):raise admission.Rejected('Fixed fixture transfer body missing')
+            output=self._call(args,timeout=30,maximum=maximum)
+        else:
+            if operation not in ('bootstrap','transfer') or self.backend.transport_input is None:
+                raise admission.Rejected('Bounded fixture input transport unavailable')
+            limit=1024*1024 if operation=='bootstrap' else fixture_private_store.ARCHIVE_LIMIT
+            if not isinstance(input_bytes,bytes) or len(input_bytes)>limit:
+                raise admission.Rejected('Fixed fixture input bound')
+            self.verify_lease()
+            argv=(ADB,'-H','127.0.0.1','-P','5037','-s',self.spec.serial,*args)
+            output=self.backend.transport_input(argv,30,maximum,input_bytes)
+            if not isinstance(output,bytes) or len(output)>maximum:
+                raise admission.Rejected('Invalid fixture input response')
+        if operation=='verify-helper':
+            if output.strip()!= (expected_sha256+'  '+path).encode():
+                raise admission.Rejected('Actual helper executable bytes differ')
+        if operation in ('metadata','prepare','seal','commit','cleanup'):
+            try:observed=json.loads(output)
+            except (ValueError,UnicodeError) as error:raise admission.Rejected('Unknown helper result') from error
+            expected='empty-target' if operation=='metadata' else operation+'-completed'
+            keys={'status','uid','gid','parentDevice','label'} if operation=='metadata' else {'status','owner','uid','gid'}
+            if operation=='cleanup':keys.add('stageAbsent')
+            if not isinstance(observed,dict) or set(observed)!=keys or observed.get('status')!=expected or type(observed.get('uid')) is not int or observed['uid']!=uid or type(observed.get('gid')) is not int or not 10000<=observed['gid']<100000 or (operation!='metadata' and observed.get('owner')!=owner):
+                raise admission.Rejected('Helper result identity/status differs')
+            if operation=='cleanup' and observed.get('stageAbsent') is not True:
+                raise admission.Rejected('Helper stage absence unknown')
+            if operation=='metadata' and (type(observed.get('parentDevice')) is not int or observed['parentDevice']<=0 or not isinstance(observed.get('label'),str) or not fixture_private_store.LABEL.fullmatch(observed['label'])):
+                raise admission.Rejected('Helper empty-target ownership/context unavailable')
+        self._ensure_installed()
+        return output
+
+    def _fixture_store_call(self, operation):
+        if operation not in ('inventory','collect'):raise admission.Rejected('Unknown collection operation')
+        return self._fixture_private_operation(operation)
+
+    def collect_fixture_store(self) -> fixture_private_store.Collection:
+        self._fixture_private_scope()
+        return fixture_private_store.collect(self)
+
+    def restore_fixture_store(self, collection: fixture_private_store.Collection,
+                              validation: admission.Evidence, binary: admission.Evidence) -> admission.Evidence:
+        if self.role!='factory-target' or self.store is None:
+            raise admission.Rejected('Restore requires protected fixed target Store')
+        return fixture_private_store.restore(self,collection,validation,binary)
+
 
     def launch_offline(self) -> dict:
         self._ensure_installed()
