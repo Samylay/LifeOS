@@ -20,6 +20,8 @@ IMAGE = 'sha256:43778b0b9227ffc8d12a9092f011f09238a77c92b5fcde6a18310757ccef7305
 HEX = re.compile(r'[0-9a-f]{64}')
 STORE_BYTES = 8 * 1024**3
 STORE_WARNING_BYTES = 7 * 1024**3
+# Match the bounded scanner inventory, calibrated before benchmark arm 3.
+MAVEN_GRAPH_LIMIT = 2048
 PROJECT = re.compile(r'[a-z][a-z0-9-]{0,79}')
 IDENTITIES = ('sourceArchive', 'sourceLock', 'policy', 'adapter', 'toolchain',
               'recipe', 'suite', 'recovery', 'npmSeal', 'mavenSeal', 'scannerPolicy')
@@ -731,7 +733,7 @@ def native_mapping_context(reference: Evidence, binding: Binding, store: Store) 
     context(closure['context'], binding)
     if closure['schema'] != 'micro.android.native-closure/1' or closure['status'] != 'complete-independent-review' or closure['sourceLockSha256'] != binding.identities['sourceLock'].sha256 or closure['mavenSealSha256'] != binding.identities['mavenSeal'].sha256 or closure['recipeSha256'] != binding.identities['recipe'].sha256:
         raise Rejected('Complete reviewed native input closure unavailable')
-    if not isinstance(closure['mavenGraphs'], dict) or not 0 < len(closure['mavenGraphs']) <= 1000:
+    if not isinstance(closure['mavenGraphs'], dict) or not 0 < len(closure['mavenGraphs']) <= MAVEN_GRAPH_LIMIT:
         raise Rejected('Resolved Maven graphs missing')
     manifests = []
     for name, value in sorted(closure['mavenGraphs'].items()):

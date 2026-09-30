@@ -820,6 +820,27 @@ class PipelineTests(unittest.TestCase):
             self.assertEqual(result['firstFailure']['stage'], p.Stage.SOURCE_SECURITY.value)
             self.assertIn('lock', result['firstFailure']['reason'])
 
+    def test_native_closure_and_scanner_share_2048_graph_boundary_without_omission(self):
+        fixture = self.fixture
+        mapping = fixture.store.json(fixture.binding.native_mapping)
+        closure = fixture.store.json(a.Evidence.parse(mapping['nativeClosure']))
+        graph = fixture.store.read(fixture.native_graph)
+        closure['mavenGraphs'] = {
+            f'graph-{index:04d}.json': fixture.put(graph, name=f'FAKE-graphs/graph-{index:04d}.json').json()
+            for index in range(2048)
+        }
+        mapping['nativeClosure'] = fixture.put(closure).json()
+        binding = replace(fixture.binding, native_mapping=fixture.put(mapping))
+        _, _, manifests = a.native_mapping_context(binding.native_mapping, binding, fixture.store)
+        self.assertEqual(a.MAVEN_GRAPH_LIMIT, scanner.MAVEN_LIMITS['graphCount'])
+        self.assertEqual(len(manifests), 2048)
+        self.assertEqual({row['path'] for row in manifests}, set(closure['mavenGraphs']))
+        closure['mavenGraphs']['graph-2048.json'] = fixture.put(graph, name='FAKE-graphs/graph-2048.json').json()
+        mapping['nativeClosure'] = fixture.put(closure).json()
+        binding = replace(binding, native_mapping=fixture.put(mapping))
+        with self.assertRaisesRegex(a.Rejected, 'Resolved Maven graphs missing'):
+            a.native_mapping_context(binding.native_mapping, binding, fixture.store)
+
     def test_native_map_missing_tampered_library_wrong_apk_unknown_purl_and_closure_block(self):
         for kind in ('missing', 'library', 'apk', 'purl', 'closure', 'comments'):
             with tempfile.TemporaryDirectory() as temporary:
