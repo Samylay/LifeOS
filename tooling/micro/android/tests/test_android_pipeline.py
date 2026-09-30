@@ -223,7 +223,7 @@ class SyntheticFixture:
     def build(self, index):
         owner = 'build'+str(index); raw = self.native_docker(owner)
         start, finish = self.now-9+index*4, self.now-6+index*4
-        job = {'scope': 'trusted-fixture-only', 'offline': True, 'startedAt': start+0.1, 'finishedAt': finish-0.1,
+        job = {'jvmPolicy': a.NATIVE_JVM_POLICY.copy(), 'scope': 'trusted-fixture-only', 'offline': True, 'startedAt': start+0.1, 'finishedAt': finish-0.1,
                'commands': [{'argv': argv, 'exitCode': 0, 'seconds': 1} for argv in self.commands],
                **self.fake_worker_verifications(), 'resources': {'memory.current':'1', 'memory.peak':'1',
                            'memory.swap.current':'0', 'memory.swap.peak':'0', 'pids.current':'1', 'pids.peak':'1',
@@ -538,6 +538,19 @@ class PipelineTests(unittest.TestCase):
                 build['runtimeBefore'] = fixture.put(raw).json(); build['runtimeAfter'] = fixture.put(raw).json()
                 with self.assertRaises(a.Rejected):
                     a.validate_build(fixture.put(build), fixture.binding, fixture.store, fixture.now, 3600)
+
+    def test_actual_worker_jvm_policy_requires_fixed_properties_and_nested_env(self):
+        fixture=self.fixture
+        original=fixture.store.json(fixture.builds[0])
+        job=fixture.store.json(a.Evidence.parse(original['job']))
+        a.validate_build(fixture.builds[0],fixture.binding,fixture.store,fixture.now,3600)
+        variants=[{**job,'jvmPolicy':{**a.NATIVE_JVM_POLICY,'gradleJvmArgs':'-Xmx1536m'}},
+                  {**job,'jvmPolicy':{**a.NATIVE_JVM_POLICY,'javaToolOptions':'-Xmx2g'}},
+                  {**job,'jvmPolicy':{**a.NATIVE_JVM_POLICY,'extra':'unknown'}},
+                  {k:v for k,v in job.items() if k!='jvmPolicy'}]
+        for changed in variants:
+            build={**original,'job':fixture.put(changed).json()}
+            with self.assertRaises(a.Rejected):a.validate_build(fixture.put(build),fixture.binding,fixture.store,fixture.now,3600)
 
     def test_reviewed_adapter_export_and_seed_schemas_are_closed_and_match_fake_bytes(self):
         from jsonschema import Draft202012Validator

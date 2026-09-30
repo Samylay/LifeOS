@@ -753,7 +753,8 @@
         "privateMavenBefore",
         "privateMavenAfter",
         "localMavenPrebuild",
-        "localMavenPostbuild"
+        "localMavenPostbuild",
+        "jvmPolicy"
       ],
       "properties": {
         "scope": {
@@ -1168,6 +1169,22 @@
                   "type": "string"
                 }
               }
+            }
+          }
+        },
+        "jvmPolicy": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "gradleJvmArgs",
+            "javaToolOptions"
+          ],
+          "properties": {
+            "gradleJvmArgs": {
+              "const": "-Duser.home=/work/home -Xmx1024m -XX:MaxMetaspaceSize=512m -XX:ActiveProcessorCount=2"
+            },
+            "javaToolOptions": {
+              "const": "-Duser.home=/work/home -XX:ActiveProcessorCount=2 -Xmx512m -XX:MaxMetaspaceSize=256m"
             }
           }
         }

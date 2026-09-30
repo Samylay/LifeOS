@@ -128,6 +128,10 @@ class Supervisor:
             group = self.cgroups[role]
             if group.exists():
                 sample[role] = {field: (group / field).read_text().strip() for field in ('memory.current', 'memory.peak', 'memory.events', 'pids.current', 'pids.peak', 'cpu.stat') if (group / field).exists()}
+        for role in self.resource_roles:
+            if role in sample and (self.cgroups[role] / 'memory.stat').exists():
+                stats = dict(line.split() for line in (self.cgroups[role] / 'memory.stat').read_text().splitlines())
+                sample[role]['memory.stat'] = {name: int(stats[name]) for name in ('anon', 'file', 'shmem') if name in stats}
         self.receipt['lastResourceSample'] = sample
         target = self.state / 'receipts/live-cgroup-samples.jsonl'
         if target.exists() and target.stat().st_size > 2 * 1024**2:

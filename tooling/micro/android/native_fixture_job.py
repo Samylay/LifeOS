@@ -68,14 +68,18 @@ def main():
             if not p.is_symlink(): p.chmod(0o755 if p.is_dir() or p.stat().st_mode & 0o111 else 0o644)
     (work / 'empty-user.npmrc').write_text('')
     (work / 'empty-global.npmrc').write_text('')
+    gradle_jvm_args = '-Duser.home=/work/home -Xmx1024m -XX:MaxMetaspaceSize=512m -XX:ActiveProcessorCount=2'
+    java_tool_options = '-Duser.home=/work/home -XX:ActiveProcessorCount=2 -Xmx512m -XX:MaxMetaspaceSize=256m'
     properties = '\n'.join([
         'org.gradle.java.installations.auto-download=false', 'org.gradle.java.installations.auto-detect=false', 'org.gradle.java.installations.paths=/opt/jdk17',
-        'org.gradle.jvmargs=-Duser.home=/work/home -Xmx1536m -XX:MaxMetaspaceSize=768m -XX:ActiveProcessorCount=2', 'org.gradle.parallel=false', 'org.gradle.workers.max=1', 'org.gradle.vfs.watch=false',
+        'org.gradle.jvmargs=' + gradle_jvm_args, 'org.gradle.parallel=false', 'org.gradle.workers.max=1', 'org.gradle.vfs.watch=false',
         'org.gradle.caching=false', 'org.gradle.configuration-cache=false', 'org.gradle.daemon=false', 'kotlin.compiler.execution.strategy=in-process', 'kotlin.incremental=false',
         'reactNativeArchitectures=x86_64', 'android.cmakeVersion=3.22.1', 'react.includeJitpackRepository=false', 'android.builder.sdkDownload=false', 'hermesEnabled=true',
     ]) + '\n'
     (gradle_home / 'gradle.properties').write_text(properties)
-    env = {'PATH': '/opt/jdk17/bin:/opt/gradle/bin:/usr/local/bin:/usr/bin:/bin', 'HOME': str(home), 'GRADLE_USER_HOME': str(gradle_home), 'CI': '1', 'EXPO_OFFLINE': '1', 'EXPO_NO_TELEMETRY': '1', 'JAVA_HOME': '/opt/jdk17', 'ANDROID_HOME': '/opt/android-sdk', 'ANDROID_SDK_ROOT': '/opt/android-sdk', 'npm_config_userconfig': str(work / 'empty-user.npmrc'), 'npm_config_globalconfig': str(work / 'empty-global.npmrc'), 'npm_config_cache': str(work / 'npm-cache'), 'npm_config_registry': 'http://factory-acquisition-proxy:8081/', 'npm_config_update_notifier': 'false', 'NODE_OPTIONS': '--max-old-space-size=768', 'JAVA_TOOL_OPTIONS': '-Duser.home=/work/home -XX:ActiveProcessorCount=2', 'ANDROID_USER_HOME': '/work/home/.android', 'CMAKE_BUILD_PARALLEL_LEVEL': '1', 'OMP_NUM_THREADS': '1', 'MAKEFLAGS': '-j1', 'FACTORY_GRAPH_DIR': '/out/graph'}
+    env = {'PATH': '/opt/jdk17/bin:/opt/gradle/bin:/usr/local/bin:/usr/bin:/bin', 'HOME': str(home), 'GRADLE_USER_HOME': str(gradle_home), 'CI': '1', 'EXPO_OFFLINE': '1', 'EXPO_NO_TELEMETRY': '1', 'JAVA_HOME': '/opt/jdk17', 'ANDROID_HOME': '/opt/android-sdk', 'ANDROID_SDK_ROOT': '/opt/android-sdk', 'npm_config_userconfig': str(work / 'empty-user.npmrc'), 'npm_config_globalconfig': str(work / 'empty-global.npmrc'), 'npm_config_cache': str(work / 'npm-cache'), 'npm_config_registry': 'http://factory-acquisition-proxy:8081/', 'npm_config_update_notifier': 'false', 'NODE_OPTIONS': '--max-old-space-size=768', 'JAVA_TOOL_OPTIONS': java_tool_options, 'ANDROID_USER_HOME': '/work/home/.android', 'CMAKE_BUILD_PARALLEL_LEVEL': '1', 'OMP_NUM_THREADS': '1', 'MAKEFLAGS': '-j1', 'FACTORY_GRAPH_DIR': '/out/graph'}
+    actual_properties = dict(line.split('=', 1) for line in (gradle_home / 'gradle.properties').read_text().splitlines())
+    receipt['jvmPolicy'] = {'gradleJvmArgs': actual_properties['org.gradle.jvmargs'], 'javaToolOptions': env['JAVA_TOOL_OPTIONS']}
     def run(argv):
         start = time.monotonic()
         result = subprocess.run(argv, env=env, cwd=fixture)

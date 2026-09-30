@@ -409,9 +409,12 @@ def native_runtime(value: dict, owner: str, store: Store, binding: Binding):
 # Fixed public policies reviewed for this fixture alone, not product defaults.
 FIXTURE_VENDOR_MANIFEST = '2bed93dd132469260221f6a31028b136dfc1901bafa00c0b474c62755b2611fa'
 FIXTURE_LOCAL_MAVEN_MANIFEST = '3057f94e9f68195bd83191c20bd61e9f145b14bce4a9444c1d98b7b28cbc43ab'
+NATIVE_JVM_POLICY = {'gradleJvmArgs': '-Duser.home=/work/home -Xmx1024m -XX:MaxMetaspaceSize=512m -XX:ActiveProcessorCount=2',
+                     'javaToolOptions': '-Duser.home=/work/home -XX:ActiveProcessorCount=2 -Xmx512m -XX:MaxMetaspaceSize=256m'}
+
 NATIVE_JOB_FIELDS = {'scope', 'offline', 'startedAt', 'finishedAt', 'commands', 'patches', 'resources', 'apk', 'status',
                      'vendorAdapter', 'vendorAdapterPostbuild', 'privateMavenBefore', 'privateMavenAfter',
-                     'localMavenPrebuild', 'localMavenPostbuild'}
+                     'localMavenPrebuild', 'localMavenPostbuild', 'jvmPolicy'}
 
 
 def native_resources(value: dict):
@@ -444,6 +447,8 @@ def native_resources(value: dict):
 def native_job_verification(job: dict, binding: Binding, store: Store):
     """Keep and validate actual frozen worker facts, never drop them to fit."""
     exact(job, NATIVE_JOB_FIELDS, 'actual native job receipt')
+    if job['jvmPolicy'] != NATIVE_JVM_POLICY:
+        raise Rejected('Native worker JVM properties/environment differ from frozen policy')
     if binding.package != 'app.micro.factory.fixture' or job['scope'] != 'trusted-fixture-only':
         raise Rejected('Native job is outside fixed fixture scope')
     inputs = native_inputs(binding, store)
