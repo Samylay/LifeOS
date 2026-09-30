@@ -31,6 +31,9 @@ class SyntheticFixture:
                          ['node', './node_modules/expo/bin/cli', 'prebuild', '--platform', 'android', '--no-install'],
                          ['/opt/gradle/bin/gradle', '--offline', 'app:assembleRelease']]
         identities = {name: self.put(name.encode()) for name in a.IDENTITIES}
+        # Actual public frozen lock/policy bytes exercise fixture authority. All
+        # APKs, worker/jobs/scans and observations below remain explicitly FAKE.
+        identities['sourceLock'] = self.put(Path(a.__file__).with_name('fixtures').joinpath('native-smoke/package-lock.json').read_bytes())
         identities['scannerPolicy'] = self.put(scanner.POLICY)
         identities['toolchain'] = self.put({'artifactToolsSha256': {'aapt': 'a'*64, 'apksigner': 'c'*64}})
         source_tree = self.fake_tree('sealed/fixture', {'package-lock.json': self.store.read(identities['sourceLock']),
@@ -43,8 +46,14 @@ class SyntheticFixture:
         self.seeds = {'/seed/fixture': source_tree}
         for destination in sorted(a.NATIVE_SEEDS - {'/seed/fixture'}):
             kind = 'file' if destination.endswith(('.xml', '.json')) else 'directory'
-            self.seeds[destination] = self.fake_tree('sealed/'+destination.split('/')[-1],
-                                                     {'native_fixture_job.py' if destination == '/seed/tools' else 'FAKE-input': ('FAKE seed '+destination).encode()}, kind)
+            files = {'FAKE-input': ('FAKE seed '+destination).encode()}
+            if destination == '/seed/tools':
+                files = {'native_fixture_job.py': b'FAKE worker bytes, not executed'}
+                for name in ('trusted-vendor-gradle-adapter.json', 'locked-local-maven-manifest.json'):
+                    files[name] = Path(a.__file__).with_name(name).read_bytes()
+            elif destination == '/seed/patch-preimages.json':
+                files = {'FAKE-input': a.canonical({'build.gradle': 'a'*64, 'app/build.gradle': 'b'*64})}
+            self.seeds[destination] = self.fake_tree('sealed/'+destination.split('/')[-1], files, kind)
         # FAKE environment and worker bytes are administrative test pins only.
         self.execution = {'entrypoint': ['python3'], 'argv': ['/seed/tools/native_fixture_job.py', '--offline'],
                           'environment': ['PATH=/opt/jdk17/bin:/opt/gradle/bin:/usr/local/bin:/usr/bin:/bin',
@@ -186,12 +195,40 @@ class SyntheticFixture:
                           'FinishedAt': datetime.fromtimestamp(finish, timezone.utc).isoformat()}}
 
 
+    def fake_worker_verifications(self):
+        vendor = json.loads(Path(a.__file__).with_name('trusted-vendor-gradle-adapter.json').read_bytes())
+        local = json.loads(Path(a.__file__).with_name('locked-local-maven-manifest.json').read_bytes())
+        # FAKE worker observations, calculated from the real public fixed policy.
+        def digest(text): return hashlib.sha256(text.encode()).hexdigest()
+        jitpack = "    maven { url 'https://www.jitpack.io' }\n"
+        signing = "            // Caution! In production, you need to generate your own keystore file.\n            // see https://reactnative.dev/docs/signed-apk-android.\n            signingConfig signingConfigs.debug\n"
+        replacement = "            // Private fixture emits an unsigned release for supervisor signing.\n"
+        return {'vendorAdapter': {'manifestSha256': a.FIXTURE_VENDOR_MANIFEST,
+                     'files': [{**{key: row[key] for key in ('path','beforeSha256','afterSha256','npmUrl','npmIntegrity','npmTarballSha256')},
+                                'edits': len(row['edits'])} for row in vendor['files']]},
+                'vendorAdapterPostbuild': {'manifestSha256': a.FIXTURE_VENDOR_MANIFEST, 'verifiedFiles': 7},
+                'privateMavenBefore': {'path': '/work/home/.m2/repository', 'exists': False},
+                'privateMavenAfter': {'path': '/work/home/.m2/repository', 'exists': False, 'inputs': 0},
+                'localMavenPrebuild': [{'root': '/work/fixture/'+row['root'], 'verifiedFiles': len(row['files']),
+                                       'removedMetadata': sorted(row['removeMetadata'])} for row in local['repositories']],
+                'localMavenPostbuild': [{'root': '/work/fixture/'+row['root'], 'verifiedFiles': len(row['files'])-len(row['removeMetadata']),
+                                        'removedMetadata': []} for row in local['repositories']],
+                'patches': [{'path': '/work/fixture/android/build.gradle', 'beforeSha256': 'a'*64, 'afterSha256': 'c'*64,
+                             'oldSha256': digest(jitpack), 'newSha256': digest('')},
+                            {'path': '/work/fixture/android/app/build.gradle', 'beforeSha256': 'b'*64, 'afterSha256': 'd'*64,
+                             'oldSha256': digest(signing), 'newSha256': digest(replacement)},
+                            {'path': '/work/fixture/android/app/build.gradle', 'beforeSha256': 'd'*64, 'afterSha256': 'e'*64,
+                             'purpose': 'Metro worker ceiling1'}]}
+
     def build(self, index):
         owner = 'build'+str(index); raw = self.native_docker(owner)
         start, finish = self.now-9+index*4, self.now-6+index*4
         job = {'scope': 'trusted-fixture-only', 'offline': True, 'startedAt': start+0.1, 'finishedAt': finish-0.1,
                'commands': [{'argv': argv, 'exitCode': 0, 'seconds': 1} for argv in self.commands],
-               'patches': [], 'resources': {}, 'apk': {'bytes': self.unsigned.bytes, 'sha256': self.unsigned.sha256,
+               **self.fake_worker_verifications(), 'resources': {'memory.current':'1', 'memory.peak':'1',
+                           'memory.swap.current':'0', 'memory.swap.peak':'0', 'pids.current':'1', 'pids.peak':'1',
+                           'memory.events':'low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0',
+                           'cpu.stat':'usage_usec 1\nuser_usec 1\nsystem_usec 0', 'workRegularBytes':1}, 'apk': {'bytes': self.unsigned.bytes, 'sha256': self.unsigned.sha256,
                'unsigned': True, 'signing': 'No business key or production identity; supervisor signing still pending'},
                'status': 'clean-offline-fixture-unsigned-apk'}
         value = {'schema': 'micro.android.native-build/1', 'context': self.binding.context(),
@@ -396,6 +433,56 @@ class PipelineTests(unittest.TestCase):
         with self.assertRaisesRegex(a.Rejected, 'distinct actual'):
             a.validate_build_pair([self.fixture.builds[0], self.fixture.put(second)], self.fixture.binding, self.fixture.store, self.fixture.now, 3600)
 
+    def test_actual_native_six_pre_post_verifications_provenance_and_patches_required(self):
+        changes = [
+            ('missing-post', lambda job: job.pop('vendorAdapterPostbuild')),
+            ('vendor-identity', lambda job: job['vendorAdapter'].update(manifestSha256='d'*64)),
+            ('vendor-preimage', lambda job: job['vendorAdapter']['files'][0].update(beforeSha256='d'*64)),
+            ('vendor-postimage', lambda job: job['vendorAdapter']['files'][0].update(afterSha256='d'*64)),
+            ('npm-origin', lambda job: job['vendorAdapter']['files'][0].update(npmUrl='https://FAKE-unreviewed.invalid/package.tgz')),
+            ('npm-integrity', lambda job: job['vendorAdapter']['files'][0].update(npmIntegrity='sha512-FAKE')),
+            ('npm-tarball', lambda job: job['vendorAdapter']['files'][0].update(npmTarballSha256='d'*64)),
+            ('omitted-vendor', lambda job: job['vendorAdapter']['files'].pop()),
+            ('boolean-edits', lambda job: job['vendorAdapter']['files'][-1].update(edits=True)),
+            ('post-count', lambda job: job['vendorAdapterPostbuild'].update(verifiedFiles=6)),
+            ('private-before', lambda job: job['privateMavenBefore'].update(exists=True)),
+            ('private-after', lambda job: job['privateMavenAfter'].update(inputs=1)),
+            ('private-path', lambda job: job['privateMavenAfter'].update(path='/home/FAKE/.m2/repository')),
+            ('missing-local', lambda job: job['localMavenPrebuild'].pop()),
+            ('unknown-repo', lambda job: job['localMavenPostbuild'].append({'root':'/work/fixture/FAKE-unreviewed', 'verifiedFiles':1,'removedMetadata':[]})),
+            ('changed-root', lambda job: job['localMavenPrebuild'][0].update(root='/work/fixture/FAKE-other-repo')),
+            ('post-files', lambda job: job['localMavenPostbuild'][0].update(verifiedFiles=25)),
+            ('missing-metadata', lambda job: job['localMavenPrebuild'][0]['removedMetadata'].pop()),
+            ('unexpected-metadata', lambda job: job['localMavenPostbuild'][0].update(removedMetadata=['FAKE-delete.aar'])),
+            ('missing-patches', lambda job: job.update(patches=[])),
+            ('patch-preimage', lambda job: job['patches'][0].update(beforeSha256='d'*64)),
+            ('patch-edit', lambda job: job['patches'][1].update(newSha256='d'*64)),
+            ('patch-chain', lambda job: job['patches'][2].update(beforeSha256='a'*64)),
+            ('actual-duration', lambda job: job['commands'][0].update(seconds=99)),
+            ('missing-resource', lambda job: job['resources'].pop('memory.events')),
+            ('unknown-resource', lambda job: job['resources'].update({'memory.peak':None})),
+            ('oom-event', lambda job: job['resources'].update({'memory.events':'oom 1\noom_kill 0\noom_group_kill 0'})),
+            ('work-budget', lambda job: job['resources'].update(workRegularBytes=8*1024**3+1)),
+            ('pids-budget', lambda job: job['resources'].update({'pids.peak':'385'})),
+            ('swap-budget', lambda job: job['resources'].update({'memory.swap.peak':'1'})),
+            ('unknown-field', lambda job: job.update(candidateChosenRepository='FAKE')),
+            ('acquisition', lambda job: job.update(offline=False, status='trusted-fixture-native-task-closure-acquired')),
+            ('failure', lambda job: job.update(status='first-native-failure-retained', firstFailure={'message':'FAKE failed acquisition'})),
+        ]
+        original = self.fixture.store.json(self.fixture.builds[0])
+        for kind, change in changes:
+            with self.subTest(kind=kind):
+                build = copy.deepcopy(original); job = self.fixture.store.json(a.Evidence.parse(build['job']))
+                change(job); build['job'] = self.fixture.put(job).json()
+                with self.assertRaises(a.Rejected):
+                    a.validate_build(self.fixture.put(build), self.fixture.binding, self.fixture.store, self.fixture.now, 3600)
+        # Changed sealed public policy itself cannot authorize even matching
+        # newly fabricated reports. The complete pinned tools hash refuses it.
+        path = self.fixture.store.path('sealed/tools/locked-local-maven-manifest.json')
+        path.write_bytes(b'FAKE substitute manifest')
+        with self.assertRaises(a.Rejected):
+            a.validate_build(self.fixture.builds[0], self.fixture.binding, self.fixture.store, self.fixture.now, 3600)
+
     def test_actual_native_noop_entrypoint_argv_environment_or_worker_cannot_fake_build(self):
         for kind in ('bin-true', 'missing-entrypoint', 'online-worker', 'different-worker',
                      'raw-path', 'raw-args', 'changed-env', 'missing-env', 'duplicate-env', 'worker-bytes'):
@@ -459,7 +546,8 @@ class PipelineTests(unittest.TestCase):
         for definition, value in (('reviewedAdapter', adapter),
                                   ('sourceExport', self.fixture.store.json(a.Evidence.parse(adapter['sourceExport']))),
                                   ('nativeInputs', self.fixture.store.json(a.Evidence.parse(adapter['nativeInputs']))),
-                                  ('nativeRecipe', self.fixture.store.json(self.fixture.binding.identities['recipe']))):
+                                  ('nativeRecipe', self.fixture.store.json(self.fixture.binding.identities['recipe'])),
+                                  ('nativeJob', self.fixture.store.json(a.Evidence.parse(self.fixture.store.json(self.fixture.builds[0])['job'])))):
             document = {**schema, '$ref': '#/$defs/'+definition}
             for key in ('type', 'properties', 'required', 'additionalProperties', 'allOf'): document.pop(key, None)
             Draft202012Validator.check_schema(document)

@@ -404,6 +404,108 @@ def native_runtime(value: dict, owner: str, store: Store, binding: Binding):
     if host.get('LogConfig', {}).get('Type') != 'none': raise Rejected('Unbounded Docker log driver')
 
 
+# Fixed public policies reviewed for this fixture alone, not product defaults.
+FIXTURE_VENDOR_MANIFEST = '2bed93dd132469260221f6a31028b136dfc1901bafa00c0b474c62755b2611fa'
+FIXTURE_LOCAL_MAVEN_MANIFEST = '3057f94e9f68195bd83191c20bd61e9f145b14bce4a9444c1d98b7b28cbc43ab'
+NATIVE_JOB_FIELDS = {'scope', 'offline', 'startedAt', 'finishedAt', 'commands', 'patches', 'resources', 'apk', 'status',
+                     'vendorAdapter', 'vendorAdapterPostbuild', 'privateMavenBefore', 'privateMavenAfter',
+                     'localMavenPrebuild', 'localMavenPostbuild'}
+
+
+def native_resources(value: dict):
+    keys = {'memory.current', 'memory.peak', 'memory.events', 'memory.swap.current',
+            'memory.swap.peak', 'pids.current', 'pids.peak', 'cpu.stat', 'workRegularBytes'}
+    exact(value, keys, 'actual worker cgroup/disk facts')
+    for key, maximum in [('memory.current', NATIVE_POLICY['memoryBytes']), ('memory.peak', NATIVE_POLICY['memoryBytes']),
+                         ('memory.swap.current', 0), ('memory.swap.peak', 0),
+                         ('pids.current', NATIVE_POLICY['pids']), ('pids.peak', NATIVE_POLICY['pids'])]:
+        observed = value[key]
+        if not isinstance(observed, str) or not re.fullmatch(r'[0-9]+', observed) or int(observed) > maximum:
+            raise Rejected('Native worker resource fact missing or outside fixed budget')
+    if type(value['workRegularBytes']) is not int or not 0 <= value['workRegularBytes'] <= 8*1024**3:
+        raise Rejected('Native worker disk fact missing or outside8GiB work budget')
+    def stats(raw):
+        if not isinstance(raw, str) or not raw: raise Rejected('Native cgroup statistics unknown')
+        result = {}
+        for line in raw.splitlines():
+            parts = line.split()
+            if len(parts) != 2 or not re.fullmatch(r'[A-Za-z0-9_.]+', parts[0]) or not re.fullmatch(r'[0-9]+', parts[1]) or parts[0] in result:
+                raise Rejected('Invalid or duplicate native cgroup statistic')
+            result[parts[0]] = int(parts[1])
+        return result
+    events = stats(value['memory.events']); cpu = stats(value['cpu.stat'])
+    if not {'oom', 'oom_kill', 'oom_group_kill'} <= set(events) or any(events[key] != 0 for key in ('oom', 'oom_kill', 'oom_group_kill')):
+        raise Rejected('Native worker OOM evidence unknown or nonzero')
+    if not {'usage_usec', 'user_usec', 'system_usec'} <= set(cpu): raise Rejected('Native CPU evidence unknown')
+
+
+def native_job_verification(job: dict, binding: Binding, store: Store):
+    """Keep and validate actual frozen worker facts, never drop them to fit."""
+    exact(job, NATIVE_JOB_FIELDS, 'actual native job receipt')
+    if binding.package != 'app.micro.factory.fixture' or job['scope'] != 'trusted-fixture-only':
+        raise Rejected('Native job is outside fixed fixture scope')
+    inputs = native_inputs(binding, store)
+    tools = inputs['seeds']['/seed/tools']
+    def policy(name, digest):
+        reference = store.describe(tools['path']+'/'+name)
+        if reference.sha256 != digest or {'path': name, 'bytes': reference.bytes, 'sha256': digest} not in tools['files']:
+            raise Rejected('Frozen fixture verification policy differs from pinned tools')
+        document = store.json(reference)
+        if document.get('sourceLockSha256') != binding.identities['sourceLock'].sha256:
+            raise Rejected('Frozen native verification policy uses wrong source lock')
+        return document
+    vendor = policy('trusted-vendor-gradle-adapter.json', FIXTURE_VENDOR_MANIFEST)
+    local = policy('locked-local-maven-manifest.json', FIXTURE_LOCAL_MAVEN_MANIFEST)
+    lock = store.json(binding.identities['sourceLock'])
+    packages = lock.get('packages')
+    if not isinstance(packages, dict): raise Rejected('Native source lock package inventory missing')
+    if vendor.get('runtimeVersionChange') is not False or vendor.get('reactAndroidVersion') != '0.86.3' or len(vendor['files']) != 7 or len(local['repositories']) != 14:
+        raise Rejected('Frozen native verification scope changed')
+    for item in [*vendor['files'], *local['repositories']]:
+        path = item.get('path', item.get('root'))
+        candidates = [name for name in packages if name and path.startswith(name+'/')]
+        if not candidates: raise Rejected('Native vendor/local repository missing from exact npm lock')
+        package = packages[max(candidates, key=len)]
+        if package.get('resolved') != item['npmUrl'] or package.get('integrity') != item['npmIntegrity']:
+            raise Rejected('Native npm origin/integrity differs from exact source lock')
+    expected_vendor = {'manifestSha256': FIXTURE_VENDOR_MANIFEST,
+        'files': [{**{key: row[key] for key in ('path', 'beforeSha256', 'afterSha256', 'npmUrl', 'npmIntegrity', 'npmTarballSha256')},
+                   'edits': len(row['edits'])} for row in vendor['files']]}
+    if any(type(row.get('edits')) is not int for row in job['vendorAdapter'].get('files', [])) or job['vendorAdapter'] != expected_vendor or job['vendorAdapterPostbuild'] != {'manifestSha256': FIXTURE_VENDOR_MANIFEST, 'verifiedFiles': 7}:
+        raise Rejected('Native vendor preimage/postimage/npm provenance verification incomplete or altered')
+    before = {'path': '/work/home/.m2/repository', 'exists': False}
+    exact(job['privateMavenAfter'], {'path', 'exists', 'inputs'}, 'private Maven postbuild')
+    after = job['privateMavenAfter']
+    if job['privateMavenBefore'] != before or job['privateMavenBefore']['exists'] is not False or after['path'] != before['path'] or type(after['exists']) is not bool or type(after['inputs']) is not int or after['inputs'] != 0:
+        raise Rejected('Native job used unknown worker-local Maven inputs')
+    pre = [{'root': '/work/fixture/'+row['root'], 'verifiedFiles': len(row['files']),
+            'removedMetadata': sorted(row['removeMetadata'])} for row in local['repositories']]
+    post = [{'root': '/work/fixture/'+row['root'], 'verifiedFiles': len(row['files'])-len(row['removeMetadata']),
+             'removedMetadata': []} for row in local['repositories']]
+    if any(type(row.get('verifiedFiles')) is not int for row in [*job['localMavenPrebuild'], *job['localMavenPostbuild']]) or job['localMavenPrebuild'] != pre or job['localMavenPostbuild'] != post:
+        raise Rejected('Native local Maven roots/counts/metadata verification missing or changed')
+    patch_tree = inputs['seeds']['/seed/patch-preimages.json']
+    preimages = store.json(store.describe(patch_tree['path']))
+    exact(preimages, {'build.gradle', 'app/build.gradle'}, 'generated Gradle preimages')
+    for digest in preimages.values(): sha(digest)
+    patches = job['patches']
+    if not isinstance(patches, list) or len(patches) != 3: raise Rejected('Native generated Gradle patch evidence missing')
+    jitpack = "    maven { url 'https://www.jitpack.io' }\n"
+    signing = "            // Caution! In production, you need to generate your own keystore file.\n            // see https://reactnative.dev/docs/signed-apk-android.\n            signingConfig signingConfigs.debug\n"
+    replacement = "            // Private fixture emits an unsigned release for supervisor signing.\n"
+    changes = [('build.gradle', jitpack, ''), ('app/build.gradle', signing, replacement)]
+    for observed, (name, old, new) in zip(patches[:2], changes):
+        exact(observed, {'path', 'beforeSha256', 'afterSha256', 'oldSha256', 'newSha256'}, 'generated Gradle patch')
+        if observed['path'] != '/work/fixture/android/'+name or observed['beforeSha256'] != preimages[name] or observed['oldSha256'] != hashlib.sha256(old.encode()).hexdigest() or observed['newSha256'] != hashlib.sha256(new.encode()).hexdigest():
+            raise Rejected('Native Gradle protected preimage/edit differs from fixed worker recipe')
+        sha(observed['afterSha256'])
+    exact(patches[2], {'path', 'beforeSha256', 'afterSha256', 'purpose'}, 'Metro worker patch')
+    if patches[2]['path'] != patches[1]['path'] or patches[2]['beforeSha256'] != patches[1]['afterSha256'] or patches[2]['purpose'] != 'Metro worker ceiling1':
+        raise Rejected('Native final Gradle patch chain differs from fixed worker')
+    sha(patches[2]['afterSha256'])
+    native_resources(job['resources'])
+
+
 def validate_build(reference: Evidence, binding: Binding, store: Store, now: float, max_age: float) -> dict:
     value = store.json(reference)
     exact(value, {'schema', 'context', 'startedAt', 'finishedAt', 'status', 'cleanBuildId',
@@ -442,13 +544,18 @@ def validate_build(reference: Evidence, binding: Binding, store: Store, now: flo
     if job.get('apk') != {'bytes': apk.bytes, 'sha256': apk.sha256, 'unsigned': True,
                            'signing': 'No business key or production identity; supervisor signing still pending'}:
         raise Rejected('Native job/actual APK digest mismatch')
-    exact(job, {'scope', 'offline', 'startedAt', 'finishedAt', 'commands', 'patches', 'resources', 'apk', 'status'}, 'actual native job receipt')
+    native_job_verification(job, binding, store)
     freshness(job, now, max_age)
     if not actual_start <= job['startedAt'] <= job['finishedAt'] <= actual_finish:
         raise Rejected('Native job timestamps outside actual execution')
     recorded = job.get('commands')
-    if not isinstance(recorded, list) or [c.get('argv') for c in recorded] != recipe['commands'] or any(c.get('exitCode') != 0 for c in recorded):
+    if not isinstance(recorded, list) or [c.get('argv') for c in recorded] != recipe['commands'] or any(type(c.get('exitCode')) is not int or c.get('exitCode') != 0 for c in recorded):
         raise Rejected('Actual native job/recipe/exit mismatch')
+    for command, wrapped in zip(recorded, value['commands']):
+        exact(command, {'argv', 'exitCode', 'seconds'}, 'actual worker command')
+        number(command['seconds'], 'actual worker command duration')
+        if any(command[key] != wrapped[key] for key in ('argv', 'exitCode', 'seconds')):
+            raise Rejected('Native normalized command differs from actual worker facts')
     return value
 
 

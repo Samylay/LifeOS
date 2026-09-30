@@ -15,6 +15,7 @@ import os
 from pathlib import Path, PurePosixPath
 import re
 import signal
+import selectors
 import stat
 import subprocess
 import tarfile
@@ -82,26 +83,37 @@ class _Git:
         out = self.store.path(prefix+'.stdout'); err = self.store.path(prefix+'.stderr')
         started = time.time(); timed_out = False; limit = None
         with out.open('xb') as stdout, err.open('xb') as stderr:
-            process = subprocess.Popen(argv, stdin=subprocess.DEVNULL, stdout=stdout,
-                                       stderr=stderr, env=self.env, start_new_session=True)
+            process = subprocess.Popen(argv, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+                                       stderr=subprocess.PIPE, env=self.env, start_new_session=True)
+            deadline = time.monotonic()+COMMAND_SECONDS
+            selector = selectors.DefaultSelector(); captured = {'stdout': 0, 'stderr': 0}
+            for pipe, output, cap, name in ((process.stdout, stdout, maximum, 'stdout'),
+                                           (process.stderr, stderr, LOG_BYTES, 'stderr')):
+                os.set_blocking(pipe.fileno(), False)
+                selector.register(pipe, selectors.EVENT_READ, (output, cap, name))
             try:
-                while process.poll() is None:
-                    if out.stat().st_size > maximum or err.stat().st_size > LOG_BYTES:
-                        limit = 'output-bytes'; break
-                    if time.time()-started > COMMAND_SECONDS:
-                        timed_out = True; break
-                    try: process.wait(timeout=0.02)
-                    except subprocess.TimeoutExpired: pass
+                while selector.get_map() and limit is None and not timed_out:
+                    remaining = deadline-time.monotonic()
+                    if remaining <= 0: timed_out = True; break
+                    for key, _ in selector.select(min(0.05, remaining)):
+                        chunk = os.read(key.fd, 64*1024)
+                        if not chunk: selector.unregister(key.fileobj); continue
+                        output, cap, name = key.data
+                        allowed = cap-captured[name]
+                        output.write(chunk[:allowed]); captured[name] += min(allowed, len(chunk))
+                        if len(chunk) > allowed: limit = 'output-bytes'; break
+                if not timed_out and limit is None:
+                    try: process.wait(timeout=max(0.01, deadline-time.monotonic()))
+                    except subprocess.TimeoutExpired: timed_out = True
             finally:
-                if process.poll() is None:
-                    os.killpg(process.pid, signal.SIGKILL)
+                selector.close()
+                if process.poll() is None: os.killpg(process.pid, signal.SIGKILL)
                 process.wait(timeout=5)
-        if out.stat().st_size > maximum or err.stat().st_size > LOG_BYTES: limit = 'output-bytes'
+                process.stdout.close(); process.stderr.close()
         out.chmod(0o400); err.chmod(0o400)
-        # Failure evidence may contain a last bounded write beyond the requested
-        # limit; never interpret it as accepted source or a successful command.
-        output = self.store.describe(prefix+'.stdout', max(maximum, out.stat().st_size))
-        error = self.store.describe(prefix+'.stderr', max(LOG_BYTES, err.stat().st_size))
+        # Pipe reads cap persisted bytes before writing, including failed commands.
+        output = self.store.describe(prefix+'.stdout', maximum)
+        error = self.store.describe(prefix+'.stderr', LOG_BYTES)
         self.commands.append({'argv': argv, 'startedAt': started, 'finishedAt': time.time(),
                               'exitCode': process.returncode, 'signal': -process.returncode if process.returncode < 0 else None,
                               'timeout': timed_out, 'limitFailure': limit,

@@ -58,6 +58,17 @@ class SourceExportTests(unittest.TestCase):
             self.store.verify(a.Evidence.parse(command['stderr']), exporter.LOG_BYTES)
         return receipt
 
+    def test_actual_git_output_cap_is_enforced_before_persisting_excess_bytes(self):
+        directory = 'FAKE-bounded-git'; self.store.path(directory).mkdir(mode=0o700)
+        git = exporter._Git(self.repo, self.store, directory)
+        with self.assertRaisesRegex(a.Rejected, 'exceeded its bound'):
+            git.run(['ls-tree', '-rz', self.sha+':'+exporter.SUBTREE], maximum=10)
+        command = git.commands[0]
+        self.assertEqual(command['limitFailure'], 'output-bytes')
+        self.assertEqual(command['stdout']['bytes'], 10)
+        self.store.verify(a.Evidence.parse(command['stdout']), 10)
+        self.assertLessEqual(command['stderr']['bytes'], exporter.LOG_BYTES)
+
     def test_actual_git_clean_fixture_archive_exact_blobs_and_closed_export_manifest(self):
         result = self.export(); raw = self.store.json(result.raw_receipt)
         self.assertEqual(raw['status'], 'exported'); self.assertIsNone(raw['failure'])
