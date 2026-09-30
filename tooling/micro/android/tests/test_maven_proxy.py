@@ -57,6 +57,55 @@ class ProxyTests(unittest.TestCase):
         for bad in (url.replace('org.gradle.toolchains', 'org.other.toolchains'), url.replace('/1.0.0/', '/2.0.0/'), url.replace(digest, 'short'), url.replace('.pom', '.jar'), url+'?credential=synthetic'):
             with self.subTest(url=bad), self.assertRaises(ValueError): proxy.check_upstream(bad, artifact)
 
+    def test_publisher_cache_requires_central_origin_and_exact_release_artifact(self):
+        for artifact, checksum in proxy.REACT_NATIVE_ARTIFACTS.items():
+            origin = proxy.REPOSITORIES['central']+artifact
+            mirror = proxy.REACT_NATIVE_MIRROR+artifact
+            self.assertEqual(proxy.check_upstream(mirror, artifact, origin), checksum)
+            for bad_origin in (None, proxy.REPOSITORIES['google']+artifact, origin+'?token=fixture'):
+                with self.subTest(artifact=artifact, origin=bad_origin), self.assertRaises(ValueError):
+                    proxy.check_upstream(mirror, artifact, bad_origin)
+            for bad in (mirror.replace('-release.aar', '-debug.aar'), mirror+'?token=fixture', mirror.replace('repo.reactnative.dev', 'repo.reactnative.dev.evil.test'), mirror.replace('/maven2/', '/other/'), mirror.replace('https:', 'http:'), mirror.replace('/0.86.3/', '/9.9.9/')):
+                if bad == mirror: continue
+                with self.subTest(url=bad), self.assertRaises(ValueError): proxy.check_upstream(bad, artifact, origin)
+        for artifact in ('com/facebook/react/react-android/0.86.3/maven-metadata.xml', 'org/example/module/1.0/module-1.0.aar', 'com/facebook/react/react-android/0.86.3/react-android-0.86.3.pom', 'com/facebook/react/react-android/0.86.3/react-android-0.86.3-release.aar.sha256'):
+            with self.subTest(artifact=artifact), self.assertRaises(ValueError):
+                proxy.check_upstream(proxy.REACT_NATIVE_MIRROR+artifact, artifact, proxy.REPOSITORIES['central']+artifact)
+
+    def test_publisher_redirect_bytes_require_independent_published_checksum(self):
+        artifact = 'com/facebook/react/react-android/0.86.3/react-android-0.86.3-release.aar'
+        for correct in (True, False):
+            with tempfile.TemporaryDirectory() as temp:
+                data=b'native fixture';checksum=hashlib.sha256(data).hexdigest()
+                response=Response(data);response.url=proxy.REACT_NATIVE_MIRROR+artifact
+                opener=Opener();cache=proxy.Cache(Path(temp))
+                with patch.dict(proxy.REACT_NATIVE_ARTIFACTS,{artifact:checksum if correct else '0'*64}), patch.object(opener,'open',return_value=response), patch.object(proxy,'build_opener',return_value=opener):
+                    if correct:
+                        _,receipt=cache.fetch('/central/'+artifact)
+                        self.assertEqual(receipt['publisherSha256'],checksum)
+                        self.assertIsNone(receipt['redirectPathSha256'])
+                        self.assertEqual(receipt['finalUrl'],response.url)
+                    else:
+                        with self.assertRaisesRegex(ValueError,'hash mismatch'):cache.fetch('/central/'+artifact)
+                        self.assertFalse(cache.items)
+                        self.assertFalse(list(Path(temp).glob('*.blob')))
+
+    def test_other_allowed_repository_cannot_override_published_native_pin(self):
+        artifact = 'com/facebook/react/react-android/0.86.3/react-android-0.86.3-release.aar'
+        origin = proxy.REPOSITORIES['central']+artifact
+        data=b'independent wrong pinned body';checksum=hashlib.sha256(data).hexdigest()
+        cdn='https://plugins-artifacts.gradle.org/com.facebook.react/react-android/0.86.3/'+checksum+'/react-android-0.86.3-release.aar'
+        for destination in (cdn, proxy.REPOSITORIES['google']+artifact):
+            with self.subTest(destination=destination), self.assertRaisesRegex(ValueError,'not its publisher'):
+                proxy.check_upstream(destination,artifact,origin)
+            with tempfile.TemporaryDirectory() as temp:
+                cache=proxy.Cache(Path(temp));response=Response(data);response.url=destination
+                with patch.object(proxy,'build_opener') as opener:
+                    opener.return_value.open.return_value=response
+                    with self.assertRaisesRegex(ValueError,'not its publisher'):cache.fetch('/central/'+artifact)
+                self.assertFalse(cache.items)
+                self.assertFalse(list(Path(temp).glob('*.blob')))
+
     def test_cdn_hash_mismatch_cannot_publish_a_download(self):
         with tempfile.TemporaryDirectory() as temp:
             cache = proxy.Cache(Path(temp))

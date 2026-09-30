@@ -35,6 +35,21 @@ TOTAL_BYTES = 4 * 1024 * 1024 * 1024
 REQUESTS = 20_000
 CHUNK_BYTES = 256 * 1024
 LOG_BYTES = 20 * 1024 * 1024
+# Publisher cache documented in React Native commit3bfb277fec221e88d4ec1b918c664d675edf616b.
+# It is a redirect destination for these locked native inputs, not a new client repository.
+REACT_NATIVE_MIRROR = 'https://repo.reactnative.dev/maven2/'
+REACT_NATIVE_ARTIFACTS = {
+    'com/facebook/react/react-android/0.86.3/react-android-0.86.3-release.aar':
+        '59b66e453d8775a54df66a321c0d5002b98716d68c4bd9edb8e64d7110ff8d28',
+    'com/facebook/hermes/hermes-android/250829098.0.17/hermes-android-250829098.0.17-release.aar':
+        '6fb440b29aadb5925bed1109338da61623c54c3508020bb2cecebcaaa80e53b8',
+}
+
+
+def react_native_redirect(url: str, artifact_path: str, source_url: str | None) -> bool:
+    return (artifact_path in REACT_NATIVE_ARTIFACTS
+            and source_url == REPOSITORIES['central'] + artifact_path
+            and url == REACT_NATIVE_MIRROR + artifact_path)
 
 
 def path_url(path: str) -> str:
@@ -53,12 +68,18 @@ def path_url(path: str) -> str:
     return REPOSITORIES[parts[1]] + '/'.join(artifact)
 
 
-def check_upstream(url: str, artifact_path: str) -> str | None:
+def check_upstream(url: str, artifact_path: str, source_url: str | None = None) -> str | None:
     parsed = urlsplit(url)
     if parsed.scheme != 'https' or parsed.username or parsed.password or parsed.query or parsed.fragment or parsed.port not in (None, 443):
         raise ValueError('Upstream URL contains unsupported authority')
     if '%' in parsed.path or '\\' in parsed.path or '..' in PurePosixPath(parsed.path).parts:
         raise ValueError('Unsafe upstream path')
+    if artifact_path in REACT_NATIVE_ARTIFACTS:
+        if url == REPOSITORIES['central'] + artifact_path:
+            return REACT_NATIVE_ARTIFACTS[artifact_path]
+        if not react_native_redirect(url, artifact_path, source_url):
+            raise ValueError('Pinned native artifact destination is not its publisher')
+    if react_native_redirect(url, artifact_path, source_url): return REACT_NATIVE_ARTIFACTS[artifact_path]
     prefix = next((prefix for prefix in UPSTREAM_PREFIXES if url.startswith(prefix)), None)
     if prefix is None:
         raise ValueError('Unreviewed upstream host or coordinate redirect')
@@ -76,13 +97,14 @@ def check_upstream(url: str, artifact_path: str) -> str | None:
 
 
 class Redirects(HTTPRedirectHandler):
-    def __init__(self, artifact_path: str):
+    def __init__(self, artifact_path: str, source_url: str):
         self.artifact_path = artifact_path
+        self.source_url = source_url
         self.observed = []
         self.expected_sha256 = None
 
     def redirect_request(self, request, fp, code, message, headers, newurl):
-        expected = check_upstream(newurl, self.artifact_path)
+        expected = check_upstream(newurl, self.artifact_path, self.source_url)
         if expected:
             if self.expected_sha256 and expected != self.expected_sha256:
                 raise ValueError('Redirect content hash changed')
@@ -149,17 +171,18 @@ class Cache:
                 raise ValueError('Acquisition cache integrity failed')
             return path, receipt
         with self.slots:
-            redirects = Redirects(artifact_path)
+            redirects = Redirects(artifact_path, url)
             opener = build_opener(ProxyHandler({}), redirects)
             temporary = self.directory / (uuid4().hex + '.partial')
             count = 0; digest = hashlib.sha256()
             started = time.monotonic()
             try:
                 with opener.open(Request(url, headers={'User-Agent': 'Micro-public-native-acquisition/1', 'Accept-Encoding': 'identity'}), timeout=30) as response:
-                    final_hash = check_upstream(response.url, artifact_path)
+                    final_hash = check_upstream(response.url, artifact_path, url)
                     if final_hash and redirects.expected_sha256 and final_hash != redirects.expected_sha256:
                         raise ValueError('Final redirect content hash changed')
-                    expected_hash = final_hash or redirects.expected_sha256
+                    publisher_hash = REACT_NATIVE_ARTIFACTS.get(artifact_path)
+                    expected_hash = final_hash or redirects.expected_sha256 or publisher_hash
                     if response.status != 200 or response.headers.get('Content-Encoding') not in (None, 'identity'):
                         raise ValueError('Unsupported upstream response')
                     length = response.headers.get('Content-Length')
@@ -183,11 +206,14 @@ class Cache:
                     if length is not None and count != int(length):
                         raise ValueError('Truncated upstream artifact')
                 identifier = digest.hexdigest()
+                if publisher_hash and identifier != publisher_hash:
+                    raise ValueError('Independently pinned publisher content hash mismatch')
                 if expected_hash and identifier != expected_hash:
-                    raise ValueError('Plugin CDN content hash mismatch')
+                    raise ValueError('Publisher content hash mismatch')
                 receipt = {'url': url, 'finalUrl': response.url, 'redirects': redirects.observed,
                            'sha256': identifier, 'bytes': count,
-                           'redirectPathSha256': expected_hash,
+                           'redirectPathSha256': expected_hash if not publisher_hash else None,
+                           'publisherSha256': publisher_hash,
                            'authority': 'observed public download hash, not independent publisher authenticity'}
                 destination = self.directory / (uuid4().hex + '.blob')
                 temporary.rename(destination)
