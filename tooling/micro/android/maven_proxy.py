@@ -53,24 +53,40 @@ def path_url(path: str) -> str:
     return REPOSITORIES[parts[1]] + '/'.join(artifact)
 
 
-def check_upstream(url: str, artifact_path: str) -> None:
+def check_upstream(url: str, artifact_path: str) -> str | None:
     parsed = urlsplit(url)
     if parsed.scheme != 'https' or parsed.username or parsed.password or parsed.query or parsed.fragment or parsed.port not in (None, 443):
         raise ValueError('Upstream URL contains unsupported authority')
     if '%' in parsed.path or '\\' in parsed.path or '..' in PurePosixPath(parsed.path).parts:
         raise ValueError('Unsafe upstream path')
     prefix = next((prefix for prefix in UPSTREAM_PREFIXES if url.startswith(prefix)), None)
-    if prefix is None or url[len(prefix):] != artifact_path:
+    if prefix is None:
         raise ValueError('Unreviewed upstream host or coordinate redirect')
+    suffix = url[len(prefix):]
+    if suffix == artifact_path: return None
+    # The official Plugin Portal CDN uses a dotted group and content hash.
+    # Preserve the logical coordinate and require the hash to match the bytes.
+    if prefix == 'https://plugins-artifacts.gradle.org/':
+        parts = artifact_path.split('/')
+        if len(parts) >= 4:
+            group, module, version, filename = '.'.join(parts[:-3]), *parts[-3:]
+            match = re.fullmatch(re.escape(group+'/'+module+'/'+version+'/') + r'([0-9a-f]{64})/' + re.escape(filename), suffix)
+            if match: return match.group(1)
+    raise ValueError('Unreviewed upstream host or coordinate redirect')
 
 
 class Redirects(HTTPRedirectHandler):
     def __init__(self, artifact_path: str):
         self.artifact_path = artifact_path
         self.observed = []
+        self.expected_sha256 = None
 
     def redirect_request(self, request, fp, code, message, headers, newurl):
-        check_upstream(newurl, self.artifact_path)
+        expected = check_upstream(newurl, self.artifact_path)
+        if expected:
+            if self.expected_sha256 and expected != self.expected_sha256:
+                raise ValueError('Redirect content hash changed')
+            self.expected_sha256 = expected
         self.observed.append({'status': code, 'url': newurl})
         return super().redirect_request(request, fp, code, message, headers, newurl)
 
@@ -140,7 +156,10 @@ class Cache:
             started = time.monotonic()
             try:
                 with opener.open(Request(url, headers={'User-Agent': 'Micro-public-native-acquisition/1', 'Accept-Encoding': 'identity'}), timeout=30) as response:
-                    check_upstream(response.url, artifact_path)
+                    final_hash = check_upstream(response.url, artifact_path)
+                    if final_hash and redirects.expected_sha256 and final_hash != redirects.expected_sha256:
+                        raise ValueError('Final redirect content hash changed')
+                    expected_hash = final_hash or redirects.expected_sha256
                     if response.status != 200 or response.headers.get('Content-Encoding') not in (None, 'identity'):
                         raise ValueError('Unsupported upstream response')
                     length = response.headers.get('Content-Length')
@@ -164,8 +183,11 @@ class Cache:
                     if length is not None and count != int(length):
                         raise ValueError('Truncated upstream artifact')
                 identifier = digest.hexdigest()
+                if expected_hash and identifier != expected_hash:
+                    raise ValueError('Plugin CDN content hash mismatch')
                 receipt = {'url': url, 'finalUrl': response.url, 'redirects': redirects.observed,
                            'sha256': identifier, 'bytes': count,
+                           'redirectPathSha256': expected_hash,
                            'authority': 'observed public download hash, not independent publisher authenticity'}
                 destination = self.directory / (uuid4().hex + '.blob')
                 temporary.rename(destination)

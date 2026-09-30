@@ -49,6 +49,26 @@ class ProxyTests(unittest.TestCase):
         for url in ('http://repo.maven.apache.org/maven2/'+artifact, 'https://repo.maven.apache.org.evil.test/maven2/'+artifact, 'https://secret@repo.maven.apache.org/maven2/'+artifact, URL+'?token=secret', URL.replace('module-1.0.pom', 'other.jar'), URL.replace('/org/', '/org/../'), URL.replace('apache.org', 'apache.org:444')):
             with self.subTest(url=url), self.assertRaises(ValueError): proxy.check_upstream(url, artifact)
 
+    def test_plugin_cdn_mapping_keeps_exact_logical_coordinate_and_hash(self):
+        artifact = 'org/gradle/toolchains/foojay-resolver/1.0.0/foojay-resolver-1.0.0.pom'
+        digest = '9bc48b49e422d9edabc396ac18d8b041dfc22212d7fae8e35667d285d481029a'
+        url = 'https://plugins-artifacts.gradle.org/org.gradle.toolchains/foojay-resolver/1.0.0/'+digest+'/foojay-resolver-1.0.0.pom'
+        self.assertEqual(proxy.check_upstream(url, artifact), digest)
+        for bad in (url.replace('org.gradle.toolchains', 'org.other.toolchains'), url.replace('/1.0.0/', '/2.0.0/'), url.replace(digest, 'short'), url.replace('.pom', '.jar'), url+'?credential=synthetic'):
+            with self.subTest(url=bad), self.assertRaises(ValueError): proxy.check_upstream(bad, artifact)
+
+    def test_cdn_hash_mismatch_cannot_publish_a_download(self):
+        with tempfile.TemporaryDirectory() as temp:
+            cache = proxy.Cache(Path(temp))
+            response = Response()
+            response.url = 'https://plugins-artifacts.gradle.org/org.example/module/1.0/'+'0'*64+'/module-1.0.pom'
+            opener = Opener()
+            with patch.object(opener, 'open', return_value=response), patch.object(proxy, 'build_opener', return_value=opener):
+                with self.assertRaisesRegex(ValueError, 'hash mismatch'): cache.fetch(PATH)
+            self.assertFalse(cache.items)
+            self.assertFalse(list(Path(temp).glob('*.blob')))
+            self.assertTrue(list(Path(temp).glob('*.partial')))
+
     def test_acquired_bytes_are_hashed_retained_and_cached(self):
         with tempfile.TemporaryDirectory() as temp:
             cache = proxy.Cache(Path(temp)); opener = Opener()
