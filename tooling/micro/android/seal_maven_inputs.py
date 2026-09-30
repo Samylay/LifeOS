@@ -58,7 +58,7 @@ def main():
     copied = sum(p.stat().st_size for p in (attempt / 'protected/fixture').rglob('*') if p.is_file())
     copied += sum(p.stat().st_size for p in (attempt / 'output/graph').glob('*.json'))
     copied += (attempt / 'proxy-cache/events.jsonl').stat().st_size * 4
-    copied += (attempt / 'output/verification-metadata.xml').stat().st_size
+    copied += 40 * 1024**2 # Generated XML plus independent row receipt, each bounded20MiB.
     storage_admission = seal_headroom(integration_store, max(expanded, expanded_allocated), copied)
     spec = importlib.util.spec_from_file_location('protected_archive_admission', DEFAULT_STATE.parent / 'android-builder/admit.py')
     safe = importlib.util.module_from_spec(spec); spec.loader.exec_module(safe)
@@ -111,9 +111,15 @@ def main():
         manifest = safe.tree_manifest(destination / 'gradle-caches')
         data = json.dumps(manifest, sort_keys=True, separators=(',', ':')).encode()
         (destination / 'gradle-caches-manifest.json').write_bytes(data + b'\n')
-        meta = attempt / 'output/verification-metadata.xml'
-        if digest(meta) != job['verificationMetadataSha256']: raise ValueError('Verification metadata changed')
-        shutil.copyfile(meta, destination / 'verification-metadata.xml')
+        if 'verificationMetadataSha256' in job or (attempt / 'output/verification-metadata.xml').exists():
+            raise ValueError('Task-specific worker must not claim independently generated XML')
+        from task_verification_metadata import generate
+        meta = destination / 'verification-metadata.xml'
+        metadata_provenance = generate(destination / 'gradle-caches', manifest, acquired, attempt / 'protected/tools/locked-local-maven-manifest.json', meta)
+        metadata_provenance.update(sealerSha256=digest(Path(__file__)), sourceJobSha256=digest(attempt / 'output/native-job.json'), sourceSupervisorSha256=digest(attempt / 'receipts/maven-acquisition.json'), dependencyArchiveSha256=identity['sha256'], canonicalCacheTreeSha256=hashlib.sha256(data).hexdigest(), publicUseEventsSha256=digest(attempt / 'proxy-cache/events.jsonl'))
+        provenance_bytes = (json.dumps(metadata_provenance, sort_keys=True, indent=2) + '\n').encode()
+        if len(provenance_bytes) > 20 * 1024**2: raise ValueError('Metadata provenance exceeds20MiB')
+        (destination / 'verification-metadata-provenance.json').write_bytes(provenance_bytes)
         shutil.copytree(attempt / 'protected/fixture', destination / 'fixture')
         shutil.copyfile(attempt / 'protected/patch-preimages.json', destination / 'patch-preimages.json')
         shutil.copyfile(attempt/'proxy-cache/events.jsonl',destination/'maven-use-events.jsonl')
@@ -132,7 +138,7 @@ def main():
         (destination / 'resolved-coordinate-union.json').write_text(json.dumps(coordinates, sort_keys=True, indent=2) + '\n')
         authority = attempt / 'output/publisher-checks.json'
         if authority.exists(): shutil.copyfile(authority, destination / 'publisher-checks.json')
-        result = {'status': 'sealed-native-task-closure-offline-proof-pending', 'image': IMAGE, 'sourceReceiptSha256': digest(attempt / 'receipts/maven-acquisition.json'), 'sourceJobSha256': digest(attempt / 'output/native-job.json'), 'npmSealSha256': supervisor['npmSeedSealSha256'], 'verificationMetadataSha256': digest(meta), 'components': {'gradle-caches': {'canonicalTreeSha256': hashlib.sha256(data).hexdigest(), 'archiveSha256': identity['sha256'], 'extraction': extraction}}, 'protectedToolSha256': {p.name: digest(p) for p in (attempt / 'protected/tools').iterdir() if p.is_file()}, 'mavenManifestSha256': digest(destination / 'maven-artifact-manifest.json'), 'resolvedGraphSha256': digest(destination / 'resolved-task-graph.json'), 'mavenArtifacts': len(acquired), 'artifactUseObservations':len(artifact_events), 'reuseResponses':reuse_responses, 'rawMavenUseEventsSha256':digest(destination/'maven-use-events.jsonl'), 'publicMavenSeedManifestSha256':seed.manifest_sha256 if seed is not None else None, 'mavenDownloadedBytes': sum(e['bytes'] for e in acquired), 'graphs': len(graphs), 'resolvedCoordinates': len(coordinates), 'resolvedCoordinateUnionSha256': digest(destination / 'resolved-coordinate-union.json'), 'authenticity': 'HTTPS acquisition plus independently checked official CDN embedded hashes where present; Gradle SHA256 verification is TOFU unless separately published checks verified. No publisher signing keys admitted.', 'taskOutputsSeeded': False, 'acquisitionApkSha256': job['apk']['sha256'], 'offlineProof': 'pending'}
+        result = {'status': 'sealed-native-task-closure-offline-proof-pending', 'image': IMAGE, 'sourceReceiptSha256': digest(attempt / 'receipts/maven-acquisition.json'), 'sourceJobSha256': digest(attempt / 'output/native-job.json'), 'npmSealSha256': supervisor['npmSeedSealSha256'], 'verificationMetadataSha256': digest(meta), 'verificationMetadataProvenanceSha256': digest(destination / 'verification-metadata-provenance.json'), 'components': {'gradle-caches': {'canonicalTreeSha256': hashlib.sha256(data).hexdigest(), 'archiveSha256': identity['sha256'], 'extraction': extraction}}, 'protectedToolSha256': {p.name: digest(p) for p in (attempt / 'protected/tools').iterdir() if p.is_file()}, 'mavenManifestSha256': digest(destination / 'maven-artifact-manifest.json'), 'resolvedGraphSha256': digest(destination / 'resolved-task-graph.json'), 'mavenArtifacts': len(acquired), 'artifactUseObservations':len(artifact_events), 'reuseResponses':reuse_responses, 'rawMavenUseEventsSha256':digest(destination/'maven-use-events.jsonl'), 'publicMavenSeedManifestSha256':seed.manifest_sha256 if seed is not None else None, 'mavenDownloadedBytes': sum(e['bytes'] for e in acquired), 'graphs': len(graphs), 'resolvedCoordinates': len(coordinates), 'resolvedCoordinateUnionSha256': digest(destination / 'resolved-coordinate-union.json'), 'authenticity': 'HTTPS acquisition plus independently checked official CDN embedded hashes where present; Gradle SHA256 verification is TOFU unless separately published checks verified. No publisher signing keys admitted.', 'taskOutputsSeeded': False, 'acquisitionApkSha256': job['apk']['sha256'], 'offlineProof': 'pending'}
         (destination / 'seal.json').write_text(json.dumps(result, indent=2) + '\n')
         storage_admission['integrationAfter'] = integration_store.budget()
         storage_admission['retainedAcquisitionAfter'] = stage_bytes(DEFAULT_STATE)

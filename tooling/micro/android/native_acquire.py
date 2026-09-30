@@ -247,7 +247,7 @@ class Supervisor:
         shutil.copytree(TOOLS / 'fixtures/native-smoke', self.state / 'protected/fixture')
         toolcopy = self.state / 'protected/tools'
         toolcopy.mkdir()
-        for name in ('maven_proxy.py', 'native_network_probe.py', 'native_fixture_job.py', 'npm_fixture_job.py', 'trusted_repositories.init.gradle', 'locked_local_maven.py', 'locked-local-maven-manifest.json', 'trusted_vendor_adapter.py', 'trusted-vendor-gradle-adapter.json'):
+        for name in ('maven_proxy.py', 'native_network_probe.py', 'native_fixture_job.py', 'native_failure_diagnostics.py', 'npm_fixture_job.py', 'trusted_repositories.init.gradle', 'locked_local_maven.py', 'locked-local-maven-manifest.json', 'trusted_vendor_adapter.py', 'trusted-vendor-gradle-adapter.json'):
             shutil.copyfile(TOOLS / name, toolcopy / name)
         maven_body_seed = None
         proxy_seed_mounts, proxy_seed_args = [], []
@@ -316,7 +316,7 @@ class Supervisor:
             if {v['Name'] for v in egress['Containers'].values()} != {NAMES['proxy']}:
                 raise ValueError('Unexpected egress network member')
             mounts = ['--mount=type=bind,src=' + str(toolcopy) + ',dst=/seed/tools,readonly', '--mount=type=bind,src=' + str(self.state / 'protected/fixture') + ',dst=/seed/fixture,readonly', '--mount=type=bind,src=' + str(npm_seed / 'npm-cache') + ',dst=/seed/npm-cache,readonly', '--mount=type=bind,src=' + str(self.state / 'protected/patch-preimages.json') + ',dst=/seed/patch-preimages.json,readonly', '--mount=type=bind,src=' + str(self.state / 'output') + ',dst=/out']
-            self.command('client-create', ['docker', 'create', '--name=' + NAMES['client'], '--network=' + NAMES['internal'], '--dns=127.0.0.1', '--read-only', '--cap-drop=ALL', '--security-opt=no-new-privileges', '--user=1000:1000', '--log-driver=none', '--memory=6g', '--memory-swap=6g', '--cpus=2', '--pids-limit=384', '--tmpfs=/tmp:rw,nosuid,nodev,size=67108864,mode=1777', '--tmpfs=/work:rw,nosuid,nodev,size=8589934592,uid=1000,gid=1000,mode=0700'] + mounts + ['--entrypoint=/bin/sh', IMAGE, '-c', 'python3 /seed/tools/native_network_probe.py --proxy ' + PROXY_IP + ' --maven && exec python3 /seed/tools/native_fixture_job.py'])
+            self.command('client-create', ['docker', 'create', '--name=' + NAMES['client'], '--network=' + NAMES['internal'], '--dns=127.0.0.1', '--read-only', '--cap-drop=ALL', '--security-opt=no-new-privileges', '--user=1000:1000', '--log-driver=none', '--memory=6g', '--memory-swap=6g', '--cpus=2', '--pids-limit=384', '--tmpfs=/tmp:rw,nosuid,nodev,size=67108864,mode=1777', '--tmpfs=/work:rw,nosuid,nodev,exec,size=8589934592,uid=1000,gid=1000,mode=0700'] + mounts + ['--entrypoint=/bin/sh', IMAGE, '-c', 'python3 /seed/tools/native_network_probe.py --proxy ' + PROXY_IP + ' --maven && exec python3 /seed/tools/native_fixture_job.py'])
             self.receipt['created'].append(('container', NAMES['client']))
             client = self.inspect('client-isolation-inspect', NAMES['client'])
             hc = client['HostConfig']
@@ -326,6 +326,8 @@ class Supervisor:
                 raise ValueError('Native client network readback mismatch')
             if len(client['Mounts']) != 5 or any(m['RW'] for m in client['Mounts'] if m['Destination'] != '/out'):
                 raise ValueError('Native client seed mount readback mismatch')
+            if hc['Tmpfs'] != {'/tmp':'rw,nosuid,nodev,size=67108864,mode=1777','/work':'rw,nosuid,nodev,exec,size=8589934592,uid=1000,gid=1000,mode=0700'}:
+                raise ValueError('Native client exact executable work tmpfs changed')
             if hc['LogConfig'] != {'Type':'none','Config':{}}:
                 raise ValueError('Native client daemon logging must be disabled')
             self.command('native-client-run', ['docker', 'start', '--attach', NAMES['client']], timeout=max(1, proxy_deadline - time.monotonic()))

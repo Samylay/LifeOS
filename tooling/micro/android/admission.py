@@ -269,7 +269,7 @@ def commands_success(commands: Any, store: Store, approved: list[list[str]] | No
 
 
 NATIVE_TMPFS = {'/tmp': 'rw,nosuid,nodev,size=67108864,mode=1777',
-                '/work': 'rw,nosuid,nodev,size=8589934592,uid=1000,gid=1000,mode=0700'}
+                '/work': 'rw,nosuid,nodev,exec,size=8589934592,uid=1000,gid=1000,mode=0700'}
 NATIVE_SEEDS = {'/seed/fixture', '/seed/tools', '/seed/patch-preimages.json',
                 '/seed/npm-cache', '/seed/gradle-caches', '/seed/verification-metadata.xml'}
 

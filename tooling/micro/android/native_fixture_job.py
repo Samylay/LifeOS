@@ -10,6 +10,7 @@ import subprocess
 import time
 
 from npm_fixture_job import archive
+from native_failure_diagnostics import collect as collect_failure_diagnostics
 from locked_local_maven import verify_all
 from trusted_vendor_adapter import apply as apply_vendor_adapter, verify_after as verify_vendor_adapter
 
@@ -109,8 +110,6 @@ def main():
         argv = ['/opt/gradle/bin/gradle', '-p', 'android', '--no-daemon', '--max-workers=1', '--no-build-cache', '--no-configuration-cache', '--console=plain', '--stacktrace', '--info', '--init-script=/seed/tools/trusted_repositories.init.gradle']
         if args.offline:
             argv += ['--offline', '--dependency-verification=strict']
-        else:
-            argv += ['--write-verification-metadata=sha256']
         argv += ['app:assembleRelease']
         run(argv)
         receipt['vendorAdapterPostbuild'] = verify_vendor_adapter(fixture, '/seed/tools/trusted-vendor-gradle-adapter.json')
@@ -125,14 +124,17 @@ def main():
         if not args.offline:
             # Dependencies only. Discard transform/task/JVM compilation outputs from the seed.
             receipt['gradleDependencyCache'] = archive(gradle_home / 'caches', output / 'gradle-dependency-caches.tar', 4 * 1024**3, admitted_top={'modules-2'}, skip_names={'gc.properties'})
-            meta = fixture / 'android/gradle/verification-metadata.xml'
-            shutil.copyfile(meta, output / 'verification-metadata.xml')
-            receipt['verificationMetadataSha256'] = hash_file(meta)
+            # Trusted sealer generates independent task-cache verification XML.
+            # This immutable worker receipt reports only bytes it created.
         receipt['resources'] = facts()
         receipt['status'] = 'clean-offline-fixture-unsigned-apk' if args.offline else 'trusted-fixture-native-task-closure-acquired'
     except Exception as error:
         receipt['status'] = 'first-native-failure-retained'
         receipt['firstFailure'] = {'type': type(error).__name__, 'message': str(error)}
+        try:
+            receipt['failureDiagnostics'] = collect_failure_diagnostics(fixture, output / 'native-failure-diagnostics')
+        except Exception as diagnostic_error:
+            receipt['failureDiagnostics'] = {'error': str(diagnostic_error), 'originalFailurePreserved': True}
         receipt['resources'] = facts()
         raise
     finally:
