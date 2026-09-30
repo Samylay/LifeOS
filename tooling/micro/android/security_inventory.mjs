@@ -6,6 +6,8 @@ const key = (name, version) => JSON.stringify([name, version]);
 const purl = (kind, name, version) => 'pkg:'+kind+'/'+name.split('/').map(encodeURIComponent).join('/')+'@'+encodeURIComponent(version);
 const npmName = /^(?:@[a-z0-9_.-]+\/)?[a-z0-9_.-]+$/i;
 const exactVersion = /^[0-9]+\.[0-9]+\.[0-9]+(?:-[a-zA-Z0-9.-]+)?(?:\+[a-zA-Z0-9.-]+)?$/;
+export const MAVEN_LIMITS=Object.freeze({graphCount:2048,graphBytes:8*1024*1024,
+  totalBytes:64*1024*1024,componentCount:100000,projectBytes:1024});
 
 export function lockedInventory(lockBytes) {
   if(lockBytes.length>16*1024*1024) throw Error('lock inventory byte budget');
@@ -27,21 +29,26 @@ export function lockedInventory(lockBytes) {
 }
 
 export function mavenInventory(graphs) {
-  if(graphs.length>1000) throw Error('Maven graph count budget');
-  if(graphs.reduce((n,g)=>n+g.bytes.length,0)>64*1024*1024) throw Error('Maven graph total byte budget');
-  const entries=[],files=[];
+  if(graphs.length>MAVEN_LIMITS.graphCount) throw Error('Maven graph count budget');
+  if(graphs.reduce((n,g)=>n+g.bytes.length,0)>MAVEN_LIMITS.totalBytes) throw Error('Maven graph total byte budget');
+  const entries=[],files=[],names=new Set();
   for(const graph of graphs) {
-    if(!/^[A-Za-z0-9_.-]+\.json$/.test(graph.name)||graph.bytes.length>8*1024*1024) throw Error('Maven graph input invalid');
+    if(typeof graph.name!=='string'||!/^[A-Za-z0-9_.-]+\.json$/.test(graph.name)||graph.bytes.length>MAVEN_LIMITS.graphBytes) throw Error('Maven graph input invalid');
+    if(names.has(graph.name)) throw Error('duplicate Maven graph name');
+    names.add(graph.name);
     const value=JSON.parse(graph.bytes.toString());
-    if(!Array.isArray(value.components)||typeof value.configuration!=='string'||typeof value.build!=='string'||typeof value.scope!=='string') throw Error('Maven graph schema invalid');
+    if(!value||!Array.isArray(value.components)||typeof value.configuration!=='string'||typeof value.build!=='string'||typeof value.scope!=='string') throw Error('Maven graph schema invalid');
+    // Older retained graphs lack project.path. Absence is unknown, never inferred.
+    const project=Object.hasOwn(value,'project')?value.project:'unknown';
+    if(typeof project!=='string'||!project.trim()||Buffer.byteLength(project,'utf8')>MAVEN_LIMITS.projectBytes||/[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/u.test(project)) throw Error('Maven project identity invalid');
     const graphSha256=sha(graph.bytes);files.push({path:graph.name,bytes:graph.bytes.length,sha256:graphSha256});
     for(const item of value.components) {
-      if(entries.length>=100000) throw Error('Maven component count budget');
+      if(entries.length>=MAVEN_LIMITS.componentCount) throw Error('Maven component count budget');
       if(!item||!['group','module','version'].every(k=>typeof item[k]==='string'&&/^[A-Za-z0-9_.+:-]{1,256}$/.test(item[k]))||/^(?:unspecified|latest(?:\..*)?)$/.test(item.version)||item.version.endsWith('+')) throw Error('Maven coordinate invalid');
       // Buildscript scopes override classpath suffixes. Optional packaging stays unknown.
       const buildOnly=value.scope.includes('buildscript');
       const classification=buildOnly?'build-only':value.configuration.toLowerCase().endsWith('runtimeclasspath')?'runtime-input':'unknown';
-      entries.push({group:item.group,module:item.module,version:item.version,build:value.build,
+      entries.push({group:item.group,module:item.module,version:item.version,build:value.build,project,
         scope:value.scope,configuration:value.configuration,classification,packagedPresence:'unknown',
         graphPath:graph.name,graphSha256,purl:purl('maven',item.group+'/'+item.module,item.version)});
     }

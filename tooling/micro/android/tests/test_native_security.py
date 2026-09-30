@@ -1,5 +1,6 @@
 """Policy negatives. Actual scanner demonstrations live in controller receipts."""
 import copy
+import hashlib
 from datetime import datetime, timedelta, timezone
 import importlib.util
 import json
@@ -136,12 +137,122 @@ class SecurityPolicyTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             self.rejects(lambda: security.maven_coverage(tmp), 'missing')
             path = Path(tmp, 'runtime.json')
-            path.write_text(json.dumps({'build': 'main', 'configuration': 'releaseRuntimeClasspath',
+            path.write_text(json.dumps({'build': 'main', 'scope': 'project', 'configuration': 'releaseRuntimeClasspath',
                                         'components': [{'group': 'androidx.core', 'module': 'core', 'version': '1.16.0'}]}))
             component = security.maven_coverage(tmp)['components'][0]
             self.assertEqual(component['classification'], 'runtime-input'); self.assertEqual(component['packagedPresence'], 'unknown')
-            path.write_text(json.dumps({'configuration': 'runtime', 'components': [{'group': '../escape', 'module': 'x', 'version': '1'}]}))
+            path.write_text(json.dumps({'build': 'main', 'scope': 'project', 'configuration': 'runtime', 'components': [{'group': '../escape', 'module': 'x', 'version': '1'}]}))
             self.rejects(lambda: security.maven_coverage(tmp), 'identity')
+
+
+class MavenGraphBudgetTests(unittest.TestCase):
+    """Synthetic FAKE graph observations test policy, not actual native closure."""
+    coordinate = {'group': 'org.fake', 'module': 'fixture', 'version': '1.0.0'}
+
+    def graph(self, **changes):
+        return {'build': '/FAKE/fixture/android', 'project': ':app', 'scope': 'project',
+                'configuration': 'releaseRuntimeClasspath', 'components': [self.coordinate], **changes}
+
+    def write(self, directory, name='graph.json', **changes):
+        raw = json.dumps(self.graph(**changes), separators=(',', ':')).encode()
+        Path(directory, name).write_bytes(raw)
+        return raw
+
+    def test_1528_raw_graphs_retain_all_23870_rows_projects_scopes_and_hashes(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            expected = {}
+            for index in range(1528):
+                name = f'graph-{index:04d}.json'
+                project = '<settings>' if index % 4 == 0 else f':FAKE-module-{index}'
+                scope = 'settings-buildscript' if index % 4 == 0 else 'project'
+                raw = self.write(tmp, name, project=project, scope=scope,
+                                 components=[self.coordinate] * (16 if index < 950 else 15))
+                expected[name] = (raw, project, scope)
+            report = security.maven_coverage(tmp)
+            self.assertEqual(len(report['graphFiles']), 1528)
+            self.assertEqual(len(report['components']), 23870)
+            self.assertEqual(report['graphFiles'], [
+                {'path': name, 'bytes': len(raw), 'sha256': hashlib.sha256(raw).hexdigest()}
+                for name, (raw, _, _) in sorted(expected.items())])
+            for entry in report['components']:
+                raw, project, scope = expected[entry['graphPath']]
+                self.assertEqual((entry['project'], entry['scope']), (project, scope))
+                self.assertEqual(entry['graphSha256'], hashlib.sha256(raw).hexdigest())
+                self.assertEqual(entry['receiptSha256'], entry['graphSha256'])
+                self.assertEqual(entry['classification'], 'build-only' if 'buildscript' in scope else 'runtime-input')
+                self.assertEqual(entry['packagedPresence'], 'unknown')
+            self.assertTrue(any('separate review' in limit for limit in report['limits']))
+
+    def test_2048_graph_count_boundary_and_2049_rejection(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            for index in range(2048): self.write(tmp, f'graph-{index:04d}.json')
+            self.assertEqual(len(security.maven_coverage(tmp)['graphFiles']), 2048)
+            self.write(tmp, 'graph-2048.json')
+            with self.assertRaisesRegex(ValueError, 'file budget'): security.maven_coverage(tmp)
+
+    def test_project_scope_identity_is_never_inferred_or_collapsed(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            self.write(tmp, 'one.json', project=':one')
+            self.write(tmp, 'two.json', project=':two')
+            self.write(tmp, 'settings.json', project='<settings>', scope='settings-buildscript')
+            legacy = self.graph(); del legacy['project']
+            Path(tmp, 'legacy.json').write_text(json.dumps(legacy))
+            self.write(tmp, 'buildscript.json', scope='project-buildscript', configuration='buildscriptRuntimeClasspath')
+            self.write(tmp, 'nonruntime.json', configuration='compileClasspath')
+            rows = {row['graphPath']: row for row in security.maven_coverage(tmp)['components']}
+            self.assertEqual([rows[n]['project'] for n in ('one.json', 'two.json', 'settings.json', 'legacy.json')],
+                             [':one', ':two', '<settings>', 'unknown'])
+            self.assertEqual(rows['buildscript.json']['classification'], 'build-only')
+            self.assertEqual(rows['nonruntime.json']['classification'], 'unknown')
+
+    def test_supplied_malformed_projects_and_graph_schema_fail(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            for project in (None, 7, {}, [], '', '   ', 'x' * 1025, 'é' * 513, '\ud800'):
+                with self.subTest(project=repr(project)):
+                    self.write(tmp, project=project)
+                    with self.assertRaisesRegex(ValueError, 'project identity'): security.maven_coverage(tmp)
+            self.write(tmp, project='é' * 512)
+            self.assertEqual(security.maven_coverage(tmp)['components'][0]['project'], 'é' * 512)
+            for key in ('build', 'scope', 'configuration', 'components'):
+                value = self.graph(); del value[key]
+                Path(tmp, 'graph.json').write_text(json.dumps(value))
+                with self.subTest(missing=key), self.assertRaisesRegex(ValueError, 'schema'): security.maven_coverage(tmp)
+            for version in ('latest.release', 'unspecified', '1.+'):
+                self.write(tmp, components=[dict(self.coordinate, version=version)])
+                with self.assertRaisesRegex(ValueError, 'identity'): security.maven_coverage(tmp)
+
+    def test_duplicate_manifest_names_and_unrecognized_directory_entries_fail(self):
+        item = {'path': 'FAKE.json', 'bytes': 1, 'sha256': 'a' * 64}
+        with self.assertRaisesRegex(ValueError, 'duplicate'): security.validate_maven_files([item, dict(item)])
+        with tempfile.TemporaryDirectory() as tmp:
+            self.write(tmp)
+            Path(tmp, 'ignored.txt').write_text('FAKE omitted input')
+            with self.assertRaisesRegex(ValueError, 'file invalid'): security.maven_coverage(tmp)
+            Path(tmp, 'ignored.txt').unlink(); Path(tmp, 'nested').mkdir()
+            with self.assertRaisesRegex(ValueError, 'file invalid'): security.maven_coverage(tmp)
+
+    def test_real_graph_byte_limits_are_inclusive_and_unchanged(self):
+        self.assertEqual((security.MAVEN_LIMITS['graphBytes'], security.MAVEN_LIMITS['totalBytes']), (8*1024**2, 64*1024**2))
+        with tempfile.TemporaryDirectory() as tmp:
+            raw = json.dumps(self.graph(components=[])).encode()
+            padded = raw + b' ' * (8*1024**2 - len(raw))
+            Path(tmp, 'one.json').write_bytes(padded)
+            self.assertEqual(security.maven_coverage(tmp)['graphFiles'][0]['bytes'], 8*1024**2)
+            Path(tmp, 'one.json').write_bytes(padded + b' ')
+            with self.assertRaisesRegex(ValueError, 'file invalid'): security.maven_coverage(tmp)
+            Path(tmp, 'one.json').unlink()
+            for index in range(8): Path(tmp, f'graph-{index}.json').write_bytes(padded)
+            self.assertEqual(sum(item['bytes'] for item in security.maven_coverage(tmp)['graphFiles']), 64*1024**2)
+            self.write(tmp, 'overflow.json', components=[])
+            with self.assertRaisesRegex(ValueError, 'total byte budget'): security.maven_coverage(tmp)
+
+    def test_100000_component_boundary_and_overflow_remain_enforced(self):
+        self.assertEqual(security.MAVEN_LIMITS['componentCount'], 100000)
+        with tempfile.TemporaryDirectory() as tmp:
+            self.write(tmp, components=[self.coordinate] * 100000)
+            self.assertEqual(len(security.maven_coverage(tmp)['components']), 100000)
+            self.write(tmp, components=[self.coordinate] * 100001)
+            with self.assertRaisesRegex(ValueError, 'component count budget'): security.maven_coverage(tmp)
 
 
 class CleanupBoundaryTests(unittest.TestCase):

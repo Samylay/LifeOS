@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
-import {augment,lockedInventory,mavenInventory} from '../security_inventory.mjs';
+import {augment,lockedInventory,mavenInventory,MAVEN_LIMITS} from '../security_inventory.mjs';
 const bytes=value=>Buffer.from(JSON.stringify(value));
 const lock=()=>bytes({lockfileVersion:3,packages:{'':{name:'fixture-app',version:'1.0.0'},
   'node_modules/@scope/optional':{version:'2.0.0',optional:true},
@@ -65,4 +65,74 @@ test('Maven unsafe/unresolved coordinates, omitted scope and oversized graphs fa
   assert.throws(()=>mavenInventory([{name:'../graph.json',bytes:bytes({})}]));
   assert.throws(()=>mavenInventory([{name:'huge.json',bytes:Buffer.alloc(8*1024*1024+1)}]));
   assert.throws(()=>augment({components:[]},lock()));
+});
+
+// All following raw graphs are FAKE observations, never native closure evidence.
+const fakeCoordinate={group:'org.fake',module:'fixture',version:'1.0.0'};
+const fakeGraph=(name,changes={})=>({name,bytes:bytes({build:'/FAKE/fixture/android',project:':app',
+  scope:'project',configuration:'releaseRuntimeClasspath',components:[fakeCoordinate],...changes})});
+
+test('1528 distinct FAKE raw graphs retain all 23870 rows and hash/scope/project provenance',()=>{
+  const graphs=Array.from({length:1528},(_,i)=>fakeGraph('graph-'+String(i).padStart(4,'0')+'.json',{
+    project:i%4===0?'<settings>':':FAKE-module-'+i,scope:i%4===0?'settings-buildscript':'project',
+    components:Array(i<950?16:15).fill(fakeCoordinate)}));
+  const {bom,inventory}=augment(syft(),lock(),graphs),maven=inventory.maven;
+  assert.equal(maven.files.length,1528);assert.equal(maven.entries.length,23870);
+  assert.deepEqual(maven.files,graphs.map(g=>({path:g.name,bytes:g.bytes.length,sha256:crypto.createHash('sha256').update(g.bytes).digest('hex')})));
+  const expected=new Map(graphs.map(g=>[g.name,{...JSON.parse(g.bytes),sha:crypto.createHash('sha256').update(g.bytes).digest('hex')}]))
+  for(const entry of maven.entries) {
+    const original=expected.get(entry.graphPath);
+    assert.equal(entry.project,original.project);assert.equal(entry.scope,original.scope);
+    assert.equal(entry.graphSha256,original.sha);assert.equal(entry.packagedPresence,'unknown');
+    assert.equal(entry.classification,original.scope.includes('buildscript')?'build-only':'runtime-input');
+  }
+  const component=bom.components.find(c=>c.purl==='pkg:maven/org.fake/fixture@1.0.0');
+  assert.deepEqual(JSON.parse(component.properties.find(p=>p.name==='micro:resolved-maven-entries').value),maven.entries);
+  assert.match(inventory.finalArtifactCoverage,/pending/);
+});
+
+test('2048 graph boundary passes and 2049 graphs fail without truncation',()=>{
+  const graphs=Array.from({length:2048},(_,i)=>fakeGraph('graph-'+i+'.json'));
+  assert.equal(mavenInventory(graphs).files.length,2048);
+  assert.throws(()=>mavenInventory([...graphs,fakeGraph('graph-2048.json')]),/count budget/);
+});
+
+test('project identities distinguish same configuration, preserve settings and legacy absence is unknown',()=>{
+  const legacy=JSON.parse(fakeGraph('legacy.json').bytes);delete legacy.project;
+  const graphs=[fakeGraph('one.json',{project:':one'}),fakeGraph('two.json',{project:':two'}),
+    fakeGraph('settings.json',{project:'<settings>',scope:'settings-buildscript'}),{name:'legacy.json',bytes:bytes(legacy)},
+    fakeGraph('buildscript.json',{scope:'project-buildscript',configuration:'buildscriptRuntimeClasspath'}),
+    fakeGraph('nonruntime.json',{configuration:'compileClasspath'})];
+  const rows=mavenInventory(graphs).entries;
+  assert.deepEqual(rows.map(e=>e.project),[':one',':two','<settings>','unknown',':app',':app']);
+  assert.deepEqual(rows.map(e=>e.classification),['runtime-input','runtime-input','build-only','runtime-input','build-only','unknown']);
+});
+
+test('malformed supplied project, duplicate graph names and missing schema fail',()=>{
+  for(const project of [null,7,{},[],'','   ','x'.repeat(1025),'é'.repeat(513),'\uD800'])
+    assert.throws(()=>mavenInventory([fakeGraph('bad.json',{project})]),/project identity/);
+  assert.equal(mavenInventory([fakeGraph('valid.json',{project:'é'.repeat(512)})]).entries[0].project,'é'.repeat(512));
+  const first=fakeGraph('duplicate.json');
+  assert.throws(()=>mavenInventory([first,fakeGraph('duplicate.json',{project:':other'})]),/duplicate/);
+  for(const key of ['build','scope','configuration','components']) {
+    const value=JSON.parse(first.bytes);delete value[key];
+    assert.throws(()=>mavenInventory([{name:'missing.json',bytes:bytes(value)}]),/schema/);
+  }
+});
+
+test('8 MiB graph and 64 MiB total byte boundaries remain inclusive and enforced',()=>{
+  assert.equal(MAVEN_LIMITS.graphBytes,8*1024*1024);assert.equal(MAVEN_LIMITS.totalBytes,64*1024*1024);
+  const raw=fakeGraph('single.json',{components:[]}).bytes;
+  const padded=Buffer.concat([raw,Buffer.alloc(MAVEN_LIMITS.graphBytes-raw.length,32)]);
+  assert.equal(mavenInventory([{name:'single.json',bytes:padded}]).files[0].bytes,MAVEN_LIMITS.graphBytes);
+  assert.throws(()=>mavenInventory([{name:'overflow.json',bytes:Buffer.concat([padded,Buffer.from(' ')])}]),/input invalid/);
+  const graphs=Array.from({length:8},(_,i)=>({name:'graph-'+i+'.json',bytes:padded}));
+  assert.equal(mavenInventory(graphs).files.reduce((n,f)=>n+f.bytes,0),MAVEN_LIMITS.totalBytes);
+  assert.throws(()=>mavenInventory([...graphs,fakeGraph('overflow.json',{components:[]})]),/total byte budget/);
+});
+
+test('100000 component boundary passes and overflow fails without deduplication',()=>{
+  assert.equal(MAVEN_LIMITS.componentCount,100000);
+  assert.equal(mavenInventory([fakeGraph('max.json',{components:Array(100000).fill(fakeCoordinate)})]).entries.length,100000);
+  assert.throws(()=>mavenInventory([fakeGraph('overflow.json',{components:Array(100001).fill(fakeCoordinate)})]),/component count budget/);
 });

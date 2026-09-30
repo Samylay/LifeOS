@@ -17,6 +17,34 @@ from urllib.parse import quote
 HERE = Path(__file__).resolve().parent
 POLICY = json.loads((HERE / 'security_policy.json').read_text())
 DEFAULT_STATE = Path('/home/quorky/apps/lifeos/.scratch/software-factory-benchmark/run-20260930/controller/native-security')
+MAVEN_LIMITS = {'graphCount': 2048, 'graphBytes': 8 * 1024**2,
+                'totalBytes': 64 * 1024**2, 'componentCount': 100000, 'projectBytes': 1024}
+
+
+def validate_maven_files(files):
+    """Keep one exact hash identity for every bounded raw graph, without deduplication."""
+    if not files or len(files) > MAVEN_LIMITS['graphCount']: raise ValueError('Maven graph file budget')
+    names = set(); total = 0
+    for item in files:
+        name = item.get('path')
+        if not isinstance(name, str) or not re.fullmatch(r'[A-Za-z0-9_.-]+\.json', name): raise ValueError('Maven graph file invalid')
+        if name in names: raise ValueError('duplicate Maven graph name')
+        names.add(name)
+        if type(item.get('bytes')) is not int or not 0 <= item['bytes'] <= MAVEN_LIMITS['graphBytes']:
+            raise ValueError('Maven graph file invalid')
+        if not isinstance(item.get('sha256'), str) or not re.fullmatch(r'[0-9a-f]{64}', item['sha256']): raise ValueError('Maven graph hash invalid')
+        total += item['bytes']
+    if total > MAVEN_LIMITS['totalBytes']: raise ValueError('Maven graph total byte budget')
+
+
+def maven_project(value):
+    # Earlier retained graphs did not capture project.path. Never reconstruct it.
+    project = value.get('project', 'unknown')
+    if not isinstance(project, str) or not project.strip(): raise ValueError('Maven project identity invalid')
+    try: size = len(project.encode('utf-8'))
+    except UnicodeEncodeError as error: raise ValueError('Maven project identity invalid') from error
+    if size > MAVEN_LIMITS['projectBytes']: raise ValueError('Maven project identity invalid')
+    return project
 
 
 def digest(path):
@@ -310,9 +338,7 @@ class Supervisor:
                 owned_native = DEFAULT_STATE.parent / 'native-acquisition'
                 if mode != 'scan' or not graphs.is_relative_to(owned_native): raise ValueError('Maven graph outside controller authority')
                 receipt['mavenFiles'] = tree_manifest(graphs)
-                if not receipt['mavenFiles'] or len(receipt['mavenFiles']) > 1000 or any(not re.fullmatch(r'[A-Za-z0-9_.-]+\.json', f['path']) or f['bytes'] > 8*1024**2 for f in receipt['mavenFiles']):
-                    raise ValueError('invalid controller Maven graph inputs')
-                if sum(f['bytes'] for f in receipt['mavenFiles']) > 64*1024**2: raise ValueError('Maven graph input byte budget')
+                validate_maven_files(receipt['mavenFiles'])
                 args += ['--mount', f'type=bind,src={graphs},dst=/maven,readonly']
             if cache:
                 args += ['--mount', f'type=bind,src={Path(cache).resolve()},dst=/db' + ('' if writable_db else ',readonly')]
@@ -459,24 +485,36 @@ def source_coverage(source):
 
 def maven_coverage(graph_directory):
     """Inventory actual controller-retained resolved configurations, if present."""
-    paths = sorted(Path(graph_directory).glob('*.json'))
+    paths = sorted(Path(graph_directory).glob('*'))
     if not paths: raise ValueError('resolved Maven graph missing')
-    if len(paths) > 1000: raise ValueError('Maven graph file budget')
-    components = []
+    if len(paths) > MAVEN_LIMITS['graphCount']: raise ValueError('Maven graph file budget')
+    components = []; files = []; total = 0
     for path in paths:
-        if path.is_symlink() or not path.is_file() or path.stat().st_size > 8 * 1024**2: raise ValueError('Maven graph file invalid')
-        value = json.loads(path.read_text())
-        if not isinstance(value.get('components'), list) or not isinstance(value.get('configuration'), str): raise ValueError('Maven graph schema invalid')
+        if path.is_symlink() or not path.is_file() or not re.fullmatch(r'[A-Za-z0-9_.-]+\.json', path.name): raise ValueError('Maven graph file invalid')
+        with path.open('rb') as stream: raw = stream.read(MAVEN_LIMITS['graphBytes'] + 1)
+        if len(raw) > MAVEN_LIMITS['graphBytes']: raise ValueError('Maven graph file invalid')
+        total += len(raw)
+        if total > MAVEN_LIMITS['totalBytes']: raise ValueError('Maven graph total byte budget')
+        graph_hash = hashlib.sha256(raw).hexdigest()
+        files.append({'path': path.name, 'bytes': len(raw), 'sha256': graph_hash})
+        value = json.loads(raw)
+        if not isinstance(value, dict) or not isinstance(value.get('components'), list) or not all(isinstance(value.get(k), str) for k in ('build', 'scope', 'configuration')):
+            raise ValueError('Maven graph schema invalid')
+        project = maven_project(value)
         for item in value['components']:
-            if not all(isinstance(item.get(k), str) and re.fullmatch(r'[A-Za-z0-9_.+:-]{1,256}', item[k]) for k in ('group', 'module', 'version')):
+            if len(components) >= MAVEN_LIMITS['componentCount']: raise ValueError('Maven component count budget')
+            if not isinstance(item, dict) or not all(isinstance(item.get(k), str) and re.fullmatch(r'[A-Za-z0-9_.+:-]{1,256}', item[k]) for k in ('group', 'module', 'version')) or re.fullmatch(r'(?:unspecified|latest(?:\..*)?)', item['version']) or item['version'].endswith('+'):
                 raise ValueError('Maven component identity invalid')
-            config = value['configuration']; build = value.get('build', 'unknown')
-            classification = 'runtime-input' if config.lower().endswith('runtimeclasspath') else 'build-only' if 'plugin' in str(build).lower() or config.lower().endswith('classpath') else 'unknown'
+            config = value['configuration']
+            classification = 'build-only' if 'buildscript' in value['scope'] else 'runtime-input' if config.lower().endswith('runtimeclasspath') else 'unknown'
             components.append({**{k: item[k] for k in ('group', 'module', 'version')},
-                               'build': build, 'configuration': config, 'classification': classification,
-                               'packagedPresence': 'unknown', 'receiptSha256': digest(path)})
+                               'build': value['build'], 'project': project, 'scope': value['scope'],
+                               'configuration': config, 'classification': classification,
+                               'packagedPresence': 'unknown', 'graphPath': path.name, 'graphSha256': graph_hash,
+                               'receiptSha256': graph_hash})
+    validate_maven_files(files)
     return {'kind': 'resolved-Maven-inputs', 'components': components,
-            'graphFiles': [{'path': str(p), 'sha256': digest(p)} for p in paths],
+            'graphFiles': files,
             'limits': ['Only resolved configurations reported by the trusted build are covered',
                        'A resolved coordinate is not proof of packaged presence',
                        'Native library component/version mapping requires separate review']}
