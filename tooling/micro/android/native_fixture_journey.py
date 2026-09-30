@@ -79,9 +79,13 @@ def run_fixture_journey(adapter: device.Device, job: pipeline.JobContext,
     job.store.path(directory).mkdir(mode=0o700, parents=True, exist_ok=False)
     clock = adapter.backend.clock
     started = clock(); step = 'admission'; events = []; evidence = []
-    authority_paths = {'controllerSha256': Path(__file__), 'deviceControllerSha256': Path(device.__file__)}
+    authority_paths = {'controllerSha256': Path(__file__), 'deviceControllerSha256': Path(device.__file__),
+                       'healthControllerSha256': Path(device.fixture_health.__file__)}
     code_authority = {key: hashlib.sha256(path.read_bytes()).hexdigest() for key, path in authority_paths.items()}
     first_failure = None; source = None; lease = None; installed = None
+    health_ticket = None; health_reference = None; health_failure = None
+    health = {'status': 'unknown', 'crashCount': None, 'anrCount': None}
+    health_cleanup = {'absent': True}
     journey = persistence = offline_launch = 'unknown'
 
     def retain(name, value):
@@ -148,6 +152,17 @@ def run_fixture_journey(adapter: device.Device, job: pipeline.JobContext,
         retain('bind-installed', {'artifactRecord': artifact_record.json(), 'installed': bound})
         identity = adapter.facts()
         lease = retain('lease', identity)
+        try:
+            health_ticket = adapter.start_fixture_health_window()
+            health_cleanup = None
+            retain('health-window-start', {'baseline': health_ticket.baseline.json(),
+                   'token': health_ticket.token})
+        except Exception as error:
+            health_failure = {'step': 'health-window-start', 'type': type(error).__name__,
+                              'reason': str(error)[:800]}
+            evidence.extend(getattr(error, 'health_evidence', []))
+            if adapter.backend.health_stream is not None:
+                health_cleanup = None
         step = 'initial-offline-launch'; retain(step, adapter.launch_offline())
         capture(CASES[0], (0, 0))
         for control, case, expected in (('counter-a', CASES[1], (1, 0)),
@@ -171,6 +186,22 @@ def run_fixture_journey(adapter: device.Device, job: pipeline.JobContext,
     except Exception as error:
         first_failure = {'step': step, 'type': type(error).__name__, 'reason': str(error)[:1200],
                          'notes': [str(note)[:800] for note in getattr(error, '__notes__', [])[:4]]}
+    finally:
+        if health_ticket is not None:
+            try:
+                health_reference = adapter.finish_fixture_health_window(health_ticket)
+                observed_health = job.store.json(health_reference)
+                evidence.append(health_reference.json())
+                health = observed_health['summary'] or health
+                health_failure = observed_health['failure'] or observed_health['cleanupFailure']
+                observed_cleanup = (observed_health.get('stream') or {}).get('cleanup')
+                health_cleanup = observed_cleanup if observed_cleanup in ({'absent': True}, {'absent': False}) else None
+                if health.get('status') == 'failed' and first_failure is None:
+                    first_failure = {'step': 'health-observation', 'type': 'ObservedFixtureHealthFailure',
+                                     'reason': 'Matching crash/ANR signal observed during journey', 'notes': []}
+            except Exception as error:
+                health_failure = {'step': 'health-window-finish', 'type': type(error).__name__,
+                                  'reason': str(error)[:800]}
 
     finished = clock()
     raw = job.store.write(directory + '/journey.json', {
@@ -184,8 +215,9 @@ def run_fixture_journey(adapter: device.Device, job: pipeline.JobContext,
         'startedAt': started, 'finishedAt': finished, 'events': events, 'firstFailure': first_failure,
         'status': 'failed' if first_failure else 'ui-observed-health-pending',
         'journey': journey, 'persistence': persistence, 'offlineLaunch': offline_launch,
-        'health': {'status': 'unknown', 'crashCount': None, 'anrCount': None},
-        'limitations': ['No actual crash/ANR authority connected', 'No recovery verdict',
+        'health': health, 'healthFailure': health_failure,
+        'healthReceipt': health_reference.json() if health_reference else None,
+        'limitations': ['API36 health calibration pending', 'No recovery verdict',
                         'No automatic retry or device health inferred from screenshots or launch']})
     evidence.append(raw.json())
     report = job.store.write(directory + '/stage-observation.json', {
@@ -193,7 +225,7 @@ def run_fixture_journey(adapter: device.Device, job: pipeline.JobContext,
         'stage': pipeline.Stage.DEVICE.value, 'status': 'failed' if first_failure else 'pending',
         'context': job.binding.context(), 'startedAt': started, 'finishedAt': finished,
         'exitCode': None, 'signal': None, 'timeout': False, 'oom': False, 'resourceError': None,
-        'cleanup': {'absent': True} if not first_failure else None,
+        'cleanup': health_cleanup if health_cleanup != {'absent': True} or not first_failure else None,
         'artifactSha256': job.artifact_sha256,
         'details': {'installed': installed, 'leaseReceipt': lease.json() if lease else None,
                     'suiteSha256': job.binding.identities['suite'].sha256, 'journey': journey,

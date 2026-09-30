@@ -26,9 +26,11 @@ from PIL import Image
 try:
     from . import admission
     from .pipeline import Registry, load_registry
+    from . import fixture_health
 except ImportError:
     import admission
     from pipeline import Registry, load_registry
+    import fixture_health
 
 ROOT = Path('/home/quorky/apps/lifeos/.scratch/software-factory-benchmark/run-20260930/controller/native-device')
 EXECUTABLE = '/home/quorky/Android/sdk/emulator/qemu/linux-x86_64/qemu-system-x86_64-headless'
@@ -109,6 +111,12 @@ def _transport(argv: tuple[str, ...], timeout: float, maximum: int) -> bytes:
         code = process.wait(timeout=3)
         if code != 0: raise admission.Rejected('Fixed ADB operation failed: '+errors.decode(errors='replace')[:800])
         return bytes(data)
+    except Exception as error:
+        error.stdout_prefix = bytes(data[:1024])
+        error.stderr_prefix = bytes(errors[:1024])
+        error.transport_facts = {'stdoutBytes': len(data), 'stderrBytes': len(errors),
+                                 'seconds': time.monotonic()-started}
+        raise
     finally:
         selection.close()
         if process.poll() is None:
@@ -124,6 +132,7 @@ class Backend:
     uid: Callable[[], int] = os.getuid
     transport: Callable[[tuple[str, ...], float, int], bytes] = _transport
     clock: Callable[[], float] = time.time
+    health_stream: Callable[[str, int], object] | None = None
 
 
 def validate_png(data: bytes) -> tuple[int, int]:
@@ -187,13 +196,14 @@ class Device:
                  artifact_security: admission.Evidence | None = None):
         if role not in ROLES: raise admission.Rejected('Unknown controlled device role')
         self.role = role
-        self.backend = backend or Backend()
+        self.backend = backend or Backend(health_stream=fixture_health.EventStream)
         self.registry = registry
         self.store = store
         self.artifact_security = artifact_security
         self._lease_pin = None
         self._installed = None
         self._captures: dict[str, Capture] = {}
+        self._health_windows: dict[str, dict] = {}
 
     @property
     def spec(self) -> Role:
@@ -257,6 +267,10 @@ class Device:
                 'facts': facts, 'leaseSha256': self._lease_pin, 'lease': lease}
 
     def _mutation(self, args: tuple[str, ...], *, timeout: float = 30, maximum: int = XML_LIMIT) -> bytes:
+        for window in self._health_windows.values():
+            stream = window['stream']
+            if getattr(stream, 'failure', None) or getattr(stream, 'finished', False):
+                raise admission.Rejected('Owned health observation stream ended or failed before mutation')
         if self._installed is not None: self._ensure_installed()
         else: self.facts()
         return self._call(args, timeout=timeout, maximum=maximum)
@@ -353,9 +367,121 @@ class Device:
 
     def force_stop(self) -> dict:
         self._ensure_installed()
+        start_epoch = self._fixture_health_clock()['epochSeconds'] if self._health_windows else None
         self._mutation(('shell', 'am', 'force-stop', self.spec.package), maximum=8192)
+        if self._health_windows:
+            end_epoch = self._fixture_health_clock()['epochSeconds']
+            for window in self._health_windows.values():
+                window['stops'].append({'startEpochSeconds': start_epoch, 'endEpochSeconds': end_epoch})
         return {'operation': 'force-stop', 'role': self.role, 'package': self.spec.package,
                 'apkSha256': self._installed['apkSha256'], 'observedAt': self.backend.clock()}
+
+    def _fixture_health_scope(self):
+        if self.role not in fixture_health.SERIALS or self.spec.package != fixture_health.PACKAGE or self.store is None:
+            raise admission.Rejected('Health observations require fixed fixture role and protected Store')
+
+    def _fixture_health_clock(self) -> dict:
+        before = self.backend.clock(); monotonic_before = time.monotonic()
+        raw = self._call(('shell', 'date', '+%s'), timeout=5, maximum=1024)
+        timezone = self._call(('shell', 'getprop', 'persist.sys.timezone'), timeout=5, maximum=1024).decode('utf-8').strip()
+        if not re.fullmatch(rb'[1-9][0-9]{8,11}\n?', raw) or not re.fullmatch(r'[A-Za-z0-9_+/-]{1,128}', timezone):
+            raise admission.Rejected('Unknown health device clock/timezone')
+        fixture_health.ZoneInfo(timezone)
+        return {'epochSeconds': int(raw), 'timezone': timezone,
+                'hostStartedAt': before, 'hostFinishedAt': self.backend.clock(),
+                'hostMonotonicStartedAt': monotonic_before, 'hostMonotonicFinishedAt': time.monotonic()}
+
+    def observe_fixture_exit_info(self) -> admission.Evidence:
+        """Retain one fixed package dump, including bounded failure evidence."""
+        self._fixture_health_scope()
+        token = uuid4().hex; directory = 'fixture-health/'+self.role+'/'+token
+        self.store.path(directory).mkdir(mode=0o700, parents=True, exist_ok=False)
+        raw = None; records = None; failure = None; clock = None; uid = None
+        try:
+            self._ensure_installed()
+            clock = self._fixture_health_clock()
+            owners = self._call(('shell', 'pm', 'list', 'packages', '-U', fixture_health.PACKAGE), timeout=10, maximum=8192)
+            owner = re.fullmatch(rb'package:app\.micro\.factory\.fixture uid:([0-9]+)\n?', owners)
+            if not owner: raise admission.Rejected('Unknown or ambiguous actual fixture package UID')
+            uid = int(owner[1])
+            data = self._call(('shell', 'dumpsys', '-t', '5', 'activity', 'exit-info', fixture_health.PACKAGE), timeout=10, maximum=fixture_health.DUMP_LIMIT)
+            path = self.store.path(directory+'/exit-info.txt')
+            self.store.budget()
+            with path.open('xb') as output: output.write(data)
+            path.chmod(0o400); raw = self.store.describe(directory+'/exit-info.txt', fixture_health.DUMP_LIMIT)
+            records = fixture_health.parse_exit_info(data, uid, clock['timezone'])
+            self._ensure_installed()
+        except Exception as error:
+            failure = {'type': type(error).__name__, 'reason': str(error)[:800],
+                       'transport': getattr(error, 'transport_facts', None),
+                       'stdoutPrefix': getattr(error, 'stdout_prefix', b'').decode('utf-8', errors='replace'),
+                       'stderrPrefix': getattr(error, 'stderr_prefix', b'').decode('utf-8', errors='replace')}
+        return self.store.write(directory+'/observation.json', {
+            'schema': 'micro.android.fixture-exit-info/1', 'role': self.role,
+            'package': fixture_health.PACKAGE, 'leaseSha256': self._lease_pin,
+            'apkSha256': self._installed['apkSha256'] if self._installed else None,
+            'observedAt': self.backend.clock(), 'clock': clock, 'packageUid': uid,
+            'raw': raw.json() if raw else None, 'records': records, 'failure': failure,
+            'controllerSha256': hashlib.sha256(Path(fixture_health.__file__).read_bytes()).hexdigest()})
+
+    def start_fixture_health_window(self) -> fixture_health.Ticket:
+        self._fixture_health_scope()
+        if self.backend.health_stream is None:
+            raise admission.Rejected('Fixture health stream backend unavailable')
+        if self._health_windows: raise admission.Rejected('A fixture health window is already owned')
+        baseline = self.observe_fixture_exit_info()
+        facts = self.store.json(baseline)
+        if facts['failure']:
+            error = admission.Rejected('Fixture health baseline unavailable: '+facts['failure']['reason'])
+            error.health_evidence = [baseline.json()]
+            raise error
+        try:
+            stream = self.backend.health_stream(self.role, facts['clock']['epochSeconds'])
+        except Exception as error:
+            failure = self.store.write('fixture-health/'+self.role+'/'+uuid4().hex+'.json', {
+                'schema': 'micro.android.fixture-health-start-failure/1', 'role': self.role,
+                'baseline': baseline.json(), 'error': {'type': type(error).__name__, 'reason': str(error)[:800]}})
+            error.health_evidence = [baseline.json(), failure.json()]
+            raise
+        ticket = fixture_health.Ticket(uuid4().hex, self.role, self._lease_pin,
+            self._installed['apkSha256'], facts['controllerSha256'], baseline)
+        self._health_windows[ticket.token] = {'ticket': ticket, 'stream': stream, 'stops': []}
+        return ticket
+
+    def finish_fixture_health_window(self, ticket: fixture_health.Ticket) -> admission.Evidence:
+        window = self._health_windows.get(ticket.token) if isinstance(ticket, fixture_health.Ticket) else None
+        if window is None or window['ticket'] != ticket: raise admission.Rejected('Unknown/cross-bound health ticket')
+        failure = None; cleanup_failure = None; final = None; stream = None; summary = None
+        try:
+            self._fixture_health_scope()
+            final = self.observe_fixture_exit_info()
+            facts = self.store.json(final)
+            if facts['failure']: raise admission.Rejected('Final health observation failed: '+facts['failure']['reason'])
+            if ticket.lease_sha256 != self._lease_pin or ticket.apk_sha256 != self._installed['apkSha256'] or ticket.controller_sha256 != hashlib.sha256(Path(fixture_health.__file__).read_bytes()).hexdigest():
+                raise admission.Rejected('Health lease/artifact/controller changed')
+        except Exception as error: failure = {'type': type(error).__name__, 'reason': str(error)[:800]}
+        finally:
+            try: stream = window['stream'].finish()
+            except Exception as error:
+                cleanup_failure = {'type': type(error).__name__, 'reason': str(error)[:800]}
+            self._health_windows.pop(ticket.token)
+        if not failure and not cleanup_failure:
+            try:
+                baseline_facts = self.store.json(ticket.baseline)
+                before = dict(baseline_facts['clock'], records=baseline_facts['records'])
+                after = dict(facts['clock'], records=facts['records'])
+                summary = fixture_health.summarize(before, after, stream, window['stops'])
+            except Exception as error: failure = {'type': type(error).__name__, 'reason': str(error)[:800]}
+        directory = 'fixture-health/'+ticket.role+'/'+ticket.token
+        self.store.path(directory).mkdir(mode=0o700, parents=True, exist_ok=False)
+        return self.store.write(directory+'/window.json', {
+            'schema': 'micro.android.fixture-health-window/1', 'role': ticket.role,
+            'package': fixture_health.PACKAGE, 'leaseSha256': ticket.lease_sha256,
+            'apkSha256': ticket.apk_sha256, 'controllerSha256': ticket.controller_sha256,
+            'baseline': ticket.baseline.json(), 'final': final.json() if final else None,
+            'stream': stream, 'expectedStops': window['stops'], 'failure': failure,
+            'cleanupFailure': cleanup_failure,
+            'summary': summary, 'imageCalibration': fixture_health.IMAGE_CALIBRATION})
 
     def launch_offline(self) -> dict:
         self._ensure_installed()
