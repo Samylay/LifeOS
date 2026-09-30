@@ -113,6 +113,33 @@ def runtime_policy(observed, identifier, image, owner):
     return expected
 
 
+def cleanup_owned(command, output, identifier, image, owner):
+    name = 'micro-artifact-' + owner
+    target = identifier or name
+    current = command(['docker', 'inspect', target], 'cleanup-owner')
+    if current['exitCode'] == 0 and not current['limitFailure']:
+        observed = json.loads((output/'cleanup-owner.log').read_text())[0]
+        actual = observed.get('Id', '')
+        if (not re.fullmatch(r'[0-9a-f]{64}', actual)
+                or identifier is not None and actual != identifier
+                or observed.get('Name') != '/' + name or observed.get('Image') != image
+                or observed.get('Config', {}).get('Labels', {}).get('micro.artifact.owner') != owner):
+            raise ValueError('Cleanup exact owner identity changed; no removal attempted')
+        removed = command(['docker', 'rm', '--force', actual], 'cleanup-remove'); require_command(removed)
+        target = actual
+    absent = command(['docker', 'inspect', target], 'cleanup-absent')
+    listing = command(['docker', 'ps', '--all', '--quiet', '--no-trunc',
+                       '--filter', 'name=^/' + name + '$',
+                       '--filter', 'label=micro.artifact.owner='+owner], 'cleanup-list')
+    require_command(listing)
+    diagnostic = (output/'cleanup-absent.log').read_text()
+    missing = re.search(r'no such object:\s*' + re.escape(target) + r'(?:\s|$)', diagnostic, re.IGNORECASE)
+    if (absent['exitCode'] != 1 or absent['limitFailure'] or not missing
+            or (output/'cleanup-list.log').read_text().strip()):
+        raise ValueError('Scoped cleanup absence not proven')
+    return {'absent': True}
+
+
 def inspect_apk(apk, image, output):
     if not re.fullmatch(r'sha256:[0-9a-f]{64}', image):
         raise ValueError('Use an admitted exact local image ID')
@@ -155,6 +182,7 @@ def inspect_apk(apk, image, output):
         if not re.fullmatch(r'[0-9a-f]{64}', identifier): raise ValueError('Invalid Docker container identity')
         before = command(['docker', 'inspect', identifier], 'inspect-before'); require_command(before)
         observed = json.loads((output/'inspect-before.log').read_text())[0]
+        if observed.get('Name') != '/' + name: raise ValueError('Inspector exact container name changed')
         receipt['runtimePolicy'] = runtime_policy(observed, identifier, image, owner)
         run = command(['docker', 'start', '--attach', identifier], 'inspection', seconds=120)
         after = command(['docker', 'inspect', identifier], 'inspect-after'); require_command(after)
@@ -175,40 +203,15 @@ def inspect_apk(apk, image, output):
         error = problem; receipt['status'] = 'failed'
         receipt['error'] = {'type': type(problem).__name__, 'message': str(problem)[:1200]}
     finally:
-        # A timed-out create client can leave its container behind. Recover only
-        # the generated name whose label proves this invocation owns it.
-        if create_attempted and identifier is None:
+        if create_attempted:
             try:
-                recovered = command(['docker', 'inspect', name], 'cleanup-recover')
-                if recovered['exitCode'] == 0 and not recovered['limitFailure']:
-                    current = json.loads((output/'cleanup-recover.log').read_text())[0]
-                    if current['Config'].get('Labels', {}).get('micro.artifact.owner') == owner and re.fullmatch(r'[0-9a-f]{64}', current['Id']):
-                        identifier = current['Id']
-                    else:
-                        receipt['cleanup'] = {'absent': False, 'error': 'Generated name owner could not be verified; no removal attempted'}
-                elif 'no such object' in (output/'cleanup-recover.log').read_text().lower():
-                    receipt['cleanup'] = {'absent': True, 'reason': 'Create did not retain an owned container'}
-                else:
-                    receipt['cleanup'] = {'absent': False, 'error': 'Create outcome could not be inspected'}
-            except Exception as recovery:
-                receipt['cleanup'] = {'absent': False, 'error': str(recovery)[:1200]}
-        if identifier and re.fullmatch(r'[0-9a-f]{64}', identifier):
-            try:
-                check = command(['docker', 'inspect', identifier], 'cleanup-owner'); require_command(check)
-                current = json.loads((output/'cleanup-owner.log').read_text())[0]
-                if current['Id'] != identifier or current['Config'].get('Labels', {}).get('micro.artifact.owner') != owner:
-                    raise ValueError('Cleanup owner changed')
-                removed = command(['docker', 'rm', '--force', identifier], 'cleanup-remove'); require_command(removed)
-                absent = command(['docker', 'inspect', identifier], 'cleanup-absent')
-                text = (output/'cleanup-absent.log').read_text().lower()
-                listing = command(['docker', 'ps', '--all', '--quiet', '--filter', 'label=micro.artifact.owner='+owner], 'cleanup-list')
-                require_command(listing)
-                receipt['cleanup'] = {'absent': absent['exitCode'] != 0 and 'no such object' in text and not (output/'cleanup-list.log').read_text().strip()}
-                if not receipt['cleanup']['absent']: raise ValueError('Scoped cleanup absence not proven')
+                receipt['cleanup'] = cleanup_owned(command, output, identifier, image, owner)
             except Exception as cleanup:
                 receipt['cleanup'] = {'absent': False, 'error': str(cleanup)[:1200]}
                 if error is None:
                     error = cleanup; receipt['status'] = 'failed'
+        else:
+            receipt['cleanup'] = {'absent': True}
         receipt['finishedAt'] = datetime.now(timezone.utc).isoformat()
         (output/'result.json').write_text(json.dumps(receipt, indent=2)+'\n')
     if error: raise error
