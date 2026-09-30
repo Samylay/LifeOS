@@ -1,6 +1,6 @@
 "use client";
 
-import { ReactNode } from "react";
+import { ReactNode, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { ScrollChrome } from "./scroll-chrome";
 import { NotificationNavigation } from "./notification-navigation";
@@ -14,6 +14,9 @@ import { TooltipProvider } from "@/components/ui/mira/tooltip";
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const isChat = pathname === "/chat";
+  useEffect(() => {
+    fetch("/api/usage", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ route: pathname }), keepalive: true }).catch(() => {});
+  }, [pathname]);
   const { sidebarExpanded, setSidebarExpanded } = useAppStore();
   return (
     <TooltipProvider>
