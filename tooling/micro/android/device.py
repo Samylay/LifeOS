@@ -27,12 +27,13 @@ from PIL import Image
 try:
     from . import admission
     from .pipeline import Registry, load_registry
-    from . import fixture_health, fixture_private_store
+    from . import fixture_health, fixture_private_store, fixture_calibration
 except ImportError:
     import admission
     from pipeline import Registry, load_registry
     import fixture_health
     import fixture_private_store
+    import fixture_calibration
 
 ROOT = Path('/home/quorky/apps/lifeos/.scratch/software-factory-benchmark/run-20260930/controller/native-device')
 EXECUTABLE = '/home/quorky/Android/sdk/emulator/qemu/linux-x86_64/qemu-system-x86_64-headless'
@@ -226,7 +227,7 @@ class Capture:
     dimensions: tuple[int, int]
 
 
-class Device:
+class Device(fixture_calibration.CalibrationOperations):
     def __init__(self, role: str, *, backend: Backend | None = None,
                  registry: Registry | None = None, store: admission.Store | None = None,
                  artifact_security: admission.Evidence | None = None):
