@@ -31,7 +31,8 @@ async function runCodex(prompt: string, readOnly = false, systemPrompt?: string)
     const response = await fetch(CODEX_BRIDGE_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt: requestPrompt, provider: "codex", timeout: Math.ceil(CODEX_TIMEOUT / 1000) }),
+      // prefer, not pin: the gateway skips Codex while its limit is reached and falls back.
+      body: JSON.stringify({ prompt: requestPrompt, prefer: "codex", timeout: Math.ceil(CODEX_TIMEOUT / 1000) }),
       signal: AbortSignal.timeout(CODEX_TIMEOUT),
     });
     const body = await response.json().catch(() => ({})) as { response?: unknown; error?: unknown };
