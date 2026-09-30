@@ -7,7 +7,7 @@ import fnmatch
 import io
 import json
 import os
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 import re
 import shutil
 import subprocess
@@ -21,6 +21,8 @@ KIT = Path(__file__).resolve().parent
 DEFAULT_ROOT = Path.home() / 'apps/micro'
 DEFAULT_STATE = Path.home() / '.local/state/micro-factory'
 IMAGE_PATTERN = r'(?:[a-z0-9./:_-]+@)?sha256:[a-f0-9]{64}'
+SOURCE_BYTES = 100_000_000
+SOURCE_ENTRIES = 20_000
 PROTECTED_PATTERNS = ('package.json','package-lock.json','AGENTS.md','Dockerfile*',
     '.factory/*','.github/*','scripts/*','ci/*','tests/*','test/*','*.test.*','*.spec.*',
     '*config*','.*','*/.*',
@@ -115,17 +117,43 @@ def read_policy():
     return v
 
 def extract_source(archive, directory):
-    total = 0
-    with tarfile.open(fileobj=io.BytesIO(archive)) as tar:
+    """Validate the whole export before writing into a fresh owned directory."""
+    if not isinstance(archive, bytes) or len(archive) > SOURCE_BYTES:
+        raise ValueError('Source archive exceeds 100 MB')
+    directory = Path(directory)
+    if directory.is_symlink() or not directory.is_dir() or any(directory.iterdir()):
+        raise ValueError('Source destination must be a fresh empty directory')
+    total = 0; entries = []; seen = {}; required_dirs = set()
+    with tarfile.open(fileobj=io.BytesIO(archive), mode='r:') as tar:
         for member in tar:
-            path = Path(member.name)
-            if path.is_absolute() or '..' in path.parts or member.issym() or member.islnk() or not (member.isfile() or member.isdir()):
+            path = PurePosixPath(member.name)
+            if path.is_absolute() or '..' in path.parts or not path.parts or not (member.isfile() or member.isdir()):
                 raise ValueError('Verification rejects links and unsafe archive paths')
+            normalized = path.as_posix()
+            if normalized in seen or len(entries) >= SOURCE_ENTRIES:
+                raise ValueError('Source archive has duplicate or excessive entries')
+            if any(part in ('.git', 'node_modules') for part in path.parts):
+                raise ValueError('Source export must exclude Git and dependency directories')
+            if member.isfile() and normalized in required_dirs or any(seen.get(parent.as_posix()) == 'file' for parent in path.parents):
+                raise ValueError('Source archive has a file/directory collision')
+            seen[normalized] = 'file' if member.isfile() else 'directory'
+            required_dirs.update(parent.as_posix() for parent in path.parents)
             total += member.size
-            if total > 100_000_000: raise ValueError('Source archive exceeds 100 MB')
-            if path.name == '.env' or path.name.startswith('.env.') and path.name != '.env.example' or path.suffix in ('.pem','.key'):
+            if member.size < 0 or total > SOURCE_BYTES:
+                raise ValueError('Expanded source exceeds 100 MB')
+            base = path.name.lower()
+            if base == '.env' or base.startswith('.env.') and base != '.env.example' or path.suffix.lower() in ('.pem', '.key', '.jks', '.keystore', '.p12') or base == '.npmrc':
                 raise ValueError('Remove credential files from tracked source')
-            tar.extract(member, directory, filter='data')
+            entries.append((member, path))
+        for member, path in entries:
+            target = directory / path.as_posix()
+            if member.isdir():
+                target.mkdir(parents=True, exist_ok=True)
+            else:
+                target.parent.mkdir(parents=True, exist_ok=True)
+                with tar.extractfile(member) as incoming, target.open('xb') as output:
+                    shutil.copyfileobj(incoming, output, length=1024 * 1024)
+                target.chmod(0o755 if member.mode & 0o111 else 0o644)
 
 def policy_snapshot(project, sha):
     files=run(['git','-C',str(project),'ls-tree','-r','--name-only',sha]).stdout.decode().splitlines()
