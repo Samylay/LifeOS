@@ -22,6 +22,7 @@ export default function Fixture() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
+  const [ready, setReady] = useState(false);
   const colors = dark ? { background: '#141414', text: '#fafafa', surface: '#303030' } : { background: '#fafafa', text: '#141414', surface: '#eeeeee' };
 
   useEffect(() => {
@@ -40,9 +41,9 @@ export default function Fixture() {
           throw new Error('Fixture schema version is incompatible');
         }
         const stored = await read(opened);
-        if (mounted) { database.current = opened; setRows(stored); setError(null); }
+        if (mounted) { database.current = opened; setRows(stored); setError(null); setReady(true); }
       } catch (failure) {
-        if (mounted) setError(failure instanceof Error ? failure.message : 'Fixture initialization failed');
+        if (mounted) { setReady(false); setError(failure instanceof Error ? failure.message : 'Fixture initialization failed'); }
       } finally {
         initialized = true;
         if (!mounted && opened) void opened.closeAsync().catch(() => {});
@@ -84,12 +85,12 @@ export default function Fixture() {
         {rows.map(row => <Text key={row.id} testID={`value-${row.id}`} style={{ color: colors.text }}>{row.id}: {row.value}</Text>)}
       </View>
       {IDS.map(id => (
-        <Pressable key={id} testID={`write-${id}`} accessibilityRole="button" accessibilityLabel={`Write ${id}`} disabled={busy || !database.current} onPress={() => void mutate(id)} style={({ pressed }) => [styles.button, { backgroundColor: colors.surface, opacity: busy ? 0.5 : 1, transform: [{ scale: pressed ? 0.97 : 1 }] }]}>
+        <Pressable key={id} testID={`write-${id}`} accessibilityRole="button" accessibilityLabel={`Write ${id}`} disabled={busy || !ready} onPress={() => void mutate(id)} style={({ pressed }) => [styles.button, { backgroundColor: colors.surface, opacity: busy ? 0.5 : 1, transform: [{ scale: pressed ? 0.97 : 1 }] }]}>
           <Text style={{ color: colors.text }}>Write {id}</Text>
         </Pressable>
       ))}
       {error ? <Text testID="fixture-error" accessibilityRole="alert" accessibilityLiveRegion="polite" style={{ color: colors.text }}>{error}</Text> : null}
-      {error && !database.current ? (
+      {error && !ready ? (
         <Pressable testID="fixture-retry" accessibilityRole="button" accessibilityLabel="Retry opening fixture" onPress={() => setAttempt(value => value + 1)} style={({ pressed }) => [styles.button, { backgroundColor: colors.surface, transform: [{ scale: pressed ? 0.97 : 1 }] }]}><Text style={{ color: colors.text }}>Retry opening fixture</Text></Pressable>
       ) : null}
     </SafeAreaView>

@@ -36,6 +36,16 @@ receipts before promotion.
   vulnerability scanning. Actual resolved Maven inputs are scanned separately
   when available. Input coverage does not establish packaged native coverage.
   Secret, unavailable-scanner, database and known-vulnerability failures block.
+- `admission.py`, `pipeline.py` and `ci.py` define the same local stage graph.
+  Source, complete input trees, actual build execution and installed APK bytes
+  are pinned independently. The default CLI returns pending until an operator
+  connects real jobs and admits their inputs. Mocked observations cannot prove
+  native runtime acceptance.
+- `fixture_check_job.py` runs locked offline installation, Expo ESLint,
+  TypeScript and `fixture_checks.mjs` in the private builder. The checks execute
+  the original fixture component's callbacks with simulated React hooks and
+  real Node SQLite files. Android rendering, React scheduling and Expo's native
+  SQLite implementation require the separate device journey.
 
 The acquisition proxy is only for trusted fixture dependency preparation. Run
 its client on an owned internal bridge with isolated gateway mode. Only the
