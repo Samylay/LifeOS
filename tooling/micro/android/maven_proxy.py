@@ -12,6 +12,7 @@ import hashlib
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import ipaddress
 import json
+import os
 from pathlib import Path, PurePosixPath
 import re
 import threading
@@ -114,13 +115,15 @@ class Redirects(HTTPRedirectHandler):
 
 
 class Cache:
-    def __init__(self, directory: Path):
+    def __init__(self, directory: Path, seed=None):
         if directory.is_symlink() or not directory.is_dir() or any(directory.iterdir()):
             raise ValueError('Acquisition cache must be a fresh owned directory')
         self.directory = directory
         self.lock = threading.Lock()
         self.slots = threading.BoundedSemaphore(4)
-        self.downloaded = 0
+        self.seed = seed
+        # Reserve every independently verified seed body in the4GiB input budget.
+        self.downloaded = seed.input_bytes if seed is not None else 0
         self.requests = 0
         self.items = {}
         self.item_locks = {}
@@ -142,7 +145,8 @@ class Cache:
                 self.failed = 'Acquisition log write failed'
                 raise
 
-    def fetch(self, request_path: str):
+    def fetch(self, request_path: str, method='GET'):
+        if method not in ('GET','HEAD'): raise ValueError('Only GET/HEAD public inputs are admitted')
         with self.lock:
             if self.failed: raise ValueError(self.failed)
             self.requests += 1
@@ -154,9 +158,30 @@ class Cache:
         with self.lock:
             item_lock = self.item_locks.setdefault(url, threading.Lock())
         with item_lock:
-            return self.fetch_url(url, artifact_path)
+            return self.fetch_url(url, artifact_path, method)
 
-    def fetch_url(self, url: str, artifact_path: str):
+    def fetch_url(self, url: str, artifact_path: str, method='GET'):
+        if self.seed is not None:
+            with self.lock:
+                if self.failed: raise ValueError(self.failed)
+            try:
+                reused = self.seed.lookup(url)
+            except Exception as failure:
+                self.poison_seed({'useId':uuid4().hex,'method':method,'url':url},failure,'precheck',0,None)
+                raise
+            if reused is not None:
+                body, original = reused
+                # Preserve old authority verbatim; new checks never relabel history.
+                receipt = {k:v for k,v in original.items() if k not in ('time','action','file')}
+                receipt.update(file=None,seedFile=original['file'],
+                    useId=uuid4().hex,method=method,
+                    seedManifestSha256=self.seed.manifest_sha256,
+                    sourceReceipt=original,
+                    publisherSha256=REACT_NATIVE_ARTIFACTS.get(artifact_path),
+                    publisherPinAddedIndependently=(original.get('publisherSha256') is None
+                        and artifact_path in REACT_NATIVE_ARTIFACTS))
+                self.record(action='artifact-reused',**receipt)
+                return body,receipt
         with self.lock:
             if self.failed: raise ValueError(self.failed)
             cached = self.items.get(url)
@@ -227,6 +252,47 @@ class Cache:
                 raise
 
 
+    def poison_seed(self, receipt, failure, phase, streamed_bytes, streamed_sha256):
+        with self.lock: self.failed='Public Maven seed response integrity failed'
+        marker={'schema':'public-maven-seed-first-failure/1','useId':receipt['useId'],
+                'method':receipt['method'],'phase':phase,'urlSha256':hashlib.sha256(receipt['url'].encode()).hexdigest(),
+                'error':type(failure).__name__,'message':str(failure)[:200]}
+        data=(json.dumps(marker)+'\n').encode()
+        if len(data)>4096: data=b'{"error":"Public Maven seed integrity failed"}\n'
+        try:
+            with (self.directory/'seed-integrity-failure.json').open('xb') as output:
+                output.write(data);output.flush();os.fsync(output.fileno())
+        except FileExistsError: pass
+        except OSError:
+            # No durable rejection means this trusted acquisition cannot continue.
+            # Supervisor requires a still-running proxy before claiming closure.
+            os._exit(70)
+        try:
+            self.record(action='artifact-reuse-failed',useId=receipt['useId'],method=receipt['method'],
+                url=receipt['url'],phase=phase,streamedBytes=streamed_bytes,streamedSha256=streamed_sha256,
+                error=type(failure).__name__,message=str(failure)[:1000])
+        except Exception: pass
+
+    def verify_reuse_after(self, receipt, method, streamed_bytes, streamed_sha256, error=None):
+        if receipt.get('seedManifestSha256'):
+            try:
+                if error is not None: raise ValueError('Public seed response failed: '+str(error)[:1000])
+                if self.seed is None or receipt['seedManifestSha256'] != self.seed.manifest_sha256 or method != receipt['method']:
+                    raise ValueError('Maven seed receipt identity/method changed')
+                if method=='GET' and (streamed_bytes != receipt['bytes'] or streamed_sha256 != receipt['sha256']):
+                    raise ValueError('Actual streamed public seed body hash/count mismatch')
+                if method=='HEAD' and (streamed_bytes != 0 or streamed_sha256 is not None):
+                    raise ValueError('HEAD must have zero body and no streamed proof')
+                self.seed.verify_entry(self.seed.items[receipt['url']])
+                self.record(action='artifact-reuse-postchecked',useId=receipt['useId'],method=method,
+                    url=receipt['url'],sha256=receipt['sha256'],streamedBytes=streamed_bytes,
+                    streamedSha256=streamed_sha256,bodyProof='actual-stream-sha256' if method=='GET' else 'head-no-body',
+                    seedManifestSha256=self.seed.manifest_sha256)
+            except Exception as failure:
+                self.poison_seed(receipt,failure,'response',streamed_bytes,streamed_sha256)
+                raise
+
+
 class Handler(BaseHTTPRequestHandler):
     def setup(self):
         super().setup()
@@ -252,7 +318,7 @@ class Handler(BaseHTTPRequestHandler):
             authority = urlsplit('http://' + hosts[0])
             if authority.hostname != self.server.server_address[0] or authority.port != self.server.server_address[1]:
                 raise ValueError('Unexpected request authority')
-            path, receipt = cache.fetch(self.path)
+            path, receipt = cache.fetch(self.path,method=self.command)
         except HTTPError as error:
             self.send_error(404 if error.code == 404 else 502, 'Public artifact unavailable')
             return
@@ -263,13 +329,28 @@ class Handler(BaseHTTPRequestHandler):
                 pass
             self.send_error(502, 'Acquisition policy or upstream failure')
             return
-        self.send_response(200)
-        self.send_header('Content-Type', 'application/octet-stream')
-        self.send_header('Content-Length', str(receipt['bytes']))
-        self.end_headers()
-        if body:
-            with path.open('rb') as source:
-                while chunk := source.read(CHUNK_BYTES): self.wfile.write(chunk)
+        streamed_bytes=0
+        streamed_sha256=hashlib.sha256()
+        stream_error=None
+        try:
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/octet-stream')
+            self.send_header('Content-Length', str(receipt['bytes']))
+            self.end_headers()
+            if body:
+                with path.open('rb') as source:
+                    while chunk := source.read(CHUNK_BYTES):
+                        if streamed_bytes+len(chunk)>receipt['bytes']:
+                            raise ValueError('Public response stream exceeds receipt size')
+                        written=self.wfile.write(chunk)
+                        if written != len(chunk): raise ValueError('Public response short write')
+                        streamed_bytes+=written;streamed_sha256.update(chunk)
+        except Exception as error:
+            stream_error=error
+            raise
+        finally:
+            cache.verify_reuse_after(receipt,self.command,streamed_bytes,
+                                     streamed_sha256.hexdigest() if body else None,stream_error)
 
 
 class Server(ThreadingHTTPServer):
@@ -296,12 +377,22 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--bind', required=True)
     parser.add_argument('--cache', required=True, type=Path)
+    parser.add_argument('--seed-root', type=Path)
+    parser.add_argument('--seed-manifest', type=Path)
+    parser.add_argument('--seed-sha256')
     args = parser.parse_args()
     address = ipaddress.ip_address(args.bind)
     if address.version != 4 or not address.is_private or address.is_unspecified or address.is_loopback:
         raise ValueError('Bind only to the owned internal container IPv4 address')
+    seed = None
+    if any(x is not None for x in (args.seed_root,args.seed_manifest,args.seed_sha256)):
+        if args.seed_root != Path('/seed/maven-bodies') or args.seed_manifest != Path('/seed/tools/verified-maven-seed.json') or args.seed_sha256 != '1f3f0bfbb2c0b9275ba736deea1b71654e6f9909057f3f4de519e6916d9e0140':
+            raise ValueError('Only the fixed reviewed public Maven seed is admitted')
+        from verified_maven_seed import VerifiedMavenSeed
+        seed = VerifiedMavenSeed(args.seed_root,args.seed_manifest,args.seed_sha256,
+                                 path_url,check_upstream,REACT_NATIVE_ARTIFACTS)
     server = Server((str(address), 8080), Handler)
-    server.cache = Cache(args.cache)
+    server.cache = Cache(args.cache,seed=seed)
     server.cache.record(action='acquisition-proxy-start', bind=str(address), port=8080,
                        scope='reviewed fixture only; candidate compilation forbidden')
     server.serve_forever()
