@@ -1,6 +1,6 @@
 import { listRuns, startWorkflow, decideWorkflow } from "@/lib/workflows/store";
 import { NextRequest, NextResponse } from "next/server";
-import { calibrationContext, calibrationSummary, ensureCalibrationReminder, saveCalibration } from "@/lib/calibration";
+import { calibrationContext, calibrationSummary, saveCalibration } from "@/lib/calibration";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export async function GET(req: NextRequest) {
@@ -10,7 +10,6 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    if (body.action === "reminder") return NextResponse.json({ reminder: await ensureCalibrationReminder() });
     if (typeof body.itemId !== "string") throw new Error("Source required");
     const active = listRuns().filter(run => run.itemId === body.itemId && run.phase === "evaluate" && ["awaiting-extraction", "queued", "running", "ready"].includes(run.state));
     const feedback = saveCalibration(body.itemId, body);

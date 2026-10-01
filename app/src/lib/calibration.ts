@@ -1,11 +1,9 @@
 import { createHash } from "node:crypto";
 import { getDoc, listDocs, runInTransaction, setDoc, updateDoc } from "./server-db";
-import { createTodoistTask } from "./todoist-client";
 import { isWorkflowKind } from "./workflows/model";
 
 const ITEMS = "users/local/triageQueue";
 const FEEDBACK = "users/local/sourceFeedback";
-const SETTINGS = "users/local/settings";
 const object = (v: unknown): Record<string, unknown> => v && typeof v === "object" && !Array.isArray(v) ? v as Record<string, unknown> : {};
 export function shortText(value: unknown, words = 22): string {
   const text = typeof value === "string" ? value.trim().replace(/\s+/g, " ") : "";
@@ -58,18 +56,5 @@ export function calibrationSummary() {
   const today = parisDay(new Date().toISOString());
   const answered = new Set(listDocs(FEEDBACK).filter(r => parisDay(String(r.createdAt)) === today).map(r => r.itemId)).size;
   const items = listDocs(ITEMS).filter(item => item.status !== "discarded" && !item.calibration && object(item.proposal).title).sort((a, b) => a.id.localeCompare(b.id)).slice(0, 3).map(item => ({ id: item.id, url: item.url, title: object(item.proposal).title, meaning: interpretation(item), evidenceRef: item.evidenceRef ?? null, assessmentRef: item.assessmentRef ?? null, topics: topics(item) }));
-  return { answered, target: 3, items, reminder: getDoc(SETTINGS, "source-calibration") ?? null };
-}
-let reminderFlight: Promise<unknown> | null = null;
-export function ensureCalibrationReminder() {
-  if (reminderFlight) return reminderFlight;
-  reminderFlight = (async () => {
-    const previous = getDoc(SETTINGS, "source-calibration");
-    if (previous?.taskId) return previous;
-    const result = await createTodoistTask({ content: "Review 3 LifeOS interpretations (2 minutes): https://homelab.tail069527.ts.net/decide/calibrate", due_string: "every day at 18:00" }, { requestId: "c1bf0474-7db2-467d-a013-a498d225f821" });
-    const state = { taskId: result.taskId ?? null, status: result.ok && result.taskId ? "scheduled" : "failed", updatedAt: new Date().toISOString(), due: "every day at 18:00", error: result.error ?? null };
-    setDoc(SETTINGS, "source-calibration", state, true);
-    return state;
-  })().finally(() => { reminderFlight = null; });
-  return reminderFlight;
+  return { answered, target: 3, items };
 }
