@@ -1,6 +1,6 @@
 # LifeOS — agent context
 
-- App code lives in `app/` (Next.js 16 + better-sqlite3). The repo root doubles as an Obsidian-style vault (`01-Inbox.md`, `02-Knowledge/`, …) — do not touch vault content except when a task explicitly says so.
+- App code lives in `app/` (Next.js 16 + better-sqlite3). The live Obsidian vault is `~/vault/obsidian` (mounted at `/vault`), outside this repo. The old repo-root vault moved to `06-Archive/lifeos-repo-vault/` there on 2026-10-01; never put notes or personal data in this repo, its remote is public.
 - Before any change, read `ROADMAP.md` → "Context for the executor" (verify gate, serving topology, NEVER list live there).
 
 ## Interaction & motion (house doctrine, locked 2026-07-10)
