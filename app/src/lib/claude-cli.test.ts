@@ -1,22 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { promisify } from "node:util";
-
-// Behavior slot the mocked execFile reads on each call. `null` = resolve.
-let execBehavior: { stdout: string; reject?: Record<string, unknown> } = { stdout: "" };
-let execArgs: unknown[] = [];
-
-vi.mock("node:child_process", () => {
-  const execFile = Object.assign(() => {}, {
-    // promisify(execFile) resolves through this custom implementation, same
-    // as Node's real execFile — returning { stdout, stderr }.
-    [promisify.custom]: (...args: unknown[]) => {
-      execArgs = args;
-      if (execBehavior.reject) return Promise.reject(execBehavior.reject);
-      return Promise.resolve({ stdout: execBehavior.stdout, stderr: "" });
-    },
-  });
-  return { execFile };
-});
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 const ollamaGenerate = vi.fn();
 vi.mock("./ollama", () => ({
@@ -26,10 +8,15 @@ vi.mock("./ollama", () => ({
 
 import { generateText, generateReadOnlyJson, isLimitError } from "./claude-cli";
 
+const fetchMock = vi.fn();
 beforeEach(() => {
-  execBehavior = { stdout: "" };
   ollamaGenerate.mockReset();
+  fetchMock.mockReset();
+  vi.stubGlobal("fetch", fetchMock);
 });
+afterEach(() => vi.unstubAllGlobals());
+
+const reply = (status: number, body: unknown) => new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
 
 describe("isLimitError", () => {
   it("matches the subscription 5h-cap message", () => {
@@ -47,54 +34,40 @@ describe("isLimitError", () => {
   });
 });
 
-describe("runClaude limit fallback", () => {
-  it("uses a feature-owned system prompt for generic read-only reviews", async () => {
-    const previous = process.env.GEN_PROVIDER;
-    process.env.GEN_PROVIDER = "codex";
-    execBehavior = { stdout: JSON.stringify({ result: '{"ok":true}' }) };
-    try {
-      expect(await generateReadOnlyJson("review", "Review essays only.")).toEqual({ ok: true });
-      const flags = execArgs[1] as string[];
-      expect(flags[flags.indexOf("--system-prompt") + 1]).toBe("Review essays only.");
-      expect(flags[flags.indexOf("--tools") + 1]).toBe("");
-    } finally { if (previous === undefined) delete process.env.GEN_PROVIDER; else process.env.GEN_PROVIDER = previous; }
-  });
-  it("returns the envelope result on a normal run, never touching Ollama", async () => {
-    execBehavior = { stdout: JSON.stringify({ result: "hello", is_error: false }) };
+describe("gateway requests", () => {
+  it("asks the gateway to prefer Codex instead of pinning it", async () => {
+    fetchMock.mockResolvedValue(reply(200, { response: "hello", provider: "claude" }));
     expect(await generateText("p")).toBe("hello");
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(body.prefer).toBe("codex");
+    expect(body).not.toHaveProperty("provider");
     expect(ollamaGenerate).not.toHaveBeenCalled();
   });
 
-  it("falls back to Ollama when the CLI exits non-zero with a limit message", async () => {
-    execBehavior = {
-      stdout: "",
-      reject: { stdout: "Claude AI usage limit reached|1753900000", stderr: "", message: "exit 1" },
-    };
-    ollamaGenerate.mockResolvedValue("local answer");
-    expect(await generateText("the prompt")).toBe("local answer");
-    expect(ollamaGenerate).toHaveBeenCalledWith("the prompt");
+  it("puts a feature-owned system prompt ahead of read-only reviews", async () => {
+    const previous = process.env.GEN_PROVIDER;
+    process.env.GEN_PROVIDER = "codex";
+    fetchMock.mockResolvedValue(reply(200, { response: '{"ok":true}' }));
+    try {
+      expect(await generateReadOnlyJson("review", "Review essays only.")).toEqual({ ok: true });
+      expect(JSON.parse(fetchMock.mock.calls[0][1].body).prompt).toBe("Review essays only.\n\nreview");
+    } finally { if (previous === undefined) delete process.env.GEN_PROVIDER; else process.env.GEN_PROVIDER = previous; }
   });
 
-  it("falls back when exit is 0 but the envelope reports the limit", async () => {
-    execBehavior = {
-      stdout: JSON.stringify({ is_error: true, result: "Claude AI usage limit reached|1753900000" }),
-    };
-    ollamaGenerate.mockResolvedValue("local answer");
-    expect(await generateText("p")).toBe("local answer");
+  it("shows the gateway's error when every provider is limited, without calling Ollama", async () => {
+    fetchMock.mockResolvedValue(reply(503, { error: "no provider is available: every provider is limited, unavailable or failed" }));
+    await expect(generateText("p")).rejects.toThrow(/every provider is limited/);
+    expect(ollamaGenerate).not.toHaveBeenCalled();
   });
 
   it("rethrows non-limit failures without calling Ollama", async () => {
-    execBehavior = { stdout: "", reject: { stderr: "claude: command not found", message: "ENOENT" } };
-    await expect(generateText("p")).rejects.toBeTruthy();
+    fetchMock.mockRejectedValue(new Error("fetch failed"));
+    await expect(generateText("p")).rejects.toThrow("fetch failed");
     expect(ollamaGenerate).not.toHaveBeenCalled();
   });
 
-  it("surfaces BOTH errors when the fallback itself fails", async () => {
-    execBehavior = {
-      stdout: "",
-      reject: { stdout: "Claude AI usage limit reached|1753900000", message: "exit 1" },
-    };
-    ollamaGenerate.mockRejectedValue(new Error("connect ECONNREFUSED 127.0.0.1:11434"));
-    await expect(generateText("p")).rejects.toThrow(/usage limit reached[\s\S]*ECONNREFUSED/);
+  it("reports an HTTP failure with no error body by its status", async () => {
+    fetchMock.mockResolvedValue(reply(502, {}));
+    await expect(generateText("p")).rejects.toThrow(/HTTP 502/);
   });
 });

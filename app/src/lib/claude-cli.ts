@@ -1,9 +1,10 @@
-// Server-side only — LifeOS uses the host's Codex CLI through the HTTP bridge.
-// This keeps provider auth and processes on the host, outside the container.
+// Server-side only — LifeOS asks the host's LLM gateway (claude-shim) for text. The gateway
+// prefers Codex, and skips it while its subscription limit is reached. Provider auth and
+// processes stay on the host, outside the container.
 //
 // Mirrors Flux's generation boundary. Fallback is the caller's concern; this
 // module throws if the CLI isn't available or returns unparseable output.
-import { ollamaGenerate, OLLAMA_MODEL } from "./ollama";
+import { ollamaGenerate } from "./ollama";
 
 const CODEX_BRIDGE_URL = process.env.CODEX_BRIDGE_URL ?? process.env.OPENCODE_URL ?? "http://host.docker.internal:11435/generate";
 const CODEX_TIMEOUT = Number(process.env.CODEX_TIMEOUT ?? process.env.OPENCODE_TIMEOUT ?? 180_000);
@@ -41,28 +42,9 @@ async function runCodex(prompt: string, readOnly = false, systemPrompt?: string)
     }
     return body.response;
   } catch (err) {
-    const combined = err instanceof Error ? err.message : String(err);
-    if (isLimitError(combined)) return ollamaFallback(prompt, combined);
+    // A limit is the gateway's job (it falls back across providers). When it still
+    // reaches us, every provider is limited, and that is the error to show.
     throw err;
-  }
-}
-
-/**
- * Limit-triggered fallback to the local Ollama model. On the fallback's own
- * failure (e.g. Ollama not running) the ORIGINAL limit error is what Samy
- * needs to see, so it's preserved in the thrown message.
- */
-async function ollamaFallback(prompt: string, limitMsg: string): Promise<string> {
-  console.warn(
-    `[codex] limit hit — falling back to Ollama (${OLLAMA_MODEL}): ${limitMsg.slice(0, 200)}`
-  );
-  try {
-    return await ollamaGenerate(prompt);
-  } catch (err) {
-    throw new Error(
-      `Codex request failed and the Ollama fallback failed (${err instanceof Error ? err.message : String(err)
-      }). Original: ${limitMsg.slice(0, 300)}`
-    );
   }
 }
 
