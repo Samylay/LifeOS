@@ -8,9 +8,6 @@ const HERMES_STATUS = process.env.HERMES_STATUS || "/hermes/status.json";
 // Containers to surface on the cockpit (docker name -> friendly label).
 const WATCH: Record<string, string> = {
   lifeos: "LifeOS app",
-  "flux-app-1": "Flux",
-  "flux-db-1": "Flux DB",
-  "flux-nginx-1": "Flux web",
   n8n: "n8n",
   cloudflared: "Cloudflare tunnel",
   prometheus: "Prometheus",
