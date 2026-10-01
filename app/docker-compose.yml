@@ -9,11 +9,6 @@ services:
     # The app has no login, and `tailscale serve` only accepts tailnet traffic.
     ports:
       - "127.0.0.1:3000:3000"
-      # Also bound to the tailscale IP (same pattern as n8n): phones on the
-      # tailnet reach the app by raw IP (http://100.124.149.101:3000) with no
-      # MagicDNS dependency — ts.net names are NOT in public DNS, and Samy's
-      # phone runs with 'Use Tailscale DNS' off (carrier DNS conflict).
-      - "100.124.149.101:3000:3000"
     env_file:
       - .env
     environment:
@@ -51,7 +46,7 @@ services:
       WHISPER_URL: "http://host.docker.internal:8091"
       # Pager tap deep-link origin (IP-based so taps work regardless of the
       # phone's DNS state). Kept for any future deep-link consumer.
-      PAGER_CLICK_URL: "http://100.124.149.101:3000/pager"
+      PAGER_CLICK_URL: "https://homelab.tail069527.ts.net/status"
       # Finance (Enable Banking, T67–T72): ENABLE_BANKING_APP_ID reaches the
       # container via env_file (.env) once Samy registers the app — no compose
       # change needed for the id itself. The private key is a FILE
