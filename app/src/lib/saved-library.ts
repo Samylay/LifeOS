@@ -97,13 +97,18 @@ export function savedLibrary(options: { q?: string; field?: string; area?: strin
     if (options.field && !fieldIds.includes(options.field)) return [];
     if (options.area && !areaIds.includes(options.area)) return [];
     const proposal = object(item.proposal);
-    const segments = (Array.isArray(bundle?.segments) ? bundle.segments : []).map(v => String(object(v).text ?? ""));
+    const captured = (Array.isArray(bundle?.segments) ? bundle.segments : []).map(object);
+    const segments = captured.filter(v => (v.role ?? v.kind) !== "access-notice").map(v => String(v.text ?? ""));
+    const sourceSegments = captured.filter(v => !["access-notice", "user-context"].includes(String(v.role ?? v.kind)) && typeof v.text === "string" && v.text.trim());
+    const capturedTitle = sourceSegments.find(v => (v.role ?? v.kind) === "title")?.text;
+    const preview = sourceSegments.find(v => (v.role ?? v.kind) === "author-caption") ?? sourceSegments.find(v => (v.role ?? v.kind) !== "title");
     const searchable = [item.url, proposal.title, proposal.summary, item.note, item.notes, item.userNote, ...segments].join("\n");
     if (needle && !searchable.toLocaleLowerCase().includes(needle)) return [];
     const date = object(item.savedAt).__date ?? item.savedAt ?? object(item.createdAt).__date ?? item.createdAt ?? "";
-    const match = needle ? segments.find(v => v.toLocaleLowerCase().includes(needle)) : undefined;
+    const match = needle ? segments.find(v => v.toLocaleLowerCase().includes(needle)) : preview ? String(preview.text) : undefined;
     const offset = match ? Math.max(0, match.toLocaleLowerCase().indexOf(needle) - 90) : 0;
-    return [{ id: item.id, url: String(item.url ?? ""), title: String(proposal.title ?? item.url ?? "Saved source"),
+    const captionTitle = preview && (preview.role ?? preview.kind) === "author-caption" ? String(preview.text).split("\n")[0].slice(0, 140) : undefined;
+    return [{ id: item.id, url: String(item.url ?? ""), title: String(proposal.title ?? capturedTitle ?? captionTitle ?? item.url ?? "Saved source"),
       summary: String(proposal.summary ?? ""), snippet: match?.slice(offset, offset + 300) ?? "", savedAt: String(date),
       status: String(item.status ?? "queued"), quality: String(bundle?.quality ?? "not-extracted"),
       segmentCount: segments.length, classified: Boolean(current), fieldIds, areaIds }];

@@ -19,6 +19,24 @@ describe("saved library", () => {
     setup("discarded", "discarded");
     expect(savedLibrary({ q: "counterpoint" }).items.some(v => v.id === "discarded")).toBe(true);
   });
+  it("shows captured titles and source text before a search is entered", () => {
+    setDoc("users/local/triageQueue", "content-preview", { url: "https://example.org/content-preview", status: "filed", evidenceRef: "content-preview", savedAt: "2026-10-02" });
+    setDoc("users/local/triageEvidence", "content-preview", { quality: "limited", segments: [
+      { role: "access-notice", text: "Sign in" }, { role: "user-context", text: "My private intent" },
+      { role: "title", text: "Composition reference" }, { role: "document-body", text: "A fugue develops a subject through several voices." },
+    ] });
+    const row = savedLibrary().items.find(v => v.id === "content-preview")!;
+    expect(row.title).toBe("Composition reference");
+    expect(row.snippet).toBe("A fugue develops a subject through several voices.");
+    expect(savedLibrary({ q: "Sign in" }).items.some(v => v.id === "content-preview")).toBe(false);
+  });
+  it("uses an actual caption when no title or proposal is available", () => {
+    setDoc("users/local/triageQueue", "caption-preview", { url: "https://example.org/caption-preview", evidenceRef: "caption-preview" });
+    setDoc("users/local/triageEvidence", "caption-preview", { quality: "limited", segments: [{ role: "author-caption", text: "A composition technique\nSecond line" }] });
+    const row = savedLibrary().items.find(v => v.id === "caption-preview")!;
+    expect(row.title).toBe("A composition technique");
+    expect(row.snippet).toBe("A composition technique\nSecond line");
+  });
   it("accepts a reference without human calibration or executable work", () => {
     const state = setup("accepted");
     publishSavedClassification(record("accepted"), state, true);
