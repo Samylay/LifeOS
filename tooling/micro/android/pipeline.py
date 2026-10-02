@@ -16,11 +16,11 @@ from typing import Callable, Mapping
 from uuid import uuid4
 
 try:
-    from .admission import (Binding, Evidence, Rejected, Store, admit_artifact,
+    from .admission import (Binding, Evidence, Rejected, Store, NATIVE_POLICY, admit_artifact,
                             context, exact, freshness, number,
                             validate_build_pair)
 except ImportError:
-    from admission import (Binding, Evidence, Rejected, Store, admit_artifact,
+    from admission import (Binding, Evidence, Rejected, Store, NATIVE_POLICY, admit_artifact,
                            context, exact, freshness, number,
                            validate_build_pair)
 
@@ -111,8 +111,8 @@ def load_registry() -> Registry:
                       'minSdk', 'targetSdk', 'permissions', 'admitted', 'image', 'runtimePolicy', 'nativeMapping'}, 'adapter registry entry')
         if entry['schema'] != 'micro.android.adapter/1' or entry['projectKind'] != 'fixture' or entry['image'] != IMAGE:
             raise Rejected('Adapter is outside admitted fixture scope')
-        if entry['runtimePolicy'] != {'user': '1000:1000', 'network': 'none', 'memoryBytes': 6*1024**3,
-                                      'memorySwapBytes': 6*1024**3, 'nanoCpus': 2_000_000_000, 'pids': 384}:
+        if entry['runtimePolicy'] != {'user': '1000:1000', 'network': 'none', 'memoryBytes': NATIVE_POLICY['memoryBytes'],
+                                      'memorySwapBytes': NATIVE_POLICY['memorySwapBytes'], 'nanoCpus': 2_000_000_000, 'pids': 384}:
             raise Rejected('Adapter runtime differs from frozen policy')
         exact(entry['identities'], set(IDENTITIES), 'adapter immutable identities')
         if not isinstance(entry['permissions'], list) or any(not isinstance(v, str) for v in entry['permissions']) or len(set(entry['permissions'])) != len(entry['permissions']):
@@ -274,7 +274,13 @@ def validate_observation(observation: Observation, job: JobContext, now: float) 
     elif job.stage in (Stage.SOURCE_SECURITY, Stage.ARTIFACT_SECURITY):
         _security(details, binding, store, now, job.artifact_sha256)
     elif job.stage == Stage.CHECKS:
-        exact(details, {'checks', 'mandatoryCases', 'offline', 'recipeSha256'}, 'checks details')
+        exact(details, {'checks', 'mandatoryCases', 'offline', 'recipeSha256','rawReceipt'}, 'checks details')
+        try:
+            from .fixture_check_supervisor import validate_observed_checks
+        except ImportError:
+            from fixture_check_supervisor import validate_observed_checks
+        actual=validate_observed_checks(job,_reference(details['rawReceipt'],store),now)
+        if actual!=details:raise Rejected('Checks normalization differs from actual raw proof')
         required = {'lint', 'types', 'domain', 'storage'}
         if details['offline'] is not True or details['recipeSha256'] != binding.identities['recipe'].sha256 or set(details['checks']) != required or set(details['mandatoryCases']) != required:
             raise Rejected('Required offline checks not identified')

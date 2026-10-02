@@ -78,6 +78,9 @@ class DeviceTests(unittest.TestCase):
     def setUp(self):
         self.temp=tempfile.TemporaryDirectory();self.addCleanup(self.temp.cleanup)
         self.fixture=SyntheticFixture(self.temp.name)
+        self.checks_scope=self.fixture.checks_test_scope()
+        self.checks_scope.__enter__()
+        self.addCleanup(self.checks_scope.__exit__,None,None,None)
         operations,_=self.fixture.run()
         observation=self.fixture.store.json(admission.Evidence.parse(operations['stages'][4]['receipt']))
         self.record=admission.Evidence.parse(observation['details']['artifactRecord'])

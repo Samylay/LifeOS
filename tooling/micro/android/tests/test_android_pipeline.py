@@ -4,6 +4,7 @@ No APK was built/scanned/installed by these fixtures. Passing unit tests proves
 fail-closed plumbing, not actual native, security, device, recovery or CI proof.
 """
 import copy
+from contextlib import ExitStack, contextmanager
 from dataclasses import replace
 from datetime import datetime, timezone
 import hashlib
@@ -37,7 +38,7 @@ class SyntheticFixture:
         identities['scannerPolicy'] = self.put(scanner.POLICY)
         identities['toolchain'] = self.put({'artifactToolsSha256': {'aapt': 'a'*64, 'apksigner': 'c'*64}})
         source_tree = self.fake_tree('sealed/fixture', {'package-lock.json': self.store.read(identities['sourceLock']),
-                                                     'package.json': b'FAKE package', 'app.js': b'FAKE app'})
+                                                     'package.json': b'FAKE package', 'app.js': b'FAKE app', 'app/index.tsx': b'FAKE fixture component for check replay only'})
         self.source_files = source_tree['files']
         self.source_export = self.put({'schema': 'micro.android.source-export/1', 'sourceSha': '1'*40,
                                        'sourceArchiveSha256': identities['sourceArchive'].sha256,
@@ -54,6 +55,13 @@ class SyntheticFixture:
             elif destination == '/seed/patch-preimages.json':
                 files = {'FAKE-input': a.canonical({'build.gradle': 'a'*64, 'app/build.gradle': 'b'*64})}
             self.seeds[destination] = self.fake_tree('sealed/'+destination.split('/')[-1], files, kind)
+        # Explicit FAKE sealed npm component with complete real temp-byte hashes.
+        cache=self.seeds['/seed/npm-cache']
+        manifest={'schema':1,'entries':[{'mode':420,'path':r['path'],'type':'file','size':r['bytes'],'sha256':r['sha256']} for r in cache['files']],
+                  'entryCount':len(cache['files']),'fileBytes':sum(r['bytes'] for r in cache['files'])}
+        self.check_npm_manifest=self.put(manifest)
+        identities['npmSeal']=self.put({'status':'sealed-npm-and-native-template-only','image':a.IMAGE,
+            'sourceLockSha256':identities['sourceLock'].sha256,'components':{'npm-cache':{'canonicalTreeSha256':hashlib.sha256(a.canonical(manifest)).hexdigest()}}})
         # FAKE environment and worker bytes are administrative test pins only.
         self.execution = {'entrypoint': ['python3'], 'argv': ['/seed/tools/native_fixture_job.py', '--offline'],
                           'environment': ['PATH=/opt/jdk17/bin:/opt/gradle/bin:/usr/local/bin:/usr/bin:/bin',
@@ -169,7 +177,7 @@ class SyntheticFixture:
 
     def fake_tree(self, path, files, kind='directory'):
         rows = []
-        for name, data in sorted(files.items()):
+        for name, data in sorted(files.items(),key=lambda item:Path(item[0])):
             ref = self.put(data, name=path+'/'+name if kind == 'directory' else path)
             rows.append({'path': name if kind == 'directory' else Path(path).name, 'bytes': ref.bytes, 'sha256': ref.sha256})
         return {'path': path, 'kind': kind, 'files': rows, 'manifestSha256': hashlib.sha256(a.canonical(rows)).hexdigest()}
@@ -348,9 +356,9 @@ class SyntheticFixture:
                                         'protectedInputsMatched': True, 'exporterSha256': 'e'*64, 'sourceExport': self.source_export.json()}).json()}
         if job.stage in (p.Stage.SOURCE_SECURITY, p.Stage.ARTIFACT_SECURITY): return self.security(job.artifact_sha256)
         if job.stage == p.Stage.CHECKS:
-            return {'checks': {name: {'exitCode': 0, 'skipped': False, 'log': self.put(b'FAKE check').json()} for name in ('lint','types','domain','storage')},
-                    'mandatoryCases': {name: 1 for name in ('lint','types','domain','storage')}, 'offline': True,
-                    'recipeSha256': self.binding.identities['recipe'].sha256}
+            import fixture_check_supervisor as checks
+            from test_fixture_check_supervisor import fake_receipt
+            return checks.validate_observed_checks(job,fake_receipt(self,job),self.now)
         if job.stage == p.Stage.BUILD:
             return {'builds': [r.json() for r in self.builds], 'comparison': a.validate_build_pair(self.builds, self.binding, self.store, self.now, 3600)}
         if job.stage == p.Stage.INSPECTION:
@@ -381,9 +389,29 @@ class SyntheticFixture:
             return p.Observation(self.put(report, name=job.run_directory+'/'+job.stage.value+'-observation.json'))
         return observe
 
+    @contextmanager
+    def checks_test_scope(self):
+        """Explicit FAKE administrative pins for logic tests, never real admission."""
+        import fixture_check_supervisor as checks
+        tree = self.store.json(self.source_export)['tree']
+        component = next(row['sha256'] for row in tree['files'] if row['path'] == 'app/index.tsx')
+        with ExitStack() as scope:
+            for module, name, value in (
+                (p, 'CONTROLLER_ROOT', self.store.root),
+                (checks, 'SOURCE_SHA', self.binding.source_sha),
+                (checks, 'TREE_SHA', tree['manifestSha256']),
+                (checks, 'COMPONENT_SHA', component),
+                (checks.inputs, 'LOCK_SHA', self.binding.identities['sourceLock'].sha256),
+                (checks.inputs, 'LOCK_BYTES', self.binding.identities['sourceLock'].bytes),
+                (checks.inputs, 'NPM_SEAL_SHA', self.binding.identities['npmSeal'].sha256),
+            ):
+                scope.enter_context(patch.object(module, name, value))
+            yield
+
     def run(self, change=None):
         hook = self.hook(change)
-        return p.Pipeline(self.registry, {s: hook for s in p.GRAPH}, clock=lambda: self.now).run(self.binding.project_id, 'expo-android')
+        with self.checks_test_scope():
+            return p.Pipeline(self.registry, {s: hook for s in p.GRAPH}, clock=lambda: self.now).run(self.binding.project_id, 'expo-android')
 
 
 class PipelineTests(unittest.TestCase):
@@ -590,7 +618,8 @@ class PipelineTests(unittest.TestCase):
         for missing in p.GRAPH:
             calls=[]
             def hook(job): calls.append(job.stage); return self.fixture.hook()(job)
-            result, _ = p.Pipeline(self.fixture.registry, {s: hook for s in p.GRAPH if s != missing}, clock=lambda:self.fixture.now).run(self.fixture.binding.project_id, 'expo-android')
+            with self.fixture.checks_test_scope():
+                result, _ = p.Pipeline(self.fixture.registry, {s: hook for s in p.GRAPH if s != missing}, clock=lambda:self.fixture.now).run(self.fixture.binding.project_id, 'expo-android')
             self.assertEqual(result['status'], 'pending', result['firstFailure'])
             self.assertEqual(calls, list(p.GRAPH[:p.GRAPH.index(missing)]))
 
@@ -639,6 +668,17 @@ class PipelineTests(unittest.TestCase):
                     else: report['details']['mandatoryCases']['domain']=0
             result,_=self.fixture.run(change)
             self.assertEqual(result['status'],'failed')
+
+    def test_checks_mandatory_raw_proof_missing_tampered_or_over_bound_blocks(self):
+        for kind in ('missing', 'tampered', 'oversized'):
+            def change(job, report):
+                if job.stage != p.Stage.CHECKS: return
+                if kind == 'missing': report['details'].pop('rawReceipt')
+                elif kind == 'tampered': report['details']['rawReceipt']['sha256'] = 'f'*64
+                else: report['details']['rawReceipt'] = self.fixture.put(b'x'*(2*1024**2+1)).json()
+            result, _ = self.fixture.run(change)
+            self.assertEqual(result['status'], 'failed', kind)
+            self.assertEqual(result['firstFailure']['stage'], p.Stage.CHECKS.value)
 
     def test_tampered_apk_receipt_and_expired_artifact_block(self):
         for kind in ('apk','receipt','expired','production','preflight'):
@@ -764,6 +804,7 @@ class PipelineTests(unittest.TestCase):
 
     def test_altered_sealed_input_blocks_registry_before_jobs(self):
         path = self.fixture.store.path(self.fixture.binding.identities['npmSeal'].path)
+        path.chmod(0o600)
         path.write_bytes(b'changed sealed npm input')
         result, _ = self.fixture.run()
         self.assertEqual(result['status'], 'pending')
@@ -778,15 +819,16 @@ class PipelineTests(unittest.TestCase):
                  'versionCode': 1, 'versionName': '1.0.0', 'package': binding.package, 'minSdk': 24,
                  'targetSdk': 36, 'permissions': [], 'admitted': True, 'image': a.IMAGE,
                  'nativeMapping': binding.native_mapping.json(),
-                 'runtimePolicy': {'user': '1000:1000', 'network': 'none', 'memoryBytes': 6*1024**3,
-                                   'memorySwapBytes': 6*1024**3, 'nanoCpus': 2_000_000_000, 'pids': 384}}
+                 'runtimePolicy': {'user': '1000:1000', 'network': 'none', 'memoryBytes': a.NATIVE_POLICY['memoryBytes'],
+                                   'memorySwapBytes': a.NATIVE_POLICY['memorySwapBytes'], 'nanoCpus': 2_000_000_000, 'pids': 384}}
         fixture.store.path('native-integration').mkdir(exist_ok=True)
         path = fixture.store.path(p.REGISTRY_PATH)
-        for kind in ('valid', 'command', 'image', 'serial', 'duplicate'):
+        for kind in ('valid', 'command', 'image', 'serial', 'duplicate', 'memoryBytes', 'memorySwapBytes'):
             value = copy.deepcopy(entry)
             if kind == 'command': value['commands'] = ['candidate controlled']
             elif kind == 'image': value['image'] = 'moving:latest'
             elif kind == 'serial': value['serial'] = 'unowned-device'
+            elif kind in ('memoryBytes', 'memorySwapBytes'): value['runtimePolicy'][kind] += 1024**3
             raw = {'schema': 'micro.android.registry/1', 'entries': [value, value] if kind == 'duplicate' else [value]}
             path.write_bytes(a.canonical(raw)+b'\n')
             with patch.object(p, 'CONTROLLER_ROOT', fixture.store.root):
@@ -795,6 +837,26 @@ class PipelineTests(unittest.TestCase):
                     selected.validate(registry.store, fixture.now)
                 else:
                     with self.assertRaises(a.Rejected): p.load_registry()
+
+    def test_registry_memory_and_swap_follow_imported_policy_without_stale_six_gib(self):
+        b = self.fixture.binding
+        entry = {'schema': 'micro.android.adapter/1', 'projectKind': 'fixture', 'projectId': b.project_id,
+                 'adapterId': b.adapter_id, 'sourceSha': b.source_sha, 'identities': {n: r.json() for n, r in b.identities.items()},
+                 'certificateSha256': b.certificate_sha256, 'expiresAt': b.expires_at, 'versionCode': 1, 'versionName': '1.0.0',
+                 'package': b.package, 'minSdk': 24, 'targetSdk': 36, 'permissions': [], 'admitted': True,
+                 'image': a.IMAGE, 'nativeMapping': b.native_mapping.json(),
+                 'runtimePolicy': {n: a.NATIVE_POLICY[n] for n in ('user','network','memoryBytes','memorySwapBytes','nanoCpus','pids')}}
+        path = self.fixture.store.path(p.REGISTRY_PATH)
+        amended = {**a.NATIVE_POLICY, 'memoryBytes': 8*1024**3, 'memorySwapBytes': 8*1024**3}
+        with patch.object(p, 'CONTROLLER_ROOT', self.fixture.store.root), patch.object(p, 'NATIVE_POLICY', amended):
+            for field in (None, 'memoryBytes', 'memorySwapBytes'):
+                value = copy.deepcopy(entry)
+                value['runtimePolicy'].update(memoryBytes=8*1024**3, memorySwapBytes=8*1024**3)
+                if field: value['runtimePolicy'][field] = 6*1024**3
+                path.write_bytes(a.canonical({'schema':'micro.android.registry/1','entries':[value]})+b'\n')
+                if field:
+                    with self.assertRaisesRegex(a.Rejected, 'runtime differs'): p.load_registry()
+                else: self.assertEqual(p.load_registry().select(b.project_id,b.adapter_id).source_sha,b.source_sha)
 
     def test_state_budget_and_independent_copy_boundary(self):
         linked = self.fixture.store.path('hardlink')

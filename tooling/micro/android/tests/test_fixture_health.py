@@ -179,7 +179,11 @@ class FakeStream:
 class DeviceHealthTests(unittest.TestCase):
     def setUp(self):
         tmp=tempfile.TemporaryDirectory();self.addCleanup(tmp.cleanup)
-        self.fixture=SyntheticFixture(tmp.name);operations,_=self.fixture.run()
+        self.fixture=SyntheticFixture(tmp.name)
+        self.checks_scope=self.fixture.checks_test_scope()
+        self.checks_scope.__enter__()
+        self.addCleanup(self.checks_scope.__exit__,None,None,None)
+        operations,_=self.fixture.run()
         inspected=self.fixture.store.json(admission.Evidence.parse(operations['stages'][4]['receipt']))
         self.record=admission.Evidence.parse(inspected['details']['artifactRecord'])
         self.security=admission.Evidence.parse(operations['stages'][5]['receipt'])
