@@ -85,7 +85,7 @@ export function isCurrentSavedClassification(item: Record<string, unknown>, cand
 /** Display captured words directly when a current generated assessment is absent. */
 export function capturedSourcePreview(bundle: Record<string, unknown> | null | undefined) {
   const captured = (Array.isArray(bundle?.segments) ? bundle.segments : []).map(object);
-  const source = captured.filter(v => !["access-notice", "user-context", "reply_other", "visual-uncertainty"].includes(String(v.role ?? v.kind)) && typeof v.text === "string" && v.text.trim());
+  const source = captured.filter(v => !["access-notice", "user-context", "reply_other", "visual-uncertainty", "media-metadata"].includes(String(v.role ?? v.kind)) && typeof v.text === "string" && v.text.trim());
   const title = source.find(v => (v.role ?? v.kind) === "title")?.text as string | undefined;
   const caption = source.find(v => ["author-caption", "caption"].includes(String(v.role ?? v.kind)));
   const preview = caption ?? source.find(v => (v.role ?? v.kind) !== "title" && String(v.text).trim() !== title?.trim()) ?? source.find(v => (v.role ?? v.kind) !== "title");

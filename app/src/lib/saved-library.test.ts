@@ -15,6 +15,11 @@ function setup(id: string, status = "proposed") {
 function record(id: string) { return { itemId: id, bundleId: "e-" + id, model: "test", classifierVersion: "v1", taxonomyHash: "hash", classification: { fields: [{ id: "music", reason: "Music composition", segmentIds: ["s1"] }], areas: [], abstain: false, limitations: ["Partial source"] } }; }
 afterAll(() => fs.rmSync(tmp, { recursive: true, force: true }));
 describe("saved library", () => {
+  it("previews spoken information before technical video metadata", () => {
+    const segments = [{ role: "media-metadata", text: '{"durationMs":1000}' }, { role: "speech", text: "A composition technique explained aloud." }];
+    expect(capturedSourcePreview({ segments }).preview).toBe("A composition technique explained aloud.");
+    expect(capturedSourcePreview({ segments: segments.slice(0, 1) }).preview).toBeUndefined();
+  });
   it("omits repeated titles and unrelated replies from the content preview", () => {
     const preview = capturedSourcePreview({ segments: [{ role: "title", text: "Chair" }, { role: "document-body", text: "Chair" }, { role: "reply_other", text: "Other opinion" }, { role: "document-body", text: "The seat recalls a leaf." }] });
     expect(preview).toEqual({ title: "Chair", preview: "The seat recalls a leaf." });
