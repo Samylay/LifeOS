@@ -51,6 +51,7 @@ function evidenceFor(item: Record<string, unknown>) {
   if (typeof item.evidenceRef !== "string") return null;
   const evidence = getDoc("users/local/triageEvidence", item.evidenceRef);
   if (!evidence || !Array.isArray(evidence.segments) || evidence.segments.length === 0) return null;
+  if (Array.isArray(evidence.coverage) && evidence.coverage.some(entry => record(entry).reasonCode === "saved_metadata_only")) return null;
   return evidence;
 }
 function dispatch(run: WorkflowRun) {

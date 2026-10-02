@@ -90,6 +90,7 @@ export interface EvidenceSummary {
   coverage: EvidenceStatus[];
   issueCount: number;
   quality: string;
+  metadataOnly?: boolean;
 }
 
 export class TriageArtifactError extends Error {
@@ -314,6 +315,7 @@ function evidenceSummary(bundle: EvidenceBundle): EvidenceSummary {
     coverage: bundle.coverage.map((entry) => entry.status),
     issueCount: bundle.issues.length,
     quality: bundle.quality,
+    metadataOnly: bundle.coverage.some(entry => entry.reasonCode === "saved_metadata_only"),
   };
 }
 

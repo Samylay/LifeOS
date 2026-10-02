@@ -73,6 +73,13 @@ function item(status = "queued") {
 afterAll(() => fs.rmSync(tmpDir, { recursive: true, force: true }));
 
 describe("triage evidence persistence", () => {
+  it("keeps caption publication marked for media extraction until replaced", () => {
+    const id = item();
+    persistEvidence(bundle({ bundleId: "caption-stage", quality: "limited", coverage: [{ sourceId: "source-1", aspect: "platform-media", status: "partial", reasonCode: "saved_metadata_only" }] }), id);
+    expect((getDoc(TRIAGE, id)?.evidenceSummary as Record<string, unknown>).metadataOnly).toBe(true);
+    persistEvidence(bundle({ bundleId: "media-stage" }), id);
+    expect((getDoc(TRIAGE, id)?.evidenceSummary as Record<string, unknown>).metadataOnly).toBe(false);
+  });
   it("stores before assessment and attaches a compact item summary", () => {
     const id = item();
     persistEvidence(bundle(), id);
