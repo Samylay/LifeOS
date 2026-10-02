@@ -1,0 +1,127 @@
+[
+  {
+    "id": "logic",
+    "name": "Logic and proof",
+    "family": "reasoning"
+  },
+  {
+    "id": "mathematics",
+    "name": "Mathematics",
+    "family": "reasoning"
+  },
+  {
+    "id": "statistics",
+    "name": "Probability, statistics and causality",
+    "family": "reasoning"
+  },
+  {
+    "id": "computing",
+    "name": "Computing and information",
+    "family": "reasoning"
+  },
+  {
+    "id": "systems",
+    "name": "Systems and engineering models",
+    "family": "reasoning"
+  },
+  {
+    "id": "physics",
+    "name": "Physics",
+    "family": "nature"
+  },
+  {
+    "id": "chemistry",
+    "name": "Chemistry and materials",
+    "family": "nature"
+  },
+  {
+    "id": "biology",
+    "name": "Biology and evolution",
+    "family": "nature"
+  },
+  {
+    "id": "ecology",
+    "name": "Ecology, Earth and climate",
+    "family": "nature"
+  },
+  {
+    "id": "astronomy",
+    "name": "Astronomy",
+    "family": "nature"
+  },
+  {
+    "id": "history",
+    "name": "History and geography",
+    "family": "society"
+  },
+  {
+    "id": "psychology",
+    "name": "Psychology and cognition",
+    "family": "society"
+  },
+  {
+    "id": "society",
+    "name": "Sociology and anthropology",
+    "family": "society"
+  },
+  {
+    "id": "economics",
+    "name": "Economics and demography",
+    "family": "society"
+  },
+  {
+    "id": "politics",
+    "name": "Politics, law and civic institutions",
+    "family": "society"
+  },
+  {
+    "id": "philosophy",
+    "name": "Philosophy and ethics",
+    "family": "expression"
+  },
+  {
+    "id": "religion",
+    "name": "Religion and cultural interpretation",
+    "family": "expression"
+  },
+  {
+    "id": "literature",
+    "name": "Literature and language",
+    "family": "expression"
+  },
+  {
+    "id": "art",
+    "name": "Visual art and design",
+    "family": "expression"
+  },
+  {
+    "id": "music",
+    "name": "Music, film and narrative",
+    "family": "expression"
+  },
+  {
+    "id": "inquiry",
+    "name": "Inquiry and information literacy",
+    "family": "practice"
+  },
+  {
+    "id": "invention",
+    "name": "Invention and sustainable design",
+    "family": "practice"
+  },
+  {
+    "id": "business",
+    "name": "Business and financial literacy",
+    "family": "practice"
+  },
+  {
+    "id": "communication",
+    "name": "Communication and collaboration",
+    "family": "practice"
+  },
+  {
+    "id": "craft",
+    "name": "Embodied skills and practical judgment",
+    "family": "practice"
+  }
+]

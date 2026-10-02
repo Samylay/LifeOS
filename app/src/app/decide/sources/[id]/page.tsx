@@ -2,6 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, ArrowUpRight } from "lucide-react";
 import { getDoc } from "@/lib/server-db";
+import { SAVED_CLASSIFICATIONS, SAVED_FIELDS, isCurrentSavedClassification } from "@/lib/saved-library";
+import { AREAS } from "@/lib/types";
 import { record, sourceClaims } from "@/lib/extraction-review";
 import { Page, PageHeader } from "@/components/ui/page";
 import { EvidenceDetails } from "@/components/decide/evidence-details";
@@ -24,13 +26,22 @@ export default async function SourceReview({ params }: { params: Promise<{ id: s
   const claims = sourceClaims(bundle, current ? assessment : {});
   const coverage = Array.isArray(bundle.coverage) ? bundle.coverage.map(record) : [];
   const sources = Array.isArray(bundle.sources) ? bundle.sources.map(record) : [];
+  const storedClassification = typeof item.classificationRef === "string" ? getDoc(SAVED_CLASSIFICATIONS, item.classificationRef) : null;
+  const classification = isCurrentSavedClassification(item, storedClassification) ? record(storedClassification?.classification) : {};
+  const fieldLabels = Array.isArray(classification.fields) ? classification.fields.map(record) : [];
+  const areaLabels = Array.isArray(classification.areas) ? classification.areas.map(record) : [];
   const sourceUrl = typeof item.url === "string" && /^https?:\/\//i.test(item.url) ? item.url : null;
 
   return (
     <Page className="max-w-6xl">
-      <Link href="/decide" className={press}><ArrowLeft size={16} aria-hidden />Back to saved sources</Link>
+      <Link href="/saved" className={press}><ArrowLeft size={16} aria-hidden />Back to saved sources</Link>
       <PageHeader title={String(proposal.title ?? "Saved source")} actions={sourceUrl ? <a href={sourceUrl} target="_blank" rel="noreferrer" className={press}>Open original<ArrowUpRight size={16} aria-hidden /></a> : undefined} />
       <p className="max-w-3xl text-base leading-relaxed text-muted-foreground">{String(proposal.summary ?? "The source is saved. Its extraction is not ready yet.")}</p>
+      {(fieldLabels.length > 0 || areaLabels.length > 0 || classification.abstain === true) && <section className="rounded-xl border border-border p-5" aria-label="Classification">
+        <h2 className="font-semibold">Classification</h2>
+        {classification.abstain ? <p className="mt-2 text-sm text-muted-foreground">There is not enough captured information to classify this source yet.</p> : <ul className="mt-3 space-y-2 text-sm">{[...fieldLabels.map(v => ({ id: String(v.id), reason: String(v.reason ?? ""), name: SAVED_FIELDS.find(f => f.id === v.id)?.name ?? String(v.id) })), ...areaLabels.map(v => ({ id: String(v.id), reason: String(v.reason ?? ""), name: AREAS[String(v.id) as keyof typeof AREAS]?.name ?? String(v.id) }))].map(v => <li key={String(v.id)}><span className="font-medium">{v.name}</span><span className="text-muted-foreground"> · {String(v.reason ?? "")}</span></li>)}</ul>}
+        <p className="mt-3 text-xs text-muted-foreground">Agent classification. You can calibrate its interpretation later.</p>
+      </section>}
       <div className="grid min-w-0 gap-8 lg:grid-cols-[minmax(0,1fr)_20rem]">
         <section className="min-w-0 space-y-5" aria-label="Source takeaways">
           <h2 className="text-lg font-semibold">What the source says</h2>

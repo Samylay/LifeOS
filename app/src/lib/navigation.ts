@@ -8,6 +8,7 @@ import {
 export const NAV_ITEMS = [
   { href: "/", label: "Today", icon: Home01Icon },
   { href: "/decide", label: "Inbox", icon: CheckListIcon },
+  { href: "/saved", label: "Saved", icon: CheckListIcon },
   { href: "/chat", label: "Assistant", icon: Chat01Icon },
   { href: "/workouts", label: "Training", icon: Dumbbell01Icon },
   { href: "/finance", label: "Money", icon: Wallet01Icon },
