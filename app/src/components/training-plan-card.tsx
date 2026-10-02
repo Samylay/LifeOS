@@ -78,7 +78,7 @@ export function TrainingPlanCard() {
           </div>
         ))}
       </dl>
-      <p className="text-xs text-muted-foreground">Targets are due 31 January 2027. The lift numbers are estimates until the week 1 test.</p>
+      <p className="text-xs text-muted-foreground">Targets are due 31 January 2027, except the marathon on 4 April 2027. The lift numbers are estimates until the week 1 test.</p>
     </Card>
   );
 }

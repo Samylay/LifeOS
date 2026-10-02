@@ -8,7 +8,7 @@ export const LEARNING_AREAS = [
   { id: "nature", label: "Sustainable futures", description: "Solarpunk, sustainability and biomimicry", match: /solarpunk|sustainab|biomimic|permacomput|ecolog/i },
   { id: "japanese", label: "Japanese", description: "Language practice and the JLPT path", match: /Japanese|JLPT|kanji|hiragana|katakana/i },
   { id: "business", label: "Business & markets", description: "Entrepreneurship, indie hacking and quantitative trading", match: /business|entrepreneur|indie.hack|trading|quantitative|finance|markets/i },
-  { id: "personal", label: "Life & personal interests", description: "Training, triathlon, etiquette and other curiosities", match: /training|triathlon|fitness|etiquette|suits|accessories/i },
+  { id: "personal", label: "Life & personal interests", description: "Training, marathon, etiquette and other curiosities", match: /training|marathon|triathlon|fitness|etiquette|suits|accessories/i },
 ] as const;
 
 export function topicInArea(topic: string, areaId: string): boolean {

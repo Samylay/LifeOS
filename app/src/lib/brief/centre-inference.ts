@@ -35,7 +35,7 @@ const KEYWORDS: Record<Centre, string[]> = {
   scout: ["scout"],
   "reels-reader": ["reels-reader", "reels reader"],
   "homelab-infra": ["homelab", "infra", "server", "vps", "n8n", "docker", "systemd", "tailscale"],
-  workouts: ["workout", "run", "gym", "strength", "training", "ironman", "swim", "bike"],
+  workouts: ["workout", "run", "gym", "strength", "training", "marathon", "swim", "bike"],
   polymath: ["polymath", "read", "book", "article", "learn"],
   "swe-learning": ["swe", "leetcode", "algorithm", "typescript", "coding exercise"],
 };

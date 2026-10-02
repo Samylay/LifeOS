@@ -17,7 +17,7 @@ describe("buildGarminRun", () => {
   });
 
   it("uses a distance end condition for intervals and no target for the time trial", () => {
-    const w = buildGarminRun(sessionsForWeek(5)[5].run!, "x", "y");
+    const w = buildGarminRun(sessionsForWeek(5)[3].run!, "x", "y");
     const repeat = (w.workoutSegments[0].workoutSteps as Array<Record<string, unknown>>)[1];
     expect((repeat.workoutSteps as Array<Record<string, unknown>>)[0].endCondition).toEqual({ conditionTypeId: 3, conditionTypeKey: "distance" });
     const tt = buildGarminRun(sessionsForWeek(1)[5].run!, "x", "y");

@@ -10,14 +10,11 @@ import { LineChart, ProgressRing, SparkChart } from "@/components/charts";
 import { SectionHeader } from "@/components/ui/page";
 import { TrainingPlanCard } from "@/components/training-plan-card";
 import { useCollection } from "@/lib/use-collection";
-import { localDate, PLAN_START, PLAN_WEEKS, PACE_SEC_PER_KM, sessionsForWeek, type Session } from "@/lib/training-plan";
+import { localDate, PLAN_START, PLAN_WEEKS, PACE_SEC_PER_KM, RACE_DATE, sessionsForWeek, type Session } from "@/lib/training-plan";
 import { activityLoad, trainingLoadHistory, type TrainingLoadPoint } from "@/lib/training-load";
 import { activityDate, formatDuration, formatPaceForSport, mapSport, type ActivityRow, type SportBucket } from "@/components/training-stats";
 
-// Vichy 70.3 is provisional: the vault plan says "Sept 2027", no day fixed
-// yet (club decision in December 2026). Update when the entry is confirmed.
-const VICHY_RACE_DATE = "2027-09-01";
-const RACE_DAY = Date.parse(`${VICHY_RACE_DATE}T00:00:00Z`);
+const RACE_DAY = Date.parse(`${RACE_DATE}T00:00:00Z`);
 const SPORT_META: Record<Exclude<SportBucket, "other">, { label: string; icon: LucideIcon; color: string }> = {
   swim: { label: "Swim", icon: Waves, color: "var(--chart-1)" },
   ride: { label: "Bike", icon: Bike, color: "var(--chart-2)" },
@@ -152,7 +149,7 @@ export function TrainingDashboard() {
   const effortMax = Math.max(1, ...activities.slice(0, 30).map(activityLoad));
   const weightHistory = measurements.filter((item) => Number.isFinite(item.weightKg) && item.date).slice(-90)
     .map((item) => ({ date: item.date!, weight: item.weightKg! }));
-  const raceDateLabel = "Vichy 70.3 · Sept 2027, provisional";
+  const raceDateLabel = "Paris Marathon · Sun 4 April 2027";
 
   const sync = async () => {
     setSyncing(true);
@@ -178,13 +175,13 @@ export function TrainingDashboard() {
 
     <section aria-label="Race readiness" className="grid gap-3 sm:grid-cols-[1.1fr_1.4fr_1fr]">
       <Card className="flex min-h-36 flex-col justify-between p-4">
-        <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Days to Vichy 70.3</span>
-        <div><span className="font-mono text-4xl font-bold tabular-nums">~{daysToRace}</span><p className="mt-1 text-sm text-muted-foreground">{raceDateLabel}</p></div>
+        <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Days to Paris Marathon</span>
+        <div><span className="font-mono text-4xl font-bold tabular-nums">{daysToRace}</span><p className="mt-1 text-sm text-muted-foreground">{raceDateLabel}</p></div>
       </Card>
       <Card className="p-4">
         <div className="mb-3"><SectionHeader title="This week · volume vs plan" /></div>
-        <div className="grid grid-cols-3 justify-items-center gap-1">
-          {(["swim", "ride", "run"] as const).map((sport) => {
+        <div className="grid grid-cols-2 justify-items-center gap-1">
+          {(["ride", "run"] as const).map((sport) => {
             const meta = SPORT_META[sport];
             const Icon = meta.icon;
             const goal = sport === "run" ? runPlanMinutes : 0;
@@ -197,7 +194,7 @@ export function TrainingDashboard() {
             </div>;
           })}
         </div>
-        <p className="mt-2 text-center text-[11px] text-muted-foreground">The saved plan has run sessions only. Swim and bike targets are not configured.</p>
+        <p className="mt-2 text-center text-[11px] text-muted-foreground">The plan has run sessions only. The bike commute has no target.</p>
       </Card>
       <Card className="flex min-h-36 flex-col justify-between p-4">
         <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Current form · TSB</span>
