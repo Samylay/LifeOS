@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { Check, Clock3, FileText, FlaskConical, Inbox, RefreshCw, Tag, Workflow, X } from "lucide-react";
@@ -64,6 +65,7 @@ function InboxContent() {
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
   const [auxFailed, setAuxFailed] = useState(false);
+  const [automaticReferences, setAutomaticReferences] = useState(false);
 
   const refresh = useCallback(async () => {
     const get = async (url: string) => { try { const r = await fetch(url); return r.ok ? await r.json() : null; } catch { return null; } };
@@ -73,7 +75,7 @@ function InboxContent() {
         get("/api/workflows"), get("/api/decide/extracts"), get("/api/triage/dispatchable"),
       ]);
       if (!t || !a || !p || !w) throw new Error("Core inbox data unavailable");
-      setTriage(t.items ?? []); setDecisions(a.items ?? []); setProposals(p.items ?? []); setRuns(w.runs ?? []); setExtracts(e); setDispatch(d?.items ?? []); setAuxFailed(!e || !d); setFailed(false);
+      setAutomaticReferences(t.referenceMode === "automatic"); setTriage(t.referenceMode === "automatic" ? [] : t.items ?? []); setDecisions(a.items ?? []); setProposals(p.items ?? []); setRuns(w.runs ?? []); setExtracts(e); setDispatch(d?.items ?? []); setAuxFailed(!e || !d); setFailed(false);
     } catch { setFailed(true); }
     finally { setLoading(false); }
   }, []);
@@ -177,11 +179,12 @@ function InboxContent() {
   const savedActions: DeckAction[] = [actions[0], actions[1], { ...actions[2], label: "Accept / approve" }];
 
   return <Page className="max-w-7xl">
-    <PageHeader title="Inbox" icon={Inbox} actions={<button className={actionClass} onClick={() => void refresh()} aria-label="Refresh inbox"><RefreshCw size={15} />Refresh</button>} />
+    <PageHeader title="Inbox" icon={Inbox} actions={<><Link href="/saved" className={actionClass}>Saved library</Link><button className={actionClass} onClick={() => void refresh()} aria-label="Refresh inbox"><RefreshCw size={15} />Refresh</button></>} />
     <div className="flex gap-1 overflow-x-auto rounded-xl border border-border bg-muted/50 p-1" role="tablist" aria-label="Inbox groups">
       {tabs.map((item) => <button key={item.id} role="tab" aria-selected={tab === item.id} onClick={() => { setTab(item.id); window.history.replaceState(null, "", item.id === "all" ? "/decide" : `/decide?tab=${item.id}`); }} className={cn("min-h-10 shrink-0 rounded-lg px-3 text-sm transition-transform duration-[var(--dur-fast)] ease-[var(--ease-out-custom)] active:scale-[0.97]", tab === item.id ? "bg-surface-3 text-foreground shadow-card" : "text-muted-foreground hover:text-foreground")}>{item.label}<span className="ml-1.5 text-xs text-primary">{counts[item.id]}</span></button>)}
     </div>
-    {(tab === "all" || tab === "saved") && <ProgressBar value={saved.visible.length} max={SAVED_LIMIT} label="Saved items today" showValue valueFormatter={(value, max) => `${value}/${max}`} className="max-w-sm" />}
+    {automaticReferences && (tab === "all" || tab === "saved") && <p className="text-sm text-muted-foreground">Saved sources are processed automatically. <Link href="/saved" className="text-primary underline">Browse captured information</Link></p>}
+    {!automaticReferences && (tab === "all" || tab === "saved") && <ProgressBar value={saved.visible.length} max={SAVED_LIMIT} label="Saved items today" showValue valueFormatter={(value, max) => `${value}/${max}`} className="max-w-sm" />}
     {resultsHidden > 0 && (tab === "all" || tab === "results") && <p className="text-xs text-muted-foreground">{resultsHidden} older result items hidden</p>}
     {auxFailed && tab === "results" && <p role="status" className="text-xs text-muted-foreground">Some result sources are unavailable. <button className="underline" onClick={() => void refresh()}>Retry</button></p>}
     {saved.capped + saved.expired > 0 && (tab === "all" || tab === "saved") && <p className="text-xs text-muted-foreground">{saved.capped + saved.expired} older items hidden</p>}

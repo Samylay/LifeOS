@@ -3,7 +3,7 @@
 // deferred items whose defer date has come round. The rule itself is pure and
 // tested in lib/decide/queue.ts.
 import { NextResponse } from "next/server";
-import { listDocs } from "@/lib/server-db";
+import { getDoc, listDocs } from "@/lib/server-db";
 import { visibleQueueItems, type QueueDoc } from "@/lib/decide/queue";
 
 export const runtime = "nodejs";
@@ -14,5 +14,6 @@ export async function GET() {
     where: [["status", "in", ["proposed", "deferred"]]],
   });
   const items = visibleQueueItems(all as (QueueDoc & { id: string })[], new Date());
-  return NextResponse.json({ items });
+  const referenceMode = getDoc("users/local/settings", "savedProcessing")?.referenceMode === "automatic" ? "automatic" : "manual";
+  return NextResponse.json({ items, referenceMode });
 }
