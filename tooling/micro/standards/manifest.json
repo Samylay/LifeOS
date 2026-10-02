@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "research_started_on": "2026-09-29",
+  "edition_completed_on": "2026-09-30",
+  "pillars": [
+    {
+      "id": 1,
+      "path": "pillars/01-product.md"
+    },
+    {
+      "id": 2,
+      "path": "pillars/02-ux.md"
+    },
+    {
+      "id": 3,
+      "path": "pillars/03-ui.md"
+    },
+    {
+      "id": 4,
+      "path": "pillars/04-motion.md"
+    },
+    {
+      "id": 5,
+      "path": "pillars/05-frontend.md"
+    },
+    {
+      "id": 6,
+      "path": "pillars/06-backend.md"
+    },
+    {
+      "id": 7,
+      "path": "pillars/07-architecture.md"
+    },
+    {
+      "id": 8,
+      "path": "pillars/08-data.md"
+    },
+    {
+      "id": 9,
+      "path": "pillars/09-testing.md"
+    },
+    {
+      "id": 10,
+      "path": "pillars/10-agents.md"
+    },
+    {
+      "id": 11,
+      "path": "pillars/11-platform.md"
+    },
+    {
+      "id": 12,
+      "path": "pillars/12-delivery.md"
+    },
+    {
+      "id": 13,
+      "path": "pillars/13-security.md"
+    },
+    {
+      "id": 14,
+      "path": "pillars/14-reliability.md"
+    },
+    {
+      "id": 15,
+      "path": "pillars/15-growth.md"
+    },
+    {
+      "id": 16,
+      "path": "pillars/16-improvement.md"
+    }
+  ],
+  "integration": [
+    "README.md",
+    "implementation-guide.md",
+    "installed-audit.md",
+    "skills-catalogue.md",
+    "improvement-loop.md"
+  ],
+  "min_primary_source_urls_per_pillar": 5,
+  "proposed_cases": "templates/agent-cases.json",
+  "provenance": "sources.lock.json"
+}
