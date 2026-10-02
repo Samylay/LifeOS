@@ -5,7 +5,7 @@ import path from "node:path";
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "saved-library-"));
 process.env.LIFEOS_DB_PATH = path.join(tmp, "test.db");
 const { setDoc, getDoc } = await import("./server-db");
-const { savedLibrary, publishSavedClassification, SAVED_CLASSIFICATIONS } = await import("./saved-library");
+const { savedLibrary, publishSavedClassification, SAVED_CLASSIFICATIONS, capturedSourcePreview } = await import("./saved-library");
 const { extractionItemState } = await import("./triage-evidence");
 function setup(id: string, status = "proposed") {
   setDoc("users/local/triageQueue", id, { url: "https://example.org/" + id, status, note: "Keep my note", evidenceRef: "e-" + id, savedAt: "2026-10-02", proposal: { title: "Reference " + id } });
@@ -15,6 +15,11 @@ function setup(id: string, status = "proposed") {
 function record(id: string) { return { itemId: id, bundleId: "e-" + id, model: "test", classifierVersion: "v1", taxonomyHash: "hash", classification: { fields: [{ id: "music", reason: "Music composition", segmentIds: ["s1"] }], areas: [], abstain: false, limitations: ["Partial source"] } }; }
 afterAll(() => fs.rmSync(tmp, { recursive: true, force: true }));
 describe("saved library", () => {
+  it("omits repeated titles and unrelated replies from the content preview", () => {
+    const preview = capturedSourcePreview({ segments: [{ role: "title", text: "Chair" }, { role: "document-body", text: "Chair" }, { role: "reply_other", text: "Other opinion" }, { role: "document-body", text: "The seat recalls a leaf." }] });
+    expect(preview).toEqual({ title: "Chair", preview: "The seat recalls a leaf." });
+    expect(capturedSourcePreview({ segments: [{ role: "access-notice", text: "Log in" }] })).toEqual({ title: undefined, preview: undefined });
+  });
   it("searches captured content and keeps discarded saves accessible", () => {
     setup("discarded", "discarded");
     expect(savedLibrary({ q: "counterpoint" }).items.some(v => v.id === "discarded")).toBe(true);

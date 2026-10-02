@@ -82,6 +82,16 @@ export function isCurrentSavedClassification(item: Record<string, unknown>, cand
   return Boolean(candidate && candidate.bundleId === item.evidenceRef && candidate.itemId === item.id && canonical(candidate.sourceContext) === canonical(savedSourceContext(item)));
 }
 
+/** Display captured words directly when a current generated assessment is absent. */
+export function capturedSourcePreview(bundle: Record<string, unknown> | null | undefined) {
+  const captured = (Array.isArray(bundle?.segments) ? bundle.segments : []).map(object);
+  const source = captured.filter(v => !["access-notice", "user-context", "reply_other", "visual-uncertainty"].includes(String(v.role ?? v.kind)) && typeof v.text === "string" && v.text.trim());
+  const title = source.find(v => (v.role ?? v.kind) === "title")?.text as string | undefined;
+  const caption = source.find(v => ["author-caption", "caption"].includes(String(v.role ?? v.kind)));
+  const preview = caption ?? source.find(v => (v.role ?? v.kind) !== "title" && String(v.text).trim() !== title?.trim()) ?? source.find(v => (v.role ?? v.kind) !== "title");
+  return { title: title ?? (caption ? String(caption.text).split("\n")[0].slice(0, 140) : undefined), preview: preview ? String(preview.text) : undefined };
+}
+
 export function savedLibrary(options: { q?: string; field?: string; area?: string; page?: number } = {}) {
   const evidence = new Map(listDocs("users/local/triageEvidence").map(v => [v.id, v]));
   const classifications = new Map(listDocs(SAVED_CLASSIFICATIONS).map(v => [v.id, v]));
@@ -99,16 +109,13 @@ export function savedLibrary(options: { q?: string; field?: string; area?: strin
     const proposal = object(item.proposal);
     const captured = (Array.isArray(bundle?.segments) ? bundle.segments : []).map(object);
     const segments = captured.filter(v => (v.role ?? v.kind) !== "access-notice").map(v => String(v.text ?? ""));
-    const sourceSegments = captured.filter(v => !["access-notice", "user-context"].includes(String(v.role ?? v.kind)) && typeof v.text === "string" && v.text.trim());
-    const capturedTitle = sourceSegments.find(v => (v.role ?? v.kind) === "title")?.text;
-    const preview = sourceSegments.find(v => (v.role ?? v.kind) === "author-caption") ?? sourceSegments.find(v => (v.role ?? v.kind) !== "title");
+    const presentation = capturedSourcePreview(bundle);
     const searchable = [item.url, proposal.title, proposal.summary, item.note, item.notes, item.userNote, ...segments].join("\n");
     if (needle && !searchable.toLocaleLowerCase().includes(needle)) return [];
     const date = object(item.savedAt).__date ?? item.savedAt ?? object(item.createdAt).__date ?? item.createdAt ?? "";
-    const match = needle ? segments.find(v => v.toLocaleLowerCase().includes(needle)) : preview ? String(preview.text) : undefined;
+    const match = needle ? segments.find(v => v.toLocaleLowerCase().includes(needle)) : presentation.preview;
     const offset = match ? Math.max(0, match.toLocaleLowerCase().indexOf(needle) - 90) : 0;
-    const captionTitle = preview && (preview.role ?? preview.kind) === "author-caption" ? String(preview.text).split("\n")[0].slice(0, 140) : undefined;
-    return [{ id: item.id, url: String(item.url ?? ""), title: String(proposal.title ?? capturedTitle ?? captionTitle ?? item.url ?? "Saved source"),
+    return [{ id: item.id, url: String(item.url ?? ""), title: String(proposal.title ?? presentation.title ?? item.url ?? "Saved source"),
       summary: String(proposal.summary ?? ""), snippet: match?.slice(offset, offset + 300) ?? "", savedAt: String(date),
       status: String(item.status ?? "queued"), quality: String(bundle?.quality ?? "not-extracted"),
       segmentCount: segments.length, classified: Boolean(current), fieldIds, areaIds }];
