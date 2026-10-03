@@ -9,6 +9,7 @@ import { getAllContainers, getHermesStatus } from "@/lib/system-health";
 import { getHostMetrics, getStandingGoals } from "@/lib/metrics";
 import { getDeliveryHealth } from "@/lib/web-push-channel";
 import { problems, verdict, type StatusSignals } from "@/lib/status/verdict";
+import { explainGoal, goalLabel } from "@/lib/status/goal-explain";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -30,7 +31,8 @@ export async function GET() {
     hermes,
     goals,
     delivery,
-    problems: problems(signals),
+    // A failing goal says what it guards in its own words, not just that it is failing.
+    problems: problems(signals).map((p) => p.kind === "goal" ? { ...p, label: goalLabel(p.title), detail: explainGoal(p.title) ?? p.detail } : p),
     verdict: verdict(signals),
     now: Date.now(),
   });

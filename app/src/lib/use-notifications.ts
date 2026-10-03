@@ -17,8 +17,11 @@ export type PagerSeverity = "page" | "info" | "low";
 /** One definition of "needs your eye": a pager stream, from the last seven days.
  *  Every unread count in the app (badges, Today, the alert list) uses this. */
 export const ALERT_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
-export function isActiveAlert(m: Pick<PagerMessage, "stream" | "createdAt">, now = Date.now()): boolean {
-  return (PAGER_STREAMS as readonly string[]).includes(m.stream) && m.createdAt.getTime() >= now - ALERT_WINDOW_MS;
+export function isProofOfLife(m: Partial<Pick<PagerMessage, "title" | "body">>): boolean {
+  return m.title === "heartbeat" || (m.body ?? "").trim().startsWith("✅");
+}
+export function isActiveAlert(m: Pick<PagerMessage, "stream" | "createdAt"> & Partial<Pick<PagerMessage, "title" | "body">>, now = Date.now()): boolean {
+  return (PAGER_STREAMS as readonly string[]).includes(m.stream) && m.createdAt.getTime() >= now - ALERT_WINDOW_MS && !isProofOfLife(m);
 }
 
 export interface PagerAction {

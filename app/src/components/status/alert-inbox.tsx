@@ -27,6 +27,14 @@ function timeAgo(d: Date): string {
   return `${Math.floor(h / 24)}d`;
 }
 
+function headlineOf(m: PagerMessage): { heading: string; rest: string } {
+  const body = (m.body ?? "").trim();
+  if (m.title) return { heading: m.title, rest: body };
+  const first = body.split(/(?<=[.!?])\s+|\s—\s/)[0] ?? "";
+  const heading = first.length > 110 ? `${first.slice(0, first.lastIndexOf(" ", 107))}…` : first;
+  return { heading, rest: body.length > heading.length ? body.slice(first.length).replace(/^[\s—-]+/, "") : "" };
+}
+
 function Row({ m, onRead }: { m: PagerMessage; onRead: () => void }) {
   const broken = !(m.body ?? "").trim();
   const inner = (
@@ -37,15 +45,15 @@ function Row({ m, onRead }: { m: PagerMessage; onRead: () => void }) {
         className={cn("mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full", m.readAt ? "bg-transparent" : "bg-primary")}
       />
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium text-foreground">{m.title}</p>
+        <p className="truncate text-sm font-medium text-foreground">{headlineOf(m).heading}</p>
         {broken ? (
           // Not blank — blank looks like nothing happened.
           <p className="flex items-center gap-1 text-xs text-destructive">
             <AlertCircle size={11} aria-hidden /> alert arrived with an empty body
           </p>
-        ) : (
-          <p className="line-clamp-2 text-xs text-muted-foreground">{m.body}</p>
-        )}
+        ) : headlineOf(m).rest ? (
+          <p className="line-clamp-2 text-xs text-muted-foreground">{headlineOf(m).rest}</p>
+        ) : null}
       </div>
       <span className="shrink-0 text-xs text-muted-foreground">{timeAgo(m.createdAt)}</span>
       {m.path && <ArrowUpRight size={12} className="mt-1 shrink-0 text-muted-foreground" aria-hidden />}

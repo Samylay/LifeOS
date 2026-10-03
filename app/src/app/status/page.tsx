@@ -61,6 +61,7 @@ interface StandingGoals {
 }
 
 interface Problem {
+  label?: string;
   kind: "goal" | "goal-unknown" | "container" | "host" | "delivery";
   severity: "down" | "warn";
   title: string;
@@ -249,7 +250,7 @@ export default function StatusPage() {
               {data.problems!.map((p) => (
                 <li
                   key={`${p.kind}:${p.title}`}
-                  className="flex items-start gap-3 rounded-xl border p-4"
+                  className="flex items-start gap-3 rounded-xl border p-3"
                   style={{
                     borderColor: p.severity === "down" ? "var(--destructive)" : "var(--warning)",
                     background: `color-mix(in srgb, ${p.severity === "down" ? "var(--destructive)" : "var(--warning)"} 8%, transparent)`,
@@ -262,9 +263,8 @@ export default function StatusPage() {
                     aria-hidden
                   />
                   <div className="min-w-0">
-                    <p className="text-sm font-medium text-foreground">{p.title}</p>
+                    <p className="text-sm font-medium text-foreground">{p.label ?? p.title}</p>
                     <p className="mt-1 text-sm text-muted-foreground">{p.detail}</p>
-                    <p className="mt-1 text-xs text-muted-foreground">Seen in check {ageSeconds ?? 0}s ago</p>
                     <Link
                       href={p.kind === "delivery" ? "/settings" : p.kind === "host" && GRAFANA_URL ? GRAFANA_URL : p.kind === "host" ? "#host-metrics" : p.kind === "container" ? "#container-details" : "#goal-details"}
                       target={p.kind === "host" && GRAFANA_URL ? "_blank" : undefined}
