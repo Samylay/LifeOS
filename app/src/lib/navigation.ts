@@ -8,7 +8,6 @@ import {
 export const NAV_ITEMS = [
   { href: "/", label: "Today", icon: Home01Icon },
   { href: "/decide", label: "Inbox", icon: CheckListIcon },
-  { href: "/saved", label: "Saved", icon: CheckListIcon },
   { href: "/chat", label: "Assistant", icon: Chat01Icon },
   { href: "/workouts", label: "Training", icon: Dumbbell01Icon },
   { href: "/finance", label: "Money", icon: Wallet01Icon },
@@ -20,6 +19,10 @@ export const MOBILE_ITEMS = NAV_ITEMS.filter((item) =>
 );
 
 export function activeDestination(pathname: string) {
+  // Saved is a view of the Inbox, not its own destination.
+  if (pathname === "/saved" || pathname.startsWith("/saved/")) {
+    return NAV_ITEMS.find((item) => item.href === "/decide");
+  }
   if (pathname === "/workflows" || pathname.startsWith("/workflows/")) {
     return NAV_ITEMS.find((item) => item.href === "/decide");
   }
@@ -30,6 +33,7 @@ export function activeDestination(pathname: string) {
     .sort((a, b) => b.href.length - a.href.length)[0];
 }
 export function surfaceTitle(pathname: string) {
+  if (pathname === "/saved") return "Saved";
   if (pathname === "/knowledge/teach") return "Teach";
   if (pathname.startsWith("/knowledge/teach/")) return "Teach session";
   return activeDestination(pathname)?.label ?? "Today";

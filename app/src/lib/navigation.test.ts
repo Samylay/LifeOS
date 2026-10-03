@@ -23,6 +23,11 @@ describe("navigation destinations", () => {
       "Today", "Inbox", "Assistant", "Training", "Money", "System", "Settings",
     ]);
   });
+  it("treats Saved as a view of Inbox, not a destination", () => {
+    expect(NAV_ITEMS.some((item) => item.href === "/saved")).toBe(false);
+    expect(activeDestination("/saved")?.href).toBe("/decide");
+    expect(surfaceTitle("/saved")).toBe("Saved");
+  });
   it("caps the route inventory at seven destinations", () => {
     expect(NAV_ITEMS.length).toBeLessThanOrEqual(7);
   });

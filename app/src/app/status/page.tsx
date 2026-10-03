@@ -199,7 +199,7 @@ export default function StatusPage() {
   return (
     <Page className="max-w-5xl">
       <PageHeader
-        title="Status"
+        title="System"
         icon={Activity}
         actions={
           <>
