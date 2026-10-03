@@ -335,7 +335,7 @@ function sourceDetail(bundle: EvidenceBundleView, source: EvidenceSourceView, gr
       <div className="flex min-w-0 flex-wrap items-start gap-x-2 gap-y-1 text-xs">
         <span className="min-w-0 font-medium text-foreground [overflow-wrap:anywhere]">{sourceLabel(bundle, source)}</span>
         {stringValue(source.publishedAt) && <time className="text-muted-foreground" dateTime={String(source.publishedAt)}>{formatDate(source.publishedAt)}</time>}
-        <code className="ml-auto max-w-full text-[10px] text-muted-foreground" title={source.id}>{sourceIdHint(source.id)}</code>
+        <code className="ml-auto max-w-full text-xs text-muted-foreground" title={source.id}>{sourceIdHint(source.id)}</code>
       </div>
       {externalHref(source.url) && (
         <a href={source.url} target="_blank" rel="noreferrer" className="inline-flex min-h-8 max-w-full items-center gap-1 text-xs text-primary underline-offset-4 hover:underline transition-transform duration-[var(--dur-fast)] ease-[var(--ease-out-custom)] active:scale-[0.97]">
@@ -359,7 +359,7 @@ function sourceDetail(bundle: EvidenceBundleView, source: EvidenceSourceView, gr
               <li key={segment.id} className="min-w-0 [overflow-wrap:anywhere]">
                 <span className="font-medium text-foreground">{segmentLabel(segment)}</span>
                 {context && <span className="ml-1 text-[11px]">· {context}</span>}
-                {grounded.has(segment.id) && <span className="ml-1 rounded bg-primary/10 px-1 py-0.5 text-[10px] text-primary">grounded</span>}
+                {grounded.has(segment.id) && <span className="ml-1 rounded bg-primary/10 px-1 py-0.5 text-xs text-primary">grounded</span>}
                 <p className="mt-0.5 whitespace-pre-wrap leading-relaxed">{segment.text}</p>
               </li>
             );

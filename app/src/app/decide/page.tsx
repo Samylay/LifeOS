@@ -197,7 +197,7 @@ function InboxContent() {
         </nav>
         <section className="min-w-0 overflow-y-auto rounded-xl border border-border bg-background p-2" aria-live="polite">
           {selected && renderDetail(selected)}
-          {selected?.group === "saved" && selected.kind === "triage" && <div className="flex flex-wrap gap-2 px-4 pb-4"><button className={actionClass} onClick={() => void decideSaved(selected, "discard")}>Discard <kbd className="ml-1 text-[10px]">x</kbd></button><button className={actionClass} onClick={() => void decideSaved(selected, "defer")}>Defer <kbd className="ml-1 text-[10px]">d</kbd></button><button className={`${actionClass} bg-primary text-primary-foreground`} onClick={() => void decideSaved(selected, "approve")}>Approve <kbd className="ml-1 text-[10px]">a</kbd></button></div>}
+          {selected?.group === "saved" && selected.kind === "triage" && <div className="flex flex-wrap gap-2 px-4 pb-4"><button className={actionClass} onClick={() => void decideSaved(selected, "discard")}>Discard <kbd className="ml-1 text-xs">x</kbd></button><button className={actionClass} onClick={() => void decideSaved(selected, "defer")}>Defer <kbd className="ml-1 text-xs">d</kbd></button><button className={`${actionClass} bg-primary text-primary-foreground`} onClick={() => void decideSaved(selected, "approve")}>Approve <kbd className="ml-1 text-xs">a</kbd></button></div>}
         </section>
       </div>
       <div className="lg:hidden">

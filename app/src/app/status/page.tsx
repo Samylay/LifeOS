@@ -265,15 +265,17 @@ export default function StatusPage() {
                   <div className="min-w-0">
                     <p className="text-sm font-medium text-foreground">{p.label ?? p.title}</p>
                     <p className="mt-1 text-sm text-muted-foreground">{p.detail}</p>
+                    {p.kind !== "goal" && (
                     <Link
-                      href={p.kind === "delivery" ? "/settings" : p.kind === "host" && GRAFANA_URL ? GRAFANA_URL : p.kind === "host" ? "#host-metrics" : p.kind === "container" ? "#container-details" : "#goal-details"}
-                      target={p.kind === "host" && GRAFANA_URL ? "_blank" : undefined}
-                      rel={p.kind === "host" && GRAFANA_URL ? "noreferrer" : undefined}
-                      className="mt-2 inline-flex min-h-11 items-center gap-1 text-sm font-medium text-primary pressable active:scale-[0.97]"
-                    >
-                      {p.kind === "delivery" ? "Review notifications" : p.kind === "host" && GRAFANA_URL ? "Open host metrics" : p.kind === "host" ? "Review host metrics" : p.kind === "container" ? "Review containers" : "Review goals"}
-                      <ExternalLink size={13} aria-hidden="true" />
-                    </Link>
+                        href={p.kind === "delivery" ? "/settings" : p.kind === "host" && GRAFANA_URL ? GRAFANA_URL : p.kind === "host" ? "#host-metrics" : p.kind === "container" ? "#container-details" : "#goal-details"}
+                        target={p.kind === "host" && GRAFANA_URL ? "_blank" : undefined}
+                        rel={p.kind === "host" && GRAFANA_URL ? "noreferrer" : undefined}
+                        className="mt-2 inline-flex min-h-11 items-center gap-1 text-sm font-medium text-primary pressable active:scale-[0.97]"
+                      >
+                        {p.kind === "delivery" ? "Review notifications" : p.kind === "host" && GRAFANA_URL ? "Open host metrics" : p.kind === "host" ? "Review host metrics" : p.kind === "container" ? "Review containers" : "Review goals"}
+                        <ExternalLink size={13} aria-hidden="true" />
+                      </Link>
+                    )}
                   </div>
                 </li>
               ))}
@@ -349,7 +351,7 @@ export default function StatusPage() {
                   {container.label || container.name}
                 </span>
                 {container.label && (
-                  <span className="w-full break-all font-mono text-[10px] text-muted-foreground">{container.name}</span>
+                  <span className="w-full break-all font-mono text-xs text-muted-foreground">{container.name}</span>
                 )}
                 <span className={`w-full text-xs ${container.up ? "text-muted-foreground" : "text-destructive"}`}>
                   {container.up ? `Running · ${container.status}` : `Down · ${container.state}`}

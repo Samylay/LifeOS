@@ -122,7 +122,7 @@ export function BankAccountsCard() {
                     {a.aspspCountry && <span className="text-muted-foreground"> · {a.aspspCountry}</span>}
                   </span>
                   {isConsentExpired(a.validUntil) && (
-                    <Badge variant="destructive" className="shrink-0 text-[10px] font-medium">
+                    <Badge variant="destructive" className="shrink-0 text-xs font-medium">
                       stale
                     </Badge>
                   )}
