@@ -153,7 +153,7 @@ export function BankAccountsCard() {
         {accounts.length > 0 && (
           <Button size="sm" variant="ghost" className="gap-1.5" onClick={sync} disabled={syncing}>
             <RefreshCw size={14} className={syncing ? "animate-spin" : undefined} />
-            {syncing ? "Syncing…" : "Sync now"}
+            {syncing ? "Syncing…" : "Sync banks"}
           </Button>
         )}
       </div>

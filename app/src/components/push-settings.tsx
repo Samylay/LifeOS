@@ -346,7 +346,7 @@ export function PushSettings() {
             {`${pushNormal ? "Right now: normal + high push" : "Right now: high-severity only"} · quiet hours ${quiet.start}–${quiet.end} ${quiet.tz}`}
           </p>
         </div>
-        <Switch checked={pushNormal} onCheckedChange={togglePushNormal} aria-label="Push normal severity too" />
+        <Switch checked={pushNormal} onCheckedChange={togglePushNormal} aria-label="Push normal severity too" className="relative after:absolute after:-inset-x-2 after:-inset-y-3 after:content-['']" />
       </div>
     </div>
   );

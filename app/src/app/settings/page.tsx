@@ -115,7 +115,7 @@ function StravaCard() {
               className="text-xs text-muted-foreground active:scale-[0.97]"
             >
               {syncing ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
-              Sync now
+              Sync Strava
             </Button>
           )}
         </div>
@@ -125,7 +125,7 @@ function StravaCard() {
           Last: {summary.last.name} · {summary.last.km} km ·{" "}
           {new Date(summary.last.date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
           {" — "}
-          <Link href="/workouts" className="text-primary">Training →</Link>
+          <Link href="/workouts" className="inline-flex min-h-11 items-center text-primary">Training →</Link>
         </p>
       )}
     </div>
