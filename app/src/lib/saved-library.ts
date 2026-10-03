@@ -88,7 +88,10 @@ export function capturedSourcePreview(bundle: Record<string, unknown> | null | u
   const source = captured.filter(v => !["access-notice", "user-context", "reply_other", "visual-uncertainty", "media-metadata"].includes(String(v.role ?? v.kind)) && typeof v.text === "string" && v.text.trim());
   const title = source.find(v => (v.role ?? v.kind) === "title")?.text as string | undefined;
   const caption = source.find(v => ["author-caption", "caption"].includes(String(v.role ?? v.kind)));
-  const preview = caption ?? source.find(v => (v.role ?? v.kind) !== "title" && String(v.text).trim() !== title?.trim()) ?? source.find(v => (v.role ?? v.kind) !== "title");
+  const candidates = source.filter(v => (v.role ?? v.kind) !== "title" && String(v.text).trim() !== title?.trim());
+  const preview = caption ?? candidates.find(v => ["document-body", "body", "post", "thread", "quoted-text"].includes(String(v.role ?? v.kind)))
+    ?? candidates.find(v => ["speech", "on-screen-text"].includes(String(v.role ?? v.kind)))
+    ?? candidates.find(v => (v.role ?? v.kind) === "visual-observation") ?? candidates[0];
   return { title: title ?? (caption ? String(caption.text).split("\n")[0].slice(0, 140) : undefined), preview: preview ? String(preview.text) : undefined };
 }
 

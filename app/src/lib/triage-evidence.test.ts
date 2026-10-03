@@ -73,6 +73,13 @@ function item(status = "queued") {
 afterAll(() => fs.rmSync(tmpDir, { recursive: true, force: true }));
 
 describe("triage evidence persistence", () => {
+  it("keeps failed media retryable without rejecting normal frame sampling", () => {
+    const id = item();
+    persistEvidence(bundle({ bundleId: "failed-vision", coverage: [{ sourceId: "source-1", aspect: "visual", status: "unavailable", reasonCode: "vision_incomplete" }] }), id);
+    expect(getDoc(TRIAGE, id)?.evidenceSummary).toMatchObject({ mediaIncomplete: true });
+    persistEvidence(bundle({ bundleId: "sampled-vision", coverage: [{ sourceId: "source-1", aspect: "visual", status: "partial", reasonCode: "frame_sampling_limit" }] }), id);
+    expect(getDoc(TRIAGE, id)?.evidenceSummary).toMatchObject({ mediaIncomplete: false });
+  });
   it("keeps caption publication marked for media extraction until replaced", () => {
     const id = item();
     persistEvidence(bundle({ bundleId: "caption-stage", quality: "limited", coverage: [{ sourceId: "source-1", aspect: "platform-media", status: "partial", reasonCode: "saved_metadata_only" }] }), id);

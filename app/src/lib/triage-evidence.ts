@@ -91,6 +91,7 @@ export interface EvidenceSummary {
   issueCount: number;
   quality: string;
   metadataOnly?: boolean;
+  mediaIncomplete?: boolean;
 }
 
 export class TriageArtifactError extends Error {
@@ -316,6 +317,7 @@ function evidenceSummary(bundle: EvidenceBundle): EvidenceSummary {
     issueCount: bundle.issues.length,
     quality: bundle.quality,
     metadataOnly: bundle.coverage.some(entry => entry.reasonCode === "saved_metadata_only"),
+    mediaIncomplete: bundle.coverage.some(entry => ["visual", "on-screen-text", "media", "platform-media", "speech"].includes(entry.aspect) && (entry.status === "unavailable" || ["vision_incomplete", "instagram_media_processing_incomplete"].includes(String(entry.reasonCode)))),
   };
 }
 

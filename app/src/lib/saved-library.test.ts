@@ -15,6 +15,9 @@ function setup(id: string, status = "proposed") {
 function record(id: string) { return { itemId: id, bundleId: "e-" + id, model: "test", classifierVersion: "v1", taxonomyHash: "hash", classification: { fields: [{ id: "music", reason: "Music composition", segmentIds: ["s1"] }], areas: [], abstain: false, limitations: ["Partial source"] } }; }
 afterAll(() => fs.rmSync(tmp, { recursive: true, force: true }));
 describe("saved library", () => {
+  it("shows recovered words before generic platform alt text", () => {
+    expect(capturedSourcePreview({ segments: [{ role: "platform-alt-text", text: "May be a photo" }, { role: "on-screen-text", text: "Actual words from the source" }] }).preview).toBe("Actual words from the source");
+  });
   it("previews spoken information before technical video metadata", () => {
     const segments = [{ role: "media-metadata", text: '{"durationMs":1000}' }, { role: "speech", text: "A composition technique explained aloud." }];
     expect(capturedSourcePreview({ segments }).preview).toBe("A composition technique explained aloud.");
