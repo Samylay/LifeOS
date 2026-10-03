@@ -160,6 +160,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ id: null, stream, severity, pushed: false, deduped: true });
   }
 
+  // Heartbeats and recoveries are proof of life, not asks: store them already read so
+  // they never count as something waiting on you.
+  const quietNote = title === "heartbeat" || text.trim().startsWith("✅");
   const id = createDoc(COLLECTION, {
     stream,
     severity,
@@ -168,7 +171,7 @@ export async function POST(req: NextRequest) {
     actions: parseActions(body.actions),
     path,
     createdAt: { __date: new Date().toISOString() },
-    readAt: null,
+    readAt: quietNote ? { __date: new Date().toISOString() } : null,
   });
 
   // Web-push: high always; normal only outside quiet hours with pushNormal on;

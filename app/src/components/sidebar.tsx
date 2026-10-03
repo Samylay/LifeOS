@@ -16,8 +16,7 @@ export function Sidebar() {
   const active = activeDestination(pathname)?.href;
   const activeIndex = NAV_ITEMS.findIndex((item) => item.href === active);
   const { state, isMobile } = useSidebar();
-  const { messages } = useNotifications();
-  const unread = messages.filter((m) => !m.readAt).length;
+  const { unreadCount: unread } = useNotifications();
   if (isMobile) return null;
 
   return (

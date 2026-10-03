@@ -29,7 +29,7 @@ export default function Today() {
   const { habits, toggleToday } = useHabits();
   const { connection: garminConnection, activities, syncActivities } = useGarmin();
   const { overdue, dueToday } = useReminders();
-  const { messages } = useNotifications();
+  const { unreadCount } = useNotifications();
   const [now, setNow] = useState<Date | null>(null);
   const [brief, setBrief] = useState<BriefResponse | null>(null);
   const [briefErr, setBriefErr] = useState(false);
@@ -104,7 +104,7 @@ export default function Today() {
     }
   };
 
-  const unreadAlerts = messages.filter((message) => !message.readAt).length;
+  const unreadAlerts = unreadCount;
   const alertCount = unreadAlerts + overdue.length + dueToday.length;
   const cards = brief?.brief.cards ?? [];
 

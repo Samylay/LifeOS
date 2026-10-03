@@ -108,3 +108,21 @@ describe("POST /api/notify deep-link path", () => {
     expect(await storedPath("bad path 3", { path: "/pri me" })).toBe("/pager");
   });
 });
+
+describe("POST /api/notify proof-of-life messages", () => {
+  async function readAtOf(body: Record<string, unknown>) {
+    const res = await post(body);
+    const { id } = await res.json();
+    const { getDoc } = await import("@/lib/server-db");
+    return (getDoc(COLLECTION, id) as { readAt?: unknown }).readAt;
+  }
+
+  it("stores heartbeats and recoveries already read, so they never count as waiting", async () => {
+    expect(await readAtOf({ text: "pager heartbeat — pipeline alive", stream: "system", severity: "low", title: "heartbeat" })).toBeTruthy();
+    expect(await readAtOf({ text: "✅ standing goal recovered: notify-pipeline", stream: "alerts" })).toBeTruthy();
+  });
+
+  it("leaves real alerts unread", async () => {
+    expect(await readAtOf({ text: "🚨 standing goal VIOLATED: backup-fresh", stream: "alerts" })).toBeNull();
+  });
+});

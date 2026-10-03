@@ -5,7 +5,7 @@
 // Subscribes to the collection directly (not via useCollection) so the query
 // can carry limit(100), and layers an optimistic overlay on top: markRead /
 // ack / remove reflect in local state instantly, the server write follows.
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { db, collection, onSnapshot, query, orderBy, limit } from "./local-db";
 import { updateDocument, deleteDocument } from "./firestore";
 import { useAuth, LOCAL_USER } from "./auth-context";
@@ -13,6 +13,13 @@ import { useAuth, LOCAL_USER } from "./auth-context";
 export const PAGER_STREAMS = ["alerts", "nightly", "weekly", "capture", "system"] as const;
 export type PagerStream = (typeof PAGER_STREAMS)[number];
 export type PagerSeverity = "page" | "info" | "low";
+
+/** One definition of "needs your eye": a pager stream, from the last seven days.
+ *  Every unread count in the app (badges, Today, the alert list) uses this. */
+export const ALERT_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
+export function isActiveAlert(m: Pick<PagerMessage, "stream" | "createdAt">, now = Date.now()): boolean {
+  return (PAGER_STREAMS as readonly string[]).includes(m.stream) && m.createdAt.getTime() >= now - ALERT_WINDOW_MS;
+}
 
 export interface PagerAction {
   label: string;
@@ -109,6 +116,9 @@ export function useNotifications() {
       });
   }, [items, overrides]);
 
+  // Computed once per render from the same filter the alert list uses.
+  const unreadCount = useMemo(() => messages.filter((m) => !m.readAt && isActiveAlert(m)).length, [messages]);
+
   const patch = useCallback(
     (id: string, data: Partial<PagerMessage>) => {
       setOverrides((o) => ({ ...o, [id]: { ...o[id], ...data } }));
@@ -164,5 +174,5 @@ export function useNotifications() {
     });
   }, []);
 
-  return { messages, loading, markRead, markAllRead, ack, remove, undoRemove };
+  return { messages, unreadCount, loading, markRead, markAllRead, ack, remove, undoRemove };
 }

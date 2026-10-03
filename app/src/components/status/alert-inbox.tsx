@@ -16,7 +16,7 @@ import Link from "next/link";
 import { AlertCircle, ArrowUpRight, CheckCheck } from "lucide-react";
 import { EmptyState } from "@/components/empty-state";
 import { cn } from "@/lib/utils";
-import { PAGER_STREAMS, useNotifications, type PagerMessage, type PagerStream } from "@/lib/use-notifications";
+import { PAGER_STREAMS, isActiveAlert, useNotifications, type PagerMessage, type PagerStream } from "@/lib/use-notifications";
 
 function timeAgo(d: Date): string {
   const mins = Math.floor((Date.now() - d.getTime()) / 60_000);
@@ -69,8 +69,8 @@ export function AlertInbox() {
   const { messages, loading, markRead, markAllRead } = useNotifications();
   const [stream, setStream] = useState<PagerStream | "all">("all");
   const [expanded, setExpanded] = useState(false);
-  const [cutoff] = useState(() => Date.now() - 7 * 24 * 60 * 60 * 1000);
-  const recent = messages.filter((m) => m.createdAt.getTime() >= cutoff);
+  const [now] = useState(() => Date.now());
+  const recent = messages.filter((m) => isActiveAlert(m, now));
   const olderCount = messages.length - recent.length;
   const visible = recent
     .filter((m) => stream === "all" || m.stream === stream)
