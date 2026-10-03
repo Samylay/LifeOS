@@ -46,9 +46,9 @@ export function CodexSessions() {
   const running = sessions.filter(session => session.status === "starting" || session.status === "running").length;
   return <Sheet open={open} onOpenChange={setOpen}>
     <SheetTrigger asChild><button type="button" aria-label={running ? `Recent runs, ${running} running` : "Recent runs"} className="flex min-h-11 max-w-[40vw] items-center gap-2 overflow-hidden rounded-lg px-2 text-xs text-muted-foreground hover:bg-muted transition-transform duration-150 ease-[var(--ease-out-custom)] active:scale-[0.97] sm:max-w-[34vw]">
-      {!sessions.length ? <Activity size={17} className="shrink-0" /> : <span className="flex min-w-0 items-center gap-2 overflow-x-auto">
-        {sessions.slice(0, 2).map((session) => <span key={session.id} title={`${session.title} · ${session.status} · ${elapsed(session)}`} className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-border px-2 py-1"><span className={`size-1.5 rounded-full ${statusColor(session.status)} ${session.status === "running" || session.status === "starting" ? "animate-pulse" : ""}`} /><span className="max-w-20 truncate">{session.title}</span><span>{elapsed(session)}</span></span>)}
-        {sessions.length > 2 && <span className="shrink-0">+{sessions.length - 2}</span>}
+      {/* Chips only while something is running; otherwise one quiet icon, so the header keeps its title. */}
+      {running === 0 ? <Activity size={17} className="shrink-0" /> : <span className="flex min-w-0 items-center gap-2">
+        {sessions.filter((session) => session.status === "starting" || session.status === "running").slice(0, 1).map((session) => <span key={session.id} title={`${session.title} · ${session.status} · ${elapsed(session)}`} className="inline-flex min-w-0 shrink items-center gap-1.5"><span className={`size-2 shrink-0 rounded-full ${statusColor(session.status)}`} /><span className="truncate max-w-28">{session.title}</span><span className="shrink-0 text-muted-foreground">{elapsed(session)}</span></span>)}
       </span>}
       <span className="hidden shrink-0 sm:inline">Recent runs</span>{running > 0 && <span className="shrink-0 text-primary">{running}</span>}
     </button></SheetTrigger>

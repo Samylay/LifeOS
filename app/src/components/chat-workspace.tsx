@@ -24,7 +24,7 @@ const starters = [
   { title: "Homelab status", prompt: "What's the status of my homelab?" },
   { title: "Add a Todoist task", prompt: "Add a task to Todoist: " },
   { title: "Task progress", prompt: "Check the progress of my tasks." },
-  { title: "My finances", prompt: "How are my finances?" },
+  { title: "Start a Codex session", prompt: "Start a Codex session: " },
 ];
 
 export function ChatWorkspace() {
