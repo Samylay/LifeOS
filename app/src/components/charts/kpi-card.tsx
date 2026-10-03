@@ -44,7 +44,7 @@ export function KpiCard({ label, value, delta, icon, sparkline, className }: Kpi
       <div className="flex items-start justify-between gap-2">
         <span className="text-2xl font-semibold tabular-nums">{value}</span>
         {delta && DeltaIcon && (
-          <span aria-label={`${delta.direction === "flat" ? "Unchanged" : delta.direction === "up" ? "Increased" : "Decreased"} by ${deltaValue}`} className={cn("inline-flex items-center gap-0.5 rounded-full bg-muted px-2 py-1 text-[11px] font-medium tabular-nums", DELTA_COLOR[delta.direction])}>
+          <span aria-label={`${delta.direction === "flat" ? "Unchanged" : delta.direction === "up" ? "Increased" : "Decreased"} by ${deltaValue}`} className={cn("inline-flex items-center gap-0.5 rounded-full bg-muted px-2 py-1 text-xs font-medium tabular-nums", DELTA_COLOR[delta.direction])}>
             <DeltaIcon size={11} aria-hidden="true" />
             <span aria-hidden="true">{deltaSign}{deltaValue}</span>
           </span>

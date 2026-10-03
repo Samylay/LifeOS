@@ -46,6 +46,14 @@ function Avatar({ label }: { label: string }) {
   return <SourceAvatar source={label} label={label} size="sm" className="shrink-0" />;
 }
 
+function SpendingEarly({ activity, month, now }: { activity: FinanceActivity[]; month: string; now: Date }) {
+  const previousDate = new Date(`${month}-01T00:00:00Z`);
+  previousDate.setUTCMonth(previousDate.getUTCMonth() - 1);
+  const through = now.getUTCDate();
+  const sum = (m: string) => [...categoryTotals(activity, m, through).values()].reduce((total, value) => total + value, 0);
+  return <p className="text-sm text-muted-foreground"><span className="font-semibold tabular-nums text-foreground">{eur(sum(month))}</span> spent in {through} day{through === 1 ? "" : "s"}, against <span className="tabular-nums">{eur(sum(dayString(previousDate).slice(0, 7)))}</span> by the same day last month. The trend line appears after a week.</p>;
+}
+
 function SpendingTrend({ activity, month, now }: { activity: FinanceActivity[]; month: string; now: Date }) {
   const previousDate = new Date(`${month}-01T00:00:00Z`);
   previousDate.setUTCMonth(previousDate.getUTCMonth() - 1);
@@ -108,17 +116,20 @@ function CategoryBreakdown({ activity, month, now }: { activity: FinanceActivity
   if (otherCurrent || otherPrevious) categories.push({ name: "Other", amount: otherCurrent, previous: otherPrevious });
   const chartData = categories.filter((item) => item.amount > 0).map((item) => ({ name: item.name, amount: item.amount }));
   const total = categories.reduce((sum, item) => sum + item.amount, 0);
+  const uncategorised = categories.find((item) => item.name === "Other")?.amount ?? 0;
+  const mostlyUncategorised = total > 0 && uncategorised / total > 0.7;
   return <Card className="gap-3 p-4">
     <SectionHeader title="Categories" />
-    {chartData.length ? <div className="grid items-center gap-3 sm:grid-cols-[minmax(140px,0.8fr)_1.2fr]">
-      <DonutChart data={chartData} category="amount" index="name" label={eur(total)} valueFormatter={(value) => eur(Number(value))} className="h-40" />
+    {mostlyUncategorised && <p className="text-xs text-muted-foreground">Most of this month is uncategorised, so a chart would say nothing. Label a merchant once in the list below and it stays labelled.</p>}
+    {chartData.length ? <div className={`grid items-center gap-3 ${mostlyUncategorised ? "" : "sm:grid-cols-[minmax(140px,0.8fr)_1.2fr]"}`}>
+      {!mostlyUncategorised && <DonutChart data={chartData} category="amount" index="name" label={eur(total)} valueFormatter={(value) => eur(Number(value))} className="h-40" />}
       <div className="space-y-1">
         {categories.map(({ name, amount, previous: old }) => {
           const change = amount - old;
           return <div key={name} className="flex min-h-10 items-center gap-2 border-b border-border/60 py-1 last:border-0">
             <Avatar label={name} />
             <span className="min-w-0 flex-1 truncate text-sm">{name}</span>
-            <span className="text-right text-sm tabular-nums">{eur(amount)}<span className={`block text-[10px] ${change > 0 ? "text-warning" : "text-primary"}`}>{change > 0 ? "+" : ""}{eur(change)} vs last month</span></span>
+            <span className="text-right text-sm tabular-nums">{eur(amount)}<span className={`block text-xs ${change > 0 ? "text-warning" : "text-primary"}`}>{change > 0 ? "+" : ""}{eur(change)} vs last month</span></span>
           </div>;
         })}
       </div>
@@ -139,18 +150,18 @@ function Upcoming({ charges, today, throughDate }: { charges: RecurringChargeVie
     {upcoming.length ? <div>{upcoming.map(({ charge, date }) => <div key={charge.merchantKey} className="flex items-center gap-3 border-b border-border/60 py-2 last:border-0">
       <Avatar label={charge.label} />
       <div className="min-w-0 flex-1"><p className="truncate text-sm font-medium">{charge.label}</p><p className="text-xs text-muted-foreground">{new Date(`${date}T00:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" })}</p></div>
-      <span className="text-sm tabular-nums">{charge.direction === "in" ? "+" : "−"}{eur(charge.amount)}</span>
+      <span className={`text-sm tabular-nums ${charge.direction === "in" ? "text-success" : ""}`}>{charge.direction === "in" ? "+" : "−"}{eur(charge.amount)}</span>
     </div>)}</div> : <EmptyState icon={Landmark} hint="No detected recurring charges are due this month." compact />}
   </Card>;
 }
 
 function Accounts({ overview }: { overview: FinanceBurnOverview }) {
   return <Card className="gap-3 p-4">
-    <div className="flex items-center justify-between gap-3"><SectionHeader title="Accounts" /><Link href="/settings" className="min-h-11 content-center text-sm text-primary underline-offset-4 hover:underline">Manage banks</Link></div>
+    <div className="flex items-center justify-between gap-3"><SectionHeader title="Accounts" /><Link href="/settings" className="inline-flex min-h-11 items-center rounded-lg border border-border px-3 text-sm text-foreground transition-transform duration-[var(--dur-fast)] active:scale-[0.97]">Manage banks</Link></div>
     {overview.accounts.length ? <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">{overview.accounts.map((account) => <div key={account.accountUid} className="min-w-0 rounded-lg border border-border bg-background p-3">
       <div className="flex items-center gap-2"><Avatar label={account.aspspName || "Bank"} /><p className="truncate text-xs font-medium">{account.aspspName || "Bank"}</p></div>
       <p className="mt-3 truncate text-lg font-semibold tabular-nums">{account.balanceAmount !== null ? formatMoney(Number(account.balanceAmount), account.balanceCurrency || "EUR") : "—"}</p>
-      <p className="mt-1 text-[10px] text-muted-foreground">{account.balanceSyncedAt ? `Updated ${new Date(account.balanceSyncedAt).toLocaleDateString("en-GB")}` : "Balance unavailable"}</p>
+      <p className="mt-1 text-xs text-muted-foreground">{account.balanceSyncedAt ? `Updated ${new Date(account.balanceSyncedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}` : "Balance unavailable"}</p>
     </div>)}</div> : <EmptyState icon={Landmark} title="No bank connected" hint="Connect a bank to see synced balances and transactions." action={<Button asChild size="sm" variant="outline"><Link href="/settings">Connect a bank</Link></Button>} compact />}
     <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-2 text-xs text-muted-foreground"><span>{overview.lastSyncedLabel}{overview.stale ? " · Sync may be overdue" : " · Bank sync active"}</span>{overview.consentWarnings.length > 0 && <Link href="/settings" className="min-h-11 content-center text-warning underline-offset-4 hover:underline">Reconnect a bank</Link>}</div>
   </Card>;
@@ -174,6 +185,11 @@ function FinanceDashboard({ overview, refresh }: { overview: FinanceBurnOverview
   const projection = leftThisMonth({ incomeSoFar: income, expectedRecurringIncome: recurringIncome, spent, remainingRecurringCharges: remainingCharges });
   const daysInMonth = Number(monthEnd.slice(8, 10));
   const elapsed = Math.min(now.getUTCDate(), daysInMonth);
+  const weekEnd = dayString(new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 7)));
+  const nextWeek = upcomingCharges(overview.recurringCharges, today, weekEnd);
+  const weekIn = nextWeek.filter(({ charge }) => charge.direction === "in").reduce((sum, item) => sum + item.charge.amount, 0);
+  const weekOut = nextWeek.filter(({ charge }) => charge.direction === "out").reduce((sum, item) => sum + item.charge.amount, 0);
+  const earlyMonth = elapsed < 10 && projection.left < 0;
   const incomeLabel = projection.incomeSource === "received" ? "income received" : "expected recurring income";
   async function sync() {
     setSyncing(true); setSyncError(null);
@@ -187,12 +203,12 @@ function FinanceDashboard({ overview, refresh }: { overview: FinanceBurnOverview
   }
   return <div className="space-y-4">
     <Card className="gap-4 p-4 sm:p-5">
-      <div className="flex items-start justify-between gap-3"><div><p className="text-sm text-muted-foreground">Left this month</p><p className="mt-1 text-4xl font-semibold tracking-tight tabular-nums sm:text-5xl">{eur(projection.left)}</p><p className="mt-1 text-xs text-muted-foreground">{formatMonth(month)}</p></div><button type="button" aria-expanded={showFormula} onClick={() => setShowFormula(!showFormula)} className="min-h-11 rounded-full border border-border px-3 text-xs text-muted-foreground transition-transform duration-[var(--dur-fast)] active:scale-[0.97]">How?</button></div>
+      <div className="flex items-start justify-between gap-3"><div><p className="text-sm text-muted-foreground">Left this month</p><p className="mt-1 text-4xl font-semibold tracking-tight tabular-nums sm:text-5xl">{eur(projection.left)}</p><p className="mt-1 text-xs text-muted-foreground">{formatMonth(month)} · Next 7 days: +{eur(weekIn)} in, −{eur(weekOut)} out</p>{earlyMonth && <p className="mt-1 text-xs text-muted-foreground">Early in the month this counts bills before your income arrives.</p>}</div><button type="button" aria-expanded={showFormula} onClick={() => setShowFormula(!showFormula)} className="min-h-11 rounded-full border border-border px-3 text-xs text-muted-foreground transition-transform duration-[var(--dur-fast)] active:scale-[0.97]">How?</button></div>
       <div className="grid gap-2 sm:grid-cols-2"><ProgressBar value={elapsed} max={daysInMonth} label={`Month elapsed · ${elapsed}/${daysInMonth} days`} showValue valueFormatter={(value, max) => `${Math.round(value / max * 100)}%`} /><ProgressBar value={spent} max={Math.max(projection.income, spent, 1)} label="Spent vs income" showValue valueFormatter={(value, max) => `${Math.round(value / max * 100)}%`} color="var(--chart-1)" /></div>
       {showFormula && <div className="grid grid-cols-2 gap-x-4 gap-y-1 rounded-lg bg-muted/40 p-3 text-xs sm:grid-cols-4"><span className="text-muted-foreground">{incomeLabel}</span><span className="text-right tabular-nums">{eur(projection.income)}</span><span className="text-muted-foreground">Spent</span><span className="text-right tabular-nums">−{eur(projection.spent)}</span><span className="text-muted-foreground">Charges still due</span><span className="text-right tabular-nums">−{eur(projection.remainingRecurringCharges)}</span><span className="font-medium">Left</span><span className="text-right font-medium tabular-nums">{eur(projection.left)}</span></div>}
     </Card>
     <div className="grid gap-4 lg:grid-cols-2">
-      <Card className="gap-3 p-4"><SectionHeader title="Spending" /><div className="flex gap-4 text-xs"><span className="flex items-center gap-1.5"><i className="size-2 rounded-full bg-chart-2" />This month</span><span className="flex items-center gap-1.5 text-muted-foreground"><i className="size-2 rounded-full bg-muted-foreground" />Last month</span></div><SpendingTrend activity={overview.activity} month={month} now={now} /></Card>
+      <Card className="gap-3 p-4"><SectionHeader title="Spending" /><div className="flex gap-4 text-xs"><span className="flex items-center gap-1.5"><i className="size-2 rounded-full bg-chart-2" />This month</span><span className="flex items-center gap-1.5 text-muted-foreground"><i className="size-2 rounded-full bg-muted-foreground" />Last month</span></div>{elapsed < 7 ? <SpendingEarly activity={overview.activity} month={month} now={now} /> : <SpendingTrend activity={overview.activity} month={month} now={now} />}</Card>
       <CategoryBreakdown activity={overview.activity} month={month} now={now} />
     </div>
     <div className="grid gap-4 lg:grid-cols-2"><Upcoming charges={overview.recurringCharges} today={today} throughDate={nextQuarter} /><Accounts overview={overview} /></div>

@@ -66,7 +66,7 @@ export function ActivityLedger({ activity, refresh }: { activity: FinanceActivit
           const Icon = item.isTransfer ? ArrowLeftRight : item.direction === "in" ? ArrowDownLeft : ArrowUpRight;
           return <div key={item.transactionId} className="flex items-center gap-2 border-b border-border/60 py-2.5 last:border-0">
             <SourceAvatar source={item.label} label={item.label} size="sm" className="shrink-0" />
-            <div className="min-w-0 flex-1"><p className="truncate text-sm font-medium">{item.label}</p><Badge variant="secondary" className="mt-1 max-w-full truncate px-1.5 py-0 text-[10px] font-normal">{item.category}</Badge></div>
+            <div className="min-w-0 flex-1"><p className="truncate text-sm font-medium">{item.label}</p><Badge variant="secondary" className="mt-1 max-w-full truncate px-1.5 py-0 text-xs font-normal">{item.category}</Badge></div>
             <div className="flex shrink-0 items-center gap-1"><Icon aria-hidden size={13} className="text-muted-foreground" /><span className="text-right text-sm tabular-nums">{item.direction === "in" ? "+" : item.direction === "out" ? "−" : ""}{formatMoney(item.amount, item.currency)}</span><Button ref={editTrigger} variant="ghost" size="icon-sm" aria-label={`Edit label for ${item.label}`} onClick={() => setEditing(item)} className="active:scale-[0.97]"><Pencil size={12} /></Button></div>
           </div>;
         })}
