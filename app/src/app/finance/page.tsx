@@ -16,8 +16,8 @@ import { useFinanceBurn, type FinanceBurnOverview } from "@/lib/use-finance-burn
 import { formatMoney, type FinanceActivity } from "@/lib/finance-activity";
 import type { RecurringChargeView } from "@/lib/finance-overview";
 import { leftThisMonth } from "@/lib/finance-projection";
+import { categoryTotalsInRange, cumulativeSpend, cycleLabel, payCycle, totalsInRange, type PayCycle } from "@/lib/finance-cycle";
 
-const formatMonth = (month: string) => new Date(`${month}-01T00:00:00Z`).toLocaleDateString("en-GB", { month: "long", year: "numeric", timeZone: "UTC" });
 const dayString = (date: Date) => date.toISOString().slice(0, 10);
 const eur = (value: number) => formatMoney(value);
 
@@ -46,69 +46,35 @@ function Avatar({ label }: { label: string }) {
   return <SourceAvatar source={label} label={label} size="sm" className="shrink-0" />;
 }
 
-function SpendingEarly({ activity, month, now }: { activity: FinanceActivity[]; month: string; now: Date }) {
-  const previousDate = new Date(`${month}-01T00:00:00Z`);
-  previousDate.setUTCMonth(previousDate.getUTCMonth() - 1);
-  const through = now.getUTCDate();
-  const sum = (m: string) => [...categoryTotals(activity, m, through).values()].reduce((total, value) => total + value, 0);
-  return <p className="text-sm text-muted-foreground"><span className="font-semibold tabular-nums text-foreground">{eur(sum(month))}</span> spent in {through} day{through === 1 ? "" : "s"}, against <span className="tabular-nums">{eur(sum(dayString(previousDate).slice(0, 7)))}</span> by the same day last month. The trend line appears after a week.</p>;
+function SpendingEarly({ activity, cycle }: { activity: FinanceActivity[]; cycle: PayCycle }) {
+  const current = cumulativeSpend(activity, cycle, cycle.day).at(-1) ?? 0;
+  const previous = cumulativeSpend(activity, cycle.previous, cycle.day).at(-1) ?? 0;
+  return <p className="text-sm text-muted-foreground"><span className="font-semibold tabular-nums text-foreground">{eur(current)}</span> spent in {cycle.day} day{cycle.day === 1 ? "" : "s"}, against <span className="tabular-nums">{eur(previous)}</span> by the same day last cycle. The trend line appears after a week.</p>;
 }
 
-function SpendingTrend({ activity, month, now }: { activity: FinanceActivity[]; month: string; now: Date }) {
-  const previousDate = new Date(`${month}-01T00:00:00Z`);
-  previousDate.setUTCMonth(previousDate.getUTCMonth() - 1);
-  const previousMonth = dayString(previousDate).slice(0, 7);
-  const throughDay = now.getUTCDate();
+function SpendingTrend({ activity, cycle }: { activity: FinanceActivity[]; cycle: PayCycle }) {
   const data = useMemo(() => {
-    const currentDays = new Map<number, number>();
-    const previousDays = new Map<number, number>();
-    for (const item of activity) {
-      if (item.direction !== "out" || item.isTransfer || !item.included || item.currency !== "EUR" || !item.date) continue;
-      const itemMonth = item.date.slice(0, 7);
-      const day = Number(item.date.slice(8, 10));
-      if (itemMonth === month && day <= throughDay) currentDays.set(day, (currentDays.get(day) ?? 0) + item.amount);
-      if (itemMonth === previousMonth && day <= throughDay) previousDays.set(day, (previousDays.get(day) ?? 0) + item.amount);
-    }
-    const days = new Date(Date.UTC(Number(month.slice(0, 4)), Number(month.slice(5, 7)), 0)).getUTCDate();
-    let current = 0;
-    let previous = 0;
-    return Array.from({ length: Math.max(throughDay, 1) }, (_, index) => {
-      const day = index + 1;
-      current += currentDays.get(day) ?? 0;
-      previous += previousDays.get(day) ?? 0;
-      return { day, current, previous: day <= days ? previous : undefined };
-    });
-  }, [activity, month, previousMonth, throughDay]);
-  return <div className="h-48 w-full" aria-label="Cumulative spending this month compared with last month">
+    const current = cumulativeSpend(activity, cycle, cycle.day);
+    const previous = cumulativeSpend(activity, cycle.previous, cycle.day);
+    return current.map((value, index) => ({ day: index + 1, current: value, previous: previous[index] }));
+  }, [activity, cycle]);
+  return <div className="h-48 w-full" aria-label="Cumulative spending this pay cycle compared with the last one">
     <ResponsiveContainer width="100%" height="100%">
       <RechartsLineChart data={data} margin={{ top: 8, right: 6, left: 0, bottom: 0 }}>
         <CartesianGrid stroke="var(--border)" vertical={false} />
-        <XAxis dataKey="day" tick={{ fill: "var(--muted-foreground)", fontSize: 11 }} axisLine={false} tickLine={false} />
-        <YAxis width={42} tickFormatter={(value: number) => new Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 1 }).format(value)} tick={{ fill: "var(--muted-foreground)", fontSize: 10 }} axisLine={false} tickLine={false} />
+        <XAxis dataKey="day" tick={{ fill: "var(--muted-foreground)", fontSize: 12 }} axisLine={false} tickLine={false} />
+        <YAxis width={42} tickFormatter={(value: number) => new Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 1 }).format(value)} tick={{ fill: "var(--muted-foreground)", fontSize: 12 }} axisLine={false} tickLine={false} />
         <Tooltip formatter={(value) => eur(Number(value))} labelFormatter={(day) => `Day ${day}`} contentStyle={{ background: "var(--popover)", border: "1px solid var(--border)", borderRadius: 10 }} />
-        <Line dataKey="current" name="This month" type="monotone" stroke="var(--chart-2)" strokeWidth={2.5} dot={false} isAnimationActive={false} />
-        <Line dataKey="previous" name="Last month" type="monotone" stroke="var(--muted-foreground)" strokeWidth={1.75} strokeDasharray="5 4" dot={false} isAnimationActive={false} />
+        <Line dataKey="current" name="This cycle" type="monotone" stroke="var(--chart-2)" strokeWidth={2.5} dot={false} isAnimationActive={false} />
+        <Line dataKey="previous" name="Last cycle" type="monotone" stroke="var(--muted-foreground)" strokeWidth={1.75} strokeDasharray="5 4" dot={false} isAnimationActive={false} />
       </RechartsLineChart>
     </ResponsiveContainer>
   </div>;
 }
 
-function categoryTotals(activity: FinanceActivity[], month: string, maxDay: number) {
-  const totals = new Map<string, number>();
-  for (const item of activity) {
-    if (item.direction !== "out" || item.isTransfer || !item.included || item.currency !== "EUR" || !item.date || !item.date.startsWith(month) || Number(item.date.slice(8, 10)) > maxDay) continue;
-    totals.set(item.category, (totals.get(item.category) ?? 0) + item.amount);
-  }
-  return totals;
-}
-
-function CategoryBreakdown({ activity, month, now }: { activity: FinanceActivity[]; month: string; now: Date }) {
-  const previousDate = new Date(`${month}-01T00:00:00Z`);
-  previousDate.setUTCMonth(previousDate.getUTCMonth() - 1);
-  const previousMonth = dayString(previousDate).slice(0, 7);
-  const throughDay = now.getUTCDate();
-  const current = categoryTotals(activity, month, throughDay);
-  const previous = categoryTotals(activity, previousMonth, throughDay);
+function CategoryBreakdown({ activity, cycle }: { activity: FinanceActivity[]; cycle: PayCycle }) {
+  const current = categoryTotalsInRange(activity, cycle);
+  const previous = categoryTotalsInRange(activity, cycle.previousThroughSameDay);
   const ordered = [...current].sort((a, b) => b[1] - a[1]);
   const categories = ordered.slice(0, 6).map(([name, amount]) => ({ name, amount, previous: previous.get(name) ?? 0 }));
   const otherCurrent = ordered.slice(6).reduce((total, [, amount]) => total + amount, 0);
@@ -120,7 +86,7 @@ function CategoryBreakdown({ activity, month, now }: { activity: FinanceActivity
   const mostlyUncategorised = total > 0 && uncategorised / total > 0.7;
   return <Card className="gap-3 p-4">
     <SectionHeader title="Categories" />
-    {mostlyUncategorised && <p className="text-xs text-muted-foreground">Most of this month is uncategorised, so a chart would say nothing. Label a merchant once in the list below and it stays labelled.</p>}
+    {mostlyUncategorised && <p className="text-xs text-muted-foreground">Most of this cycle is uncategorised, so a chart would say nothing. Label a merchant once in the list below and it stays labelled.</p>}
     {chartData.length ? <div className={`grid items-center gap-3 ${mostlyUncategorised ? "" : "sm:grid-cols-[minmax(140px,0.8fr)_1.2fr]"}`}>
       {!mostlyUncategorised && <DonutChart data={chartData} category="amount" index="name" label={eur(total)} valueFormatter={(value) => eur(Number(value))} className="h-40" />}
       <div className="space-y-1">
@@ -129,7 +95,7 @@ function CategoryBreakdown({ activity, month, now }: { activity: FinanceActivity
           return <div key={name} className="flex min-h-10 items-center gap-2 border-b border-border/60 py-1 last:border-0">
             <Avatar label={name} />
             <span className="min-w-0 flex-1 truncate text-sm">{name}</span>
-            <span className="text-right text-sm tabular-nums">{eur(amount)}<span className={`block text-xs ${change > 0 ? "text-warning" : "text-primary"}`}>{change > 0 ? "+" : ""}{eur(change)} vs last month</span></span>
+            <span className="text-right text-sm tabular-nums">{eur(amount)}<span className={`block text-xs ${change > 0 ? "text-warning" : "text-primary"}`}>{change > 0 ? "+" : ""}{eur(change)} vs last cycle</span></span>
           </div>;
         })}
       </div>
@@ -151,7 +117,7 @@ function Upcoming({ charges, today, throughDate }: { charges: RecurringChargeVie
       <Avatar label={charge.label} />
       <div className="min-w-0 flex-1"><p className="truncate text-sm font-medium">{charge.label}</p><p className="text-xs text-muted-foreground">{new Date(`${date}T00:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" })}</p></div>
       <span className={`text-sm tabular-nums ${charge.direction === "in" ? "text-success" : ""}`}>{charge.direction === "in" ? "+" : "−"}{eur(charge.amount)}</span>
-    </div>)}</div> : <EmptyState icon={Landmark} hint="No detected recurring charges are due this month." compact />}
+    </div>)}</div> : <EmptyState icon={Landmark} hint="No detected recurring charges are due this cycle." compact />}
   </Card>;
 }
 
@@ -172,25 +138,25 @@ function FinanceDashboard({ overview, refresh }: { overview: FinanceBurnOverview
   const [syncing, setSyncing] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
   const now = new Date();
-  const month = overview.months.at(-1)?.burn.month ?? dayString(now).slice(0, 7);
   const today = dayString(now);
-  const monthEnd = dayString(new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0)));
-  const currentBurn = overview.months.at(-1)?.burn;
+  const cycle = payCycle(today);
+  const monthEnd = cycle.end;
   const coming = upcomingCharges(overview.recurringCharges, today, monthEnd);
   const nextQuarter = dayString(new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 90)));
   const recurringIncome = coming.filter(({ charge }) => charge.direction === "in").reduce((sum, item) => sum + item.charge.amount, 0);
   const remainingCharges = coming.filter(({ charge }) => charge.direction === "out").reduce((sum, item) => sum + item.charge.amount, 0);
-  const income = currentBurn?.in ?? 0;
-  const spent = currentBurn?.out ?? 0;
+  const totals = totalsInRange(overview.activity, cycle);
+  const income = totals.in;
+  const spent = totals.out;
   const projection = leftThisMonth({ incomeSoFar: income, expectedRecurringIncome: recurringIncome, spent, remainingRecurringCharges: remainingCharges });
-  const daysInMonth = Number(monthEnd.slice(8, 10));
-  const elapsed = Math.min(now.getUTCDate(), daysInMonth);
+  const daysInMonth = cycle.days;
+  const elapsed = cycle.day;
   const weekEnd = dayString(new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 7)));
   const nextWeek = upcomingCharges(overview.recurringCharges, today, weekEnd);
   const weekIn = nextWeek.filter(({ charge }) => charge.direction === "in").reduce((sum, item) => sum + item.charge.amount, 0);
   const weekOut = nextWeek.filter(({ charge }) => charge.direction === "out").reduce((sum, item) => sum + item.charge.amount, 0);
-  const earlyMonth = elapsed < 10 && projection.left < 0;
-  const incomeLabel = projection.incomeSource === "received" ? "income received" : "expected recurring income";
+  const earlyMonth = elapsed <= 3 && projection.left < 0;
+  const incomeLabel = projection.incomeSource === "received" ? "income received" : projection.incomeSource === "expected" ? "expected recurring income" : "income received and expected";
   async function sync() {
     setSyncing(true); setSyncError(null);
     try {
@@ -203,13 +169,13 @@ function FinanceDashboard({ overview, refresh }: { overview: FinanceBurnOverview
   }
   return <div className="space-y-4">
     <Card className="gap-4 p-4 sm:p-5">
-      <div className="flex items-start justify-between gap-3"><div><p className="text-sm text-muted-foreground">Left this month</p><p className="mt-1 text-4xl font-semibold tracking-tight tabular-nums sm:text-5xl">{eur(projection.left)}</p><p className="mt-1 text-xs text-muted-foreground">{formatMonth(month)} · Next 7 days: +{eur(weekIn)} in, −{eur(weekOut)} out</p>{earlyMonth && <p className="mt-1 text-xs text-muted-foreground">Early in the month this counts bills before your income arrives.</p>}</div><button type="button" aria-expanded={showFormula} onClick={() => setShowFormula(!showFormula)} className="min-h-11 rounded-full border border-border px-3 text-xs text-muted-foreground transition-transform duration-[var(--dur-fast)] active:scale-[0.97]">How?</button></div>
-      <div className="grid gap-2 sm:grid-cols-2"><ProgressBar value={elapsed} max={daysInMonth} label={`Month elapsed · ${elapsed}/${daysInMonth} days`} showValue valueFormatter={(value, max) => `${Math.round(value / max * 100)}%`} /><ProgressBar value={spent} max={Math.max(projection.income, spent, 1)} label="Spent vs income" showValue valueFormatter={(value, max) => `${Math.round(value / max * 100)}%`} color="var(--chart-1)" /></div>
+      <div className="flex items-start justify-between gap-3"><div><p className="text-sm text-muted-foreground">Left this month</p><p className="mt-1 text-4xl font-semibold tracking-tight tabular-nums sm:text-5xl">{eur(projection.left)}</p><p className="mt-1 text-xs text-muted-foreground">{cycleLabel(cycle)} · Next 7 days: +{eur(weekIn)} in, −{eur(weekOut)} out</p>{earlyMonth && <p className="mt-1 text-xs text-muted-foreground">Your pay cycle has just started: bills are counted before income that has not landed.</p>}</div><button type="button" aria-expanded={showFormula} onClick={() => setShowFormula(!showFormula)} className="min-h-11 rounded-full border border-border px-3 text-xs text-muted-foreground transition-transform duration-[var(--dur-fast)] active:scale-[0.97]">How?</button></div>
+      <div className="grid gap-2 sm:grid-cols-2"><ProgressBar value={elapsed} max={daysInMonth} label={`Pay cycle · day ${elapsed} of ${daysInMonth}`} showValue valueFormatter={(value, max) => `${Math.round(value / max * 100)}%`} /><ProgressBar value={spent} max={Math.max(projection.income, spent, 1)} label="Spent vs income" showValue valueFormatter={(value, max) => `${Math.round(value / max * 100)}%`} color="var(--chart-1)" /></div>
       {showFormula && <div className="grid grid-cols-2 gap-x-4 gap-y-1 rounded-lg bg-muted/40 p-3 text-xs sm:grid-cols-4"><span className="text-muted-foreground">{incomeLabel}</span><span className="text-right tabular-nums">{eur(projection.income)}</span><span className="text-muted-foreground">Spent</span><span className="text-right tabular-nums">−{eur(projection.spent)}</span><span className="text-muted-foreground">Charges still due</span><span className="text-right tabular-nums">−{eur(projection.remainingRecurringCharges)}</span><span className="font-medium">Left</span><span className="text-right font-medium tabular-nums">{eur(projection.left)}</span></div>}
     </Card>
     <div className="grid gap-4 lg:grid-cols-2">
-      <Card className="gap-3 p-4"><SectionHeader title="Spending" /><div className="flex gap-4 text-xs"><span className="flex items-center gap-1.5"><i className="size-2 rounded-full bg-chart-2" />This month</span><span className="flex items-center gap-1.5 text-muted-foreground"><i className="size-2 rounded-full bg-muted-foreground" />Last month</span></div>{elapsed < 7 ? <SpendingEarly activity={overview.activity} month={month} now={now} /> : <SpendingTrend activity={overview.activity} month={month} now={now} />}</Card>
-      <CategoryBreakdown activity={overview.activity} month={month} now={now} />
+      <Card className="gap-3 p-4"><SectionHeader title="Spending" /><div className="flex gap-4 text-xs"><span className="flex items-center gap-1.5"><i className="size-2 rounded-full bg-chart-2" />This cycle</span><span className="flex items-center gap-1.5 text-muted-foreground"><i className="size-2 rounded-full bg-muted-foreground" />Last cycle</span></div>{elapsed < 7 ? <SpendingEarly activity={overview.activity} cycle={cycle} /> : <SpendingTrend activity={overview.activity} cycle={cycle} />}</Card>
+      <CategoryBreakdown activity={overview.activity} cycle={cycle} />
     </div>
     <div className="grid gap-4 lg:grid-cols-2"><Upcoming charges={overview.recurringCharges} today={today} throughDate={nextQuarter} /><Accounts overview={overview} /></div>
     <ActivityLedger activity={overview.activity} refresh={refresh} />
