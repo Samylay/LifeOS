@@ -1,0 +1,21 @@
+{
+  "expo": {
+    "name": "Factory Native Fixture",
+    "slug": "factory-native-fixture",
+    "version": "1.0.0",
+    "scheme": "factory-native-fixture",
+    "userInterfaceStyle": "automatic",
+    "plugins": ["expo-router", "expo-sqlite"],
+    "android": {
+      "package": "app.micro.factory.fixture",
+      "versionCode": 1,
+      "permissions": [],
+      "blockedPermissions": [
+        "android.permission.INTERNET",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.SYSTEM_ALERT_WINDOW"
+      ]
+    }
+  }
+}

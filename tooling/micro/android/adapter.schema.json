@@ -1,0 +1,1195 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Administrative Android fixture binding, never candidate-selected",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "projectKind",
+    "projectId",
+    "adapterId",
+    "sourceSha",
+    "identities",
+    "certificateSha256",
+    "expiresAt",
+    "versionCode",
+    "versionName",
+    "package",
+    "minSdk",
+    "targetSdk",
+    "permissions",
+    "admitted",
+    "image",
+    "runtimePolicy",
+    "nativeMapping"
+  ],
+  "properties": {
+    "schema": {
+      "const": "micro.android.adapter/1"
+    },
+    "projectKind": {
+      "const": "fixture"
+    },
+    "projectId": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]{0,79}$"
+    },
+    "adapterId": {
+      "const": "expo-android"
+    },
+    "sourceSha": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "identities": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sourceArchive",
+        "sourceLock",
+        "policy",
+        "adapter",
+        "toolchain",
+        "recipe",
+        "suite",
+        "recovery",
+        "npmSeal",
+        "mavenSeal",
+        "scannerPolicy"
+      ],
+      "properties": {
+        "sourceArchive": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "path",
+            "sha256",
+            "bytes"
+          ],
+          "properties": {
+            "path": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[^\\\\]+$"
+            },
+            "sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "bytes": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        "sourceLock": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "path",
+            "sha256",
+            "bytes"
+          ],
+          "properties": {
+            "path": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[^\\\\]+$"
+            },
+            "sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "bytes": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        "policy": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "path",
+            "sha256",
+            "bytes"
+          ],
+          "properties": {
+            "path": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[^\\\\]+$"
+            },
+            "sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "bytes": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        "adapter": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "path",
+            "sha256",
+            "bytes"
+          ],
+          "properties": {
+            "path": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[^\\\\]+$"
+            },
+            "sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "bytes": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        "toolchain": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "path",
+            "sha256",
+            "bytes"
+          ],
+          "properties": {
+            "path": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[^\\\\]+$"
+            },
+            "sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "bytes": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        "recipe": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "path",
+            "sha256",
+            "bytes"
+          ],
+          "properties": {
+            "path": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[^\\\\]+$"
+            },
+            "sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "bytes": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        "suite": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "path",
+            "sha256",
+            "bytes"
+          ],
+          "properties": {
+            "path": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[^\\\\]+$"
+            },
+            "sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "bytes": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        "recovery": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "path",
+            "sha256",
+            "bytes"
+          ],
+          "properties": {
+            "path": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[^\\\\]+$"
+            },
+            "sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "bytes": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        "npmSeal": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "path",
+            "sha256",
+            "bytes"
+          ],
+          "properties": {
+            "path": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[^\\\\]+$"
+            },
+            "sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "bytes": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        "mavenSeal": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "path",
+            "sha256",
+            "bytes"
+          ],
+          "properties": {
+            "path": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[^\\\\]+$"
+            },
+            "sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "bytes": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        "scannerPolicy": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "path",
+            "sha256",
+            "bytes"
+          ],
+          "properties": {
+            "path": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[^\\\\]+$"
+            },
+            "sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "bytes": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        }
+      }
+    },
+    "certificateSha256": {
+      "oneOf": [
+        {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "expiresAt": {
+      "type": "number",
+      "minimum": 0
+    },
+    "versionCode": {
+      "const": 1
+    },
+    "versionName": {
+      "const": "1.0.0"
+    },
+    "package": {
+      "const": "app.micro.factory.fixture"
+    },
+    "minSdk": {
+      "const": 24
+    },
+    "targetSdk": {
+      "const": 36
+    },
+    "permissions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "uniqueItems": true
+    },
+    "admitted": {
+      "type": "boolean"
+    },
+    "image": {
+      "const": "sha256:43778b0b9227ffc8d12a9092f011f09238a77c92b5fcde6a18310757ccef7305"
+    },
+    "runtimePolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "user",
+        "network",
+        "memoryBytes",
+        "memorySwapBytes",
+        "nanoCpus",
+        "pids"
+      ],
+      "properties": {
+        "user": {
+          "const": "1000:1000"
+        },
+        "network": {
+          "const": "none"
+        },
+        "memoryBytes": {
+          "const": 6442450944
+        },
+        "memorySwapBytes": {
+          "const": 6442450944
+        },
+        "nanoCpus": {
+          "const": 2000000000
+        },
+        "pids": {
+          "const": 384
+        }
+      }
+    },
+    "nativeMapping": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "path",
+            "sha256",
+            "bytes"
+          ],
+          "properties": {
+            "path": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[^\\\\]+$"
+            },
+            "sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "bytes": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "admitted": {
+            "const": true
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "certificateSha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256",
+        "bytes"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[^\\\\]+$"
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "bytes": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "sealedTree": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "kind",
+        "files",
+        "manifestSha256"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[^\\\\]+$"
+        },
+        "kind": {
+          "enum": [
+            "file",
+            "directory"
+          ]
+        },
+        "files": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "path",
+              "sha256",
+              "bytes"
+            ],
+            "properties": {
+              "path": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[^\\\\]+$"
+              },
+              "sha256": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              "bytes": {
+                "type": "integer",
+                "minimum": 0
+              }
+            }
+          }
+        },
+        "manifestSha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "reviewedAdapter": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema",
+        "sourceExporterSha256",
+        "sourceExport",
+        "nativeInputs"
+      ],
+      "properties": {
+        "schema": {
+          "const": "micro.android.reviewed-adapter/1"
+        },
+        "sourceExporterSha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "sourceExport": {
+          "$ref": "#/$defs/evidence"
+        },
+        "nativeInputs": {
+          "$ref": "#/$defs/evidence"
+        }
+      }
+    },
+    "sourceExport": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema",
+        "sourceSha",
+        "sourceArchiveSha256",
+        "sourceLock",
+        "exporterSha256",
+        "tree"
+      ],
+      "properties": {
+        "schema": {
+          "const": "micro.android.source-export/1"
+        },
+        "sourceSha": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        },
+        "sourceArchiveSha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "sourceLock": {
+          "$ref": "#/$defs/evidence"
+        },
+        "exporterSha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "tree": {
+          "$ref": "#/$defs/sealedTree"
+        }
+      }
+    },
+    "nativeInputs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema",
+        "sourceExport",
+        "identities",
+        "seeds",
+        "outputRoot"
+      ],
+      "properties": {
+        "schema": {
+          "const": "micro.android.native-inputs/1"
+        },
+        "sourceExport": {
+          "$ref": "#/$defs/evidence"
+        },
+        "identities": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "toolchain",
+            "npmSeal",
+            "mavenSeal",
+            "recipe"
+          ],
+          "properties": {
+            "toolchain": {
+              "$ref": "#/$defs/evidence"
+            },
+            "npmSeal": {
+              "$ref": "#/$defs/evidence"
+            },
+            "mavenSeal": {
+              "$ref": "#/$defs/evidence"
+            },
+            "recipe": {
+              "$ref": "#/$defs/evidence"
+            }
+          }
+        },
+        "seeds": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "/seed/fixture",
+            "/seed/tools",
+            "/seed/patch-preimages.json",
+            "/seed/npm-cache",
+            "/seed/gradle-caches",
+            "/seed/verification-metadata.xml"
+          ],
+          "properties": {
+            "/seed/fixture": {
+              "$ref": "#/$defs/sealedTree"
+            },
+            "/seed/tools": {
+              "$ref": "#/$defs/sealedTree"
+            },
+            "/seed/patch-preimages.json": {
+              "$ref": "#/$defs/sealedTree"
+            },
+            "/seed/npm-cache": {
+              "$ref": "#/$defs/sealedTree"
+            },
+            "/seed/gradle-caches": {
+              "$ref": "#/$defs/sealedTree"
+            },
+            "/seed/verification-metadata.xml": {
+              "$ref": "#/$defs/sealedTree"
+            }
+          }
+        },
+        "outputRoot": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[^\\\\]+$"
+        }
+      }
+    },
+    "nativeExecution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "entrypoint",
+        "argv",
+        "environment",
+        "worker"
+      ],
+      "properties": {
+        "entrypoint": {
+          "const": [
+            "python3"
+          ]
+        },
+        "argv": {
+          "const": [
+            "/seed/tools/native_fixture_job.py",
+            "--offline"
+          ]
+        },
+        "environment": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^(PATH|NODE_VERSION|YARN_VERSION|JAVA_HOME|ANDROID_HOME|ANDROID_SDK_ROOT|ANDROID_USER_HOME|EXPO_OFFLINE|EXPO_NO_TELEMETRY|HOME|JAVA_TOOL_OPTIONS)=[^\\u0000\\r\\n]*$"
+          }
+        },
+        "worker": {
+          "$ref": "#/$defs/evidence"
+        }
+      }
+    },
+    "nativeRecipe": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema",
+        "commands",
+        "execution"
+      ],
+      "properties": {
+        "schema": {
+          "const": "micro.android.native-recipe/1"
+        },
+        "commands": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "execution": {
+          "$ref": "#/$defs/nativeExecution"
+        }
+      }
+    },
+    "nativeJob": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scope",
+        "offline",
+        "startedAt",
+        "finishedAt",
+        "status",
+        "commands",
+        "patches",
+        "resources",
+        "apk",
+        "vendorAdapter",
+        "vendorAdapterPostbuild",
+        "privateMavenBefore",
+        "privateMavenAfter",
+        "localMavenPrebuild",
+        "localMavenPostbuild",
+        "jvmPolicy"
+      ],
+      "properties": {
+        "scope": {
+          "const": "trusted-fixture-only"
+        },
+        "offline": {
+          "const": true
+        },
+        "startedAt": {
+          "type": "number",
+          "minimum": 0
+        },
+        "finishedAt": {
+          "type": "number",
+          "minimum": 0
+        },
+        "status": {
+          "const": "clean-offline-fixture-unsigned-apk"
+        },
+        "commands": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "argv",
+              "exitCode",
+              "seconds"
+            ],
+            "properties": {
+              "argv": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "string"
+                }
+              },
+              "exitCode": {
+                "type": "integer",
+                "const": 0
+              },
+              "seconds": {
+                "type": "number",
+                "minimum": 0
+              }
+            }
+          }
+        },
+        "patches": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "prefixItems": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "path",
+                "beforeSha256",
+                "afterSha256",
+                "oldSha256",
+                "newSha256"
+              ],
+              "properties": {
+                "path": {
+                  "type": "string",
+                  "enum": [
+                    "/work/fixture/android/build.gradle",
+                    "/work/fixture/android/app/build.gradle"
+                  ]
+                },
+                "beforeSha256": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                },
+                "afterSha256": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                },
+                "oldSha256": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                },
+                "newSha256": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                }
+              }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "path",
+                "beforeSha256",
+                "afterSha256",
+                "oldSha256",
+                "newSha256"
+              ],
+              "properties": {
+                "path": {
+                  "type": "string",
+                  "enum": [
+                    "/work/fixture/android/build.gradle",
+                    "/work/fixture/android/app/build.gradle"
+                  ]
+                },
+                "beforeSha256": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                },
+                "afterSha256": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                },
+                "oldSha256": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                },
+                "newSha256": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                }
+              }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "path",
+                "beforeSha256",
+                "afterSha256",
+                "purpose"
+              ],
+              "properties": {
+                "path": {
+                  "type": "string",
+                  "enum": [
+                    "/work/fixture/android/build.gradle",
+                    "/work/fixture/android/app/build.gradle"
+                  ]
+                },
+                "beforeSha256": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                },
+                "afterSha256": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                },
+                "purpose": {
+                  "const": "Metro worker ceiling1"
+                }
+              }
+            }
+          ],
+          "items": false
+        },
+        "resources": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "memory.current",
+            "memory.peak",
+            "memory.swap.current",
+            "memory.swap.peak",
+            "pids.current",
+            "pids.peak",
+            "memory.events",
+            "cpu.stat",
+            "workRegularBytes"
+          ],
+          "properties": {
+            "memory.current": {
+              "type": "string",
+              "pattern": "^[0-9]+$"
+            },
+            "memory.peak": {
+              "type": "string",
+              "pattern": "^[0-9]+$"
+            },
+            "memory.swap.current": {
+              "type": "string",
+              "pattern": "^[0-9]+$"
+            },
+            "memory.swap.peak": {
+              "type": "string",
+              "pattern": "^[0-9]+$"
+            },
+            "pids.current": {
+              "type": "string",
+              "pattern": "^[0-9]+$"
+            },
+            "pids.peak": {
+              "type": "string",
+              "pattern": "^[0-9]+$"
+            },
+            "memory.events": {
+              "type": "string",
+              "minLength": 1
+            },
+            "cpu.stat": {
+              "type": "string",
+              "minLength": 1
+            },
+            "workRegularBytes": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 8589934592
+            }
+          }
+        },
+        "apk": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "bytes",
+            "sha256",
+            "unsigned",
+            "signing"
+          ],
+          "properties": {
+            "bytes": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 536870912
+            },
+            "sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "unsigned": {
+              "const": true
+            },
+            "signing": {
+              "const": "No business key or production identity; supervisor signing still pending"
+            }
+          }
+        },
+        "vendorAdapter": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "manifestSha256",
+            "files"
+          ],
+          "properties": {
+            "manifestSha256": {
+              "const": "2bed93dd132469260221f6a31028b136dfc1901bafa00c0b474c62755b2611fa"
+            },
+            "files": {
+              "type": "array",
+              "minItems": 7,
+              "maxItems": 7,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "path",
+                  "beforeSha256",
+                  "afterSha256",
+                  "npmUrl",
+                  "npmIntegrity",
+                  "npmTarballSha256",
+                  "edits"
+                ],
+                "properties": {
+                  "path": {
+                    "type": "string",
+                    "pattern": "^node_modules/"
+                  },
+                  "beforeSha256": {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{64}$"
+                  },
+                  "afterSha256": {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{64}$"
+                  },
+                  "npmUrl": {
+                    "type": "string",
+                    "pattern": "^https://registry\\.npmjs\\.org/"
+                  },
+                  "npmIntegrity": {
+                    "type": "string",
+                    "pattern": "^sha512-"
+                  },
+                  "npmTarballSha256": {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{64}$"
+                  },
+                  "edits": {
+                    "type": "integer",
+                    "minimum": 1
+                  }
+                }
+              }
+            }
+          }
+        },
+        "vendorAdapterPostbuild": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "manifestSha256",
+            "verifiedFiles"
+          ],
+          "properties": {
+            "manifestSha256": {
+              "const": "2bed93dd132469260221f6a31028b136dfc1901bafa00c0b474c62755b2611fa"
+            },
+            "verifiedFiles": {
+              "type": "integer",
+              "const": 7
+            }
+          }
+        },
+        "privateMavenBefore": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "path",
+            "exists"
+          ],
+          "properties": {
+            "path": {
+              "const": "/work/home/.m2/repository"
+            },
+            "exists": {
+              "const": false
+            }
+          }
+        },
+        "privateMavenAfter": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "path",
+            "exists",
+            "inputs"
+          ],
+          "properties": {
+            "path": {
+              "const": "/work/home/.m2/repository"
+            },
+            "exists": {
+              "type": "boolean"
+            },
+            "inputs": {
+              "type": "integer",
+              "const": 0
+            }
+          }
+        },
+        "localMavenPrebuild": {
+          "type": "array",
+          "minItems": 14,
+          "maxItems": 14,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "root",
+              "verifiedFiles",
+              "removedMetadata"
+            ],
+            "properties": {
+              "root": {
+                "type": "string",
+                "pattern": "^/work/fixture/node_modules/"
+              },
+              "verifiedFiles": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "removedMetadata": {
+                "type": "array",
+                "uniqueItems": true,
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "localMavenPostbuild": {
+          "type": "array",
+          "minItems": 14,
+          "maxItems": 14,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "root",
+              "verifiedFiles",
+              "removedMetadata"
+            ],
+            "properties": {
+              "root": {
+                "type": "string",
+                "pattern": "^/work/fixture/node_modules/"
+              },
+              "verifiedFiles": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "removedMetadata": {
+                "type": "array",
+                "uniqueItems": true,
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "jvmPolicy": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "gradleJvmArgs",
+            "javaToolOptions"
+          ],
+          "properties": {
+            "gradleJvmArgs": {
+              "const": "-Duser.home=/work/home -Xmx1024m -XX:MaxMetaspaceSize=512m -XX:ActiveProcessorCount=2"
+            },
+            "javaToolOptions": {
+              "const": "-Duser.home=/work/home -XX:ActiveProcessorCount=2 -Xmx512m -XX:MaxMetaspaceSize=256m"
+            }
+          }
+        }
+      }
+    }
+  },
+  "$comment": "The adapter identity hashes a separately operator-reviewed reviewedAdapter object. Its sourceExport and nativeInputs references pin complete independently exported source/seed manifests. Context hashes exclude these objects own enclosing adapter digest to avoid circular authority. No candidate may select these references, mount roots or files. Native recipe execution binds actual Docker Config.Entrypoint/Cmd/Env and Path/Args to the exact offline worker bytes inside the complete pinned tools seed; full environment must come from operator-reviewed actual image/job observations. No actual recipe or worker is supplied by this schema. nativeJob records all frozen seven-file vendor and14-root local Maven pre/post facts; approval comes from independently pinned known policy bytes, not their historical proposal-status strings. Empty private Maven directories after build may exist but may contain zero inputs only. Raw cgroup facts must be known and within frozen limits."
+}
