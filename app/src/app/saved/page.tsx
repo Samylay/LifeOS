@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { Page, PageHeader } from "@/components/ui/page";
 import { savedLibrary, SAVED_FIELDS } from "@/lib/saved-library";
+import { calmCaption } from "@/lib/saved-snippet";
+import { AutoSubmitForm } from "./auto-submit-form";
 import { AREAS } from "@/lib/types";
 export const dynamic = "force-dynamic";
 const press = "inline-flex min-h-11 items-center rounded-md px-3 text-sm text-primary transition-transform duration-[var(--dur-fast)] ease-[var(--ease-out-custom)] active:scale-[0.97] hover:underline";
@@ -10,21 +12,22 @@ export default async function SavedPage({ searchParams }: { searchParams: Promis
   const q = typeof params.q === "string" ? params.q : "";
   const field = typeof params.field === "string" ? params.field : "";
   const area = typeof params.area === "string" ? params.area : "";
-  const result = savedLibrary({ q, field, area, page: Number(params.page ?? 1) });
-  const pageUrl = (page: number) => `/saved?${new URLSearchParams({ q, field, area, page: String(page) })}`;
+  // Default to the last 7 days. Searching or filtering looks at everything, and so does ?range=all.
+  const everything = params.range === "all" || Boolean(q || field || area);
+  const result = savedLibrary({ q, field, area, page: Number(params.page ?? 1), sinceDays: everything ? undefined : 7 });
+  const pageUrl = (page: number) => `/saved?${new URLSearchParams({ q, field, area, page: String(page), ...(params.range === "all" ? { range: "all" } : {}) })}`;
   return <Page className="max-w-6xl">
     <PageHeader title="Saved" actions={<Link href="/decide" className={press}>Inbox</Link>} />
-    <form action="/saved" className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto_auto_auto]" role="search">
-      <label className="grid gap-1 text-xs text-muted-foreground">Search captured information<input name="q" defaultValue={q} maxLength={300} className={control} placeholder="Words, ideas, or a source URL" /></label>
-      <label className="grid gap-1 text-xs text-muted-foreground">Polymath field<select name="field" defaultValue={field} className={control}><option value="">All fields</option>{SAVED_FIELDS.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}</select></label>
-      <label className="grid gap-1 text-xs text-muted-foreground">Life area<select name="area" defaultValue={area} className={control}><option value="">All areas</option>{Object.entries(AREAS).map(([id,v]) => <option key={id} value={id}>{v.name}</option>)}</select></label>
-      <button className={`${press} self-end border border-border`} type="submit">Search</button>
-    </form>
-    <p className="text-sm text-muted-foreground">{result.total} matching saves of {result.allSaves}. Source gaps remain visible. Classifications appear as processing finishes.</p>
+    <AutoSubmitForm action="/saved" className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto_auto]">
+      <label className="grid gap-1 text-xs text-muted-foreground">Search<input name="q" defaultValue={q} maxLength={300} className={control} placeholder="Words, ideas, or a source URL" /></label>
+      <label className="grid gap-1 text-xs text-muted-foreground">Field<select name="field" defaultValue={field} className={control}><option value="">All fields</option>{SAVED_FIELDS.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}</select></label>
+      <label className="grid gap-1 text-xs text-muted-foreground">Area<select name="area" defaultValue={area} className={control}><option value="">All areas</option>{Object.entries(AREAS).map(([id,v]) => <option key={id} value={id}>{v.name}</option>)}</select></label>
+    </AutoSubmitForm>
+    <p className="text-sm text-muted-foreground">{everything ? `${result.total} of ${result.allSaves} saves` : `${result.total} saved in the last 7 days`}{!everything && <> · <Link href="/saved?range=all" className="text-primary underline underline-offset-2">Show all {result.allSaves}</Link></>}</p>
     <ul className="divide-y divide-border">
       {result.items.map(item => <li key={item.id} className="py-5">
         <Link href={`/decide/sources/${encodeURIComponent(item.id)}`} className={`${press} h-auto px-0 font-medium [overflow-wrap:anywhere]`}>{item.title}</Link>
-        {item.snippet || item.summary ? <p className="mt-1 max-w-4xl text-sm leading-relaxed text-muted-foreground [overflow-wrap:anywhere]">{item.snippet || item.summary}</p> : null}
+        {calmCaption(item.snippet || item.summary) ? <p className="mt-1 line-clamp-3 max-w-4xl text-sm leading-relaxed text-muted-foreground [overflow-wrap:anywhere]">{calmCaption(item.snippet || item.summary)}</p> : null}
         <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-xs text-muted-foreground"><span>{item.savedAt.slice(0,10) || "Date unknown"}</span><span>{item.segmentCount} captured segments</span><span>{item.quality === "not-extracted" ? "Awaiting extraction" : item.quality === "unavailable" ? "Source unavailable" : item.quality === "limited" ? "Partial capture" : "Captured"}</span>{!item.classified && <span>Awaiting classification</span>}</div>
         <div className="mt-2 flex flex-wrap gap-2">{item.fieldIds.map(id => <Link key={id} href={`/saved?field=${encodeURIComponent(id)}`} className={`${press} bg-secondary text-xs`}>{SAVED_FIELDS.find(v => v.id === id)?.name ?? id}</Link>)}{item.areaIds.map(id => <Link key={id} href={`/saved?area=${encodeURIComponent(id)}`} className={`${press} bg-secondary text-xs`}>{AREAS[id as keyof typeof AREAS]?.name ?? id}</Link>)}</div>
       </li>)}

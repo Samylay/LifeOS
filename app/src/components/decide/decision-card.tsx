@@ -3,6 +3,7 @@
 import { Badge } from "@/components/ui/badge";
 import { ActionEffect, ContextDetails, DecisionText, Provenance } from "@/components/ui/decision-context";
 import type { DecisionItem } from "@/lib/decisions";
+import { excerpt, plainTitle } from "@/lib/decide/plain-text";
 
 export function DecisionCard({ item }: { item: DecisionItem }) {
   const b = item.brief;
@@ -11,7 +12,7 @@ export function DecisionCard({ item }: { item: DecisionItem }) {
   return (
     <article className="space-y-4 p-4 sm:p-5">
       <Provenance label="Approval request"><Badge variant="secondary">{item.project}</Badge></Provenance>
-      <h2 className="text-lg font-semibold leading-snug [overflow-wrap:anywhere]">{item.title}</h2>
+      <h2 title={plainTitle(item.title)} className="line-clamp-3 text-lg font-semibold leading-snug [overflow-wrap:anywhere]">{plainTitle(item.title)}</h2>
       {b ? <>
         <div className="space-y-1">
           <h3 className="text-xs font-medium text-muted-foreground">Recommendation</h3>
@@ -30,7 +31,7 @@ export function DecisionCard({ item }: { item: DecisionItem }) {
             <pre className="max-h-60 overflow-auto whitespace-pre-wrap rounded-md bg-muted p-3 font-mono text-xs">{b.action}</pre>
           </div>}
         </ContextDetails>
-      </> : <p className="text-sm text-muted-foreground">No brief yet. Read the original request below.</p>}
+      </> : <p className="text-sm leading-relaxed text-muted-foreground [overflow-wrap:anywhere]">{excerpt(item.block) || "No brief yet."}</p>}
       <ContextDetails label="Original request">
         <pre className="max-h-64 overflow-auto whitespace-pre-wrap text-xs text-muted-foreground">{item.block}</pre>
         <p className="text-xs text-muted-foreground">{item.sourcePath.replace("/home/quorky/", "~/")}</p>

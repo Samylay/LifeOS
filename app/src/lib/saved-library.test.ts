@@ -25,6 +25,16 @@ describe("saved library", () => {
     expect(preview).toEqual({ title: "Chair", preview: "The seat recalls a leaf." });
     expect(capturedSourcePreview({ segments: [{ role: "access-notice", text: "Log in" }] })).toEqual({ title: undefined, preview: undefined });
   });
+  it("limits the default view to a recent window and counts every save", () => {
+    const iso = (daysAgo: number) => new Date(Date.now() - daysAgo * 86_400_000).toISOString();
+    setDoc("users/local/triageQueue", "window-recent", { url: "https://example.org/window-recent", status: "filed", savedAt: iso(1), proposal: { title: "Recent" } });
+    setDoc("users/local/triageQueue", "window-old", { url: "https://example.org/window-old", status: "filed", savedAt: iso(30), proposal: { title: "Old" } });
+    const recent = savedLibrary({ sinceDays: 7 });
+    expect(recent.items.some(v => v.id === "window-recent")).toBe(true);
+    expect(recent.items.some(v => v.id === "window-old")).toBe(false);
+    expect(recent.allSaves).toBeGreaterThan(recent.total);
+    expect(savedLibrary().items.some(v => v.id === "window-old")).toBe(true);
+  });
   it("searches captured content and keeps discarded saves accessible", () => {
     setup("discarded", "discarded");
     expect(savedLibrary({ q: "counterpoint" }).items.some(v => v.id === "discarded")).toBe(true);

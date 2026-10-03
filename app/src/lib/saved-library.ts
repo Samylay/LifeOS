@@ -92,7 +92,8 @@ export function capturedSourcePreview(bundle: Record<string, unknown> | null | u
   return { title: title ?? (caption ? String(caption.text).split("\n")[0].slice(0, 140) : undefined), preview: preview ? String(preview.text) : undefined };
 }
 
-export function savedLibrary(options: { q?: string; field?: string; area?: string; page?: number } = {}) {
+export function savedLibrary(options: { q?: string; field?: string; area?: string; page?: number; sinceDays?: number } = {}) {
+  const cutoff = options.sinceDays ? Date.now() - options.sinceDays * 86_400_000 : null;
   const evidence = new Map(listDocs("users/local/triageEvidence").map(v => [v.id, v]));
   const classifications = new Map(listDocs(SAVED_CLASSIFICATIONS).map(v => [v.id, v]));
   const needle = (options.q ?? "").toLocaleLowerCase().slice(0, 300);
@@ -113,6 +114,7 @@ export function savedLibrary(options: { q?: string; field?: string; area?: strin
     const searchable = [item.url, proposal.title, proposal.summary, item.note, item.notes, item.userNote, ...segments].join("\n");
     if (needle && !searchable.toLocaleLowerCase().includes(needle)) return [];
     const date = object(item.savedAt).__date ?? item.savedAt ?? object(item.createdAt).__date ?? item.createdAt ?? "";
+    if (cutoff !== null) { const time = Date.parse(String(date)); if (Number.isFinite(time) && time < cutoff) return []; }
     const match = needle ? segments.find(v => v.toLocaleLowerCase().includes(needle)) : presentation.preview;
     const offset = match ? Math.max(0, match.toLocaleLowerCase().indexOf(needle) - 90) : 0;
     return [{ id: item.id, url: String(item.url ?? ""), title: String(proposal.title ?? presentation.title ?? item.url ?? "Saved source"),
