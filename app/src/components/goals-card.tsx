@@ -1,18 +1,36 @@
 "use client";
 
+import Link from "next/link";
+import { useState } from "react";
 import { Flag } from "lucide-react";
+import { toast } from "sonner";
 import { ProgressBar } from "@/components/charts";
+import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { commitmentsForWeek, mondayOf, quarterOf } from "@/lib/types";
 import { useGoals } from "@/lib/use-goals";
 
 export function GoalsCard() {
-  const { active, loading } = useGoals();
+  const { active, loading, createGoal } = useGoals();
+  const [carrying, setCarrying] = useState(false);
   if (loading) return null;
 
   const quarter = quarterOf();
   const week = mondayOf();
   const goals = active.filter((goal) => goal.quarter === quarter).slice(0, 3);
+  const earlier = active.filter((goal) => goal.quarter < quarter).slice(0, 3);
+
+  async function carryOver() {
+    setCarrying(true);
+    try {
+      for (const goal of earlier) await createGoal({ title: goal.title, why: goal.why, outcome: goal.outcome, quarter });
+      toast.success(`Carried ${earlier.length} into ${quarter}`);
+    } catch {
+      toast.error("Could not carry the goals over");
+    } finally {
+      setCarrying(false);
+    }
+  }
 
   return (
     <section aria-labelledby="quarter-goals-heading" className="space-y-3">
@@ -21,7 +39,17 @@ export function GoalsCard() {
         <h2 id="quarter-goals-heading" className="section-label">Quarter goals</h2>
       </div>
       {goals.length === 0 ? (
-        <Card className="p-4 text-sm text-muted-foreground">No active objectives for {quarter}.</Card>
+        <Card className="gap-3 p-4 text-sm text-muted-foreground">
+          <p>No objectives for {quarter} yet.</p>
+          {earlier.length > 0 ? (
+            <div className="flex flex-wrap items-center gap-3">
+              <Button size="sm" onClick={() => void carryOver()} disabled={carrying} className="active:scale-[0.97]">Carry over {earlier.length} from {earlier[0].quarter}</Button>
+              <span className="text-xs">{earlier.map((goal) => goal.title).join(" · ")}</span>
+            </div>
+          ) : (
+            <Link href="/chat" className="inline-flex min-h-11 items-center text-primary underline underline-offset-2">Ask the Assistant to set one</Link>
+          )}
+        </Card>
       ) : (
         <div className="space-y-2">
           {goals.map((goal) => {

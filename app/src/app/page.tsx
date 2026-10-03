@@ -25,6 +25,13 @@ interface BriefResponse {
   brief: Brief;
 }
 
+function streakText(habit: { streak: number; frequency?: string }, fromGarmin: boolean) {
+  const unit = habit.frequency === "weekly" ? "week" : "day";
+  const streak = habit.streak > 0 ? `${habit.streak}-${unit} streak` : "";
+  if (fromGarmin) return streak ? `From Garmin · ${streak}` : "Done from Garmin";
+  return streak || "No streak yet";
+}
+
 export default function Today() {
   const { habits, toggleToday } = useHabits();
   const { connection: garminConnection, activities, syncActivities } = useGarmin();
@@ -142,10 +149,10 @@ export default function Today() {
                 className="flex min-h-11 min-w-24 flex-col items-center gap-1 rounded-xl px-2 py-1 text-center transition-transform duration-[var(--dur-fast)] ease-[var(--ease-out-custom)] active:scale-[0.97]"
               >
                 <span aria-hidden="true">
-                  <ProgressRing value={done ? 1 : 0} goal={1} size={76} strokeWidth={6} label={done ? <Check size={16} /> : habit.name} />
+                  <ProgressRing value={done ? 1 : 0} goal={1} size={76} strokeWidth={6} label={done ? <Check size={16} /> : undefined} />
                 </span>
                 <span className="max-w-28 truncate text-xs font-medium text-foreground">{habit.name}</span>
-                <span className="text-[11px] tabular-nums text-muted-foreground">{isAutoCompleted(habit) ? `Garmin · ${habit.streak} streak` : `${habit.streak} streak`}</span>
+                <span className="text-xs tabular-nums text-muted-foreground">{streakText(habit, isAutoCompleted(habit))}</span>
               </button>
             );
           })}

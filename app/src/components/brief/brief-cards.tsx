@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import {
   AlertTriangle, Bookmark, Calendar, CheckSquare, ChevronDown, ExternalLink,
-  Link2, ShieldAlert, ThumbsDown, ThumbsUp,
+  Link2, ShieldAlert,
 } from "lucide-react";
 import type {
   Brief, BriefCard, FuiteBody, TriageBody, WorkBody,
@@ -25,6 +25,7 @@ const TYPE_ICON: Record<string, React.ReactNode> = {
   fuite: <ShieldAlert size={15} />,
   planning: <Calendar size={15} />,
   triage: <Bookmark size={15} />,
+  "triage-inbox": <Bookmark size={15} />,
 };
 
 const TYPE_TINT: Record<string, string> = {
@@ -32,6 +33,7 @@ const TYPE_TINT: Record<string, string> = {
   fuite: "var(--destructive)",
   planning: "var(--chart-3)",
   triage: "var(--chart-4)",
+  "triage-inbox": "var(--chart-4)",
 };
 
 const TRIAGE_DEST_COLOR: Record<string, string> = {
@@ -45,14 +47,36 @@ function destColor(dest: string): string {
   return TRIAGE_DEST_COLOR[dest] ?? "var(--primary)";
 }
 
-/** Single-line summary shown when a state card is collapsed. */
-function oneLiner(card: BriefCard): string {
+/** Strip links so a title reads as words, not a URL. */
+export const plainText = (text: string) => text.replace(/https?:\/\/\S+/g, "").replace(/\s*[:(–-]\s*$/, "").replace(/\s+/g, " ").trim();
+
+/** One line shown on a collapsed card: the count and the first thing, so the glance needs no tap. */
+export function oneLiner(card: BriefCard): string {
   if (card.error) return "unavailable";
   switch (card.type) {
     case "fuite": {
       const n = (card.body as unknown as FuiteBody).entries?.length ?? 0;
       return n === 0 ? "no new leaks" : `${n} ${n === 1 ? "entry" : "entries"}`;
     }
+    case "work": {
+      const body = card.body as unknown as WorkBody;
+      const tasks = body.tasks ?? [];
+      const events = body.events ?? [];
+      if (tasks.length === 0 && events.length === 0) return "nothing due";
+      const first = tasks[0] ? plainText(tasks[0].content) : events[0]?.title ?? "";
+      return `${tasks.length} due${events.length ? ` · ${events.length} event${events.length === 1 ? "" : "s"}` : ""} · ${first}`;
+    }
+    case "planning": {
+      const body = card.body as unknown as { blocks?: unknown[]; error_hint?: string };
+      const n = body.blocks?.length ?? 0;
+      return body.error_hint ? "needs a look" : n === 0 ? "no blocks yet" : `${n} block${n === 1 ? "" : "s"}`;
+    }
+    case "triage": {
+      const b = card.body as unknown as TriageBody;
+      return `${b.keep.length + b.drop.length} saved items`;
+    }
+    case "triage-inbox":
+      return `${(card.body as unknown as { total: number }).total} saved items waiting`;
     default:
       return "";
   }
@@ -67,7 +91,6 @@ function CardShell({ card, children, compact = false }: { card: BriefCard; child
     collapsed: startCollapsed,
     cardStateKey,
   }));
-  const [vote, setVote] = useState<"up" | "down" | null>(null);
   let collapsed = collapseState.collapsed;
   const collapsible = compact || isState;
 
@@ -94,19 +117,23 @@ function CardShell({ card, children, compact = false }: { card: BriefCard; child
           className="min-h-14 min-w-0 flex-1 flex items-center gap-2.5 px-4 py-3 text-left transition-transform duration-[var(--dur-fast)] ease-[var(--ease-out-custom)] active:scale-[0.99]"
           style={{ cursor: collapsible ? "pointer" : "default" }}
         >
-          <span
-            className="shrink-0 h-2.5 w-2.5 rounded-full"
-            style={{
-              background: STATUS_COLOR[card.status] ?? STATUS_COLOR.neutral,
-              boxShadow: card.status === "green" ? "0 0 6px -1px var(--success)" : "none",
-            }}
-          />
+          {card.status !== "neutral" && (
+            <span
+              role="img"
+              aria-label={card.status === "green" ? "OK" : card.status === "amber" ? "Needs a look" : "Problem"}
+              className="shrink-0 h-2.5 w-2.5 rounded-full"
+              style={{
+                background: STATUS_COLOR[card.status] ?? STATUS_COLOR.neutral,
+                boxShadow: card.status === "green" ? "0 0 6px -1px var(--success)" : "none",
+              }}
+            />
+          )}
           <span className="grid size-8 shrink-0 place-items-center rounded-lg" style={{ color: TYPE_TINT[card.type] ?? "var(--primary)", background: `color-mix(in srgb, ${TYPE_TINT[card.type] ?? "var(--primary)"} 14%, transparent)` }}>{TYPE_ICON[card.type] ?? <Link2 size={15} />}</span>
           <span className="min-w-0 truncate text-sm font-semibold text-foreground">
             {card.title}
           </span>
           {collapsed && (
-            <span className="text-xs truncate text-muted-foreground/70">
+            <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
               {oneLiner(card)}
             </span>
           )}
@@ -118,12 +145,6 @@ function CardShell({ card, children, compact = false }: { card: BriefCard; child
             />
           )}
         </button>
-        {compact && (
-          <div className="mr-2 flex items-center gap-1" aria-label="Rate this card">
-            <button type="button" aria-label={`Helpful: ${card.title}`} aria-pressed={vote === "up"} onClick={() => setVote(vote === "up" ? null : "up")} className={`grid size-10 place-items-center rounded-lg text-muted-foreground transition-transform duration-[var(--dur-fast)] ease-[var(--ease-out-custom)] active:scale-[0.97] ${vote === "up" ? "bg-success/15 text-success" : "hover:bg-muted"}`}><ThumbsUp size={15} /></button>
-            <button type="button" aria-label={`Not helpful: ${card.title}`} aria-pressed={vote === "down"} onClick={() => setVote(vote === "down" ? null : "down")} className={`grid size-10 place-items-center rounded-lg text-muted-foreground transition-transform duration-[var(--dur-fast)] ease-[var(--ease-out-custom)] active:scale-[0.97] ${vote === "down" ? "bg-destructive/15 text-destructive" : "hover:bg-muted"}`}><ThumbsDown size={15} /></button>
-          </div>
-        )}
         {/* Sibling of the toggle, not nested inside it (<a> in <button> is
             invalid HTML); p-2 pads the tap target out to a comfortable size. */}
         {card.link && !collapsed && (
@@ -171,9 +192,11 @@ function WorkCard({ card }: { card: BriefCard }) {
   const tasks = body.tasks ?? [];
   const events = body.events ?? [];
   const done = body.completed_yesterday;
+  const [showAll, setShowAll] = useState(false);
+  const shownTasks = showAll ? tasks : tasks.slice(0, 3);
   const doneLine = done && done.count > 0 && (
-    <p className="text-xs text-muted-foreground/70">
-      ✓ {done.count} done yesterday: {done.items.join(", ")}{done.count > done.items.length ? ", …" : ""}
+    <p className="text-xs text-muted-foreground">
+      ✓ {done.count} done yesterday: {done.items.map(plainText).join(", ")}{done.count > done.items.length ? ", …" : ""}
     </p>
   );
   if (tasks.length === 0 && events.length === 0) {
@@ -199,11 +222,11 @@ function WorkCard({ card }: { card: BriefCard }) {
         </div>
       )}
       <div className="space-y-1">
-        {tasks.map((t, i) => (
+        {shownTasks.map((t, i) => (
           <div key={i} className="flex items-center gap-2.5 rounded-lg px-3 py-2 bg-muted">
             <span className="shrink-0 h-2 w-2 rounded-full"
               style={{ background: TODOIST_PRIORITY_COLOR[t.priority ?? 1] ?? "var(--muted-foreground)" }} />
-            <span className="text-sm text-foreground">{t.content}</span>
+            <span className="text-sm text-foreground">{plainText(t.content)}</span>
             {t.url && (
               <a
                 href={t.url}
@@ -216,6 +239,11 @@ function WorkCard({ card }: { card: BriefCard }) {
             )}
           </div>
         ))}
+        {tasks.length > 3 && (
+          <button type="button" onClick={() => setShowAll((open) => !open)} className="min-h-11 px-1 text-xs font-medium text-primary active:scale-[0.97]">
+            {showAll ? "Show fewer" : `+${tasks.length - 3} more`}
+          </button>
+        )}
       </div>
     </div>
   );
@@ -447,24 +475,62 @@ function CardBody({ card, readOnly = false }: { card: BriefCard; readOnly?: bool
   }
 }
 
+/** Three per-source triage cards are one queue: show a single Inbox card with the counts. */
+export function mergeTriage(cards: BriefCard[]): BriefCard[] {
+  const triage = cards.filter((card) => card.type === "triage" && !card.error);
+  if (triage.length < 2) return cards;
+  const total = triage.reduce((sum, card) => {
+    const b = card.body as unknown as TriageBody;
+    return sum + b.keep.length + b.drop.length;
+  }, 0);
+  const merged: BriefCard = {
+    id: "triage-merged", type: "triage-inbox", priority: "action", status: "neutral", title: "Inbox",
+    body: { total, sources: triage.map((card) => ({ source: (card.body as unknown as TriageBody).source, n: (card.body as unknown as TriageBody).keep.length + (card.body as unknown as TriageBody).drop.length })) },
+    link: "/decide", error: null,
+  };
+  const first = cards.findIndex((card) => card.type === "triage" && !card.error);
+  const rest = cards.filter((card) => !(card.type === "triage" && !card.error));
+  rest.splice(first, 0, merged);
+  return rest;
+}
+
+function InboxSummary({ card }: { card: BriefCard }) {
+  const body = card.body as unknown as { total: number; sources: { source: string; n: number }[] };
+  return (
+    <div className="space-y-3">
+      <p className="text-sm text-muted-foreground">{body.sources.map((s) => `${s.n} from ${s.source === "other" ? "links" : s.source}`).join(" · ")}</p>
+      <Button asChild variant="outline" size="sm"><Link href="/decide">Open Inbox</Link></Button>
+    </div>
+  );
+}
+
 export function BriefCards({ brief, compact = false, maxCards }: { brief: Brief; compact?: boolean; maxCards?: number }) {
+  // A source that failed is a System problem, not a permanent card on Today: say so once.
+  const failed = brief.cards.filter((card) => card.error);
+  const working = brief.cards.filter((card) => !card.error);
   // Action cards first, stable order within each group; red/amber state cards
   // surface above green ones so a bad morning is visible without scrolling.
   const severity: Record<string, number> = { red: 0, amber: 1, neutral: 2, green: 3 };
-  const cards = [...brief.cards].sort((a, b) => {
+  const cards = mergeTriage([...working].sort((a, b) => {
     if (a.priority !== b.priority) return a.priority === "action" ? -1 : 1;
     if (a.priority === "state") return (severity[a.status] ?? 2) - (severity[b.status] ?? 2);
     return 0;
-  });
+  }));
 
   const visibleCards = cards.slice(0, maxCards ?? cards.length);
   return (
     <div className="space-y-3">
       {visibleCards.map((card) => (
         <CardShell key={card.id} card={card} compact={compact}>
-          <CardBody card={card} readOnly={compact} />
+          {card.type === "triage-inbox" ? <InboxSummary card={card} /> : <CardBody card={card} readOnly={compact} />}
         </CardShell>
       ))}
+      {failed.length > 0 && (
+        <p className="flex items-center gap-2 px-1 text-xs text-muted-foreground">
+          <AlertTriangle size={13} className="shrink-0 text-warning" aria-hidden="true" />
+          <span>{failed.map((card) => card.title).join(", ")} can&apos;t load right now. <Link href="/status" className="underline underline-offset-2">See System</Link></span>
+        </p>
+      )}
     </div>
   );
 }
