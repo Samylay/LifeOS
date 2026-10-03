@@ -49,7 +49,7 @@ export function TrainingPlanCard() {
           const today = position.state === "active" && i === position.day;
           return (
             <button key={i} type="button" role="tab" aria-selected={selected === i} onClick={() => setSelected(i)}
-              className={`flex min-w-0 flex-col items-center gap-1 rounded-xl border px-1 py-2 text-[11px] transition-transform duration-150 ease-[var(--ease-out-custom)] active:scale-[0.97] ${selected === i ? "border-primary bg-primary/10" : "border-border"}`}>
+              className={`flex min-w-0 flex-col items-center gap-1 rounded-xl border px-1 py-2 text-xs transition-transform duration-150 ease-[var(--ease-out-custom)] active:scale-[0.97] ${selected === i ? "border-primary bg-primary/10" : "border-border"}`}>
               <span className={today ? "font-semibold text-primary" : "text-muted-foreground"}>{DAY_NAMES[i]}</span>
               <DayIcon size={16} className={s.kind === "rest" ? "text-muted-foreground" : ""} />
               <span className="w-full truncate text-center">{s.kind === "gym" ? s.title.replace("Gym ", "") : s.kind === "run" ? s.title.split(" ")[0] : s.title}</span>

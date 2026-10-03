@@ -4,6 +4,7 @@ import {
   CartesianGrid,
   Legend,
   Line,
+  ReferenceLine,
   LineChart as RechartsLineChart,
   ResponsiveContainer,
   Tooltip,
@@ -28,6 +29,12 @@ export interface LineChartProps<T extends object = Record<string, string | numbe
   showGrid?: boolean;
   showXAxis?: boolean;
   showYAxis?: boolean;
+  /** Plain names for the legend and tooltip, keyed by category. */
+  labels?: Partial<Record<Extract<keyof T, string>, string>>;
+  /** Draw a labelled-by-axis line at these y values (for example 0). */
+  referenceLines?: number[];
+  /** Shorten x tick labels (for example dates). */
+  xTickFormatter?: (value: string) => string;
   className?: string;
 }
 
@@ -42,6 +49,9 @@ export function LineChart<T extends object>({
   showGrid = true,
   showXAxis = true,
   showYAxis = true,
+  labels,
+  referenceLines,
+  xTickFormatter,
   className,
 }: LineChartProps<T>) {
   return (
@@ -52,11 +62,12 @@ export function LineChart<T extends object>({
             <CartesianGrid stroke={GRID_STROKE} vertical={false} />
           )}
           {showXAxis && (
-            <XAxis dataKey={index} tick={AXIS_TICK_STYLE} axisLine={false} tickLine={false} />
+            <XAxis dataKey={index} tick={AXIS_TICK_STYLE} axisLine={false} tickLine={false} tickFormatter={xTickFormatter} minTickGap={32} />
           )}
           {showYAxis && (
             <YAxis tick={AXIS_TICK_STYLE} axisLine={false} tickLine={false} width={36} />
           )}
+          {referenceLines?.map((y) => <ReferenceLine key={y} y={y} stroke="var(--muted-foreground)" strokeDasharray="4 4" strokeOpacity={0.6} />)}
           <Tooltip
             content={(props) => <ChartTooltip {...props} valueFormatter={valueFormatter} />}
             cursor={{ stroke: "var(--border)", strokeWidth: 1 }}
@@ -69,6 +80,7 @@ export function LineChart<T extends object>({
                 key={category}
                 type="monotone"
                 dataKey={category}
+                name={labels?.[category] ?? category}
                 stroke={color}
                 strokeWidth={1.75}
                 isAnimationActive={false}

@@ -59,6 +59,15 @@ function formState(tsb: number): { label: string; className: string } {
   return { label: "Neutral", className: "text-muted-foreground" };
 }
 
+function formAdvice(tsb: number): string {
+  if (tsb < -30) return "Overreaching. Take a rest day.";
+  if (tsb < -10) return "Tired. Keep today easy.";
+  if (tsb > 10) return "Fresh. A hard session is fine.";
+  return "Balanced. Train as planned.";
+}
+
+const shortDate = (value: string) => new Date(`${value}T00:00:00Z`).toLocaleDateString(undefined, { day: "numeric", month: "short", timeZone: "UTC" });
+
 function LoadingDashboard() {
   return <div className="space-y-5" aria-label="Loading training dashboard">
     <Skeleton className="h-48" />
@@ -132,6 +141,15 @@ export function TrainingDashboard() {
     return total;
   }, [thisWeekStart]);
 
+  const upcoming = useMemo(() => {
+    for (let i = 0; i < 28; i++) {
+      const date = new Date(Date.parse(`${today}T00:00:00Z`) + i * 86_400_000).toISOString().slice(0, 10);
+      const session = plannedSession(date);
+      if (session && session.kind !== "rest") return { date, session, isToday: i === 0 };
+    }
+    return null;
+  }, [today]);
+
   const calendarDays = useMemo(() => Array.from({ length: 28 }, (_, index) => {
     const date = new Date(thisWeekStart.getTime() + index * 86_400_000).toISOString().slice(0, 10);
     const planned = plannedSession(date);
@@ -143,7 +161,7 @@ export function TrainingDashboard() {
     ));
     const past = date < today;
     return { date, day: PLAN_DAYS[index % 7], session: planned, done, past };
-  }), [activities, thisWeekStart, today]);
+  }).filter((_, index, all) => all.slice(Math.floor(index / 7) * 7, Math.floor(index / 7) * 7 + 7).some((day) => day.session)), [activities, thisWeekStart, today]);
 
   const recent = activities.slice(0, visibleCount);
   const effortMax = Math.max(1, ...activities.slice(0, 30).map(activityLoad));
@@ -178,7 +196,21 @@ export function TrainingDashboard() {
         <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Days to Paris Marathon</span>
         <div><span className="font-mono text-4xl font-bold tabular-nums">{daysToRace}</span><p className="mt-1 text-sm text-muted-foreground">{raceDateLabel}</p></div>
       </Card>
-      <Card className="p-4">
+      <Card className="flex min-h-36 flex-col justify-between gap-3 p-4">
+        <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{upcoming?.isToday ? "Today" : "Next session"}</span>
+        {upcoming ? <div className="space-y-1">
+          <p className="text-lg font-semibold leading-snug">{upcoming.session.title}</p>
+          <p className="text-sm text-muted-foreground">{upcoming.isToday ? upcoming.session.summary : `${new Date(`${upcoming.date}T00:00:00Z`).toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "short", timeZone: "UTC" })} · ${upcoming.session.summary}`}</p>
+          <a href="#plan-details" className="inline-flex min-h-9 items-center text-xs font-medium text-primary underline underline-offset-2">See the full session</a>
+        </div> : <p className="text-sm text-muted-foreground">The 26-week block is complete.</p>}
+      </Card>
+      <Card className="flex min-h-36 flex-col justify-between p-4">
+        <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Current form</span>
+        <div><span className={`font-mono text-4xl font-bold tabular-nums ${form.className}`}>{Math.round(currentForm)}</span><p className={`mt-1 text-sm ${form.className}`}>{form.label}</p></div>
+      </Card>
+    </section>
+
+    {runPlanMinutes > 0 && <Card className="p-4">
         <div className="mb-3"><SectionHeader title="This week · volume vs plan" /></div>
         <div className="grid grid-cols-2 justify-items-center gap-1">
           {(["ride", "run"] as const).map((sport) => {
@@ -190,17 +222,19 @@ export function TrainingDashboard() {
             return <div key={sport} className="flex min-w-0 flex-col items-center gap-1">
               <ProgressRing value={ringValue} goal={goal} size={90} strokeWidth={6} color={meta.color} label={goal > 0 ? "min" : "no plan"} />
               <span className="flex items-center gap-1 text-xs text-muted-foreground"><Icon size={13} />{meta.label}</span>
-              <span className="font-mono text-[10px] text-muted-foreground">{value} / {goal || "—"} min</span>
+              <span className="font-mono text-xs text-muted-foreground">{value} / {goal || "—"} min</span>
             </div>;
           })}
         </div>
-        <p className="mt-2 text-center text-[11px] text-muted-foreground">The plan has run sessions only. The bike commute has no target.</p>
-      </Card>
-      <Card className="flex min-h-36 flex-col justify-between p-4">
-        <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Current form · TSB</span>
-        <div><span className={`font-mono text-4xl font-bold tabular-nums ${form.className}`}>{Math.round(currentForm)}</span><p className={`mt-1 text-sm ${form.className}`}>{form.label}</p></div>
-      </Card>
-    </section>
+        <p className="mt-2 text-center text-xs text-muted-foreground">The plan has run sessions only. The bike commute has no target.</p>
+      </Card>}
+
+    <details id="plan-details" open className="group rounded-xl border border-border bg-card p-4">
+      <summary className="flex min-h-9 cursor-pointer list-none items-center justify-between gap-3 text-sm font-medium [&::-webkit-details-marker]:hidden">
+        <span>Training plan</span><ChevronDown size={16} className="transition-transform duration-200 ease-[var(--ease-out-custom)] group-open:rotate-180" />
+      </summary>
+      <div className="mt-4"><TrainingPlanCard /></div>
+    </details>
 
     <section>
       <div className="mb-3 flex items-center justify-between gap-2"><SectionHeader title="Fitness · fatigue · form" />
@@ -209,23 +243,23 @@ export function TrainingDashboard() {
         </button>
       </div>
       <Card className="p-3 sm:p-4">
-        <div className="mb-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground"><span>CTL <b className="text-foreground">42d</b></span><span>ATL <b className="text-foreground">7d</b></span><span>TSB uses yesterday&apos;s CTL − ATL</span></div>
-        <LineChart data={history as TrainingLoadPoint[]} index="date" categories={["ctl", "atl", "tsb"]} colors={["var(--chart-1)", "var(--chart-2)", "var(--chart-3)"]} showLegend showYAxis={false} className="h-64" valueFormatter={(value) => `${Math.round(value)} load`} />
+        <p className="mb-2 text-sm"><span className={`font-semibold ${form.className}`}>Form {currentForm > 0 ? "+" : ""}{Math.round(currentForm)}</span><span className="text-muted-foreground"> · {formAdvice(currentForm)}</span></p>
+        <LineChart data={history as TrainingLoadPoint[]} index="date" categories={["ctl", "atl", "tsb"]} labels={{ ctl: "Fitness", atl: "Fatigue", tsb: "Form" }} referenceLines={[0]} xTickFormatter={shortDate} colors={["var(--chart-1)", "var(--chart-2)", "var(--chart-3)"]} showLegend className="h-64" valueFormatter={(value) => `${Math.round(value)}`} />
       </Card>
     </section>
 
     <section>
       <SectionHeader title="Plan vs actual · 4 weeks" />
       <Card className="mt-3 p-3">
-        <div className="grid grid-cols-7 gap-x-1 gap-y-2 sm:grid-cols-14 lg:grid-cols-28">
+        <div className="grid grid-cols-7 gap-x-1 gap-y-3">
           {calendarDays.map(({ date, day, session, done, past }) => <div key={date} className="flex min-w-0 flex-col items-center gap-1" title={`${date}${session ? ` · ${session.title}` : " · no planned session"}${done ? " · done" : ""}`}>
-            <span className="text-[10px] text-muted-foreground">{day}</span>
+            <span className="text-xs text-muted-foreground">{day}</span>
             <span aria-label={session ? `${session.title}, ${done ? "done" : past ? "missed" : "planned"}` : "No planned session"} className={`h-2.5 w-2.5 rounded-full ${!session ? "bg-muted" : done ? "bg-success" : past ? "bg-destructive/70" : "border border-primary bg-primary/15"}`} />
-            <span className="w-full truncate text-center text-[9px] text-muted-foreground">{session?.kind === "run" ? "Run" : session?.kind === "gym" ? "Gym" : session?.kind === "mobility" ? "Move" : ""}</span>
-            <span className="font-mono text-[9px] text-muted-foreground">{date.slice(8)}</span>
+            <span className="w-full truncate text-center text-xs text-muted-foreground">{session?.kind === "run" ? "Run" : session?.kind === "gym" ? "Gym" : session?.kind === "mobility" ? "Move" : ""}</span>
+            <span className="font-mono text-xs text-muted-foreground">{date.slice(8)}</span>
           </div>)}
         </div>
-        <div className="mt-3 flex flex-wrap gap-3 border-t border-border pt-2 text-[10px] text-muted-foreground"><span><i className="mr-1 inline-block h-2 w-2 rounded-full border border-primary" />planned</span><span><i className="mr-1 inline-block h-2 w-2 rounded-full bg-success" />done</span><span><i className="mr-1 inline-block h-2 w-2 rounded-full bg-destructive/70" />missed</span></div>
+        <div className="mt-3 flex flex-wrap gap-3 border-t border-border pt-2 text-xs text-muted-foreground"><span><i className="mr-1 inline-block h-2 w-2 rounded-full border border-primary" />planned</span><span><i className="mr-1 inline-block h-2 w-2 rounded-full bg-success" />done</span><span><i className="mr-1 inline-block h-2 w-2 rounded-full bg-destructive/70" />missed</span></div>
       </Card>
     </section>
 
@@ -241,7 +275,7 @@ export function TrainingDashboard() {
           return <div key={row.id} className="flex min-w-0 items-center gap-3 px-3 py-3 sm:px-4">
             <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-muted" style={{ color: meta.color }}><Icon size={17} /></span>
             <div className="min-w-0 flex-1"><p className="truncate text-sm font-medium">{row.name}</p><p className="text-xs text-muted-foreground">{new Date(activityDate(row)).toLocaleDateString("en-GB", { day: "numeric", month: "short" })} · {row.distance_m ? `${(row.distance_m / 1000).toFixed(1)} km` : meta.label} · {formatDuration(row.moving_time_s)}{speed ? ` · ${speed}` : ""}</p></div>
-            <div className="w-14 shrink-0"><div className="h-1.5 overflow-hidden rounded-full bg-muted"><span className="block h-full origin-left rounded-full bg-primary" style={{ transform: `scaleX(${Math.min(1, effort / effortMax)})` }} /></div><span className="mt-1 block text-right font-mono text-[10px] text-muted-foreground">RE {effort}</span></div>
+            <div className="w-14 shrink-0"><div className="h-1.5 overflow-hidden rounded-full bg-muted"><span className="block h-full origin-left rounded-full bg-primary" style={{ transform: `scaleX(${Math.min(1, effort / effortMax)})` }} /></div><span className="mt-1 block text-right font-mono text-xs text-muted-foreground">RE {effort}</span></div>
           </div>;
         })}
         {visibleCount < Math.min(activities.length, 30) && <button type="button" onClick={() => setVisibleCount((count) => Math.min(30, count + 10))} className="flex min-h-11 w-full items-center justify-center gap-1 text-sm text-primary transition-transform duration-150 ease-[var(--ease-out-custom)] active:scale-[0.97]">Show more <ChevronDown size={15} /></button>}
@@ -258,11 +292,5 @@ export function TrainingDashboard() {
       </Card>
     </section>
 
-    <details className="group rounded-xl border border-border bg-card p-4">
-      <summary className="flex min-h-9 cursor-pointer list-none items-center justify-between gap-3 text-sm font-medium [&::-webkit-details-marker]:hidden">
-        <span>Training plan details</span><ChevronDown size={16} className="transition-transform duration-200 ease-[var(--ease-out-custom)] group-open:rotate-180" />
-      </summary>
-      <div className="mt-4"><TrainingPlanCard /></div>
-    </details>
   </div>;
 }
