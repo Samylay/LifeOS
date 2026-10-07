@@ -23,6 +23,7 @@ const KB_GID = process.env.KB_GID ? Number(process.env.KB_GID) : 1000;
 interface QProposal {
   summary?: string; why_relevant?: string; destination?: string; rationale?: string;
   tags?: string[];
+  sourceText?: string;
 }
 
 /**
@@ -40,6 +41,13 @@ interface QProposal {
  * Read-modify-write rather than append, since frontmatter lives at the top.
  * Written atomically: a crash mid-write must not truncate a vault note.
  */
+/** Source text as a collapsed Obsidian callout; plain blockquote text for agents. */
+export function sourceBlock(text?: string): string {
+  const body = (text ?? "").trim();
+  if (!body) return "";
+  return `\n> [!quote]- Source text\n${body.split("\n").map((line) => `> ${line}`.trimEnd()).join("\n")}\n`;
+}
+
 function fileToVault(url: string, source: string, p: QProposal, previewImage?: string): string {
   const date = new Date().toISOString().slice(0, 10);
   const full = path.join(KB_PATH, `${TRIAGE_DIR}/${date}.md`);
@@ -49,7 +57,7 @@ function fileToVault(url: string, source: string, p: QProposal, previewImage?: s
   const prev = fs.existsSync(full) ? fs.readFileSync(full, "utf-8") : "";
   const header = prev ? "" : `# Triage — ${date}\n`;
   const image = previewImage ? `\n![preview](${previewImage})\n` : "";
-  const entry = `${header}\n## ${source}: ${url}${image}\n${p.summary ?? ""}\n${p.why_relevant ? `\n**Why:** ${p.why_relevant}\n` : ""}`;
+  const entry = `${header}\n## ${source}: ${url}${image}\n${p.summary ?? ""}\n${p.why_relevant ? `\n**Why:** ${p.why_relevant}\n` : ""}${sourceBlock(p.sourceText)}`;
   const next = mergeFrontmatterTags(prev + entry, p.tags);
 
   const tmp = `${full}.tmp`;

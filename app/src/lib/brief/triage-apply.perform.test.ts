@@ -52,6 +52,15 @@ describe("performAction — approving performs the action and reports what happe
     expect(getDoc(TRIAGE, String(item.id))!.status).toBe("filed");
   });
 
+  it("file-vault keeps the full source text, thread included, as a quoted block", () => {
+    const item = seedItem("vault", {
+      proposal: { sourceText: "@ira: if you learn this...\n[thread 2/3] step 1\n\n[thread 3/3] step 2" },
+    });
+    const outcome = performAction(item, { id: "file-vault", params: {} });
+    const body = fs.readFileSync(path.join(process.env.KB_PATH!, outcome.replace("filed to ", "")), "utf-8");
+    expect(body).toContain("> [!quote]- Source text\n> @ira: if you learn this...\n> [thread 2/3] step 1\n>\n> [thread 3/3] step 2");
+  });
+
   it("file-idea-bank creates the content idea now", () => {
     const before = listDocs("users/local/contentIdeas", {}).length;
     const item = seedItem("idea-bank");
