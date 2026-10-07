@@ -10,7 +10,7 @@ import unittest
 from unittest.mock import patch
 
 HERE=Path(__file__).resolve().parent
-ROOT=Path('/home/quorky/apps/lifeos/.scratch/software-factory-upgrade/tooling/micro/android')
+ROOT=Path(__file__).resolve().parents[1]
 sys.path[:0]=[str(HERE),str(ROOT)]
 from offline_native_supervisor import OfflineSupervisor, IMAGE
 

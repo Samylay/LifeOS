@@ -4,6 +4,8 @@ import argparse
 import hashlib
 import json
 import os
+import re
+import stat
 from pathlib import Path
 import shutil
 import subprocess
@@ -13,6 +15,185 @@ from npm_fixture_job import archive
 from native_failure_diagnostics import collect as collect_failure_diagnostics
 from locked_local_maven import verify_all
 from trusted_vendor_adapter import apply as apply_vendor_adapter, verify_after as verify_vendor_adapter
+
+"""Review artifact only. The generator embeds this block into existing tools."""
+ROOT_POLICY_MANIFEST_JSON = '{"schema":1,"status":"uninstalled-compatibility-unverified","gradleVersion":"9.3.1","build":"/work/fixture/android","project":":","scope":"project-buildscript","configuration":"classpath","semantics":"require-floor-plus-exact-selected-version-guard","modules":[{"group":"io.netty","module":"netty-buffer","candidate":"4.1.138.Final"},{"group":"io.netty","module":"netty-codec","candidate":"4.1.138.Final"},{"group":"io.netty","module":"netty-codec-http","candidate":"4.1.138.Final"},{"group":"io.netty","module":"netty-codec-http2","candidate":"4.1.138.Final"},{"group":"io.netty","module":"netty-codec-socks","candidate":"4.1.138.Final"},{"group":"io.netty","module":"netty-common","candidate":"4.1.138.Final"},{"group":"io.netty","module":"netty-handler","candidate":"4.1.138.Final"},{"group":"io.netty","module":"netty-handler-proxy","candidate":"4.1.138.Final"},{"group":"io.netty","module":"netty-resolver","candidate":"4.1.138.Final"},{"group":"io.netty","module":"netty-transport","candidate":"4.1.138.Final"},{"group":"io.netty","module":"netty-transport-native-unix-common","candidate":"4.1.138.Final"},{"group":"org.bitbucket.b_c","module":"jose4j","candidate":"0.9.6"},{"group":"org.bouncycastle","module":"bcprov-jdk18on","candidate":"1.85"},{"group":"org.bouncycastle","module":"bcpkix-jdk18on","candidate":"1.85"},{"group":"org.bouncycastle","module":"bcutil-jdk18on","candidate":"1.85"},{"group":"org.jdom","module":"jdom2","candidate":"2.0.6.1"}]}\n'
+ROOT_POLICY_MANIFEST_SHA256 = '9e6bfc29b7bb913d1c5df110ba2fdc6e9674d37f5b25296d265b3727d38b078f'
+ROOT_POLICY_SCOPE = ('/work/fixture/android', ':', 'project-buildscript', 'classpath')
+ROOT_POLICY_TOOL_NAMES = ('native_fixture_job.py', 'trusted_repositories.init.gradle')
+
+def rp_manifest():
+    raw = ROOT_POLICY_MANIFEST_JSON.encode('utf-8')
+    if hashlib.sha256(raw).hexdigest() != ROOT_POLICY_MANIFEST_SHA256:
+        raise ValueError('Protected root policy manifest bytes changed')
+    value = json.loads(raw)
+    if tuple(value[k] for k in ('build', 'project', 'scope', 'configuration')) != ROOT_POLICY_SCOPE or len(value['modules']) != 16:
+        raise ValueError('Protected root policy manifest scope changed')
+    return value
+
+def rp_subject(value):
+    if not isinstance(value, dict) or set(value) != set(ROOT_POLICY_TOOL_NAMES):
+        raise ValueError('Root policy protected tool subject missing')
+    for item in value.values():
+        if not isinstance(item, dict) or set(item) != {'bytes', 'sha256'} or type(item['bytes']) is not int or not 0 < item['bytes'] <= 2*1024**2 or not isinstance(item['sha256'], str) or not re.fullmatch('[0-9a-f]{64}', item['sha256']):
+            raise ValueError('Root policy protected tool subject malformed')
+    return value
+
+def rp_read_regular(path, maximum):
+    path = Path(path).absolute()
+    if any(parent.is_symlink() for parent in path.parents):
+        raise ValueError('Root policy input parent link forbidden')
+    descriptor = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+    try:
+        before = os.fstat(descriptor)
+        if not stat.S_ISREG(before.st_mode) or before.st_nlink != 1 or not 0 < before.st_size <= maximum:
+            raise ValueError('Root policy input must be bounded independent regular bytes')
+        raw = bytearray()
+        while chunk := os.read(descriptor, min(262144, maximum-len(raw)+1)):
+            raw.extend(chunk)
+            if len(raw) > maximum:
+                raise ValueError('Root policy input exceeds existing byte bound')
+        def identity(info):
+            return info.st_dev, info.st_ino, info.st_size, info.st_mtime_ns, info.st_ctime_ns
+        if identity(before) != identity(os.fstat(descriptor)) or identity(before) != identity(path.lstat()):
+            raise ValueError('Root policy input changed during read')
+        return bytes(raw)
+    finally:
+        os.close(descriptor)
+
+def rp_tool_subject(directory):
+    result = {}
+    for name in ROOT_POLICY_TOOL_NAMES:
+        raw = rp_read_regular(Path(directory)/name, 2*1024**2)
+        result[name] = {'bytes': len(raw), 'sha256': hashlib.sha256(raw).hexdigest()}
+    return rp_subject(result)
+
+def rp_decode(raw):
+    def pairs(items):
+        value = {}
+        for key, item in items:
+            if key in value:
+                raise ValueError('Duplicate root policy JSON field')
+            value[key] = item
+        return value
+    def invalid_constant(value):
+        raise ValueError('Nonfinite root policy JSON number')
+    return json.loads(raw, object_pairs_hook=pairs, parse_constant=invalid_constant)
+
+def rp_validate_graph(graph, subject):
+    manifest = rp_manifest()
+    policy = graph.get('rootBuildscriptConstraintPolicy')
+    required = {'schema', 'failureSchema', 'manifestSha256', 'semantics', 'toolSubject',
+                'captureComplete', 'installedConstraints', 'allConstraints', 'chosen',
+                'unresolved', 'unresolvedCount', 'unresolvedTruncated', 'unresolvedComplete',
+                'failures', 'selectedVersionsAccepted'}
+    if not isinstance(policy, dict) or set(policy) != required:
+        raise ValueError('Mandatory completed root policy receipt absent or malformed')
+    if type(policy['schema']) is not int or policy['schema'] != 3 or type(policy['failureSchema']) is not int or policy['failureSchema'] != 1:
+        raise ValueError('Unknown root policy receipt schema')
+    if policy['manifestSha256'] != ROOT_POLICY_MANIFEST_SHA256 or policy['semantics'] != manifest['semantics'] or rp_subject(policy['toolSubject']) != subject:
+        raise ValueError('Foreign root policy manifest or protected tool subject')
+    if policy['captureComplete'] is not True or policy['unresolvedComplete'] is not True or policy['selectedVersionsAccepted'] is not True or policy['unresolvedTruncated'] is not False or type(policy['unresolvedCount']) is not int or policy['unresolvedCount'] != 0 or policy['unresolved'] != [] or policy['failures'] != []:
+        raise ValueError('Root policy is failed, unresolved or incomplete')
+    expected = {(r['group'], r['module']): r['candidate'] for r in manifest['modules']}
+    if len(expected) != 16:
+        raise ValueError('Duplicate protected root policy target')
+    graph_selected = {}
+    for component in graph['components']:
+        if not isinstance(component, dict) or not all(isinstance(component.get(k), str) for k in ('group', 'module', 'version')):
+            raise ValueError('Malformed root graph component')
+        key = component['group'], component['module']
+        if key in expected:
+            if key in graph_selected:
+                raise ValueError('Duplicate root graph target')
+            graph_selected[key] = component['version']
+    if graph_selected != expected:
+        raise ValueError('Root graph target absent or different candidate')
+    chosen = policy['chosen']
+    selected = {}
+    chosen_fields = {'group', 'module', 'version', 'constrained', 'forced', 'conflictResolution', 'selectedByRule', 'reasons', 'reasonCaptureComplete'}
+    if not isinstance(chosen, list) or len(chosen) != 16:
+        raise ValueError('Root chosen target inventory incomplete')
+    for row in chosen:
+        if not isinstance(row, dict) or set(row) != chosen_fields or not all(isinstance(row[k], str) for k in ('group', 'module', 'version')) or row['reasonCaptureComplete'] is not True or not all(type(row[k]) is bool for k in ('constrained', 'forced', 'conflictResolution', 'selectedByRule')) or not isinstance(row['reasons'], list):
+            raise ValueError('Root selected identity or reasons malformed')
+        for reason in row['reasons']:
+            if not isinstance(reason, dict) or set(reason) != {'cause', 'description'} or not all(isinstance(reason[k], str) for k in reason):
+                raise ValueError('Root selection reason capture incomplete')
+        key = row['group'], row['module']
+        if key in selected:
+            raise ValueError('Duplicate root policy chosen target')
+        selected[key] = row['version']
+    if selected != expected or selected != graph_selected:
+        raise ValueError('Root chosen identities disagree with actual graph')
+    constraints = policy['installedConstraints']
+    all_constraints = policy['allConstraints']
+    if not isinstance(constraints, list) or len(constraints) != 16 or not isinstance(all_constraints, list):
+        raise ValueError('Root installed constraint inventory missing')
+    installed = {}
+    fields = {'group', 'module', 'required', 'preferred', 'strict', 'rejected', 'reason'}
+    # Gradle permits an external constraint's group and any constraint's reason to be null.
+    # Module names and VersionConstraint version values remain strings, including empty versions.
+    for row in all_constraints:
+        if not isinstance(row, dict) or set(row) != fields or (row['group'] is not None and not isinstance(row['group'], str)) or not all(isinstance(row[k], str) for k in ('module', 'required', 'preferred', 'strict')) or not isinstance(row['rejected'], list) or not all(isinstance(version, str) for version in row['rejected']) or (row['reason'] is not None and not isinstance(row['reason'], str)):
+            raise ValueError('Malformed actual root constraint row')
+    for row in constraints:
+        if not isinstance(row, dict) or set(row) != fields or not all(isinstance(row[k], str) for k in ('group', 'module', 'required')):
+            raise ValueError('Malformed installed root constraint')
+        key = row['group'], row['module']
+        reason = 'Reviewed root buildscript candidate ' + ROOT_POLICY_MANIFEST_SHA256 + ' ' + row['group'] + ':' + row['module']
+        if key not in expected or key in installed or row['required'] != expected[key] or row['preferred'] != '' or row['strict'] != '' or row['rejected'] != [] or row['reason'] != reason or row not in all_constraints:
+            raise ValueError('Root installed constraint absent, changed or foreign')
+        installed[key] = row['required']
+    if installed != expected:
+        raise ValueError('Root require constraints do not cover exact protected targets')
+
+def rp_validate_documents(documents, subject):
+    subject = rp_subject(subject)
+    if not isinstance(documents, list) or not 0 < len(documents) <= 2048:
+        raise ValueError('Root policy graph inventory missing or beyond existing count bound')
+    total = 0
+    names = set()
+    roots = []
+    for name, raw in documents:
+        if not isinstance(name, str) or not re.fullmatch(r'[A-Za-z0-9_.-]+\.json', name) or name in names or not isinstance(raw, bytes) or not 0 < len(raw) <= 8*1024**2:
+            raise ValueError('Root policy graph identity or existing file bound invalid')
+        names.add(name); total += len(raw)
+        if total > 64*1024**2:
+            raise ValueError('Root policy graph inventory exceeds existing aggregate bound')
+        graph = rp_decode(raw)
+        if not isinstance(graph, dict) or not all(isinstance(graph.get(k), str) for k in ('build', 'project', 'scope', 'configuration')) or not isinstance(graph.get('components'), list):
+            raise ValueError('Malformed completed graph scope')
+        is_root = tuple(graph[k] for k in ('build', 'project', 'scope', 'configuration')) == ROOT_POLICY_SCOPE
+        if not is_root:
+            if 'rootBuildscriptConstraintPolicy' in graph:
+                raise ValueError('Foreign scope cannot provide root policy receipt')
+            continue
+        rp_validate_graph(graph, subject)
+        roots.append({'path': name, 'bytes': len(raw), 'sha256': hashlib.sha256(raw).hexdigest()})
+    if not roots:
+        raise ValueError('Mandatory fixed main-root classpath graph absent')
+    return {'schema': 'micro.android.root-buildscript-policy-validation/1',
+            'status': 'validated-main-root-classpath-receipts', 'manifestSha256': ROOT_POLICY_MANIFEST_SHA256,
+            'toolSubject': subject, 'graphs': sorted(roots, key=lambda r: r['path'])}
+
+def rp_validate_output(directory, subject):
+    directory = Path(directory).absolute()
+    if directory.is_symlink() or not directory.is_dir():
+        raise ValueError('Mandatory fixed root graph directory absent or linked')
+    paths = sorted(directory.iterdir())
+    if not 0 < len(paths) <= 2048:
+        raise ValueError('Root graph inventory outside existing count bound')
+    documents = []
+    total = 0
+    for path in paths:
+        raw = rp_read_regular(path, 8*1024**2)
+        total += len(raw)
+        if total > 64*1024**2:
+            raise ValueError('Root graph bytes exceed existing aggregate bound')
+        documents.append((path.name, raw))
+    return rp_validate_documents(documents, subject)
+
 
 def hash_file(p):
     h = hashlib.sha256()
@@ -116,6 +297,7 @@ def main():
             argv += ['--offline', '--dependency-verification=strict']
         argv += ['app:assembleRelease']
         run(argv)
+        receipt['rootPolicyValidation'] = rp_validate_output(output / 'graph', rp_tool_subject(Path('/seed/tools')))
         receipt['vendorAdapterPostbuild'] = verify_vendor_adapter(fixture, '/seed/tools/trusted-vendor-gradle-adapter.json')
         if private_maven.is_symlink() or (private_maven.exists() and any(private_maven.rglob('*'))): raise ValueError('Worker local Maven inputs appeared')
         receipt['privateMavenAfter'] = {'path': str(private_maven), 'exists': private_maven.exists(), 'inputs': 0}

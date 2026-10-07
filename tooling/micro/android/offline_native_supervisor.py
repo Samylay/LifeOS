@@ -15,7 +15,7 @@ import subprocess
 import time
 from uuid import uuid4
 
-from admission import IMAGE, NATIVE_POLICY, NATIVE_TMPFS, native_execution, native_inputs, native_runtime
+from admission import IMAGE, NATIVE_POLICY, NATIVE_TMPFS, native_execution, native_inputs, native_runtime, native_job_verification
 from native_acquire import Supervisor
 from pipeline import CONTROLLER_ROOT, load_registry
 
@@ -227,6 +227,7 @@ class OfflineSupervisor(Supervisor):
             job = self.store.json(job_ref)
             if job['status'] != 'clean-offline-fixture-unsigned-apk' or job['offline'] is not True:
                 raise ValueError('Actual offline worker success missing')
+            native_job_verification(job, self.binding, self.store, job_ref)
             events = dict(line.split() for line in job['resources']['memory.events'].splitlines())
             if any(int(events.get(k,0)) for k in ('max','oom','oom_kill','oom_group_kill')):
                 raise ValueError('Actual memory/OOM limit reached')

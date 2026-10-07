@@ -49,7 +49,8 @@ class SyntheticFixture:
             kind = 'file' if destination.endswith(('.xml', '.json')) else 'directory'
             files = {'FAKE-input': ('FAKE seed '+destination).encode()}
             if destination == '/seed/tools':
-                files = {'native_fixture_job.py': b'FAKE worker bytes, not executed'}
+                files = {'native_fixture_job.py': b'FAKE worker bytes, not executed',
+                         'trusted_repositories.init.gradle': b'FAKE init bytes, not executed'}
                 for name in ('trusted-vendor-gradle-adapter.json', 'locked-local-maven-manifest.json'):
                     files[name] = Path(a.__file__).with_name(name).read_bytes()
             elif destination == '/seed/patch-preimages.json':
@@ -97,9 +98,7 @@ class SyntheticFixture:
         # Explicit FAKE operator review for controller logic only. It makes no
         # statement about an actual APK, native component or source build.
         self.native_purl = 'pkg:maven/fake.native/fixture@0.0.0'
-        self.native_graph = self.put({'build': 'FAKE-build', 'scope': 'project',
-                                      'configuration': 'releaseRuntimeClasspath',
-                                      'components': [{'group': 'fake.native', 'module': 'fixture', 'version': '0.0.0'}]})
+        self.native_graph = self.put(self.fake_root_graph())
         self.native_manifest = [{'path': 'fake-runtime.json', 'sha256': self.native_graph.sha256, 'bytes': self.native_graph.bytes}]
         component_purls = ['pkg:npm/fake-component@0.0.0', self.native_purl]
         closure = self.put({'schema': 'micro.android.native-closure/1', 'context': self.binding.context(),
@@ -168,12 +167,50 @@ class SyntheticFixture:
     def put(self, value, suffix='.json', name=None):
         self.count += 1
         path = name or f'fixture-{self.count}{suffix}'
+        if name is None and isinstance(value, dict) and value.get('scope') == 'trusted-fixture-only' and {'commands', 'apk', 'resources'} <= set(value):
+            # Preserve mutated FAKE job fields and give every immutable copy the
+            # fixed output layout. No worker or Gradle code executes here.
+            parent = f'native-jobs/{self.count:032x}/output'
+            path = parent+'/native-job.json'
+            graph = self.store.path(parent+'/graph/root.json')
+            graph.parent.mkdir(parents=True, mode=0o700)
+            graph.write_bytes(a.canonical(self.fake_root_graph())+b'\n')
         if isinstance(value, bytes):
             self.store.path(path).parent.mkdir(parents=True, mode=0o700, exist_ok=True)
             self.store.path(path).write_bytes(value)
             return self.store.describe(path, max(2*1024**2, len(value)))
         self.store.path(path).parent.mkdir(parents=True, mode=0o700, exist_ok=True)
         return self.store.write(path, value)
+
+    def fake_root_graph(self):
+        # Authored FAKE selections exercise plumbing, never actual resolution.
+        manifest = a.rp_manifest()
+        subject = {name: {key: self.store.describe('sealed/tools/'+name).json()[key]
+                          for key in ('bytes', 'sha256')} for name in a.ROOT_POLICY_TOOL_NAMES}
+        constraints = [{'group': row['group'], 'module': row['module'], 'required': row['candidate'],
+                        'preferred': '', 'strict': '', 'rejected': [],
+                        'reason': 'Reviewed root buildscript candidate '+a.ROOT_POLICY_MANIFEST_SHA256+' '+row['group']+':'+row['module']}
+                       for row in manifest['modules']]
+        chosen = [{'group': row['group'], 'module': row['module'], 'version': row['candidate'],
+                   'constrained': True, 'forced': False, 'conflictResolution': False,
+                   'selectedByRule': False, 'reasons': [{'cause': 'CONSTRAINT', 'description': 'FAKE authored test selection'}],
+                   'reasonCaptureComplete': True} for row in manifest['modules']]
+        return {**dict(zip(('build', 'project', 'scope', 'configuration'), a.ROOT_POLICY_SCOPE)),
+                'components': [{key: row[key] for key in ('group', 'module', 'version')} for row in chosen]+
+                              [{'group': 'fake.native', 'module': 'fixture', 'version': '0.0.0'}],
+                'rootBuildscriptConstraintPolicy': {'schema': 3, 'failureSchema': 1,
+                    'manifestSha256': a.ROOT_POLICY_MANIFEST_SHA256, 'semantics': manifest['semantics'],
+                    'toolSubject': subject, 'captureComplete': True, 'installedConstraints': constraints,
+                    'allConstraints': copy.deepcopy(constraints), 'chosen': chosen, 'unresolved': [],
+                    'unresolvedCount': 0, 'unresolvedTruncated': False, 'unresolvedComplete': True,
+                    'failures': [], 'selectedVersionsAccepted': True}}
+
+    def fake_root_summary(self):
+        raw = a.canonical(self.fake_root_graph())+b'\n'
+        return {'schema': 'micro.android.root-buildscript-policy-validation/1',
+                'status': 'validated-main-root-classpath-receipts', 'manifestSha256': a.ROOT_POLICY_MANIFEST_SHA256,
+                'toolSubject': self.fake_root_graph()['rootBuildscriptConstraintPolicy']['toolSubject'],
+                'graphs': [{'path': 'root.json', 'bytes': len(raw), 'sha256': hashlib.sha256(raw).hexdigest()}]}
 
     def fake_tree(self, path, files, kind='directory'):
         rows = []
@@ -231,7 +268,7 @@ class SyntheticFixture:
     def build(self, index):
         owner = 'build'+str(index); raw = self.native_docker(owner)
         start, finish = self.now-9+index*4, self.now-6+index*4
-        job = {'jvmPolicy': a.NATIVE_JVM_POLICY.copy(), 'scope': 'trusted-fixture-only', 'offline': True, 'startedAt': start+0.1, 'finishedAt': finish-0.1,
+        job = {'rootPolicyValidation': self.fake_root_summary(), 'jvmPolicy': a.NATIVE_JVM_POLICY.copy(), 'scope': 'trusted-fixture-only', 'offline': True, 'startedAt': start+0.1, 'finishedAt': finish-0.1,
                'commands': [{'argv': argv, 'exitCode': 0, 'seconds': 1} for argv in self.commands],
                **self.fake_worker_verifications(), 'resources': {'memory.current':'1', 'memory.peak':'1',
                            'memory.swap.current':'0', 'memory.swap.peak':'0', 'pids.current':'1', 'pids.peak':'1',

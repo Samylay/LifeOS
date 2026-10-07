@@ -754,7 +754,8 @@
         "privateMavenAfter",
         "localMavenPrebuild",
         "localMavenPostbuild",
-        "jvmPolicy"
+        "jvmPolicy",
+        "rootPolicyValidation"
       ],
       "properties": {
         "scope": {
@@ -1185,6 +1186,109 @@
             },
             "javaToolOptions": {
               "const": "-Duser.home=/work/home -XX:ActiveProcessorCount=2 -Xmx512m -XX:MaxMetaspaceSize=256m"
+            }
+          }
+        },
+        "rootPolicyValidation": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schema",
+            "status",
+            "manifestSha256",
+            "toolSubject",
+            "graphs"
+          ],
+          "properties": {
+            "schema": {
+              "type": "string",
+              "const": "micro.android.root-buildscript-policy-validation/1"
+            },
+            "status": {
+              "type": "string",
+              "const": "validated-main-root-classpath-receipts"
+            },
+            "manifestSha256": {
+              "type": "string",
+              "const": "9e6bfc29b7bb913d1c5df110ba2fdc6e9674d37f5b25296d265b3727d38b078f"
+            },
+            "toolSubject": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "native_fixture_job.py",
+                "trusted_repositories.init.gradle"
+              ],
+              "properties": {
+                "native_fixture_job.py": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "bytes",
+                    "sha256"
+                  ],
+                  "properties": {
+                    "bytes": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 2097152
+                    },
+                    "sha256": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{64}$"
+                    }
+                  }
+                },
+                "trusted_repositories.init.gradle": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "bytes",
+                    "sha256"
+                  ],
+                  "properties": {
+                    "bytes": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 2097152
+                    },
+                    "sha256": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{64}$"
+                    }
+                  }
+                }
+              }
+            },
+            "graphs": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 2048,
+              "uniqueItems": true,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "path",
+                  "bytes",
+                  "sha256"
+                ],
+                "properties": {
+                  "path": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9_.-]+\\.json$"
+                  },
+                  "bytes": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 8388608
+                  },
+                  "sha256": {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{64}$"
+                  }
+                }
+              }
             }
           }
         }

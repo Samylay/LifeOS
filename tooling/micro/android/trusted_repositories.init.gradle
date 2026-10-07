@@ -64,6 +64,206 @@ guardedRepo = { repo, Set seen, int depth ->
 }
 def guardRepo = { repo -> guardedRepo(repo, Collections.newSetFromMap(new IdentityHashMap()), 0) }
 def guardRepos = { repositories -> repositories.all(guardRepo) }
+
+// Proposed exact root classpath policy. Compatibility has not been established.
+// The companion review manifest has the same UTF-8 bytes as this inline value.
+def rootConstraintManifestJson = '''{"schema":1,"status":"uninstalled-compatibility-unverified","gradleVersion":"9.3.1","build":"/work/fixture/android","project":":","scope":"project-buildscript","configuration":"classpath","semantics":"require-floor-plus-exact-selected-version-guard","modules":[{"group":"io.netty","module":"netty-buffer","candidate":"4.1.138.Final"},{"group":"io.netty","module":"netty-codec","candidate":"4.1.138.Final"},{"group":"io.netty","module":"netty-codec-http","candidate":"4.1.138.Final"},{"group":"io.netty","module":"netty-codec-http2","candidate":"4.1.138.Final"},{"group":"io.netty","module":"netty-codec-socks","candidate":"4.1.138.Final"},{"group":"io.netty","module":"netty-common","candidate":"4.1.138.Final"},{"group":"io.netty","module":"netty-handler","candidate":"4.1.138.Final"},{"group":"io.netty","module":"netty-handler-proxy","candidate":"4.1.138.Final"},{"group":"io.netty","module":"netty-resolver","candidate":"4.1.138.Final"},{"group":"io.netty","module":"netty-transport","candidate":"4.1.138.Final"},{"group":"io.netty","module":"netty-transport-native-unix-common","candidate":"4.1.138.Final"},{"group":"org.bitbucket.b_c","module":"jose4j","candidate":"0.9.6"},{"group":"org.bouncycastle","module":"bcprov-jdk18on","candidate":"1.85"},{"group":"org.bouncycastle","module":"bcpkix-jdk18on","candidate":"1.85"},{"group":"org.bouncycastle","module":"bcutil-jdk18on","candidate":"1.85"},{"group":"org.jdom","module":"jdom2","candidate":"2.0.6.1"}]}
+'''
+def rootConstraintManifestSha256 = '9e6bfc29b7bb913d1c5df110ba2fdc6e9674d37f5b25296d265b3727d38b078f'
+if (java.security.MessageDigest.getInstance('SHA-256').digest(rootConstraintManifestJson.getBytes('UTF-8')).encodeHex().toString() != rootConstraintManifestSha256) throw new GradleException('Root constraint manifest bytes changed')
+def rootConstraintManifest = new groovy.json.JsonSlurper().parseText(rootConstraintManifestJson)
+def rootConstraintToolSubject = ['native_fixture_job.py', 'trusted_repositories.init.gradle'].collectEntries { name ->
+  def bytes = new File('/seed/tools', name).bytes
+  [(name): [bytes: bytes.length, sha256: java.security.MessageDigest.getInstance('SHA-256').digest(bytes).encodeHex().toString()]]
+}
+def rootConstraintPolicy = null
+def rootConstraintKey = { item -> item.group + ':' + item.module }
+def rootConstraintExpected = rootConstraintManifest.modules.collectEntries { item -> [(rootConstraintKey(item)): item.candidate] }
+if (rootConstraintExpected.size() != 16 || rootConstraintManifest.modules.size() != 16) throw new GradleException('Root constraint inventory mismatch')
+def describeConstraint = { constraint ->
+  def version = constraint.versionConstraint
+  [group: constraint.group, module: constraint.name, required: version.requiredVersion,
+   preferred: version.preferredVersion, strict: version.strictVersion,
+   rejected: version.rejectedVersions, reason: constraint.reason]
+}
+def boundedPolicyText = { String text, int maximum ->
+  text == null ? null : [value: text.take(maximum), truncated: text.length() > maximum]
+}
+def describePolicyError = { Throwable failure ->
+  def message
+  try { message = failure.message } catch (Throwable unreadableMessage) { message = 'Exception message unavailable' }
+  [type: boundedPolicyText(failure.class.name, 256), message: boundedPolicyText(message, 1024)]
+}
+def policyFailureRecord = { String kind, Map details ->
+  [kind: kind, stage: null, module: null, expected: null, observed: [],
+   requested: null, attempted: null, attemptedReasons: [],
+   attemptedReasonsTruncated: false, error: null] + details
+}
+// Retain the first throwable even if suppression itself cannot be attached.
+def suppressPolicyThrowable = { Throwable first, Throwable secondary ->
+  if (secondary == null || first.is(secondary)) return
+  try { first.addSuppressed(secondary) } catch (Throwable attachmentError) {
+    try {
+      println('FACTORY_ROOT_POLICY_DIAGNOSTIC ' + groovy.json.JsonOutput.toJson(
+        [schema: 'micro.android.root-buildscript-policy-diagnostic/1', phase: 'suppression-attachment',
+         original: describePolicyError(first), secondary: describePolicyError(secondary),
+         attachment: describePolicyError(attachmentError)]))
+    } catch (Throwable unavailableDiagnostic) { /* Never replace the original throwable. */ }
+  }
+}
+def replaceGraphReceipt = { File receipt, Map value ->
+  def encoded = groovy.json.JsonOutput.toJson(value).getBytes('UTF-8')
+  def pending = receipt.parentFile.toPath().resolve('root-policy-' + UUID.randomUUID().toString() + '.pending')
+  boolean ownsPending = false
+  boolean replacementCompleted = false
+  Throwable firstFailure = null
+  def stream = null
+  try {
+    // CREATE_NEW atomically creates and opens; an existing path/link is not touched.
+    stream = java.nio.file.Files.newOutputStream(pending, java.nio.file.StandardOpenOption.CREATE_NEW, java.nio.file.StandardOpenOption.WRITE)
+    ownsPending = true
+    stream.write(encoded)
+  } catch (Throwable writeFailure) {
+    firstFailure = writeFailure
+  } finally {
+    if (stream != null) {
+      try { stream.close() } catch (Throwable closeFailure) {
+        if (firstFailure == null) firstFailure = closeFailure
+        else suppressPolicyThrowable(firstFailure, closeFailure)
+      }
+    }
+  }
+  // Do not install partial bytes or move after an unsuccessful write or close.
+  if (firstFailure == null) {
+    try {
+      java.nio.file.Files.move(pending, receipt.toPath(), java.nio.file.StandardCopyOption.ATOMIC_MOVE, java.nio.file.StandardCopyOption.REPLACE_EXISTING)
+      replacementCompleted = true
+    } catch (Throwable moveFailure) { firstFailure = moveFailure }
+  }
+  if (ownsPending) {
+    try { java.nio.file.Files.deleteIfExists(pending) } catch (Throwable deleteFailure) {
+      if (firstFailure == null) firstFailure = deleteFailure
+      else suppressPolicyThrowable(firstFailure, deleteFailure)
+    }
+  }
+  if (firstFailure != null) {
+    try {
+      println('FACTORY_ROOT_POLICY_DIAGNOSTIC ' + groovy.json.JsonOutput.toJson(
+        [schema: 'micro.android.root-buildscript-policy-diagnostic/1', phase: 'receipt-write',
+         resolutionCompleted: true, completedGraph: true, replacementCompleted: replacementCompleted,
+         build: value.build, project: value.project, scope: value.scope, configuration: value.configuration,
+         manifestSha256: rootConstraintManifestSha256, toolSubject: rootConstraintToolSubject,
+         error: describePolicyError(firstFailure)]))
+    } catch (Throwable logFailure) { suppressPolicyThrowable(firstFailure, logFailure) }
+    throw firstFailure
+  }
+}
+def newRootPolicyReceipt = {
+  [schema: 3, failureSchema: 1, manifestSha256: rootConstraintManifestSha256,
+   semantics: rootConstraintManifest.semantics, toolSubject: rootConstraintToolSubject,
+   captureComplete: false, installedConstraints: [], allConstraints: [], chosen: [],
+   unresolved: [], unresolvedCount: null, unresolvedTruncated: false, unresolvedComplete: false,
+   failures: [], selectedVersionsAccepted: false]
+}
+def installRootConstraints = { project ->
+  if (project.rootDir.toString() != rootConstraintManifest.build || project.path.toString() != rootConstraintManifest.project) return
+  if (gradle.gradleVersion != rootConstraintManifest.gradleVersion || rootConstraintPolicy != null) throw new GradleException('Root constraint lifecycle/version mismatch')
+  // DefaultScriptHandler locks configuration creation. Use its existing classpath.
+  def handler = project.buildscript
+  def classpath = handler.configurations.getByName(rootConstraintManifest.configuration)
+  if (classpath.state != org.gradle.api.artifacts.Configuration.State.UNRESOLVED) throw new GradleException('Root classpath resolved before constraints')
+  def installed = rootConstraintManifest.modules.collect { item ->
+    def constraint = handler.dependencies.constraints.add('classpath', [group: item.group, name: item.module, version: item.candidate])
+    constraint.version { version -> version.require(item.candidate) }
+    constraint.because('Reviewed root buildscript candidate ' + rootConstraintManifestSha256 + ' ' + rootConstraintKey(item))
+    constraint
+  }
+  rootConstraintPolicy = [configuration: classpath, installed: installed]
+  classpath.incoming.beforeResolve {
+    try {
+      installed.each { constraint ->
+        def item = describeConstraint(constraint)
+        if (!classpath.allDependencyConstraints.contains(constraint) || item.required != rootConstraintExpected[item.group + ':' + item.module] || item.preferred != '' || item.strict != '' || !item.rejected.isEmpty()) throw new GradleException('Root installed constraint changed')
+      }
+    } catch (Throwable integrityError) {
+      // No completed graph exists for this resolution. Retain truthful bounded log data.
+      try {
+        println('FACTORY_ROOT_POLICY_DIAGNOSTIC ' + groovy.json.JsonOutput.toJson([
+          schema: 'micro.android.root-buildscript-policy-diagnostic/1', phase: 'before-resolution',
+          resolutionCompleted: false, completedGraph: false,
+          build: rootConstraintManifest.build, project: rootConstraintManifest.project,
+          scope: rootConstraintManifest.scope, configuration: rootConstraintManifest.configuration,
+          manifestSha256: rootConstraintManifestSha256, toolSubject: rootConstraintToolSubject,
+          error: describePolicyError(integrityError)]))
+      } catch (Throwable logError) {
+        suppressPolicyThrowable(integrityError, logError)
+      }
+      throw integrityError
+    }
+  }
+}
+def captureRootConstraints = { config, String buildLabel, String scope, String projectLabel, Map policy ->
+  if (buildLabel != rootConstraintManifest.build || projectLabel != rootConstraintManifest.project || scope != rootConstraintManifest.scope || config.name != rootConstraintManifest.configuration) return null
+  if (rootConstraintPolicy == null || !rootConstraintPolicy.configuration.is(config)) throw new GradleException('Root classpath policy not installed')
+  rootConstraintPolicy.installed.each { constraint -> policy.installedConstraints << describeConstraint(constraint) }
+  config.allDependencyConstraints.each { constraint -> policy.allConstraints << describeConstraint(constraint) }
+  config.incoming.resolutionResult.allComponents.each { component ->
+    if (component.id instanceof ModuleComponentIdentifier) {
+      def id = component.id
+      if (rootConstraintExpected.containsKey(id.group + ':' + id.module)) {
+        def chosen = [group: id.group, module: id.module, version: id.version,
+                      constrained: null, forced: null, conflictResolution: null, selectedByRule: null,
+                      reasons: [], reasonCaptureComplete: false]
+        policy.chosen << chosen
+        def reason = component.selectionReason
+        chosen.constrained = reason.constrained
+        chosen.forced = reason.forced
+        chosen.conflictResolution = reason.conflictResolution
+        chosen.selectedByRule = reason.selectedByRule
+        reason.descriptions.each { descriptor ->
+          def entry = [cause: null, description: null]
+          chosen.reasons << entry
+          entry.cause = descriptor.cause.toString()
+          entry.description = descriptor.description
+        }
+        chosen.reasonCaptureComplete = true
+      }
+    }
+  }
+  policy.unresolvedCount = 0
+  config.incoming.resolutionResult.allDependencies.each { dependency ->
+    if (dependency instanceof org.gradle.api.artifacts.result.UnresolvedDependencyResult) {
+      policy.unresolvedCount++
+      if (policy.unresolved.size() < 128) {
+        def failure = policyFailureRecord('unresolved-dependency', [:])
+        policy.unresolved << failure
+        policy.failures << failure
+        failure.requested = boundedPolicyText(dependency.requested.displayName, 256)
+        failure.attempted = boundedPolicyText(dependency.attempted.displayName, 256)
+        def descriptions = dependency.attemptedReason.descriptions
+        descriptions.take(16).each { descriptor ->
+          def entry = [cause: null, description: null]
+          failure.attemptedReasons << entry
+          entry.cause = boundedPolicyText(descriptor.cause.toString(), 64)
+          entry.description = boundedPolicyText(descriptor.description, 512)
+        }
+        failure.attemptedReasonsTruncated = descriptions.size() > 16
+        failure.error = describePolicyError(dependency.failure)
+      }
+    }
+  }
+  policy.unresolvedTruncated = policy.unresolvedCount > policy.unresolved.size()
+  policy.unresolvedComplete = true
+  rootConstraintExpected.each { key, expected ->
+    def matches = policy.chosen.findAll { item -> rootConstraintKey(item) == key }
+    if (matches.size() != 1 || matches[0].version != expected) policy.failures << policyFailureRecord('selected-version-mismatch', [module: key, expected: expected, observed: matches.collect { it.version }])
+  }
+  policy.captureComplete = true
+  policy.selectedVersionsAccepted = policy.failures.isEmpty() && policy.unresolvedCount == 0
+  policy
+}
+
+
 def guardConfigurations = { configurations, String buildLabel, String scope, String projectLabel ->
   configurations.configureEach { config ->
     config.resolutionStrategy.failOnDynamicVersions()
@@ -82,7 +282,37 @@ def guardConfigurations = { configurations, String buildLabel, String scope, Str
       }
       def receipt = new File(System.getenv('FACTORY_GRAPH_DIR'), UUID.randomUUID().toString() + '.json')
       receipt.parentFile.mkdirs()
-      receipt.text = groovy.json.JsonOutput.toJson([build: buildLabel, project: projectLabel, scope: scope, configuration: config.name, components: graph])
+      def value = [build: buildLabel, project: projectLabel, scope: scope, configuration: config.name, components: graph]
+      // Always retain the original complete graph before additional policy APIs.
+      receipt.text = groovy.json.JsonOutput.toJson(value)
+      def rootPolicyReceipt = null
+      def policyStage = 'capture'
+      try {
+        rootPolicyReceipt = newRootPolicyReceipt()
+        def capturedPolicy = captureRootConstraints(config, buildLabel, scope, projectLabel, rootPolicyReceipt)
+        if (capturedPolicy == null) rootPolicyReceipt = null
+        if (rootPolicyReceipt != null) {
+          value.rootBuildscriptConstraintPolicy = rootPolicyReceipt
+          policyStage = 'receipt-write'
+          replaceGraphReceipt(receipt, value)
+        }
+      } catch (Throwable policyError) {
+        def failure = policyFailureRecord('policy-capture-error', [stage: policyStage, error: describePolicyError(policyError)])
+        def errorReceipt = newRootPolicyReceipt()
+        if (rootPolicyReceipt != null) errorReceipt.putAll(rootPolicyReceipt)
+        errorReceipt.failures = errorReceipt.failures + [failure]
+        errorReceipt.selectedVersionsAccepted = false
+        value.rootBuildscriptConstraintPolicy = errorReceipt
+        try {
+          replaceGraphReceipt(receipt, value)
+        } catch (Throwable errorReceiptFailure) {
+          suppressPolicyThrowable(policyError, errorReceiptFailure)
+        }
+        // Even if error enrichment cannot be written, the original graph survives.
+        throw policyError
+      }
+      // Retain the complete graph and captured selection reasons before rejection.
+      if (rootPolicyReceipt != null && !rootPolicyReceipt.selectedVersionsAccepted) throw new GradleException('Root classpath candidate selection differs from reviewed manifest: ' + receipt.name)
     }
   }
 }
@@ -94,6 +324,7 @@ gradle.beforeSettings { settings ->
   guardConfigurations(settings.buildscript.configurations, settings.settingsDir.toString(), 'settings-buildscript', '<settings>')
 }
 gradle.beforeProject { project ->
+  installRootConstraints(project)
   guardRepos(project.repositories)
   guardRepos(project.buildscript.repositories)
   guardConfigurations(project.configurations, project.rootDir.toString(), 'project', project.path.toString())
