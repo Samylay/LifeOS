@@ -15,6 +15,47 @@
 
 ## Tasks
 
+## Time-to-rewrite gaps: queued 2026-10-08 (Samy: "yes, queue them as ROADMAP tasks")
+
+Source: an attended read-only audit on 2026-10-08 asking "could an agent rewrite LifeOS and Samy trust the result?". Answer: no. The verify gate is `tsc` + docker build + HTTP 200 on `/`, which passes with every page broken. Findings: 0 page-level tests, 68 of 77 API routes without a colocated test, `docs/routes.md` and `docs/features.md` last touched 2026-09-06 (34 and 41 lines), no CONTEXT.md or docs/adr although AGENTS.md points at them, no fixture database, no CI. Tasks run in order: each later one needs the earlier one. Shared rules for T86 to T89: never open `data/lifeos.db` or the `lifeos-data` volume, never touch `.env`, the vault, or the live container on port 3000; fixtures are synthetic only (public remote); no new dependency; `autoloop:` commits, under 400 changed lines each.
+
+- [ ] **T86 - synthetic fixture database for tests and smoke runs** (S)
+  - SAMY 2026-10-08: approved
+  - **Do:** add `app/src/lib/fixture-db.ts` exporting `buildFixtureDb(dir)`, which creates a fresh SQLite file at `<dir>/lifeos.db` through the same schema-creation path `src/lib/server-db.ts` uses (set `LIFEOS_DB_PATH` to the new file before opening), then inserts a small invented dataset (a few rows per table the pages read: projects, ships, habits, workouts, goals, saved, pager, leads). Names, emails and amounts are obviously fake. Add `app/.fixture/` to `.gitignore`.
+  - **Safety:** `buildFixtureDb` throws if the resolved path is `data/lifeos.db`, is under `data/`, or already exists. Read the pattern in `src/lib/server-db.test.ts` and `src/lib/garmin-service.test.ts` (tmpdir + `LIFEOS_DB_PATH`) and follow it.
+  - **Verify:** `cd app && npx vitest run src/lib/fixture-db.test.ts` passes. The test asserts: the file is created in a tmpdir, every table in the schema is readable, the refuse-real-path guard throws for `data/lifeos.db`, and `git status` shows no new tracked data files.
+  - **Done when:** the verify command passes and `git diff --stat` shows no file under `app/data/`.
+
+- [ ] **T87 - route smoke suite over every API route** (M) - needs T86
+  - SAMY 2026-10-08: approved
+  - **Do:** add `app/src/app/api/routes.smoke.test.ts`. It discovers every `route.ts` under `src/app/api` from the filesystem, builds a fixture DB via T86 in a tmpdir, sets `LIFEOS_DB_PATH`, imports each route module, and calls its exported `GET` with a minimal `NextRequest`. Assert status is below 500 and nothing throws. Stub every outbound dependency (global `fetch`, `src/lib/claude-cli.ts`, Garmin, Strava, Google Calendar, bank aggregation, web push) with `vi.mock` so no network call or spawned CLI happens.
+  - **Skips:** routes that cannot run offline go in a table `routes.smoke.skips.ts` as `{ route, reason }`. Skips need a reason string. POST/PUT/DELETE routes are out of scope for this task (name the follow-up in the Log).
+  - **Edge cases that need judgment:** dynamic segments (`[id]`) get a fixture id; streaming routes (chat) only need to return a Response; do not weaken a route to make it pass. If a route returns 500 on a clean fixture, that is a finding: record it in the Log and list it in the skips table with the reason `BUG: <one line>`, do not edit the route in this task.
+  - **Verify:** `cd app && npx vitest run src/app/api/routes.smoke.test.ts` passes. The test fails when a `route.ts` exists that is neither exercised nor in the skips table (prove it: temporarily add an empty `route.ts` under a scratch folder, see the failure, remove it).
+  - **Done when:** the verify command passes and the Log entry lists routes covered, skipped and BUG-flagged.
+
+- [ ] **T88 - real-browser smoke over every page** (M) - needs T86
+  - SAMY 2026-10-08: approved
+  - **Do:** add `app/scripts/ui-smoke.py`, using the headless-chromium-over-CDP recipe in `~/.claude/projects/-home-quorky/memory/homelab_shell_setup.md` (python `websockets`, `/snap/bin/chromium --headless --disable-gpu --no-sandbox`, screenshots under `~`, not `/tmp`). It builds the fixture DB (T86) into a tmpdir under `~/scratch/`, runs `npm run build` then `next start -p 3100` with `LIFEOS_DB_PATH` pointing at the fixture, loads every page discovered from `src/app/**/page.tsx` at 390px and 1280px, and always kills the server on exit.
+  - **Assertions per page:** no `Runtime.exceptionThrown`, no 4xx/5xx subresource, visible `document.body.innerText` longer than 40 characters, and no horizontal overflow (`scrollWidth <= innerWidth`). Write screenshots and a one-line-per-page report to `~/scratch/lifeos-ui-smoke/`.
+  - **Never:** use port 3000, run `docker compose`, or touch the live container. No new dependency.
+  - **Prove it can fail:** temporarily make one page throw during render, confirm the script exits non-zero and names that page, then revert.
+  - **Verify:** `cd app && python3 scripts/ui-smoke.py` exits 0 on a clean tree and prints one line per page (18 pages).
+  - **Done when:** the verify command passes, the failure proof is quoted in the Log, and `ss -ltn | grep 3100` shows nothing listening afterwards.
+
+- [ ] **T89 - generated route inventory that cannot go stale** (S)
+  - SAMY 2026-10-08: approved
+  - **Do:** add `app/scripts/gen-inventory.mjs` that scans `src/app/**/page.tsx` and `src/app/api/**/route.ts` and writes `docs/routes.md` (route path, kind, exported HTTP methods, one column for "has test"). Support `--check`, which exits non-zero when the committed file differs from the generated one. Regenerate and commit `docs/routes.md`. Add `app/src/inventory.test.ts` that runs the check, so `npm test` fails when a route is added without regenerating.
+  - **Preserve:** keep any hand-written prose already in `docs/routes.md` above a `<!-- generated below -->` marker.
+  - **Verify:** `cd app && node scripts/gen-inventory.mjs --check && npx vitest run src/inventory.test.ts` passes; adding an empty page folder makes `--check` fail until regenerated.
+  - **Done when:** the verify command passes and the file lists all 77 API routes and 18 pages.
+
+- [ ] **T90 - NEEDS-USER: grill LifeOS into a CONTEXT.md and first ADRs** (M)
+  - `AGENTS.md` and `docs/agents/domain.md` promise a root `CONTEXT.md` and `docs/adr/`; neither exists. This needs Samy's vocabulary (what a "ship", "goal", "project", "proposal", "decide card" mean), so run `/grill-with-docs` in an attended session. Do not write it from the code alone.
+
+- [ ] **T91 - NEEDS-USER: CI for LifeOS (GitHub Actions)** (S)
+  - The repo has a PUBLIC remote and no CI. A workflow running `npx tsc --noEmit`, `npx vitest run` and the T89 check is outward-facing and runs on GitHub's infrastructure, so Samy decides. Propose: one workflow, no secrets, fixture DB only.
+
 - [x] **T84 — two tests fail depending on the time of day** (S) — found 2026-09-07 during the redesign ticket run. (2026-09-07: already fixed — no code change needed, see Log.)
 
 
@@ -1892,44 +1933,3 @@ credentials an unattended agent may not invent:
   - **The export is personal data and lives outside the repo** at `~/data/instagram-export/extracted` (a symlink at `~/scratch/instagram-export` keeps the old compose path valid). The repo has a PUBLIC remote: commit code and fixtures only, never a real export file, name, message, or media. Tests use synthetic fixtures.
   - **Exclusions:** do not move, delete, or re-extract the export or the zips in `~/data/instagram-export/zips`; do not change the compose mount from read-only; do not add a dependency (queue a NEEDS-USER task instead).
   - **Verify:** `cd app && npx tsc --noEmit` and the unit tests pass; `curl -s 127.0.0.1:3000/api/instagram` after deploy returns section counts; `/instagram` renders in the headless UI-verify recipe. Deploy needs an attended container restart: leave that as `BLOCKED: needs attended deploy` in the task note.
-
-## Time-to-rewrite gaps: queued 2026-10-08 (Samy: "yes, queue them as ROADMAP tasks")
-
-Source: an attended read-only audit on 2026-10-08 asking "could an agent rewrite LifeOS and Samy trust the result?". Answer: no. The verify gate is `tsc` + docker build + HTTP 200 on `/`, which passes with every page broken. Findings: 0 page-level tests, 68 of 77 API routes without a colocated test, `docs/routes.md` and `docs/features.md` last touched 2026-09-06 (34 and 41 lines), no CONTEXT.md or docs/adr although AGENTS.md points at them, no fixture database, no CI. Tasks run in order: each later one needs the earlier one. Shared rules for T86 to T89: never open `data/lifeos.db` or the `lifeos-data` volume, never touch `.env`, the vault, or the live container on port 3000; fixtures are synthetic only (public remote); no new dependency; `autoloop:` commits, under 400 changed lines each.
-
-- [ ] **T86 - synthetic fixture database for tests and smoke runs** (S)
-  - SAMY 2026-10-08: approved
-  - **Do:** add `app/src/lib/fixture-db.ts` exporting `buildFixtureDb(dir)`, which creates a fresh SQLite file at `<dir>/lifeos.db` through the same schema-creation path `src/lib/server-db.ts` uses (set `LIFEOS_DB_PATH` to the new file before opening), then inserts a small invented dataset (a few rows per table the pages read: projects, ships, habits, workouts, goals, saved, pager, leads). Names, emails and amounts are obviously fake. Add `app/.fixture/` to `.gitignore`.
-  - **Safety:** `buildFixtureDb` throws if the resolved path is `data/lifeos.db`, is under `data/`, or already exists. Read the pattern in `src/lib/server-db.test.ts` and `src/lib/garmin-service.test.ts` (tmpdir + `LIFEOS_DB_PATH`) and follow it.
-  - **Verify:** `cd app && npx vitest run src/lib/fixture-db.test.ts` passes. The test asserts: the file is created in a tmpdir, every table in the schema is readable, the refuse-real-path guard throws for `data/lifeos.db`, and `git status` shows no new tracked data files.
-  - **Done when:** the verify command passes and `git diff --stat` shows no file under `app/data/`.
-
-- [ ] **T87 - route smoke suite over every API route** (M) - needs T86
-  - SAMY 2026-10-08: approved
-  - **Do:** add `app/src/app/api/routes.smoke.test.ts`. It discovers every `route.ts` under `src/app/api` from the filesystem, builds a fixture DB via T86 in a tmpdir, sets `LIFEOS_DB_PATH`, imports each route module, and calls its exported `GET` with a minimal `NextRequest`. Assert status is below 500 and nothing throws. Stub every outbound dependency (global `fetch`, `src/lib/claude-cli.ts`, Garmin, Strava, Google Calendar, bank aggregation, web push) with `vi.mock` so no network call or spawned CLI happens.
-  - **Skips:** routes that cannot run offline go in a table `routes.smoke.skips.ts` as `{ route, reason }`. Skips need a reason string. POST/PUT/DELETE routes are out of scope for this task (name the follow-up in the Log).
-  - **Edge cases that need judgment:** dynamic segments (`[id]`) get a fixture id; streaming routes (chat) only need to return a Response; do not weaken a route to make it pass. If a route returns 500 on a clean fixture, that is a finding: record it in the Log and list it in the skips table with the reason `BUG: <one line>`, do not edit the route in this task.
-  - **Verify:** `cd app && npx vitest run src/app/api/routes.smoke.test.ts` passes. The test fails when a `route.ts` exists that is neither exercised nor in the skips table (prove it: temporarily add an empty `route.ts` under a scratch folder, see the failure, remove it).
-  - **Done when:** the verify command passes and the Log entry lists routes covered, skipped and BUG-flagged.
-
-- [ ] **T88 - real-browser smoke over every page** (M) - needs T86
-  - SAMY 2026-10-08: approved
-  - **Do:** add `app/scripts/ui-smoke.py`, using the headless-chromium-over-CDP recipe in `~/.claude/projects/-home-quorky/memory/homelab_shell_setup.md` (python `websockets`, `/snap/bin/chromium --headless --disable-gpu --no-sandbox`, screenshots under `~`, not `/tmp`). It builds the fixture DB (T86) into a tmpdir under `~/scratch/`, runs `npm run build` then `next start -p 3100` with `LIFEOS_DB_PATH` pointing at the fixture, loads every page discovered from `src/app/**/page.tsx` at 390px and 1280px, and always kills the server on exit.
-  - **Assertions per page:** no `Runtime.exceptionThrown`, no 4xx/5xx subresource, visible `document.body.innerText` longer than 40 characters, and no horizontal overflow (`scrollWidth <= innerWidth`). Write screenshots and a one-line-per-page report to `~/scratch/lifeos-ui-smoke/`.
-  - **Never:** use port 3000, run `docker compose`, or touch the live container. No new dependency.
-  - **Prove it can fail:** temporarily make one page throw during render, confirm the script exits non-zero and names that page, then revert.
-  - **Verify:** `cd app && python3 scripts/ui-smoke.py` exits 0 on a clean tree and prints one line per page (18 pages).
-  - **Done when:** the verify command passes, the failure proof is quoted in the Log, and `ss -ltn | grep 3100` shows nothing listening afterwards.
-
-- [ ] **T89 - generated route inventory that cannot go stale** (S)
-  - SAMY 2026-10-08: approved
-  - **Do:** add `app/scripts/gen-inventory.mjs` that scans `src/app/**/page.tsx` and `src/app/api/**/route.ts` and writes `docs/routes.md` (route path, kind, exported HTTP methods, one column for "has test"). Support `--check`, which exits non-zero when the committed file differs from the generated one. Regenerate and commit `docs/routes.md`. Add `app/src/inventory.test.ts` that runs the check, so `npm test` fails when a route is added without regenerating.
-  - **Preserve:** keep any hand-written prose already in `docs/routes.md` above a `<!-- generated below -->` marker.
-  - **Verify:** `cd app && node scripts/gen-inventory.mjs --check && npx vitest run src/inventory.test.ts` passes; adding an empty page folder makes `--check` fail until regenerated.
-  - **Done when:** the verify command passes and the file lists all 77 API routes and 18 pages.
-
-- [ ] **T90 - NEEDS-USER: grill LifeOS into a CONTEXT.md and first ADRs** (M)
-  - `AGENTS.md` and `docs/agents/domain.md` promise a root `CONTEXT.md` and `docs/adr/`; neither exists. This needs Samy's vocabulary (what a "ship", "goal", "project", "proposal", "decide card" mean), so run `/grill-with-docs` in an attended session. Do not write it from the code alone.
-
-- [ ] **T91 - NEEDS-USER: CI for LifeOS (GitHub Actions)** (S)
-  - The repo has a PUBLIC remote and no CI. A workflow running `npx tsc --noEmit`, `npx vitest run` and the T89 check is outward-facing and runs on GitHub's infrastructure, so Samy decides. Propose: one workflow, no secrets, fixture DB only.
