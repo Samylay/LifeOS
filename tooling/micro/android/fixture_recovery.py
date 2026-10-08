@@ -20,7 +20,7 @@ import fixture_store_validation as validator
 import native_fixture_journey as journey
 import pipeline
 
-SOURCE_SHA = '8cfb316455a451d2781bfd4dc589acb91bb7ef52'
+SOURCE_SHA = '43d5ca8b0c7d904d9efc861dee98b908671e04e3'
 # Administrative callable identity, not a source hash claim about a substitute.
 # Synthetic tests replace this pin explicitly alongside their FAKE validator.
 REVIEWED_VALIDATE = validator.validate_collected_store

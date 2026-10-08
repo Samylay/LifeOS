@@ -22,7 +22,7 @@ from source_export import ExportedFixture
 
 CONTROLLER = CONTROLLER_ROOT.parent
 KIT = Path(__file__).absolute().parent
-SOURCE_SHA = '8cfb316455a451d2781bfd4dc589acb91bb7ef52'
+SOURCE_SHA = '43d5ca8b0c7d904d9efc861dee98b908671e04e3'
 LOCK_SHA = 'ae8bbc085fd039716dde9ba98c1039069b93455972f42659c8dccc5cb66fb282'
 LOCK_BYTES = 467565
 ORIGINAL_EXPORT_SHA = 'db2ee3aa090d337b433ca0a3ac6dc6eed9db1faf9adaf30bc75a136626c2bdf5'
