@@ -338,7 +338,7 @@ def bind_sealed_cache(tree: dict, archive_manifest: dict, component: dict):
         if not isinstance(row['path'],str) or row['path'] in names:
             raise a.Rejected('Duplicate or invalid sealed path')
         names.add(row['path'])
-    if tree['kind'] != 'directory' or sorted(files,key=lambda row:row['path']) != tree['files'] or sum(row['bytes'] for row in files) != archive_manifest['fileBytes']:
+    if tree['kind'] != 'directory' or sorted(files,key=lambda row:Path(row['path'])) != tree['files'] or sum(row['bytes'] for row in files) != archive_manifest['fileBytes']:
         raise a.Rejected('Copied cache differs from sealed complete archive file identities')
 
 
