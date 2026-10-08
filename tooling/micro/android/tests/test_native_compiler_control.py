@@ -90,7 +90,7 @@ class GeneratedNativeCompilerSeam(SafeCompilerCase):
             for name in ('work','out','seed/fixture','seed/npm-cache','seed/gradle-caches'):
                 (sandbox/name).mkdir(parents=True, exist_ok=True)
             (sandbox/'seed/fixture/FAKE.txt').write_text('Explicitly authored FAKE fixture, no real inputs.\n')
-            root_gradle = "// Explicitly authored FAKE Gradle fixture\nallprojects {\n  repositories {\n    maven { url 'https://www.jitpack.io' }\n  }\n}\n"
+            root_gradle = '// Explicitly authored FAKE Gradle fixture\nallprojects {\n  repositories {\n    maven { url \'https://www.jitpack.io\' }\n  }\n}\n\napply plugin: "expo-root-project"\napply plugin: "com.facebook.react.rootproject"\n'
             signing = "            // Caution! In production, you need to generate your own keystore file.\n            // see https://reactnative.dev/docs/signed-apk-android.\n            signingConfig signingConfigs.debug\n"
             app_gradle = '// Explicitly authored FAKE app\nreact {\n    bundleCommand = "export:embed"\n}\nandroid { buildTypes { release {\n'+signing+'} } }\n'
             preimages = {name:hashlib.sha256(raw.encode()).hexdigest()
@@ -154,6 +154,14 @@ class GeneratedNativeCompilerSeam(SafeCompilerCase):
         self.assertIn('-DCMAKE_MAKE_PROGRAM=/work/native-ninja',captured['root'])
         self.assertIn('afterEvaluate',captured['root'])
         self.assertIn('throw new GradleException',captured['root'])
+        # Expo's root plugin can evaluate children during root evaluation.
+        # The actual generated command seam must contain the hook first.
+        expo_marker = 'apply plugin: "expo-root-project"\n'
+        self.assertEqual(captured['root'].count(expo_marker),1)
+        self.assertLess(captured['root'].index('subprojects { nativeProject ->'),
+                        captured['root'].index(expo_marker))
+        self.assertLess(captured['root'].index('nativeProject.afterEvaluate'),
+                        captured['root'].index(expo_marker))
         self.assertIsNotNone(captured['wrapper'])
         self.assertEqual(captured['wrapperMode'],0o500)
         self.assertIn('exec /opt/android-sdk/cmake/3.22.1/bin/ninja -j2 "$@"',captured['wrapper'])
@@ -177,6 +185,9 @@ class GeneratedNativeCompilerSeam(SafeCompilerCase):
         self.assertEqual(len(patches),4)
         self.assertEqual(patches[3]['beforeSha256'],patches[0]['afterSha256'])
         self.assertEqual(patches[3]['wrapper']['sha256'],hashlib.sha256(captured['wrapper'].encode()).hexdigest())
+        self.assertEqual(patches[3]['insertSha256'],hashlib.sha256(self.worker.NATIVE_NINJA_GRADLE.encode()).hexdigest())
+        self.assertEqual(patches[3]['insertBeforeSha256'],hashlib.sha256(expo_marker.encode()).hexdigest())
+        self.assertEqual(patches[3]['placement'],'before-expo-root-project-plugin')
 
     def test_acquisition_generated_gradle_seam(self): self.assert_controls(self.replay(False),False)
     def test_offline_generated_gradle_seam(self): self.assert_controls(self.replay(True),True)
@@ -192,7 +203,7 @@ class NativeCompilerGuards(SafeCompilerCase):
         (self.fixture/'android').mkdir(parents=True)
         self.work.mkdir()
         self.root = self.fixture/'android/build.gradle'
-        self.root.write_text('// Explicitly authored FAKE generated Gradle root\n')
+        self.root.write_text('// Explicitly authored FAKE generated Gradle root\n\napply plugin: "expo-root-project"\napply plugin: "com.facebook.react.rootproject"\n')
         self.receipt = {'patches':[{'afterSha256':hashlib.sha256(self.root.read_bytes()).hexdigest()},
                                    {'FAKE':True},{'FAKE':True}]}
 
@@ -200,6 +211,18 @@ class NativeCompilerGuards(SafeCompilerCase):
 
     def test_wrong_generated_preimage_rejected_before_wrapper_write(self):
         self.root.write_text('FAKE changed generated input\n')
+        with self.assertRaisesRegex(ValueError,'preimage'): self.install()
+        self.assertFalse((self.work/'native-ninja').exists())
+
+    def test_missing_expo_marker_rejected_before_wrapper_write(self):
+        self.root.write_text('// Explicit FAKE root without the Expo marker\n')
+        self.receipt['patches'][0]['afterSha256']=hashlib.sha256(self.root.read_bytes()).hexdigest()
+        with self.assertRaisesRegex(ValueError,'preimage'): self.install()
+        self.assertFalse((self.work/'native-ninja').exists())
+
+    def test_duplicate_expo_marker_rejected_before_wrapper_write(self):
+        self.root.write_text(self.root.read_text()+self.worker.NATIVE_NINJA_INSERT_BEFORE)
+        self.receipt['patches'][0]['afterSha256']=hashlib.sha256(self.root.read_bytes()).hexdigest()
         with self.assertRaisesRegex(ValueError,'preimage'): self.install()
         self.assertFalse((self.work/'native-ninja').exists())
 
@@ -246,7 +269,8 @@ class NativeCompilerGuards(SafeCompilerCase):
         validator=jsonschema.Draft202012Validator(schema)
         self.assertEqual(list(validator.iter_errors(patches)),[])
         bad_values=[patches[:3],patches+[copy.deepcopy(policy)]]
-        for field,value in [('path','/tmp/build.gradle'),('cmakeArguments',[]),('appendSha256','0'*64)]:
+        for field,value in [('path','/tmp/build.gradle'),('cmakeArguments',[]),('insertSha256','0'*64),
+                            ('insertBeforeSha256','0'*64),('placement','after-expo-root-project-plugin')]:
             bad=copy.deepcopy(patches);bad[3][field]=value;bad_values.append(bad)
         for field,value in [('bytes',True),('jobs',True),('jobs',3),('realNinja','/bin/false'),('sha256','0'*64)]:
             bad=copy.deepcopy(patches);bad[3]['wrapper'][field]=value;bad_values.append(bad)
@@ -262,7 +286,8 @@ class NativeCompilerGuards(SafeCompilerCase):
         self.admission.native_compiler_patch(policy,self.receipt['patches'][0])
         mutations=[('path','/work/fixture/node_modules/vendor/build.gradle'),
                    ('beforeSha256','0'*64),('afterSha256','not-a-digest'),
-                   ('purpose','FAKE'),('appendSha256','0'*64),
+                   ('purpose','FAKE'),('insertSha256','0'*64),
+                   ('insertBeforeSha256','0'*64),('placement','after-expo-root-project-plugin'),
                    ('cmakeArguments',[]),('cmakeArguments',['-DCMAKE_MAKE_PROGRAM=/bin/false'])]
         for field,value in mutations:
             with self.subTest(field=field,value=value):

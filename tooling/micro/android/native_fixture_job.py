@@ -318,21 +318,27 @@ def rp_validate_output(directory, subject):
 NATIVE_NINJA_WRAPPER = '#!/bin/sh\n# Private fixture only. Reject every caller-supplied concurrency override.\nfor native_arg in "$@"; do\n    case "$native_arg" in\n        --|-*j*|--jobs*)\n            printf \'%s\\n\' \'Native Ninja concurrency override or option boundary forbidden\' >&2\n            exit 64\n            ;;\n    esac\ndone\nexec /opt/android-sdk/cmake/3.22.1/bin/ninja -j2 "$@"\n'
 NATIVE_NINJA_GRADLE = '\n// Private fixture: AGP uses this executable for direct Ninja launches.\nsubprojects { nativeProject ->\n    ["com.android.application", "com.android.library"].each { nativePlugin ->\n        nativeProject.plugins.withId(nativePlugin) {\n            def nativeArgument = "-DCMAKE_MAKE_PROGRAM=/work/native-ninja"\n            def nativeCmakeArguments = nativeProject.extensions.getByName("android").defaultConfig.externalNativeBuild.cmake.arguments\n            if (nativeCmakeArguments.any { it.startsWith("-DCMAKE_MAKE_PROGRAM") }) {\n                throw new GradleException("Native Ninja executable already configured")\n            }\n            nativeCmakeArguments.add(nativeArgument)\n            nativeProject.afterEvaluate {\n                def nativeArguments = nativeCmakeArguments.findAll { it.startsWith("-DCMAKE_MAKE_PROGRAM") }\n                if (nativeArguments != [nativeArgument]) {\n                    throw new GradleException("Native Ninja executable override or removal forbidden")\n                }\n            }\n        }\n    }\n}\n'
 NATIVE_NINJA_ARGUMENTS = ['-DCMAKE_MAKE_PROGRAM=/work/native-ninja']
+NATIVE_NINJA_INSERT_BEFORE = 'apply plugin: "expo-root-project"\n'
 
 def install_native_compiler_control(fixture, work, receipt):
     root = fixture / 'android/build.gradle'
     raw = rp_read_regular(root, 2*1024**2)
     before = hashlib.sha256(raw).hexdigest()
-    if before != receipt['patches'][0]['afterSha256'] or b'CMAKE_MAKE_PROGRAM' in raw:
+    marker = NATIVE_NINJA_INSERT_BEFORE.encode()
+    if (before != receipt['patches'][0]['afterSha256'] or b'CMAKE_MAKE_PROGRAM' in raw
+            or raw.count(marker) != 1):
         raise ValueError('Native compiler generated root preimage mismatch')
     wrapper = work / 'native-ninja'
     with wrapper.open('xb') as destination:
         destination.write(NATIVE_NINJA_WRAPPER.encode())
     wrapper.chmod(0o500)
-    root.write_bytes(raw + NATIVE_NINJA_GRADLE.encode())
+    # Register before Expo's root plugin can eagerly evaluate children.
+    root.write_bytes(raw.replace(marker, NATIVE_NINJA_GRADLE.encode() + marker, 1))
     receipt['patches'].append({'path': str(root), 'beforeSha256': before,
         'afterSha256': hash_file(root), 'purpose': 'AGP direct Ninja ceiling2',
-        'appendSha256': hashlib.sha256(NATIVE_NINJA_GRADLE.encode()).hexdigest(),
+        'insertSha256': hashlib.sha256(NATIVE_NINJA_GRADLE.encode()).hexdigest(),
+        'insertBeforeSha256': hashlib.sha256(marker).hexdigest(),
+        'placement': 'before-expo-root-project-plugin',
         'cmakeArguments': list(NATIVE_NINJA_ARGUMENTS),
         'wrapper': {'path': '/work/native-ninja', 'bytes': len(NATIVE_NINJA_WRAPPER.encode()),
             'sha256': hash_file(wrapper), 'mode': '0500',

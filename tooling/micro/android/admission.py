@@ -760,10 +760,11 @@ def rp_binding_subject(binding, store):
 NATIVE_NINJA_WRAPPER = '#!/bin/sh\n# Private fixture only. Reject every caller-supplied concurrency override.\nfor native_arg in "$@"; do\n    case "$native_arg" in\n        --|-*j*|--jobs*)\n            printf \'%s\\n\' \'Native Ninja concurrency override or option boundary forbidden\' >&2\n            exit 64\n            ;;\n    esac\ndone\nexec /opt/android-sdk/cmake/3.22.1/bin/ninja -j2 "$@"\n'
 NATIVE_NINJA_GRADLE = '\n// Private fixture: AGP uses this executable for direct Ninja launches.\nsubprojects { nativeProject ->\n    ["com.android.application", "com.android.library"].each { nativePlugin ->\n        nativeProject.plugins.withId(nativePlugin) {\n            def nativeArgument = "-DCMAKE_MAKE_PROGRAM=/work/native-ninja"\n            def nativeCmakeArguments = nativeProject.extensions.getByName("android").defaultConfig.externalNativeBuild.cmake.arguments\n            if (nativeCmakeArguments.any { it.startsWith("-DCMAKE_MAKE_PROGRAM") }) {\n                throw new GradleException("Native Ninja executable already configured")\n            }\n            nativeCmakeArguments.add(nativeArgument)\n            nativeProject.afterEvaluate {\n                def nativeArguments = nativeCmakeArguments.findAll { it.startsWith("-DCMAKE_MAKE_PROGRAM") }\n                if (nativeArguments != [nativeArgument]) {\n                    throw new GradleException("Native Ninja executable override or removal forbidden")\n                }\n            }\n        }\n    }\n}\n'
 NATIVE_NINJA_ARGUMENTS = ['-DCMAKE_MAKE_PROGRAM=/work/native-ninja']
+NATIVE_NINJA_INSERT_BEFORE = 'apply plugin: "expo-root-project"\n'
 
 def native_compiler_patch(value: dict, root_patch: dict):
-    exact(value, {'path', 'beforeSha256', 'afterSha256', 'purpose', 'appendSha256',
-                  'cmakeArguments', 'wrapper'}, 'native compiler patch')
+    exact(value, {'path', 'beforeSha256', 'afterSha256', 'purpose', 'insertSha256',
+                  'insertBeforeSha256', 'placement', 'cmakeArguments', 'wrapper'}, 'native compiler patch')
     expected_wrapper = {'path': '/work/native-ninja', 'bytes': len(NATIVE_NINJA_WRAPPER.encode()),
         'sha256': hashlib.sha256(NATIVE_NINJA_WRAPPER.encode()).hexdigest(), 'mode': '0500',
         'realNinja': '/opt/android-sdk/cmake/3.22.1/bin/ninja', 'jobs': 2}
@@ -774,7 +775,9 @@ def native_compiler_patch(value: dict, root_patch: dict):
             or value['path'] != '/work/fixture/android/build.gradle'
             or value['beforeSha256'] != root_patch['afterSha256']
             or value['purpose'] != 'AGP direct Ninja ceiling2'
-            or value['appendSha256'] != hashlib.sha256(NATIVE_NINJA_GRADLE.encode()).hexdigest()):
+            or value['insertSha256'] != hashlib.sha256(NATIVE_NINJA_GRADLE.encode()).hexdigest()
+            or value['insertBeforeSha256'] != hashlib.sha256(NATIVE_NINJA_INSERT_BEFORE.encode()).hexdigest()
+            or value['placement'] != 'before-expo-root-project-plugin'):
         raise Rejected('Native compiler executable, ceiling, generated patch or argument changed')
     sha(value['afterSha256'])
 

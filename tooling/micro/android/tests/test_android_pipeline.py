@@ -385,7 +385,9 @@ class SyntheticFixture:
                              'purpose': 'Metro worker ceiling1'},
                             # Explicit FAKE compiler receipt, never a native build claim.
                             {'path': '/work/fixture/android/build.gradle', 'beforeSha256': 'c'*64, 'afterSha256': 'f'*64,
-                             'purpose': 'AGP direct Ninja ceiling2', 'appendSha256': digest(a.NATIVE_NINJA_GRADLE),
+                             'purpose': 'AGP direct Ninja ceiling2', 'insertSha256': digest(a.NATIVE_NINJA_GRADLE),
+                             'insertBeforeSha256': digest(a.NATIVE_NINJA_INSERT_BEFORE),
+                             'placement': 'before-expo-root-project-plugin',
                              'cmakeArguments': list(a.NATIVE_NINJA_ARGUMENTS),
                              'wrapper': {'path': '/work/native-ninja', 'bytes': len(a.NATIVE_NINJA_WRAPPER.encode()),
                                          'sha256': digest(a.NATIVE_NINJA_WRAPPER), 'mode': '0500',

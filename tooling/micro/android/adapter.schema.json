@@ -921,9 +921,11 @@
                 "beforeSha256",
                 "afterSha256",
                 "purpose",
-                "appendSha256",
+                "insertSha256",
                 "cmakeArguments",
-                "wrapper"
+                "wrapper",
+                "insertBeforeSha256",
+                "placement"
               ],
               "properties": {
                 "path": {
@@ -939,9 +941,6 @@
                 },
                 "purpose": {
                   "const": "AGP direct Ninja ceiling2"
-                },
-                "appendSha256": {
-                  "const": "8a816e866e07a463f0f1354f8a0304281b8903217fc2db7d75b88f100a40209f"
                 },
                 "cmakeArguments": {
                   "const": [
@@ -981,6 +980,15 @@
                       "const": 2
                     }
                   }
+                },
+                "insertSha256": {
+                  "const": "8a816e866e07a463f0f1354f8a0304281b8903217fc2db7d75b88f100a40209f"
+                },
+                "insertBeforeSha256": {
+                  "const": "3854f8093a1bd027572aeb0edb3fbd0f30f73887523f17b79fb3dcf0639bb29a"
+                },
+                "placement": {
+                  "const": "before-expo-root-project-plugin"
                 }
               }
             }
