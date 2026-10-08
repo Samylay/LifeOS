@@ -808,8 +808,8 @@
         },
         "patches": {
           "type": "array",
-          "minItems": 3,
-          "maxItems": 3,
+          "minItems": 4,
+          "maxItems": 4,
           "prefixItems": [
             {
               "type": "object",
@@ -910,6 +910,77 @@
                 },
                 "purpose": {
                   "const": "Metro worker ceiling1"
+                }
+              }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "path",
+                "beforeSha256",
+                "afterSha256",
+                "purpose",
+                "appendSha256",
+                "cmakeArguments",
+                "wrapper"
+              ],
+              "properties": {
+                "path": {
+                  "const": "/work/fixture/android/build.gradle"
+                },
+                "beforeSha256": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                },
+                "afterSha256": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                },
+                "purpose": {
+                  "const": "AGP direct Ninja ceiling2"
+                },
+                "appendSha256": {
+                  "const": "8a816e866e07a463f0f1354f8a0304281b8903217fc2db7d75b88f100a40209f"
+                },
+                "cmakeArguments": {
+                  "const": [
+                    "-DCMAKE_MAKE_PROGRAM=/work/native-ninja"
+                  ]
+                },
+                "wrapper": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "path",
+                    "bytes",
+                    "sha256",
+                    "mode",
+                    "realNinja",
+                    "jobs"
+                  ],
+                  "properties": {
+                    "path": {
+                      "const": "/work/native-ninja"
+                    },
+                    "bytes": {
+                      "type": "integer",
+                      "const": 361
+                    },
+                    "sha256": {
+                      "const": "4374a9cd327013038b7915b6c1f0680bb65baeeb2dc1e7167611828813a0c636"
+                    },
+                    "mode": {
+                      "const": "0500"
+                    },
+                    "realNinja": {
+                      "const": "/opt/android-sdk/cmake/3.22.1/bin/ninja"
+                    },
+                    "jobs": {
+                      "type": "integer",
+                      "const": 2
+                    }
+                  }
                 }
               }
             }

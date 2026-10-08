@@ -756,6 +756,29 @@ def rp_binding_subject(binding, store):
     return rp_subject(subject)
 
 
+# Fixed compiler control for this private fixture alone.
+NATIVE_NINJA_WRAPPER = '#!/bin/sh\n# Private fixture only. Reject every caller-supplied concurrency override.\nfor native_arg in "$@"; do\n    case "$native_arg" in\n        --|-*j*|--jobs*)\n            printf \'%s\\n\' \'Native Ninja concurrency override or option boundary forbidden\' >&2\n            exit 64\n            ;;\n    esac\ndone\nexec /opt/android-sdk/cmake/3.22.1/bin/ninja -j2 "$@"\n'
+NATIVE_NINJA_GRADLE = '\n// Private fixture: AGP uses this executable for direct Ninja launches.\nsubprojects { nativeProject ->\n    ["com.android.application", "com.android.library"].each { nativePlugin ->\n        nativeProject.plugins.withId(nativePlugin) {\n            def nativeArgument = "-DCMAKE_MAKE_PROGRAM=/work/native-ninja"\n            def nativeCmakeArguments = nativeProject.extensions.getByName("android").defaultConfig.externalNativeBuild.cmake.arguments\n            if (nativeCmakeArguments.any { it.startsWith("-DCMAKE_MAKE_PROGRAM") }) {\n                throw new GradleException("Native Ninja executable already configured")\n            }\n            nativeCmakeArguments.add(nativeArgument)\n            nativeProject.afterEvaluate {\n                def nativeArguments = nativeCmakeArguments.findAll { it.startsWith("-DCMAKE_MAKE_PROGRAM") }\n                if (nativeArguments != [nativeArgument]) {\n                    throw new GradleException("Native Ninja executable override or removal forbidden")\n                }\n            }\n        }\n    }\n}\n'
+NATIVE_NINJA_ARGUMENTS = ['-DCMAKE_MAKE_PROGRAM=/work/native-ninja']
+
+def native_compiler_patch(value: dict, root_patch: dict):
+    exact(value, {'path', 'beforeSha256', 'afterSha256', 'purpose', 'appendSha256',
+                  'cmakeArguments', 'wrapper'}, 'native compiler patch')
+    expected_wrapper = {'path': '/work/native-ninja', 'bytes': len(NATIVE_NINJA_WRAPPER.encode()),
+        'sha256': hashlib.sha256(NATIVE_NINJA_WRAPPER.encode()).hexdigest(), 'mode': '0500',
+        'realNinja': '/opt/android-sdk/cmake/3.22.1/bin/ninja', 'jobs': 2}
+    wrapper = value['wrapper']
+    exact(wrapper, set(expected_wrapper), 'native compiler wrapper')
+    if (type(wrapper['bytes']) is not int or type(wrapper['jobs']) is not int
+            or wrapper != expected_wrapper or value['cmakeArguments'] != NATIVE_NINJA_ARGUMENTS
+            or value['path'] != '/work/fixture/android/build.gradle'
+            or value['beforeSha256'] != root_patch['afterSha256']
+            or value['purpose'] != 'AGP direct Ninja ceiling2'
+            or value['appendSha256'] != hashlib.sha256(NATIVE_NINJA_GRADLE.encode()).hexdigest()):
+        raise Rejected('Native compiler executable, ceiling, generated patch or argument changed')
+    sha(value['afterSha256'])
+
+
 def native_job_verification(job: dict, binding: Binding, store: Store, job_reference: Evidence):
     """Keep and validate actual frozen worker facts, never drop them to fit."""
     exact(job, NATIVE_JOB_FIELDS, 'actual native job receipt')
@@ -824,7 +847,7 @@ def native_job_verification(job: dict, binding: Binding, store: Store, job_refer
     exact(preimages, {'build.gradle', 'app/build.gradle'}, 'generated Gradle preimages')
     for digest in preimages.values(): sha(digest)
     patches = job['patches']
-    if not isinstance(patches, list) or len(patches) != 3: raise Rejected('Native generated Gradle patch evidence missing')
+    if not isinstance(patches, list) or len(patches) != 4: raise Rejected('Native generated Gradle patch evidence missing')
     jitpack = "    maven { url 'https://www.jitpack.io' }\n"
     signing = "            // Caution! In production, you need to generate your own keystore file.\n            // see https://reactnative.dev/docs/signed-apk-android.\n            signingConfig signingConfigs.debug\n"
     replacement = "            // Private fixture emits an unsigned release for supervisor signing.\n"
@@ -838,6 +861,7 @@ def native_job_verification(job: dict, binding: Binding, store: Store, job_refer
     if patches[2]['path'] != patches[1]['path'] or patches[2]['beforeSha256'] != patches[1]['afterSha256'] or patches[2]['purpose'] != 'Metro worker ceiling1':
         raise Rejected('Native final Gradle patch chain differs from fixed worker')
     sha(patches[2]['afterSha256'])
+    native_compiler_patch(patches[3], patches[0])
     native_resources(job['resources'])
 
 

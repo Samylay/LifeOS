@@ -314,6 +314,40 @@ def rp_validate_output(directory, subject):
     return rp_validate_documents(documents, subject)
 
 
+# Fixed compiler control for this private fixture alone.
+NATIVE_NINJA_WRAPPER = '#!/bin/sh\n# Private fixture only. Reject every caller-supplied concurrency override.\nfor native_arg in "$@"; do\n    case "$native_arg" in\n        --|-*j*|--jobs*)\n            printf \'%s\\n\' \'Native Ninja concurrency override or option boundary forbidden\' >&2\n            exit 64\n            ;;\n    esac\ndone\nexec /opt/android-sdk/cmake/3.22.1/bin/ninja -j2 "$@"\n'
+NATIVE_NINJA_GRADLE = '\n// Private fixture: AGP uses this executable for direct Ninja launches.\nsubprojects { nativeProject ->\n    ["com.android.application", "com.android.library"].each { nativePlugin ->\n        nativeProject.plugins.withId(nativePlugin) {\n            def nativeArgument = "-DCMAKE_MAKE_PROGRAM=/work/native-ninja"\n            def nativeCmakeArguments = nativeProject.extensions.getByName("android").defaultConfig.externalNativeBuild.cmake.arguments\n            if (nativeCmakeArguments.any { it.startsWith("-DCMAKE_MAKE_PROGRAM") }) {\n                throw new GradleException("Native Ninja executable already configured")\n            }\n            nativeCmakeArguments.add(nativeArgument)\n            nativeProject.afterEvaluate {\n                def nativeArguments = nativeCmakeArguments.findAll { it.startsWith("-DCMAKE_MAKE_PROGRAM") }\n                if (nativeArguments != [nativeArgument]) {\n                    throw new GradleException("Native Ninja executable override or removal forbidden")\n                }\n            }\n        }\n    }\n}\n'
+NATIVE_NINJA_ARGUMENTS = ['-DCMAKE_MAKE_PROGRAM=/work/native-ninja']
+
+def install_native_compiler_control(fixture, work, receipt):
+    root = fixture / 'android/build.gradle'
+    raw = rp_read_regular(root, 2*1024**2)
+    before = hashlib.sha256(raw).hexdigest()
+    if before != receipt['patches'][0]['afterSha256'] or b'CMAKE_MAKE_PROGRAM' in raw:
+        raise ValueError('Native compiler generated root preimage mismatch')
+    wrapper = work / 'native-ninja'
+    with wrapper.open('xb') as destination:
+        destination.write(NATIVE_NINJA_WRAPPER.encode())
+    wrapper.chmod(0o500)
+    root.write_bytes(raw + NATIVE_NINJA_GRADLE.encode())
+    receipt['patches'].append({'path': str(root), 'beforeSha256': before,
+        'afterSha256': hash_file(root), 'purpose': 'AGP direct Ninja ceiling2',
+        'appendSha256': hashlib.sha256(NATIVE_NINJA_GRADLE.encode()).hexdigest(),
+        'cmakeArguments': list(NATIVE_NINJA_ARGUMENTS),
+        'wrapper': {'path': '/work/native-ninja', 'bytes': len(NATIVE_NINJA_WRAPPER.encode()),
+            'sha256': hash_file(wrapper), 'mode': '0500',
+            'realNinja': '/opt/android-sdk/cmake/3.22.1/bin/ninja', 'jobs': 2}})
+
+
+def verify_native_compiler_control(fixture, work, receipt):
+    observed = receipt['patches'][3]
+    wrapper = work / 'native-ninja'
+    if (hashlib.sha256(rp_read_regular(wrapper, 8192)).hexdigest() != observed['wrapper']['sha256']
+            or wrapper.stat().st_mode & 0o777 != 0o500
+            or hash_file(fixture / 'android/build.gradle') != observed['afterSha256']):
+        raise ValueError('Native compiler protected wrapper or generated root changed')
+
+
 def hash_file(p):
     h = hashlib.sha256()
     with p.open('rb') as f:
@@ -409,6 +443,7 @@ def main():
         before = hash_file(app)
         app.write_text(data.replace(pre, pre + '    extraPackagerArgs = ["--max-workers", "1"]\n'))
         receipt['patches'].append({'path': str(app), 'beforeSha256': before, 'afterSha256': hash_file(app), 'purpose': 'Metro worker ceiling1'})
+        install_native_compiler_control(fixture, work, receipt)
         if args.offline:
             shutil.copyfile('/seed/verification-metadata.xml', fixture / 'android/gradle/verification-metadata.xml')
         argv = ['/opt/gradle/bin/gradle', '-p', 'android', '--no-daemon', '--max-workers=1', '--no-build-cache', '--no-configuration-cache', '--console=plain', '--stacktrace', '--info', '--init-script=/seed/tools/trusted_repositories.init.gradle']
@@ -416,6 +451,7 @@ def main():
             argv += ['--offline', '--dependency-verification=strict']
         argv += ['app:assembleRelease']
         run(argv)
+        verify_native_compiler_control(fixture, work, receipt)
         receipt['rootPolicyValidation'] = rp_validate_output(output / 'graph', rp_tool_subject(Path('/seed/tools')))
         receipt['gsonRuntimePolicyValidation'] = gr_validate_output(output / 'graph', rp_tool_subject(Path('/seed/tools')))
         receipt['vendorAdapterPostbuild'] = verify_vendor_adapter(fixture, '/seed/tools/trusted-vendor-gradle-adapter.json')

@@ -382,7 +382,14 @@ class SyntheticFixture:
                             {'path': '/work/fixture/android/app/build.gradle', 'beforeSha256': 'b'*64, 'afterSha256': 'd'*64,
                              'oldSha256': digest(signing), 'newSha256': digest(replacement)},
                             {'path': '/work/fixture/android/app/build.gradle', 'beforeSha256': 'd'*64, 'afterSha256': 'e'*64,
-                             'purpose': 'Metro worker ceiling1'}]}
+                             'purpose': 'Metro worker ceiling1'},
+                            # Explicit FAKE compiler receipt, never a native build claim.
+                            {'path': '/work/fixture/android/build.gradle', 'beforeSha256': 'c'*64, 'afterSha256': 'f'*64,
+                             'purpose': 'AGP direct Ninja ceiling2', 'appendSha256': digest(a.NATIVE_NINJA_GRADLE),
+                             'cmakeArguments': list(a.NATIVE_NINJA_ARGUMENTS),
+                             'wrapper': {'path': '/work/native-ninja', 'bytes': len(a.NATIVE_NINJA_WRAPPER.encode()),
+                                         'sha256': digest(a.NATIVE_NINJA_WRAPPER), 'mode': '0500',
+                                         'realNinja': '/opt/android-sdk/cmake/3.22.1/bin/ninja', 'jobs': 2}}]}
 
     def build(self, index):
         owner = 'build'+str(index); raw = self.native_docker(owner)
