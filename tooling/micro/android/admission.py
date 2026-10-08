@@ -27,8 +27,8 @@ IDENTITIES = ('sourceArchive', 'sourceLock', 'policy', 'adapter', 'toolchain',
               'recipe', 'suite', 'recovery', 'npmSeal', 'mavenSeal', 'scannerPolicy')
 NATIVE_POLICY = {'image': IMAGE, 'user': '1000:1000', 'network': 'none',
                  'readOnly': True, 'privileged': False, 'capDrop': ['ALL'],
-                 'noNewPrivileges': True, 'memoryBytes': 6 * 1024**3,
-                 'memorySwapBytes': 6 * 1024**3, 'nanoCpus': 2_000_000_000,
+                 'noNewPrivileges': True, 'memoryBytes': 8 * 1024**3,
+                 'memorySwapBytes': 8 * 1024**3, 'nanoCpus': 2_000_000_000,
                  'pids': 384, 'credentialFree': True, 'inputsReadOnly': True,
                  'noHostHomeSocketAdb': True}
 

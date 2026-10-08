@@ -347,7 +347,7 @@ class SyntheticFixture:
                 'Config': {'User': '1000:1000', 'Labels': {'micro.native.owner': owner},
                            'Env': self.execution['environment'], 'Entrypoint': self.execution['entrypoint'], 'Cmd': self.execution['argv']},
                 'HostConfig': {'NetworkMode': 'none', 'ReadonlyRootfs': True, 'Privileged': False,
-                               'Memory': 6*1024**3, 'MemorySwap': 6*1024**3, 'NanoCpus': 2_000_000_000,
+                               'Memory': a.NATIVE_POLICY['memoryBytes'], 'MemorySwap': a.NATIVE_POLICY['memorySwapBytes'], 'NanoCpus': 2_000_000_000,
                                'PidsLimit': 384, 'CapDrop': ['ALL'], 'SecurityOpt': ['no-new-privileges'],
                                'Devices': [], 'PortBindings': {}, 'ExtraHosts': [], 'LogConfig': {'Type': 'none'}, 'Tmpfs': a.NATIVE_TMPFS},
                 'Mounts': [{'Type': 'bind', 'Destination': dest, 'RW': False,

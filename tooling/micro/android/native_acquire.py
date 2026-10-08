@@ -580,12 +580,12 @@ class Supervisor:
         for path in protected: (self.state / path).chmod(0o444)
         self.receipt['protectedSha256'] = protected
         self.receipt['npmSeedSealSha256'] = hashlib.sha256((npm_seed / 'seal.json').read_bytes()).hexdigest()
-        self.receipt['limits'] = {'memory': 6 * 1024**3, 'memorySwapTotal': 6 * 1024**3, 'cpus': 2, 'pids': 384, 'tmpfsWork': 8 * 1024**3, 'wallSeconds': 1800, 'logBytes': 20 * 1024**2, 'apkBytes': 512 * 1024**2}
+        self.receipt['limits'] = {'memory': 8 * 1024**3, 'memorySwapTotal': 8 * 1024**3, 'cpus': 2, 'pids': 384, 'tmpfsWork': 8 * 1024**3, 'wallSeconds': 1800, 'logBytes': 20 * 1024**2, 'apkBytes': 512 * 1024**2}
         self.receipt['headroomBefore'] = self.headroom()
-        if self.receipt['headroomBefore']['memoryAvailableBytes'] < 9 * 1024**3 or self.receipt['headroomBefore']['diskFreeBytes'] < 30 * 1024**3:
+        if self.receipt['headroomBefore']['memoryAvailableBytes'] < 13 * 1024**3 or self.receipt['headroomBefore']['diskFreeBytes'] < 30 * 1024**3:
             self.receipt['status'] = 'compile-headroom-blocked-no-job-started'
             (self.state / 'receipts/maven-acquisition.json').write_text(json.dumps(self.receipt, indent=2) + '\n')
-            raise ValueError('Native compile requires MemAvailable>=9GiB and diskfree>=30GiB')
+            raise ValueError('Native compile requires MemAvailable>=13GiB and diskfree>=30GiB')
         try:
             self.command('network-internal-create', ['docker', 'network', 'create', '--driver=bridge', '--internal', '--subnet=' + SUBNET, '--opt=com.docker.network.bridge.gateway_mode_ipv4=isolated', '--label=lifeos.factory.stage=native-acquisition', NAMES['internal']])
             self.receipt['created'].append(('network', NAMES['internal']))
@@ -619,11 +619,11 @@ class Supervisor:
             if {v['Name'] for v in egress['Containers'].values()} != {NAMES['proxy']}:
                 raise ValueError('Unexpected egress network member')
             mounts = ['--mount=type=bind,src=' + str(toolcopy) + ',dst=/seed/tools,readonly', '--mount=type=bind,src=' + str(self.state / 'protected/fixture') + ',dst=/seed/fixture,readonly', '--mount=type=bind,src=' + str(npm_seed / 'npm-cache') + ',dst=/seed/npm-cache,readonly', '--mount=type=bind,src=' + str(self.state / 'protected/patch-preimages.json') + ',dst=/seed/patch-preimages.json,readonly', '--mount=type=bind,src=' + str(self.state / 'output') + ',dst=/out']
-            self.command('client-create', ['docker', 'create', '--name=' + NAMES['client'], '--network=' + NAMES['internal'], '--dns=127.0.0.1', '--read-only', '--cap-drop=ALL', '--security-opt=no-new-privileges', '--user=1000:1000', '--log-driver=none', '--memory=6g', '--memory-swap=6g', '--cpus=2', '--pids-limit=384', '--tmpfs=/tmp:rw,nosuid,nodev,size=67108864,mode=1777', '--tmpfs=/work:rw,nosuid,nodev,exec,size=8589934592,uid=1000,gid=1000,mode=0700'] + mounts + ['--entrypoint=/bin/sh', IMAGE, '-c', 'python3 /seed/tools/native_network_probe.py --proxy ' + PROXY_IP + ' --maven && exec python3 /seed/tools/native_fixture_job.py'])
+            self.command('client-create', ['docker', 'create', '--name=' + NAMES['client'], '--network=' + NAMES['internal'], '--dns=127.0.0.1', '--read-only', '--cap-drop=ALL', '--security-opt=no-new-privileges', '--user=1000:1000', '--log-driver=none', '--memory=8g', '--memory-swap=8g', '--cpus=2', '--pids-limit=384', '--tmpfs=/tmp:rw,nosuid,nodev,size=67108864,mode=1777', '--tmpfs=/work:rw,nosuid,nodev,exec,size=8589934592,uid=1000,gid=1000,mode=0700'] + mounts + ['--entrypoint=/bin/sh', IMAGE, '-c', 'python3 /seed/tools/native_network_probe.py --proxy ' + PROXY_IP + ' --maven && exec python3 /seed/tools/native_fixture_job.py'])
             self.receipt['created'].append(('container', NAMES['client']))
             client = self.inspect('client-isolation-inspect', NAMES['client'])
             hc = client['HostConfig']
-            if client['Image'] != IMAGE or client['Config']['User'] != '1000:1000' or not hc['ReadonlyRootfs'] or hc['Memory'] != 6 * 1024**3 or hc['MemorySwap'] != hc['Memory'] or hc['PidsLimit'] != 384 or hc['NanoCpus'] != 2000000000 or hc.get('CapDrop') != ['ALL'] or 'no-new-privileges' not in hc['SecurityOpt'] or hc.get('PortBindings') or hc.get('ExtraHosts') or hc.get('Privileged'):
+            if client['Image'] != IMAGE or client['Config']['User'] != '1000:1000' or not hc['ReadonlyRootfs'] or hc['Memory'] != 8 * 1024**3 or hc['MemorySwap'] != hc['Memory'] or hc['PidsLimit'] != 384 or hc['NanoCpus'] != 2000000000 or hc.get('CapDrop') != ['ALL'] or 'no-new-privileges' not in hc['SecurityOpt'] or hc.get('PortBindings') or hc.get('ExtraHosts') or hc.get('Privileged'):
                 raise ValueError('Native client isolation readback mismatch')
             if set(client['NetworkSettings']['Networks']) != {NAMES['internal']} or client['NetworkSettings']['Networks'][NAMES['internal']].get('Gateway'):
                 raise ValueError('Native client network readback mismatch')

@@ -202,12 +202,12 @@ class OfflineSupervisor(Supervisor):
         error = None
         try:
             self.receipt['headroomBefore'] = self.headroom()
-            if self.receipt['headroomBefore']['memoryAvailableBytes'] < 9*1024**3 or self.receipt['headroomBefore']['diskFreeBytes'] < 30*1024**3:
-                raise ValueError('Offline compile requires available9GiB/free30GiB')
+            if self.receipt['headroomBefore']['memoryAvailableBytes'] < 11*1024**3 or self.receipt['headroomBefore']['diskFreeBytes'] < 30*1024**3:
+                raise ValueError('Offline compile requires available11GiB/free30GiB')
             self.receipt['seedManifestsBefore'] = native_inputs(self.binding,self.store)
             argv = ['docker','create','--name='+self.name,'--label=micro.native.owner='+self.owner,
                     '--network=none','--read-only','--cap-drop=ALL','--security-opt=no-new-privileges',
-                    '--user=1000:1000','--memory=6g','--memory-swap=6g','--cpus=2','--pids-limit=384','--log-driver=none']
+                    '--user=1000:1000','--memory=8g','--memory-swap=8g','--cpus=2','--pids-limit=384','--log-driver=none']
             argv += ['--tmpfs='+path+':'+options for path,options in NATIVE_TMPFS.items()]
             argv += ['--mount=type=bind,src='+str(self.store.path(tree['path']))+',dst='+destination+',readonly'
                      for destination,tree in self.inputs['seeds'].items()]
@@ -231,7 +231,7 @@ class OfflineSupervisor(Supervisor):
             events = dict(line.split() for line in job['resources']['memory.events'].splitlines())
             if any(int(events.get(k,0)) for k in ('max','oom','oom_kill','oom_group_kill')):
                 raise ValueError('Actual memory/OOM limit reached')
-            if int(job['resources']['memory.peak']) > 6*1024**3 or int(job['resources']['pids.peak']) > 384:
+            if int(job['resources']['memory.peak']) > 8*1024**3 or int(job['resources']['pids.peak']) > 384:
                 raise ValueError('Observed native resource bound exceeded')
             apk = self.store.describe((self.state/'output/fixture-release-unsigned.apk').relative_to(self.store.root).as_posix(),512*1024**2)
             if apk.bytes <= 0 or apk.sha256 != job['apk']['sha256'] or apk.bytes != job['apk']['bytes']:

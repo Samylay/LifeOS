@@ -28,7 +28,7 @@ def fake_receipt(f,job):
         '/seed/tools':f.store.path(parent+'/tools'),'/out':f.store.path(parent+'/output')}
     raw=f.native_docker('build0');raw['Name']='/micro-artifact-'+owner;raw['Id']=identifier
     raw['Args']=['/seed/tools/fixture_check_job.py'];raw['Config'].update(Cmd=raw['Args'],WorkingDir='/work',Labels={'micro.artifact.owner':owner})
-    raw['HostConfig'].update(Tmpfs=c.TMPFS,LogConfig={'Type':'none','Config':{}},Ulimits=[{'Name':n,'Soft':v,'Hard':v} for n,v in [('fsize',c.FILE_LIMIT),('nofile',256),('core',0)]])
+    raw['HostConfig'].update(Memory=6*1024**3,MemorySwap=6*1024**3,Tmpfs=c.TMPFS,LogConfig={'Type':'none','Config':{}},Ulimits=[{'Name':n,'Soft':v,'Hard':v} for n,v in [('fsize',c.FILE_LIMIT),('nofile',256),('core',0)]])
     from datetime import datetime,timezone
     raw['State'].update(StartedAt=datetime.fromtimestamp(f.now-4,timezone.utc).isoformat(),FinishedAt=datetime.fromtimestamp(f.now-1.5,timezone.utc).isoformat())
     raw['Mounts']=[{'Destination':n,'Source':str(path),'RW':n=='/out','Type':'bind'} for n,path in paths.items()]

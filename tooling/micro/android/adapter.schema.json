@@ -386,10 +386,10 @@
           "const": "none"
         },
         "memoryBytes": {
-          "const": 6442450944
+          "const": 8589934592
         },
         "memorySwapBytes": {
-          "const": 6442450944
+          "const": 8589934592
         },
         "nanoCpus": {
           "const": 2000000000
