@@ -28,11 +28,7 @@ COMMANDS = ('create', 'inspect-before', 'measurement', 'inspect-after', 'cleanup
 FILES = {'receipt.json': 2*LIMIT, 'tools/measure_signing_tools.py': 2*LIMIT,
          **{name+'.log': LIMIT for name in COMMANDS}}
 MEASUREMENT_PINS = {'signing_measurement_supervisor.py': '26b58ce302585dc095ed87cba64aa5b730191c10c214a551c828f4f1bac31529', 'measure_signing_tools.py': '55e5c15e83f0f7ff6339fdc42b2c613b08488701c34753f0e44700b08d6bc2c0', 'artifact_supervisor.py': '67ad0748e938bf939e80dfa987f317bc5ab7bb1ffd607be45d8c76144936852c'}
-ENVIRONMENT = ['PATH=/opt/jdk17/bin:/opt/gradle/bin:/usr/local/bin:/usr/bin:/bin',
-               'NODE_VERSION=24.19.0', 'YARN_VERSION=1.22.22', 'JAVA_HOME=/opt/jdk17',
-               'ANDROID_HOME=/opt/android-sdk', 'ANDROID_SDK_ROOT=/opt/android-sdk',
-               'EXPO_OFFLINE=1', 'EXPO_NO_TELEMETRY=1', 'HOME=/tmp',
-               'JAVA_TOOL_OPTIONS=-Djava.io.tmpdir=/tmp -Duser.home=/tmp']
+ENVIRONMENT = ['JAVA_TOOL_OPTIONS=-Djava.io.tmpdir=/tmp -Duser.home=/tmp', 'HOME=/tmp', 'PATH=/opt/jdk17/bin:/opt/gradle/bin:/usr/local/bin:/usr/bin:/bin', 'NODE_VERSION=24.19.0', 'YARN_VERSION=1.22.22', 'JAVA_HOME=/opt/jdk17', 'ANDROID_HOME=/opt/android-sdk', 'ANDROID_SDK_ROOT=/opt/android-sdk', 'EXPO_OFFLINE=1', 'EXPO_NO_TELEMETRY=1']
 SCOPE = 'three fixed public SDK tools only'
 
 
