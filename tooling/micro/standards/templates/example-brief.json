@@ -1,0 +1,15 @@
+{
+  "title": "Synthetic budgeting fixture",
+  "name": "Budget fixture",
+  "audience": "Synthetic test users recording manual expenses",
+  "problem": "Exercise a complete manual expense journey; no demand is established by this fixture",
+  "platform": "android",
+  "features": [
+    {"id":"expense-entry","title":"Record a manual expense","scope":"first","acceptance":"Given a synthetic account, entering an amount and category persists the exact declared value and updates totals; an interrupted save preserves the draft and does not claim success."},
+    {"id":"expense-correction","title":"Correct an expense","scope":"first","acceptance":"Editing a synthetic expense updates the same stable record and category total without duplicating the entry."},
+    {"id":"bank-import","title":"Evaluate bank integration","scope":"later","acceptance":"Determine credentials, provider, authorization, privacy and sector requirements before selecting this feature."}
+  ],
+  "vibe": "Synthetic direction: readable amounts, clear entry feedback and purposeful short motion. Product owner has not selected a real brand.",
+  "references": "No competitor screens are claimed. Run the actual AppLlama research workflow before selecting reference patterns.",
+  "business": "No pricing, revenue or purchase decision is established by this fixture."
+}
