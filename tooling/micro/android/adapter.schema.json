@@ -1006,7 +1006,7 @@
           ],
           "properties": {
             "manifestSha256": {
-              "const": "2bed93dd132469260221f6a31028b136dfc1901bafa00c0b474c62755b2611fa"
+              "const": "4e92e169011618caca972e97f4e56483450df97aaadc73e07dd41d7444b1e6ce"
             },
             "files": {
               "type": "array",
@@ -1067,7 +1067,7 @@
           ],
           "properties": {
             "manifestSha256": {
-              "const": "2bed93dd132469260221f6a31028b136dfc1901bafa00c0b474c62755b2611fa"
+              "const": "4e92e169011618caca972e97f4e56483450df97aaadc73e07dd41d7444b1e6ce"
             },
             "verifiedFiles": {
               "type": "integer",

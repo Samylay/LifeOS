@@ -29,8 +29,8 @@
       "path": "node_modules/react-native-screens/android/build.gradle"
     },
     {
-      "afterContext": "inVersion') ? rootProject.ext.get('kotlinVersion') : project.properties['RNSAC_kotlinVersion']\n\n    repositories {\n        mavenCentral()\n        google()\n    }\n\n    dependencies {\n        classpath(\"org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version\")\n        classpath(\"com.android.tools.build:gradle:7.3.1\")\n        classpath(\"com.diffplug.spotless:spotless-plugin-gradle:6.11.0\")\n    }\n}\n\nif (project == r",
-      "afterSha256": "a0291d8f38382fc36a8c270d546c5588ffe420048900bee1413533799b0d76ce",
+      "afterContext": "repositories {\n        mavenCentral()\n        google()\n    }\n\n    dependencies {\n        classpath(\"org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version\")\n        if (project == rootProject) {\n            classpath(\"com.android.tools.build:gradle:7.3.1\")\n            classpath(\"com.diffplug.spotless:spotless-plugin-gradle:6.11.0\")\n        }\n    }\n}\n\nif (project == rootProject) {\n    apply from: \"spotless.gradle\"\n    return\n}\n\n\ndef getExtOrDefault(name, defaultValue) {\n    return rootProject.",
+      "afterSha256": "be866baf0a706bc1374c3c98cc68b7b4426d5a8b182558208df5240f5db42827",
       "beforeContext": "inVersion') ? rootProject.ext.get('kotlinVersion') : project.properties['RNSAC_kotlinVersion']\n\n    repositories {\n        mavenCentral()\n        google()\n    }\n\n    dependencies {\n        classpath(\"org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version\")\n        classpath(\"com.android.tools.build:gradle:7.3.1\")\n        classpath(\"com.diffplug.spotless:spotless-plugin-gradle:6.11.0\")\n    }\n}\n\nif (project == r",
       "beforeSha256": "46ddf952d5733a4f0e08f5dd3291eabc4a7c01632d71936ebfff25a38f42d244",
       "edits": [
@@ -43,6 +43,11 @@
           "after": "com.facebook.react:react-android:0.86.3",
           "before": "com.facebook.react:react-native:+",
           "purpose": "Freeze legacy dynamic React alias to unchanged vendor-selected React Android0.86.3"
+        },
+        {
+          "after": "        if (project == rootProject) {\n            classpath(\"com.android.tools.build:gradle:7.3.1\")\n            classpath(\"com.diffplug.spotless:spotless-plugin-gradle:6.11.0\")\n        }\n",
+          "before": "        classpath(\"com.android.tools.build:gradle:7.3.1\")\n        classpath(\"com.diffplug.spotless:spotless-plugin-gradle:6.11.0\")\n",
+          "purpose": "Keep standaloneAGP/Spotless on vendorroot only, inherit existingrootAGP8.12.0 in fixture subprojects"
         }
       ],
       "npmIntegrity": "sha512-/9/MtQz8ODphjsLdZ+GZAIcC/RtoqW9EeShf7Uvnfgm/pzYrJ75y3PV/J1wuAV1T5Dye5ygq4EAW20RoBq0ABQ==",
@@ -52,8 +57,8 @@
       "path": "node_modules/react-native-safe-area-context/android/build.gradle"
     },
     {
-      "afterContext": "rop, fallback ->\n        rootProject.ext.has(prop) ? rootProject.ext.get(prop) : fallback\n    }\n    repositories {\n        google()\n        mavenCentral()\n    }\n\n    dependencies {\n        classpath(\"com.android.tools.build:gradle:7.2.0\")\n    }\n}\n\ndef getExtOrDefault(name) {\n  return rootProject.ext.has(name) ? rootProject.ext.get(name) : project.properties['ReactNativePicker_' + name]\n}\n\ndef getExtOrIntegerDefau",
-      "afterSha256": "3eb3141a20146030c0d3d18481c898d1d69d2e945240a49bb042c00dbb0e16ce",
+      "afterContext": "    rootProject.ext.has(prop) ? rootProject.ext.get(prop) : fallback\n    }\n    repositories {\n        google()\n        mavenCentral()\n    }\n\n    dependencies {\n        if (project == rootProject) {\n            classpath(\"com.android.tools.build:gradle:7.2.0\")\n        }\n    }\n}\n\ndef getExtOrDefault(name) {\n  return rootProject.ext.has(name) ? rootProject.ext.get(name) : project.properties['ReactNativePicker_' + name]\n}\n\ndef getExtOrIntegerDefault(name) {\n  return rootProject.ext.has(name) ? rootP",
+      "afterSha256": "a6a3feea92b92ab640cb8836e3ec8f9948ce30f077077ab017eabe24ec034c19",
       "beforeContext": "rop, fallback ->\n        rootProject.ext.has(prop) ? rootProject.ext.get(prop) : fallback\n    }\n    repositories {\n        google()\n        mavenCentral()\n    }\n\n    dependencies {\n        classpath(\"com.android.tools.build:gradle:7.2.0\")\n    }\n}\n\ndef getExtOrDefault(name) {\n  return rootProject.ext.has(name) ? rootProject.ext.get(name) : project.properties['ReactNativePicker_' + name]\n}\n\ndef getExtOrIntegerDefau",
       "beforeSha256": "8212800795a4f34b040cfef09c4124335a72b54eb21357416f0176a51e8d7f3b",
       "edits": [
@@ -66,6 +71,11 @@
           "after": "com.facebook.react:react-android:0.86.3",
           "before": "com.facebook.react:react-native:+",
           "purpose": "Freeze legacy dynamic React alias to unchanged vendor-selected React Android0.86.3"
+        },
+        {
+          "after": "        if (project == rootProject) {\n            classpath(\"com.android.tools.build:gradle:7.2.0\")\n        }\n",
+          "before": "        classpath(\"com.android.tools.build:gradle:7.2.0\")\n",
+          "purpose": "Keep standaloneAGP/Spotless on vendorroot only, inherit existingrootAGP8.12.0 in fixture subprojects"
         }
       ],
       "npmIntegrity": "sha512-Kf8h1AMnBo54b1fdiVylP2P/iFcZqzpMYcglC28EEFB1DEnOjsNr6Ucqc+3R9e91vHxEDnhZFbYDmAe79P2gjA==",
@@ -144,8 +154,8 @@
       "path": "node_modules/@react-native-community/datetimepicker/android/build.gradle"
     },
     {
-      "afterContext": "linVersion') ? rootProject.ext.get('kotlinVersion') : project.properties['RNGH_kotlinVersion']\n\n    repositories {\n        mavenCentral()\n        google()\n    }\n\n    dependencies {\n        classpath(\"org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version\")\n        classpath(\"com.android.tools.build:gradle:8.10.1\")\n        classpath(\"com.diffplug.spotless:spotless-plugin-gradle:7.0.4\")\n    }\n}\n\ndef isNewArchite",
-      "afterSha256": "0680e4cff7bd8a46fd7525abf5ab5a976b019c9c04d57afe2891364cc3c3bb82",
+      "afterContext": "repositories {\n        mavenCentral()\n        google()\n    }\n\n    dependencies {\n        classpath(\"org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version\")\n        if (project == rootProject) {\n            classpath(\"com.android.tools.build:gradle:8.10.1\")\n            classpath(\"com.diffplug.spotless:spotless-plugin-gradle:7.0.4\")\n        }\n    }\n}\n\ndef isNewArchitectureEnabled() {\n    // To opt-in for the New Architecture, you can either:\n    // - Set `newArchEnabled` to true inside the `gr",
+      "afterSha256": "a92be3c7382721db2f5ec6a3621fb9cb0befec0cc95c4919ef281e280c3c90ab",
       "beforeContext": "linVersion') ? rootProject.ext.get('kotlinVersion') : project.properties['RNGH_kotlinVersion']\n\n    repositories {\n        mavenCentral()\n        google()\n    }\n\n    dependencies {\n        classpath(\"org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version\")\n        classpath(\"com.android.tools.build:gradle:8.10.1\")\n        classpath(\"com.diffplug.spotless:spotless-plugin-gradle:7.0.4\")\n    }\n}\n\ndef isNewArchite",
       "beforeSha256": "6c4add444dec7a99a37d4c9f8f81cee46aaa6b7aaaefbaaf9a659fd5c81dbc49",
       "edits": [
@@ -153,6 +163,11 @@
           "after": "com.facebook.react:react-android:0.86.3",
           "before": "com.facebook.react:react-native:+",
           "purpose": "Freeze legacy dynamic React alias to unchanged vendor-selected React Android0.86.3"
+        },
+        {
+          "after": "        if (project == rootProject) {\n            classpath(\"com.android.tools.build:gradle:8.10.1\")\n            classpath(\"com.diffplug.spotless:spotless-plugin-gradle:7.0.4\")\n        }\n",
+          "before": "        classpath(\"com.android.tools.build:gradle:8.10.1\")\n        classpath(\"com.diffplug.spotless:spotless-plugin-gradle:7.0.4\")\n",
+          "purpose": "Keep standaloneAGP/Spotless on vendorroot only, inherit existingrootAGP8.12.0 in fixture subprojects"
         }
       ],
       "npmIntegrity": "sha512-uYIMOKlKENORq2SABE+jIjbPU+h5I/sQKcq2v16zRq848nwEp1fWRVwML4QWqijc8UcXJC25o54S8GQd4Mf2OA==",

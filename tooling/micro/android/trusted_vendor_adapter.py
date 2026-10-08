@@ -4,7 +4,7 @@ import hashlib
 import json
 from pathlib import Path, PurePosixPath
 
-MANIFEST_SHA256 = '2bed93dd132469260221f6a31028b136dfc1901bafa00c0b474c62755b2611fa'
+MANIFEST_SHA256 = '4e92e169011618caca972e97f4e56483450df97aaadc73e07dd41d7444b1e6ce'
 
 def manifest(path):
     data = Path(path).read_bytes()

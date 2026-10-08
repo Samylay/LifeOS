@@ -705,7 +705,7 @@ def native_runtime(value: dict, owner: str, store: Store, binding: Binding):
 
 
 # Fixed public policies reviewed for this fixture alone, not product defaults.
-FIXTURE_VENDOR_MANIFEST = '2bed93dd132469260221f6a31028b136dfc1901bafa00c0b474c62755b2611fa'
+FIXTURE_VENDOR_MANIFEST = '4e92e169011618caca972e97f4e56483450df97aaadc73e07dd41d7444b1e6ce'
 FIXTURE_LOCAL_MAVEN_MANIFEST = '3057f94e9f68195bd83191c20bd61e9f145b14bce4a9444c1d98b7b28cbc43ab'
 NATIVE_JVM_POLICY = {'gradleJvmArgs': '-Duser.home=/work/home -Xmx1024m -XX:MaxMetaspaceSize=512m -XX:ActiveProcessorCount=2',
                      'javaToolOptions': '-Duser.home=/work/home -XX:ActiveProcessorCount=2 -Xmx512m -XX:MaxMetaspaceSize=256m'}
