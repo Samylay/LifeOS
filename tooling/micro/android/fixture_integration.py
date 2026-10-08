@@ -111,6 +111,22 @@ def controller_authority() -> dict:
     return {name:_hash_file(KIT/name,2*1024**2) for name in CONTROLLER_CODE}
 
 
+def prepare_signing_toolchain(store, assembly_owner, original_toolchain, measurement):
+    """Copy reviewed tool authority into a new identity, never admit a draft."""
+    import signing_tools
+    if store.root!=CONTROLLER_ROOT or store.root.stat().st_mode & 0o077 or not re.fullmatch('[0-9a-f]{32}',assembly_owner):
+        raise a.Rejected('Fixed protected assembly Store required')
+    directory='assemblies/'+assembly_owner
+    if not store.path(directory).is_dir():raise a.Rejected('Existing reviewed assembly required')
+    if not isinstance(original_toolchain,a.Evidence):raise a.Rejected('Original protected toolchain Evidence required')
+    original=store.json(original_toolchain)
+    if original.get('image')!=a.IMAGE:raise a.Rejected('Original toolchain image differs')
+    block=signing_tools.copy_measurement(store,measurement,directory+'/signing-tool-measurement')
+    replacement={**original,'signingTools':block}
+    signing_tools.validate_toolchain(replacement,store)
+    return store.write(directory+'/signing-toolchain.json',replacement)
+
+
 @dataclass(frozen=True)
 class AdministrativeAcquisition:
     """An existing supervisor receipt pair selected outside product inputs."""

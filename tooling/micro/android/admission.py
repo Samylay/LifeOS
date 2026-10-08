@@ -39,6 +39,125 @@ ROOT_POLICY_MANIFEST_SHA256 = '9e6bfc29b7bb913d1c5df110ba2fdc6e9674d37f5b25296d2
 ROOT_POLICY_SCOPE = ('/work/fixture/android', ':', 'project-buildscript', 'classpath')
 ROOT_POLICY_TOOL_NAMES = ('native_fixture_job.py', 'trusted_repositories.init.gradle')
 
+GSON_POLICY_MANIFEST_JSON = '{"schema":1,"status":"private-proposal-uninstalled-compatibility-unverified","gradleVersion":"9.3.1","build":"/work/fixture/android","ownerProject":":expo-log-box","ownerDirectory":"/work/fixture/node_modules/@expo/log-box/android","ownerConfiguration":"implementation","group":"com.google.code.gson","module":"gson","floor":"2.8.9","semantics":"owner-implementation-require-floor-preserve-newer-release-winners","source":{"path":"/work/fixture/node_modules/@expo/log-box/android/build.gradle","bytes":2516,"sha256":"a0e049db9ff502a3cc786e249f575b8c399d9c4d5ebd1f433d41ca9710c33d37"},"npmPackage":"@expo/log-box","npmVersion":"57.0.4","sourceLockSha256":"ae8bbc085fd039716dde9ba98c1039069b93455972f42659c8dccc5cb66fb282","archiveBytes":278911,"archiveSha256":"daee7644cc5848ee49da7fa21c567695e73f755ba300023bdb0f4ba973432077","archiveSRI":"sha512-IxwS9s1L2muj8mj8AQSuiy7u8OFJdc02NRFo2me/Tj6DiaeG5SREqmpBE4rQpR2cadqSg5jl8Qab8Cjie616dg==","rootBuildscriptFloor":"2.11.0","requiredScopes":[{"project":":app","configuration":"releaseCompileClasspath","gsonRequired":false},{"project":":app","configuration":"releaseRuntimeClasspath","gsonRequired":true},{"project":":expo","configuration":"releaseCompileClasspath","gsonRequired":false},{"project":":expo","configuration":"releaseRuntimeClasspath","gsonRequired":true},{"project":":expo-log-box","configuration":"releaseCompileClasspath","gsonRequired":true},{"project":":expo-log-box","configuration":"releaseRuntimeClasspath","gsonRequired":true}]}\n'
+GSON_POLICY_MANIFEST_SHA256 = '0c9d6290238ef606927627cc2aa688a7ec458e7e623060db7cb6a3e34c5303bb'
+
+
+def gr_manifest():
+    raw = GSON_POLICY_MANIFEST_JSON.encode('utf-8')
+    if hashlib.sha256(raw).hexdigest() != GSON_POLICY_MANIFEST_SHA256:
+        raise ValueError('Protected Gson owner manifest changed')
+    return json.loads(raw)
+
+
+def gr_version_ok(value, floor='2.8.9'):
+    # Only unqualified canonical numeric releases are comparable here.
+    pattern = r'(?:0|[1-9][0-9]{0,5})(?:\.(?:0|[1-9][0-9]{0,5})){1,3}'
+    if type(value) is not str or len(value) > 32 or re.fullmatch(pattern, value) is None:
+        return False
+    normalize = lambda text: tuple(int(part) for part in text.split('.')) + (0,)*(4-len(text.split('.')))
+    return normalize(value) >= normalize(floor)
+
+
+def gr_constraint():
+    policy = gr_manifest()
+    return {'group':policy['group'],'module':policy['module'],'required':policy['floor'],
+            'preferred':'','strict':'','rejected':[],
+            'reason':'Reviewed Gson owner floor '+GSON_POLICY_MANIFEST_SHA256+' '+policy['ownerProject']}
+
+
+def gr_validate_graph(graph, subject):
+    manifest = gr_manifest(); subject = rp_subject(subject)
+    policy = graph.get('gsonRuntimeOwnerPolicy')
+    fields = {'schema','manifestSha256','semantics','toolSubject','ownerSource','ownerConstraint',
+              'installationVerified','allConstraints','chosen','unresolvedCount','unresolvedComplete',
+              'captureComplete','failures','selectedVersionsAccepted'}
+    if type(policy) is not dict or set(policy) != fields or type(policy['schema']) is not int or policy['schema'] != 1:
+        raise ValueError('Mandatory Gson runtime owner policy absent or malformed')
+    if policy['manifestSha256'] != GSON_POLICY_MANIFEST_SHA256 or policy['semantics'] != manifest['semantics'] or policy['toolSubject'] != subject or policy['ownerSource'] != manifest['source'] or policy['ownerConstraint'] != gr_constraint():
+        raise ValueError('Gson owner source, floor, subject or authority mismatch')
+    if policy['installationVerified'] is not True or policy['captureComplete'] is not True or policy['unresolvedComplete'] is not True or type(policy['unresolvedCount']) is not int or policy['unresolvedCount'] != 0 or policy['failures'] != [] or policy['selectedVersionsAccepted'] is not True:
+        raise ValueError('Gson scope incomplete, unresolved or rejected')
+    constraints = policy['allConstraints']
+    row_fields = {'group','module','required','preferred','strict','rejected','reason'}
+    if type(constraints) is not list:
+        raise ValueError('Gson configuration constraint inventory missing')
+    for row in constraints:
+        if type(row) is not dict or set(row) != row_fields or (row['group'] is not None and type(row['group']) is not str) or any(type(row[k]) is not str for k in ('module','required','preferred','strict')) or type(row['rejected']) is not list or any(type(v) is not str for v in row['rejected']) or (row['reason'] is not None and type(row['reason']) is not str):
+            raise ValueError('Malformed Gson actual configuration constraint')
+    if graph['project'] == manifest['ownerProject'] and constraints.count(gr_constraint()) != 1:
+        raise ValueError('Gson owner require floor not inherited exactly once')
+    winners = [row for row in graph['components'] if row['group'] == manifest['group'] and row['module'] == manifest['module']]
+    required = next(row['gsonRequired'] for row in manifest['requiredScopes'] if row['project'] == graph['project'] and row['configuration'] == graph['configuration'])
+    if len(winners) > 1 or (required and len(winners) != 1):
+        raise ValueError('Required Gson winner absent or duplicate')
+    chosen = policy['chosen']
+    chosen_fields = {'group','module','version','constrained','forced','conflictResolution','selectedByRule','reasons','reasonCaptureComplete'}
+    if type(chosen) is not list or len(chosen) != len(winners):
+        raise ValueError('Gson selected reason inventory disagrees with raw winners')
+    for row, winner in zip(chosen,winners):
+        if type(row) is not dict or set(row) != chosen_fields or {k:row[k] for k in ('group','module','version')} != winner or not gr_version_ok(row['version']):
+            raise ValueError('Gson selected winner below floor or unknown')
+        if any(type(row[k]) is not bool for k in ('constrained','forced','conflictResolution','selectedByRule','reasonCaptureComplete')) or row['forced'] or row['selectedByRule'] or row['reasonCaptureComplete'] is not True or (graph['project'] == manifest['ownerProject'] and not row['constrained']):
+            raise ValueError('Gson forced, ruled or incomplete selected reason')
+        if type(row['reasons']) is not list or not 0 < len(row['reasons']) <= 128 or any(type(reason) is not dict or set(reason) != {'cause','description'} or type(reason['cause']) is not str or not 0 < len(reason['cause']) <= 64 or type(reason['description']) is not str or not 0 < len(reason['description']) <= 1024 for reason in row['reasons']):
+            raise ValueError('Gson selection descriptions absent or unknown')
+
+
+def gr_validate_documents(documents, subject):
+    manifest = gr_manifest(); subject = rp_subject(subject)
+    scopes = {(manifest['build'],row['project'],'project',row['configuration']) for row in manifest['requiredScopes']}
+    if type(documents) is not list or not 0 < len(documents) <= 2048:
+        raise ValueError('Gson raw graph inventory outside existing count bound')
+    names=set(); observed=set(); scope_facts={}; graphs=[]; total=0; root_seen=False
+    for name,raw in documents:
+        if type(name) is not str or re.fullmatch(r'[A-Za-z0-9_.-]+\.json',name) is None or name in names or type(raw) is not bytes or not 0 < len(raw) <= 8*1024**2:
+            raise ValueError('Gson graph identity or existing file bound invalid')
+        names.add(name);total+=len(raw)
+        if total > 64*1024**2: raise ValueError('Gson graphs exceed unchanged aggregate bound')
+        graph=rp_decode(raw)
+        if type(graph) is not dict or any(type(graph.get(k)) is not str for k in ('build','project','scope','configuration')) or type(graph.get('components')) is not list:
+            raise ValueError('Malformed completed Gson graph scope')
+        for row in graph['components']:
+            if type(row) is not dict or set(row) != {'group','module','version'} or any(type(row[k]) is not str for k in row):
+                raise ValueError('Malformed raw component winner')
+            if row['group']==manifest['group'] and row['module']==manifest['module'] and not gr_version_ok(row['version']):
+                raise ValueError('Old or unknown Gson survives in a retained graph')
+        if sum(row['group']==manifest['group'] and row['module']==manifest['module'] for row in graph['components']) > 1:
+            raise ValueError('Duplicate Gson winner rows in a retained graph')
+        scope=tuple(graph[k] for k in ('build','project','scope','configuration'))
+        if scope in scopes or scope == ROOT_POLICY_SCOPE:
+            if scope in scope_facts and scope_facts[scope] != graph:
+                raise ValueError('Conflicting complete raw facts for one fixed Gson scope')
+            scope_facts[scope]=graph
+        if scope == ROOT_POLICY_SCOPE:
+            winners=[row for row in graph['components'] if row['group']==manifest['group'] and row['module']==manifest['module']]
+            if len(winners)!=1 or not gr_version_ok(winners[0]['version'],manifest['rootBuildscriptFloor']):
+                raise ValueError('Root buildscript Gson missing or downgraded below2.11.0')
+            root_seen=True
+        if scope not in scopes:
+            if 'gsonRuntimeOwnerPolicy' in graph: raise ValueError('Foreign scope cannot provide Gson owner receipt')
+            continue
+        gr_validate_graph(graph,subject);observed.add(scope)
+        graphs.append({'path':name,'bytes':len(raw),'sha256':hashlib.sha256(raw).hexdigest()})
+    if observed != scopes or not root_seen:
+        raise ValueError('Mandatory completed six release scopes or root buildscript missing')
+    return {'schema':'micro.android.gson-runtime-owner-validation/1','status':'validated-six-release-scopes-raw-receipts',
+            'manifestSha256':GSON_POLICY_MANIFEST_SHA256,'toolSubject':subject,'graphs':sorted(graphs,key=lambda row:row['path'])}
+
+
+def gr_validate_output(directory, subject):
+    directory=Path(directory).absolute()
+    if directory.is_symlink() or not directory.is_dir(): raise ValueError('Mandatory Gson graph directory absent or linked')
+    paths=sorted(directory.iterdir())
+    if not 0 < len(paths) <= 2048: raise ValueError('Gson graph inventory outside existing count bound')
+    documents=[];total=0
+    for path in paths:
+        raw=rp_read_regular(path,8*1024**2);total+=len(raw)
+        if total > 64*1024**2: raise ValueError('Gson graph bytes exceed unchanged aggregate bound')
+        documents.append((path.name,raw))
+    return gr_validate_documents(documents,subject)
+
 def rp_manifest():
     raw = ROOT_POLICY_MANIFEST_JSON.encode('utf-8')
     if hashlib.sha256(raw).hexdigest() != ROOT_POLICY_MANIFEST_SHA256:
@@ -593,7 +712,7 @@ NATIVE_JVM_POLICY = {'gradleJvmArgs': '-Duser.home=/work/home -Xmx1024m -XX:MaxM
 
 NATIVE_JOB_FIELDS = {'scope', 'offline', 'startedAt', 'finishedAt', 'commands', 'patches', 'resources', 'apk', 'status',
                      'vendorAdapter', 'vendorAdapterPostbuild', 'privateMavenBefore', 'privateMavenAfter',
-                     'localMavenPrebuild', 'localMavenPostbuild', 'jvmPolicy', 'rootPolicyValidation'}
+                     'localMavenPrebuild', 'localMavenPostbuild', 'jvmPolicy', 'rootPolicyValidation', 'gsonRuntimePolicyValidation'}
 
 
 def native_resources(value: dict):
@@ -650,6 +769,12 @@ def native_job_verification(job: dict, binding: Binding, store: Store, job_refer
         raise Rejected('Mandatory native root policy validation failed: ' + str(error)) from error
     if job['rootPolicyValidation'] != root_policy:
         raise Rejected('Worker summary differs from actual mandatory root graph receipts')
+    try:
+        gson_policy = gr_validate_output(store.path(str(PurePosixPath(job_reference.path).parent / 'graph')), rp_binding_subject(binding, store))
+    except ValueError as error:
+        raise Rejected('Mandatory native Gson runtime owner policy validation failed: ' + str(error)) from error
+    if job['gsonRuntimePolicyValidation'] != gson_policy:
+        raise Rejected('Worker summary differs from actual mandatory Gson release graph receipts')
     if job['jvmPolicy'] != NATIVE_JVM_POLICY:
         raise Rejected('Native worker JVM properties/environment differ from frozen policy')
     if binding.package != 'app.micro.factory.fixture' or job['scope'] != 'trusted-fixture-only':
@@ -892,13 +1017,23 @@ def admit_artifact(record: dict, binding: Binding, store: Store, now: float, max
     comparison = validate_build_pair(refs, binding, store, now, max_age)
     signing = store.json(Evidence.parse(record['signing']))
     exact(signing, {'schema', 'context', 'status', 'startedAt', 'finishedAt', 'unsignedApkSha256',
-                    'signedApkSha256', 'certificateSha256', 'exitCode', 'cleanup', 'log'}, 'supervisor signing receipt')
+                    'signedApkSha256', 'certificateSha256', 'exitCode', 'cleanup', 'log', 'rawReceipt', 'snapshot'}, 'supervisor signing receipt')
     context(signing['context'], binding); freshness(signing, now, max_age)
     if signing['schema'] != 'micro.android.signing/1' or signing['status'] != 'signed' or type(signing['exitCode']) is not int or signing['exitCode'] != 0 or signing['cleanup'] != {'absent': True}:
         raise Rejected('Trusted signing unavailable or unsuccessful')
     if signing['unsignedApkSha256'] != comparison['unsignedApkSha256'][0] or signing['signedApkSha256'] != apk.sha256 or signing['certificateSha256'] != binding.certificate_sha256:
         raise Rejected('Signing/source/build/artifact identity mismatch')
     store.read(Evidence.parse(signing['log']), 1024**2)
+    if __package__:
+        from .signing_tools import validate_toolchain as validate_signing_toolchain
+    else:
+        from signing_tools import validate_toolchain as validate_signing_toolchain
+    validate_signing_toolchain(store.json(binding.identities['toolchain']),store,now)
+    if __package__:
+        from .signing_normalization import validate_normalized
+    else:
+        from signing_normalization import validate_normalized
+    validate_normalized(signing, store, binding, refs, now, max_age)
     inspection = validate_inspector(Evidence.parse(record['inspector']), apk, binding, store, now, max_age)
     return {'schema': 'micro.android.artifact-admission/1', 'status': 'admitted-for-local-device-gates',
             'target': 'local-benchmark', 'context': binding.context(), 'apkSha256': apk.sha256,
@@ -958,6 +1093,7 @@ def native_mapping_context(reference: Evidence, binding: Binding, store: Store) 
     if sum(row['bytes'] for row in manifests) > 64*1024**2: raise Rejected('Resolved Maven graph aggregate exceeds 64MiB')
     try:
         rp_validate_documents(root_policy_documents, rp_binding_subject(binding, store))
+        gr_validate_documents(root_policy_documents, rp_binding_subject(binding, store))
     except ValueError as error:
         raise Rejected('Reviewed closure lacks valid mandatory root policy receipts: ' + str(error)) from error
     if not isinstance(closure['nativeBuilds'], list) or len(closure['nativeBuilds']) != 2:

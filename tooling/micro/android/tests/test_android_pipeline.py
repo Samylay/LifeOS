@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 import hashlib
 import json
 import os
+import stat
 from pathlib import Path
 import sys
 import tempfile
@@ -23,11 +24,92 @@ import artifact_supervisor as inspector
 import ci
 import pipeline as p
 import security_native as scanner
+import signing_normalization as signing
+import signing_authority as signing_authority
+from fake_signing_authority import measurement as fake_measurement
+from fake_signing_fixture import build_fake_signing, fake_certificate
+
+
+class AuthoredRootGraphPath(type(Path())):
+    """Only an explicitly registered FAKE root owns its six derived files."""
+    __slots__ = ('_delete_collection',)
+    def unlink(self, missing_ok=False):
+        callback = getattr(self, '_delete_collection', None)
+        if callback is None:
+            return super().unlink(missing_ok=missing_ok)
+        if missing_ok:
+            raise ValueError('FAKE compound deletion requires the existing primary file')
+        callback()
+
+
+class AuthoredGraphStore(a.Store):
+    """Real Store checks remain active; typed paths describe authored FAKE metadata."""
+    def __init__(self, root):
+        super().__init__(root)
+        self._fake_collections = {}
+    def path(self, relative):
+        path = super().path(relative)
+        if relative in self._fake_collections:
+            wrapped = AuthoredRootGraphPath(path)
+            wrapped._delete_collection = lambda: self._delete_authored_collection(relative)
+            return wrapped
+        return path
+    @staticmethod
+    def _file_identity(info):
+        return (info.st_dev, info.st_ino, info.st_mode, info.st_uid, info.st_nlink,
+                info.st_size, info.st_mtime_ns, info.st_ctime_ns)
+    def register_authored_collection(self, relative):
+        if not a.re.fullmatch(r'native-jobs/[0-9a-f]{32}/output/graph/root\.json', relative):
+            raise ValueError('Not an authored FAKE job graph collection')
+        root = super().path(relative)
+        names = ('root.json',) + tuple('gson-%d.json' % index for index in range(6))
+        if {path.name for path in root.parent.iterdir()} != set(names):
+            raise ValueError('Unexpected file in authored FAKE collection')
+        ancestors = {}
+        parent = root.parent
+        while True:
+            info = parent.lstat()
+            if not stat.S_ISDIR(info.st_mode) or info.st_uid != os.getuid() or (parent == self.root and info.st_mode & 0o077):
+                raise ValueError('FAKE collection must belong to the owned private temporary root')
+            ancestors[str(parent)] = (info.st_dev, info.st_ino, info.st_mode, info.st_uid)
+            if parent == self.root:break
+            if not parent.is_relative_to(self.root):raise ValueError('FAKE collection outside its owned fixture')
+            parent = parent.parent
+        files = {}
+        for name in names:
+            path = Path(root.parent) / name
+            info = path.lstat()
+            if not stat.S_ISREG(info.st_mode) or info.st_nlink != 1 or info.st_uid != os.getuid():
+                raise ValueError('FAKE collection requires independent owned regular files')
+            files[name] = (self._file_identity(info), hashlib.sha256(path.read_bytes()).hexdigest())
+        self._fake_collections[relative] = (ancestors, files)
+    def _delete_authored_collection(self, relative):
+        root = super().path(relative)
+        ancestors, files = self._fake_collections[relative]
+        if {path.name for path in root.parent.iterdir()} != set(files):
+            raise ValueError('Unknown or missing file in authored FAKE collection')
+        for name, expected in ancestors.items():
+            info = Path(name).lstat()
+            if (info.st_dev, info.st_ino, info.st_mode, info.st_uid) != expected or not stat.S_ISDIR(info.st_mode):
+                raise ValueError('Authored FAKE collection ancestor changed')
+        for name, (identity, digest) in files.items():
+            path = Path(root.parent) / name
+            info = path.lstat()
+            if self._file_identity(info) != identity or not stat.S_ISREG(info.st_mode) or hashlib.sha256(path.read_bytes()).hexdigest() != digest:
+                raise ValueError('Authored FAKE collection file changed')
+        # Exact registered paths only after checking the entire set. No recursive
+        # deletion, global Path patch, Store validator mock or production exception.
+        for name in files:
+            if name != 'root.json':(Path(root.parent) / name).unlink()
+        Path(root).unlink()
+        del self._fake_collections[relative]
 
 
 class SyntheticFixture:
     def __init__(self, directory):
-        self.store = a.Store(Path(directory)); self.count = 0; self.now = time.time()
+        self.store = AuthoredGraphStore(Path(directory)); self.count = 0; self.now = time.time()
+        self.fake_signer_root=self.store.path('FAKE-signer-source')
+        self.fake_signer_root.mkdir(mode=0o700)
         self.commands = [['npm', 'ci', '--offline', '--ignore-scripts'],
                          ['node', './node_modules/expo/bin/cli', 'prebuild', '--platform', 'android', '--no-install'],
                          ['/opt/gradle/bin/gradle', '--offline', 'app:assembleRelease']]
@@ -36,7 +118,9 @@ class SyntheticFixture:
         # APKs, worker/jobs/scans and observations below remain explicitly FAKE.
         identities['sourceLock'] = self.put(Path(a.__file__).with_name('fixtures').joinpath('native-smoke/package-lock.json').read_bytes())
         identities['scannerPolicy'] = self.put(scanner.POLICY)
-        identities['toolchain'] = self.put({'artifactToolsSha256': {'aapt': 'a'*64, 'apksigner': 'c'*64}})
+        with patch.object(signing_authority,'TEST_ONLY_SOURCE_ROOT',self.fake_signer_root):
+            measured=fake_measurement(self.store,self.fake_signer_root,self.now)
+        identities['toolchain'] = self.put({'artifactToolsSha256': {name: signing.TOOLS[name] for name in ('aapt', 'apksigner')},'signingTools':measured})
         source_tree = self.fake_tree('sealed/fixture', {'package-lock.json': self.store.read(identities['sourceLock']),
                                                      'package.json': b'FAKE package', 'app.js': b'FAKE app', 'app/index.tsx': b'FAKE fixture component for check replay only'})
         self.source_files = source_tree['files']
@@ -80,19 +164,15 @@ class SyntheticFixture:
                                          'sourceExporterSha256': 'e'*64, 'sourceExport': self.source_export.json(),
                                          'nativeInputs': native_inputs.json()})
         self.binding = a.Binding('synthetic-native-fixture', 'expo-android', '1'*40,
-                                identities, 'b'*64, self.now+3600, admitted=True)
+                                identities, signing.CERTIFICATE_SHA, self.now+3600, admitted=True,
+                                permissions=('app.micro.factory.fixture.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION',))
         self.registry = p.Registry(self.store, {(self.binding.project_id, 'expo-android'): self.binding})
         self.unsigned = self.put(b'FAKE unsigned APK unit fixture', '.apk')
         self.signed = self.put(b'FAKE signed APK unit fixture', '.apk')
         self.builds = [self.build(i) for i in range(2)]
         self.inspection = self.inspect()
-        self.signing = self.put({'schema': 'micro.android.signing/1', 'context': self.binding.context(),
-                                'status': 'signed', 'startedAt': self.now-5, 'finishedAt': self.now-1,
-                                'unsignedApkSha256': self.unsigned.sha256, 'signedApkSha256': self.signed.sha256,
-                                'certificateSha256': self.binding.certificate_sha256, 'exitCode': 0,
-                                'cleanup': {'absent': True}, 'log': self.put(b'FAKE signing output').json()})
-
         self.prepare_fake_native_mapping()
+        self.signing = build_fake_signing(self)
 
     def prepare_fake_native_mapping(self):
         # Explicit FAKE operator review for controller logic only. It makes no
@@ -100,12 +180,15 @@ class SyntheticFixture:
         self.native_purl = 'pkg:maven/fake.native/fixture@0.0.0'
         self.native_graph = self.put(self.fake_root_graph())
         self.native_manifest = [{'path': 'fake-runtime.json', 'sha256': self.native_graph.sha256, 'bytes': self.native_graph.bytes}]
+        release_graphs = {'fake-release-%d.json' % index:self.put(value).json() for index,value in enumerate(self.fake_gson_graphs())}
+        self.native_manifest += [{'path':name,'bytes':reference['bytes'],'sha256':reference['sha256']} for name,reference in release_graphs.items()]
+        self.native_manifest.sort(key=lambda row:row['path'])
         component_purls = ['pkg:npm/fake-component@0.0.0', self.native_purl]
         closure = self.put({'schema': 'micro.android.native-closure/1', 'context': self.binding.context(),
                             'status': 'complete-independent-review', 'sourceLockSha256': self.binding.identities['sourceLock'].sha256,
                             'mavenSealSha256': self.binding.identities['mavenSeal'].sha256,
                             'recipeSha256': self.binding.identities['recipe'].sha256,
-                            'mavenGraphs': {'fake-runtime.json': self.native_graph.json()}, 'componentPurls': component_purls,
+                            'mavenGraphs': {'fake-runtime.json': self.native_graph.json(), **release_graphs}, 'componentPurls': component_purls,
                             'nativeBuilds': [ref.json() for ref in self.builds],
                             'evidence': [self.put(b'FAKE independently reviewed native closure observations').json()]})
         library = {'path': 'lib/x86_64/libfake.so', 'sha256': 'c'*64, 'bytes': 42}
@@ -175,6 +258,14 @@ class SyntheticFixture:
             graph = self.store.path(parent+'/graph/root.json')
             graph.parent.mkdir(parents=True, mode=0o700)
             graph.write_bytes(a.canonical(self.fake_root_graph())+b'\n')
+            for index,gson_value in enumerate(self.fake_gson_graphs()):
+                graph.with_name('gson-%d.json' % index).write_bytes(a.canonical(gson_value)+b'\n')
+            self.store.register_authored_collection(parent+'/graph/root.json')
+        if isinstance(value, bytes) and name is not None and name.startswith('FAKE-graphs/graph-') and name.endswith('.json'):
+            # Authored bulk FAKE metadata rotates all seven mandatory scopes.
+            # Every old count/overflow assertion and every new raw hash remains real.
+            index = int(name.rsplit('graph-',1)[1].split('.',1)[0]) % 7
+            value = a.canonical(([self.fake_root_graph()] + self.fake_gson_graphs())[index])
         if isinstance(value, bytes):
             self.store.path(path).parent.mkdir(parents=True, mode=0o700, exist_ok=True)
             self.store.path(path).write_bytes(value)
@@ -197,13 +288,41 @@ class SyntheticFixture:
                    'reasonCaptureComplete': True} for row in manifest['modules']]
         return {**dict(zip(('build', 'project', 'scope', 'configuration'), a.ROOT_POLICY_SCOPE)),
                 'components': [{key: row[key] for key in ('group', 'module', 'version')} for row in chosen]+
-                              [{'group': 'fake.native', 'module': 'fixture', 'version': '0.0.0'}],
+                              [{'group': 'fake.native', 'module': 'fixture', 'version': '0.0.0'},
+                               {'group':'com.google.code.gson','module':'gson','version':'2.11.0'}],
                 'rootBuildscriptConstraintPolicy': {'schema': 3, 'failureSchema': 1,
                     'manifestSha256': a.ROOT_POLICY_MANIFEST_SHA256, 'semantics': manifest['semantics'],
                     'toolSubject': subject, 'captureComplete': True, 'installedConstraints': constraints,
                     'allConstraints': copy.deepcopy(constraints), 'chosen': chosen, 'unresolved': [],
                     'unresolvedCount': 0, 'unresolvedTruncated': False, 'unresolvedComplete': True,
                     'failures': [], 'selectedVersionsAccepted': True}}
+
+    def fake_gson_graphs(self):
+        # FAKE authored scope/constraint/winner metadata only, no resolver executes.
+        manifest = a.gr_manifest()
+        subject = self.fake_root_graph()['rootBuildscriptConstraintPolicy']['toolSubject']
+        graphs = []
+        for row in manifest['requiredScopes']:
+            chosen = [{'group':manifest['group'],'module':manifest['module'],'version':'2.8.9',
+                       'constrained':True,'forced':False,'conflictResolution':False,'selectedByRule':False,
+                       'reasons':[{'cause':'CONSTRAINT','description':'FAKE authored owner floor selection'}],
+                       'reasonCaptureComplete':True}] if row['gsonRequired'] else []
+            graphs.append({'build':manifest['build'],'project':row['project'],'scope':'project',
+                           'configuration':row['configuration'],
+                           'components':[{k:value[k] for k in ('group','module','version')} for value in chosen],
+                           'gsonRuntimeOwnerPolicy':{'schema':1,'manifestSha256':a.GSON_POLICY_MANIFEST_SHA256,
+                               'semantics':manifest['semantics'],'toolSubject':subject,'ownerSource':manifest['source'],
+                               'ownerConstraint':a.gr_constraint(),'installationVerified':True,
+                               'allConstraints':[a.gr_constraint()] if row['project']==manifest['ownerProject'] else [],
+                               'chosen':chosen,'unresolvedCount':0,'unresolvedComplete':True,'captureComplete':True,
+                               'failures':[],'selectedVersionsAccepted':True}})
+        return graphs
+
+    def fake_gson_summary(self):
+        documents = [('root.json',a.canonical(self.fake_root_graph())+b'\n')]
+        documents += [('gson-%d.json' % index,a.canonical(value)+b'\n') for index,value in enumerate(self.fake_gson_graphs())]
+        return a.gr_validate_documents(documents,self.fake_root_graph()['rootBuildscriptConstraintPolicy']['toolSubject'])
+
 
     def fake_root_summary(self):
         raw = a.canonical(self.fake_root_graph())+b'\n'
@@ -268,7 +387,7 @@ class SyntheticFixture:
     def build(self, index):
         owner = 'build'+str(index); raw = self.native_docker(owner)
         start, finish = self.now-9+index*4, self.now-6+index*4
-        job = {'rootPolicyValidation': self.fake_root_summary(), 'jvmPolicy': a.NATIVE_JVM_POLICY.copy(), 'scope': 'trusted-fixture-only', 'offline': True, 'startedAt': start+0.1, 'finishedAt': finish-0.1,
+        job = {'gsonRuntimePolicyValidation':self.fake_gson_summary(), 'rootPolicyValidation': self.fake_root_summary(), 'jvmPolicy': a.NATIVE_JVM_POLICY.copy(), 'scope': 'trusted-fixture-only', 'offline': True, 'startedAt': start+0.1, 'finishedAt': finish-0.1,
                'commands': [{'argv': argv, 'exitCode': 0, 'seconds': 1} for argv in self.commands],
                **self.fake_worker_verifications(), 'resources': {'memory.current':'1', 'memory.peak':'1',
                            'memory.swap.current':'0', 'memory.swap.peak':'0', 'pids.current':'1', 'pids.peak':'1',
@@ -298,9 +417,9 @@ class SyntheticFixture:
                'State': {'Running': False, 'OOMKilled': False, 'ExitCode': 0, 'Error': ''}}
         inspected = {'schema': 'micro.android.apk-inspection/1', 'status': 'inspected', 'apkSha256': self.signed.sha256,
                      'apkBytes': self.signed.bytes, 'bundle': {'sha256': 'f'*64, 'bytes': 100},
-                     'certificateSha256': self.binding.certificate_sha256, 'toolSha256': {'aapt': 'a'*64, 'apksigner': 'c'*64},
+                     'certificateSha256': self.binding.certificate_sha256, 'toolSha256': {name: signing.TOOLS[name] for name in ('aapt', 'apksigner')},
                      'metadata': {'package': self.binding.package, 'versionCode': 1, 'versionName': '1.0.0',
-                                  'minSdk': 24, 'targetSdk': 36, 'debuggable': False, 'permissions': [], 'abis': ['x86_64']}}
+                                  'minSdk': 24, 'targetSdk': 36, 'debuggable': False, 'permissions': list(self.binding.permissions), 'abis': ['x86_64']}}
         outputs = {'create': b'd'*64+b'\n', 'inspect-before': a.canonical([raw]), 'inspect-after': a.canonical([raw]),
                    'inspection': a.canonical(inspected)+b'\n', 'cleanup-owner': a.canonical([raw]),
                    'cleanup-remove': b'd'*64+b'\n', 'cleanup-absent': b'Error: No such object: '+b'd'*64,
@@ -435,6 +554,11 @@ class SyntheticFixture:
         with ExitStack() as scope:
             for module, name, value in (
                 (p, 'CONTROLLER_ROOT', self.store.root),
+                (signing, 'SOURCE_ROOT', self.fake_signer_root),
+                (signing_authority,'TEST_ONLY_SOURCE_ROOT',self.fake_signer_root),
+                # Preserve the authored FAKE source's foreign recovery identity.
+                (signing, 'FIXTURE_SOURCE', self.binding.source_sha),
+                (signing, 'public_certificate', fake_certificate),
                 (checks, 'SOURCE_SHA', self.binding.source_sha),
                 (checks, 'TREE_SHA', tree['manifestSha256']),
                 (checks, 'COMPONENT_SHA', component),

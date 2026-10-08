@@ -264,12 +264,117 @@ def captureRootConstraints = { config, String buildLabel, String scope, String p
 }
 
 
+// Proposed fixed runtime owner floor. No vendor/npm source mutation.
+def gsonOwnerManifestJson = '''{"schema":1,"status":"private-proposal-uninstalled-compatibility-unverified","gradleVersion":"9.3.1","build":"/work/fixture/android","ownerProject":":expo-log-box","ownerDirectory":"/work/fixture/node_modules/@expo/log-box/android","ownerConfiguration":"implementation","group":"com.google.code.gson","module":"gson","floor":"2.8.9","semantics":"owner-implementation-require-floor-preserve-newer-release-winners","source":{"path":"/work/fixture/node_modules/@expo/log-box/android/build.gradle","bytes":2516,"sha256":"a0e049db9ff502a3cc786e249f575b8c399d9c4d5ebd1f433d41ca9710c33d37"},"npmPackage":"@expo/log-box","npmVersion":"57.0.4","sourceLockSha256":"ae8bbc085fd039716dde9ba98c1039069b93455972f42659c8dccc5cb66fb282","archiveBytes":278911,"archiveSha256":"daee7644cc5848ee49da7fa21c567695e73f755ba300023bdb0f4ba973432077","archiveSRI":"sha512-IxwS9s1L2muj8mj8AQSuiy7u8OFJdc02NRFo2me/Tj6DiaeG5SREqmpBE4rQpR2cadqSg5jl8Qab8Cjie616dg==","rootBuildscriptFloor":"2.11.0","requiredScopes":[{"project":":app","configuration":"releaseCompileClasspath","gsonRequired":false},{"project":":app","configuration":"releaseRuntimeClasspath","gsonRequired":true},{"project":":expo","configuration":"releaseCompileClasspath","gsonRequired":false},{"project":":expo","configuration":"releaseRuntimeClasspath","gsonRequired":true},{"project":":expo-log-box","configuration":"releaseCompileClasspath","gsonRequired":true},{"project":":expo-log-box","configuration":"releaseRuntimeClasspath","gsonRequired":true}]}
+'''
+def gsonOwnerManifestSha256 = '0c9d6290238ef606927627cc2aa688a7ec458e7e623060db7cb6a3e34c5303bb'
+if (java.security.MessageDigest.getInstance('SHA-256').digest(gsonOwnerManifestJson.getBytes('UTF-8')).encodeHex().toString() != gsonOwnerManifestSha256) throw new GradleException('Gson owner manifest bytes changed')
+def gsonOwnerManifest = new groovy.json.JsonSlurper().parseText(gsonOwnerManifestJson)
+def gsonOwnerPolicy = null
+def gsonRequiredScope = { String build, String scope, String project, String config ->
+  build == gsonOwnerManifest.build && scope == 'project' && gsonOwnerManifest.requiredScopes.any { it.project == project && it.configuration == config }
+}
+def gsonVersionAtLeast = { String version, String floor ->
+  if (version == null || version.length() > 32 || !version.matches('(?:0|[1-9][0-9]{0,5})(?:\\.(?:0|[1-9][0-9]{0,5})){1,3}')) return false
+  def actual = version.tokenize('.').collect { it.toInteger() }
+  def minimum = floor.tokenize('.').collect { it.toInteger() }
+  for (int index = 0; index < 4; index++) {
+    int left = index < actual.size() ? actual[index] : 0
+    int right = index < minimum.size() ? minimum[index] : 0
+    if (left != right) return left > right
+  }
+  true
+}
+def gsonExpectedConstraint = [group: gsonOwnerManifest.group, module: gsonOwnerManifest.module,
+  required: gsonOwnerManifest.floor, preferred: '', strict: '', rejected: [],
+  reason: 'Reviewed Gson owner floor ' + gsonOwnerManifestSha256 + ' ' + gsonOwnerManifest.ownerProject]
+def verifyGsonOwnerSource = {
+  def source = new File(gsonOwnerManifest.source.path)
+  def parent = source.toPath()
+  while (parent != null) {
+    if (java.nio.file.Files.isSymbolicLink(parent)) throw new GradleException('Gson owner source/ancestor link')
+    parent = parent.parent
+  }
+  if (!java.nio.file.Files.isRegularFile(source.toPath(), java.nio.file.LinkOption.NOFOLLOW_LINKS) || source.length() != gsonOwnerManifest.source.bytes) throw new GradleException('Gson owner source shape changed')
+  def bytes = source.bytes
+  def observed = [path: source.absolutePath, bytes: bytes.length, sha256: java.security.MessageDigest.getInstance('SHA-256').digest(bytes).encodeHex().toString()]
+  if (observed != gsonOwnerManifest.source) throw new GradleException('Gson owner exact published preimage changed')
+  observed
+}
+def verifyGsonOwnerInstallation = {
+  if (gsonOwnerPolicy == null || !gsonOwnerPolicy.configuration.allDependencyConstraints.contains(gsonOwnerPolicy.constraint) || describeConstraint(gsonOwnerPolicy.constraint) != gsonExpectedConstraint) throw new GradleException('Gson owner implementation floor absent or changed')
+  verifyGsonOwnerSource()
+}
+def installGsonOwnerFloor = { project ->
+  if (project.rootDir.toString() != gsonOwnerManifest.build || project.path.toString() != gsonOwnerManifest.ownerProject) return
+  if (gradle.gradleVersion != gsonOwnerManifest.gradleVersion || project.projectDir.toString() != gsonOwnerManifest.ownerDirectory || project.buildFile.absolutePath != gsonOwnerManifest.source.path) throw new GradleException('Gson owner fixed build/source scope differs')
+  verifyGsonOwnerSource()
+  project.plugins.withId('com.android.library') {
+    if (gsonOwnerPolicy != null) throw new GradleException('Duplicate Gson owner installation')
+    def implementation = project.configurations.getByName(gsonOwnerManifest.ownerConfiguration)
+    if (implementation.state != org.gradle.api.artifacts.Configuration.State.UNRESOLVED) throw new GradleException('Gson owner configuration resolved before floor')
+    def constraint = project.dependencies.constraints.add('implementation', [group:gsonOwnerManifest.group, name:gsonOwnerManifest.module, version:gsonOwnerManifest.floor])
+    constraint.version { version -> version.require(gsonOwnerManifest.floor) }
+    constraint.because(gsonExpectedConstraint.reason)
+    gsonOwnerPolicy = [configuration: implementation, constraint: constraint]
+    verifyGsonOwnerInstallation()
+  }
+}
+def captureGsonOwnerPolicy = { config, String build, String scope, String project ->
+  if (!gsonRequiredScope(build, scope, project, config.name)) return null
+  def policy = [schema: 1, manifestSha256: gsonOwnerManifestSha256, semantics: gsonOwnerManifest.semantics,
+    toolSubject: rootConstraintToolSubject, ownerSource: null, ownerConstraint: null,
+    installationVerified: false, allConstraints: [], chosen: [], unresolvedCount: null,
+    unresolvedComplete: false, captureComplete: false, failures: [], selectedVersionsAccepted: false]
+  try {
+    policy.ownerSource = verifyGsonOwnerInstallation()
+    policy.ownerConstraint = describeConstraint(gsonOwnerPolicy.constraint)
+    policy.installationVerified = true
+    config.allDependencyConstraints.each { policy.allConstraints << describeConstraint(it) }
+    if (project == gsonOwnerManifest.ownerProject && policy.allConstraints.count { it == gsonExpectedConstraint } != 1) throw new GradleException('Gson owner release does not inherit exactly one floor')
+    config.incoming.resolutionResult.allComponents.each { component ->
+      if (component.id instanceof ModuleComponentIdentifier && component.id.group == gsonOwnerManifest.group && component.id.module == gsonOwnerManifest.module) {
+        def chosen = [group:component.id.group, module:component.id.module, version:component.id.version,
+          constrained:null, forced:null, conflictResolution:null, selectedByRule:null, reasons:[], reasonCaptureComplete:false]
+        policy.chosen << chosen
+        def reason = component.selectionReason
+        chosen.constrained = reason.constrained; chosen.forced = reason.forced
+        chosen.conflictResolution = reason.conflictResolution; chosen.selectedByRule = reason.selectedByRule
+        if (reason.descriptions.size() == 0 || reason.descriptions.size() > 128) throw new GradleException('Gson selected reasons unknown or beyond bound')
+        reason.descriptions.each { descriptor ->
+          def cause = descriptor.cause.toString(); def description = descriptor.description
+          if (cause == null || cause.length() == 0 || cause.length() > 64 || description == null || description.length() == 0 || description.length() > 1024) throw new GradleException('Gson selected reason description unknown or beyond bound')
+          chosen.reasons << [cause:cause, description:description]
+        }
+        chosen.reasonCaptureComplete = true
+      }
+    }
+    policy.unresolvedCount = config.incoming.resolutionResult.allDependencies.count { it instanceof org.gradle.api.artifacts.result.UnresolvedDependencyResult }
+    policy.unresolvedComplete = true
+    def required = gsonOwnerManifest.requiredScopes.find { it.project == project && it.configuration == config.name }.gsonRequired
+    if (policy.chosen.size() > 1 || (required && policy.chosen.size() != 1)) policy.failures << policyFailureRecord('gson-missing-or-duplicate-winner', [:])
+    policy.chosen.each { chosen ->
+      if (!gsonVersionAtLeast(chosen.version, gsonOwnerManifest.floor) || chosen.forced || chosen.selectedByRule || (project == gsonOwnerManifest.ownerProject && !chosen.constrained)) policy.failures << policyFailureRecord('gson-selected-below-floor-or-forced-or-rule', [observed:[chosen.version]])
+    }
+    if (policy.unresolvedCount != 0) policy.failures << policyFailureRecord('gson-unresolved-release-scope', [:])
+    policy.captureComplete = true
+    policy.selectedVersionsAccepted = policy.failures.isEmpty()
+  } catch (Throwable error) {
+    policy.failures << policyFailureRecord('gson-policy-capture-error', [error:describePolicyError(error)])
+    policy.selectedVersionsAccepted = false
+  }
+  policy
+}
+
 def guardConfigurations = { configurations, String buildLabel, String scope, String projectLabel ->
   configurations.configureEach { config ->
     config.resolutionStrategy.failOnDynamicVersions()
     config.resolutionStrategy.failOnChangingVersions()
     config.resolutionStrategy.eachDependency { details ->
       if (mutable(details.requested.version)) throw new GradleException('Mutable dependency requested: ' + details.requested)
+    }
+    config.incoming.beforeResolve {
+      if (projectLabel == gsonOwnerManifest.ownerProject && gsonRequiredScope(buildLabel, scope, projectLabel, config.name)) verifyGsonOwnerInstallation()
     }
     config.incoming.afterResolve {
       def graph = []
@@ -313,6 +418,12 @@ def guardConfigurations = { configurations, String buildLabel, String scope, Str
       }
       // Retain the complete graph and captured selection reasons before rejection.
       if (rootPolicyReceipt != null && !rootPolicyReceipt.selectedVersionsAccepted) throw new GradleException('Root classpath candidate selection differs from reviewed manifest: ' + receipt.name)
+      def gsonReceipt = captureGsonOwnerPolicy(config, buildLabel, scope, projectLabel)
+      if (gsonReceipt != null) {
+        value.gsonRuntimeOwnerPolicy = gsonReceipt
+        replaceGraphReceipt(receipt, value)
+        if (!gsonReceipt.selectedVersionsAccepted) throw new GradleException('Gson runtime owner floor rejected: ' + receipt.name)
+      }
     }
   }
 }
@@ -325,6 +436,7 @@ gradle.beforeSettings { settings ->
 }
 gradle.beforeProject { project ->
   installRootConstraints(project)
+  installGsonOwnerFloor(project)
   guardRepos(project.repositories)
   guardRepos(project.buildscript.repositories)
   guardConfigurations(project.configurations, project.rootDir.toString(), 'project', project.path.toString())

@@ -5,12 +5,14 @@ import json
 from pathlib import Path
 import re
 import shutil
+import hashlib
 from uuid import uuid4
 
 from artifact_supervisor import admit_apk, bounded, cleanup_owned, digest, require_command
+import signing_authority as authority
 
 IMAGE = 'sha256:43778b0b9227ffc8d12a9092f011f09238a77c92b5fcde6a18310757ccef7305'
-STATE = Path('/home/quorky/apps/lifeos/.scratch/software-factory-benchmark/run-20260930/controller/native-signing')
+STATE = authority.SOURCE_ROOT
 PUBLIC_KEY = Path('/home/quorky/apps/lifeos/.scratch/software-factory-benchmark/run-20260930/controller/native-acquisition/public-benchmark-signing-input/debug.keystore')
 KEY_SHA256 = '221e0a3106aa4c3ccc154e0a418b55020b3f9ea6e84f92e8749cd9e2f39f5e58'
 
@@ -35,7 +37,12 @@ def policy(observed, identifier, owner, paths):
     return checks
 
 
-def sign(unsigned, expected_sha256, label):
+def sign(unsigned, expected_sha256, label, *, authorization=None):
+    """Unregistered internal lifecycle primitive, never a factory admission API.
+
+    Low-level-only receipts lack administrative authorization and cannot replay
+    through signing_normalization. Factory callers use sign_administratively.
+    """
     if not re.fullmatch(r'[a-z0-9-]{1,64}',label) or not re.fullmatch(r'[0-9a-f]{64}',expected_sha256):
         raise ValueError('Exact admitted unsigned identity and owned label required')
     STATE.mkdir(mode=0o700,exist_ok=True)
@@ -45,6 +52,8 @@ def sign(unsigned, expected_sha256, label):
     receipt={'schema':'micro.fixture-signing-supervisor/1','owner':owner,'image':IMAGE,
              'supervisorSha256':digest(Path(__file__)),'startedAt':datetime.now(timezone.utc).isoformat(),
              'commands':[],'status':'started','cleanup':None,'scope':'public fixture test signing only'}
+    if authorization is not None:
+        receipt['authorization']=authorization.json()
     def command(argv,label,seconds=30):
         result=bounded(argv,output/(label+'.log'),seconds);receipt['commands'].append(result);return result
     try:
@@ -98,6 +107,61 @@ def sign(unsigned, expected_sha256, label):
             receipt['cleanup']={'absent':False,'error':str(problem)[:1200]}
             if error is None:error=problem;receipt['status']='failed'
         receipt['finishedAt']=datetime.now(timezone.utc).isoformat()
-        (output/'receipt.json').write_text(json.dumps(receipt,indent=2)+'\n')
+        try:(output/'receipt.json').write_text(json.dumps(receipt,indent=2)+'\n')
+        except Exception as persistence:
+            if error is not None:
+                error.add_note('Signing receipt persistence failed: '+type(persistence).__name__)
+                raise error from persistence
+            raise
     if error:raise error
     return receipt
+
+
+REVIEWED_SIGN_PRIMITIVE = sign
+
+
+def sign_administratively(registry, binding, unsigned, builds, label, now):
+    """New private factory boundary. No root/key/image/callback selector exists."""
+    import admission as a
+    import pipeline
+    import signing_normalization as n
+    import signing_tools
+    if (sign is not REVIEWED_SIGN_PRIMITIVE or sign.__module__!=__name__
+            or sign.__qualname__!='sign' or Path(sign.__code__.co_filename).resolve()!=Path(__file__).resolve()):
+        raise a.Rejected('Signing primitive callable differs from reviewed source authority')
+    if (not isinstance(registry,pipeline.Registry) or not isinstance(binding,a.Binding)
+            or registry.store.root!=pipeline.CONTROLLER_ROOT
+            or registry.select(binding.project_id,binding.adapter_id)!=binding
+            or STATE!=authority.SOURCE_ROOT or authority.TEST_ONLY_SOURCE_ROOT is not None):
+        raise a.Rejected('Exact protected operator registry/signing source required')
+    store=registry.store
+    binding.validate(store,now)
+    if binding.source_sha!=n.FIXTURE_SOURCE or binding.package!='app.micro.factory.fixture' or binding.certificate_sha256!=n.CERTIFICATE_SHA or binding.permissions!=('app.micro.factory.fixture.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION',):
+        raise a.Rejected('Explicit reviewed public fixture signing admission required')
+    if not isinstance(label,str) or not re.fullmatch('[a-z0-9-]{1,64}',label):
+        raise a.Rejected('Fixed reviewed signing label required')
+    if not isinstance(unsigned,a.Evidence) or not isinstance(builds,(list,tuple)) or len(builds)!=2:
+        raise a.Rejected('First unsigned build Evidence and full pair required')
+    n._require_live_code()
+    pair=a.validate_build_pair(builds,binding,store,now,3600)
+    store.verify(unsigned,512*1024**2)
+    if unsigned.sha256!=pair['unsignedApkSha256'][0]:raise a.Rejected('First actual unsigned build differs')
+    if store.json(builds[0]).get('unsignedApk')!=unsigned.json():
+        raise a.Rejected('Exact first build unsigned APK Evidence required')
+    for ref in builds:
+        if a.number(store.json(ref).get('finishedAt'),'admitted build finish')>now:raise a.Rejected('Actual build pair not complete before authorization')
+    toolchain=store.json(binding.identities['toolchain'])
+    if signing_tools.validate_toolchain(toolchain,store,now)!=n.TOOLS:
+        raise a.Rejected('Measured image tools differ from exact signing policy')
+    authority.source_root()
+    directory='signing-authorizations/'+uuid4().hex
+    store.path(directory).mkdir(mode=0o700,parents=True,exist_ok=False)
+    reference=store.write(directory+'/receipt.json',{'schema':'micro.fixture-signing-authorization/1',
+        'context':binding.context(),'authorizedAt':now,'unsigned':unsigned.json(),
+        'builds':[ref.json() for ref in builds],'toolchain':binding.identities['toolchain'].json(),
+        'toolAuthoritySha256':hashlib.sha256(a.canonical(toolchain['signingTools'])).hexdigest(),
+        'reviewedCode':n.PINS,'normalizerSha256':n.code_evidence(Path(n.__file__),'signing_normalization.py').sha256,
+        'scope':'public fixture local signing only'})
+    authority.validate_authorization(reference,store,binding,builds,now,n.PINS,
+        n.code_evidence(Path(n.__file__),'signing_normalization.py').sha256)
+    return sign(store.path(unsigned.path),unsigned.sha256,label,authorization=reference)
