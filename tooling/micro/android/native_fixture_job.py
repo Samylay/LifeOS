@@ -395,7 +395,7 @@ def main():
         path.chmod(0o755 if path.is_dir() else 0o644)
     shutil.copytree('/seed/npm-cache', work / 'npm-cache')
     # Copies become mutable only inside this fresh job.
-    for p in (work / 'npm-cache').rglob('*'):
+    for p in [work / 'npm-cache', *(work / 'npm-cache').rglob('*')]:
         if not p.is_symlink(): p.chmod(0o755 if p.is_dir() or p.stat().st_mode & 0o111 else 0o644)
     home = work / 'home'
     home.mkdir()
@@ -404,7 +404,7 @@ def main():
     gradle_home.mkdir()
     if args.offline:
         shutil.copytree('/seed/gradle-caches', gradle_home / 'caches')
-        for p in (gradle_home / 'caches').rglob('*'):
+        for p in [gradle_home / 'caches', *(gradle_home / 'caches').rglob('*')]:
             if not p.is_symlink(): p.chmod(0o755 if p.is_dir() or p.stat().st_mode & 0o111 else 0o644)
     (work / 'empty-user.npmrc').write_text('')
     (work / 'empty-global.npmrc').write_text('')
