@@ -69,7 +69,10 @@ def runtime(observed, identifier, owner, worker):
         'command': observed.get('Path')=='python3' and observed.get('Args')==['/measurement_worker.py']
             and c['Entrypoint']==['python3'] and c['Cmd']==['/measurement_worker.py']
             and c.get('WorkingDir')=='/tmp',
-        'user': c['User']=='1000:1000', 'environment': c['Env']==ENVIRONMENT,
+        'user': c['User']=='1000:1000',
+        'environment': isinstance(c.get('Env'),list)
+            and all(isinstance(value,str) for value in c['Env'])
+            and sorted(c['Env'])==sorted(ENVIRONMENT),
         'isolation': h['NetworkMode']=='none' and h['ReadonlyRootfs'] is True
             and h['Privileged'] is False and h['CapDrop']==['ALL']
             and h['SecurityOpt']==['no-new-privileges']
