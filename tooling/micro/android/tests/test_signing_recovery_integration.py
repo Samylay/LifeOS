@@ -13,7 +13,7 @@ class IntegrationTests(unittest.TestCase):
         self.fixture = SyntheticFixture(temporary.name)
 
     def test_fake_source_authority_pin_is_scoped_and_restored(self):
-        reviewed = '43d5ca8b0c7d904d9efc861dee98b908671e04e3'
+        reviewed = 'b830456406d9e106d3b1ec387ae486ea3877ea81'
         self.assertEqual(signing.FIXTURE_SOURCE, reviewed)
         self.assertEqual(self.fixture.binding.source_sha, '1'*40)
         with self.fixture.checks_test_scope():

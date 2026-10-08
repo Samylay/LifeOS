@@ -1,5 +1,6 @@
 """Temp synthetic input bytes only. These are not native/offline proof."""
 import hashlib
+import json
 import os
 from pathlib import Path
 import tempfile
@@ -8,6 +9,26 @@ from unittest.mock import patch
 
 import admission as a
 import fixture_integration as f
+
+
+class FixturePermissionConfigTests(unittest.TestCase):
+    def test_committed_fixture_blocks_generated_vibrate_permission(self):
+        config_path = Path(f.__file__).parent/'fixtures/native-smoke/app.json'
+        raw = config_path.read_bytes()
+        config = json.loads(raw)
+        self.assertEqual(config['expo']['android']['permissions'], [])
+        self.assertIn('android.permission.VIBRATE', config['expo']['android']['blockedPermissions'])
+        self.assertEqual(f._validate_fixture_permission_config(raw)['permissions'], [])
+
+    def test_malformed_duplicate_or_permissive_configs_refuse(self):
+        valid = b'{"expo":{"android":{"permissions":[],"blockedPermissions":["android.permission.VIBRATE"]}}}'
+        malformed = b'{"expo":{"android":'
+        permissive = b'{"expo":{"android":{"permissions":["android.permission.VIBRATE"],"blockedPermissions":["android.permission.VIBRATE"]}}}'
+        duplicate_key = b'{"expo":{"android":{"permissions":[],"permissions":[],"blockedPermissions":["android.permission.VIBRATE"]}}}'
+        self.assertEqual(f._validate_fixture_permission_config(valid)['permissions'], [])
+        for raw in (malformed, permissive, duplicate_key):
+            with self.subTest(raw=raw), self.assertRaises(a.Rejected):
+                f._validate_fixture_permission_config(raw)
 
 
 class CopyTests(unittest.TestCase):

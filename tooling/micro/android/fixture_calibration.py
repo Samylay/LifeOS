@@ -15,7 +15,7 @@ except ImportError:
 
 PACKAGE = 'app.micro.factory.fixture'
 ROLES = {'factory-source','factory-target'}
-SOURCE_SHA = '43d5ca8b0c7d904d9efc861dee98b908671e04e3'
+SOURCE_SHA = 'b830456406d9e106d3b1ec387ae486ea3877ea81'
 CRASH = ('shell','am','crash','--user','0',PACKAGE)
 
 

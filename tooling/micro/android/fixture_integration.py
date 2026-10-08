@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import hashlib
+import json
 import os
 from pathlib import Path
 import re
@@ -22,7 +23,7 @@ from source_export import ExportedFixture
 
 CONTROLLER = CONTROLLER_ROOT.parent
 KIT = Path(__file__).absolute().parent
-SOURCE_SHA = '43d5ca8b0c7d904d9efc861dee98b908671e04e3'
+SOURCE_SHA = 'b830456406d9e106d3b1ec387ae486ea3877ea81'
 LOCK_SHA = 'ae8bbc085fd039716dde9ba98c1039069b93455972f42659c8dccc5cb66fb282'
 LOCK_BYTES = 467565
 ORIGINAL_EXPORT_SHA = 'db2ee3aa090d337b433ca0a3ac6dc6eed9db1faf9adaf30bc75a136626c2bdf5'
@@ -42,6 +43,32 @@ PROVENANCE_SOURCES = {
     'nativeAcquisition':'native-acquisition/maven-attempt11/receipts/maven-acquisition.json',
     'nativeJob':'native-acquisition/maven-attempt11/output/native-job.json',
 }
+
+
+def _validate_fixture_permission_config(raw: bytes) -> dict:
+    """Reject malformed or permissive Expo config before assembly."""
+    def unique(pairs):
+        result = {}
+        for key, value in pairs:
+            if key in result:
+                raise ValueError('Duplicate JSON object key')
+            result[key] = value
+        return result
+
+    try:
+        config = json.loads(raw, object_pairs_hook=unique)
+    except (UnicodeDecodeError, json.JSONDecodeError, ValueError) as error:
+        raise a.Rejected('Fixture Expo config is invalid or has duplicate keys') from error
+    expo = config.get('expo') if isinstance(config, dict) else None
+    android = expo.get('android') if isinstance(expo, dict) else None
+    permissions = android.get('permissions') if isinstance(android, dict) else None
+    blocked = android.get('blockedPermissions') if isinstance(android, dict) else None
+    if (permissions != [] or not isinstance(blocked, list)
+            or any(not isinstance(item, str) for item in blocked)
+            or len(set(blocked)) != len(blocked)
+            or 'android.permission.VIBRATE' not in blocked):
+        raise a.Rejected('Fixture Expo permissions differ from the no-permissions policy')
+    return {'permissions': permissions, 'blockedPermissions': sorted(blocked)}
 CONTROLLER_CODE = ('fixture_integration.py','offline_native_supervisor.py','native_acquire.py',
                    'admission.py','pipeline.py','source_export.py')
 TOOLS = ('native_fixture_job.py', 'native_failure_diagnostics.py', 'npm_fixture_job.py', 'trusted_repositories.init.gradle',
@@ -363,6 +390,14 @@ def assemble_draft(store: a.Store, exported: ExportedFixture, original_export: a
     manifest = store.json(exported.manifest)
     if acquisition.fixture != {key:manifest['tree'][key] for key in ('kind','files','manifestSha256')}:
         raise a.Rejected('Acquisition fixture differs from exact admitted source')
+    file_rows = a.validate_tree(manifest['tree'], store)
+    config_rows = [row for row in file_rows if row['path'] == 'app.json']
+    if len(config_rows) != 1:
+        raise a.Rejected('Fixture Expo config must appear once in the admitted source')
+    config_row = config_rows[0]
+    config_ref = a.Evidence(manifest['tree']['path']+'/app.json', config_row['sha256'], config_row['bytes'])
+    store.verify(config_ref, 1024**2)
+    _validate_fixture_permission_config(store.read(config_ref, 1024**2))
     if set(seeds) != a.NATIVE_SEEDS or seeds['/seed/fixture'] != manifest['tree']:
         raise a.Rejected('Six exact seeds must use actual exported source')
     for tree in seeds.values(): a.validate_tree(tree, store)
