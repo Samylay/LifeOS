@@ -6,6 +6,7 @@ import subprocess
 import tarfile
 import tempfile
 import unittest
+from unittest.mock import patch
 import sys
 
 spec=importlib.util.spec_from_file_location('micro',Path(__file__).resolve().parents[1]/'micro.py')
@@ -14,6 +15,63 @@ def brief():
     return {'title':'Factory test','name':'Fixture','audience':'Test user','problem':'Exercise isolated checks','platform':'web','features':[{'id':'core','title':'Core flow','scope':'first','acceptance':'The behavior predicate passes'}],'vibe':'Plain fixture','references':'Synthetic test reference','business':'Not a product'}
 
 class FactoryTests(unittest.TestCase):
+    def archive(self, entries):
+        data = io.BytesIO()
+        with tarfile.open(fileobj=data, mode='w') as tar:
+            for name, content in entries:
+                member = tarfile.TarInfo(name)
+                if content is None:
+                    member.type = tarfile.DIRTYPE
+                    tar.addfile(member)
+                else:
+                    member.size = len(content); member.mode = 0o4755
+                    tar.addfile(member, io.BytesIO(content))
+        return data.getvalue()
+
+    def test_source_export_preserves_bytes_but_removes_special_mode_bits(self):
+        archive = self.archive([('src/', None), ('src/main.ts', b'export const value = 1;'), ('.env.example', b'NAME=fixture')])
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp); micro.extract_source(archive, root)
+            self.assertEqual((root/'src/main.ts').read_bytes(), b'export const value = 1;')
+            self.assertEqual((root/'src/main.ts').stat().st_mode & 0o7777, 0o755)
+            self.assertEqual((root/'.env.example').read_bytes(), b'NAME=fixture')
+
+    def test_invalid_later_entries_are_rejected_before_any_source_is_written(self):
+        invalid = [
+            [('src/main.ts', b'first'), ('src/./main.ts', b'replacement')],
+            [('src/main.ts', b'first'), ('src/main.ts/child', b'invalid')],
+            [('src/main.ts', b'first'), ('src', b'invalid')],
+            [('src/main.ts', b'first'), ('../escape', b'invalid')],
+            [('src/main.ts', b'first'), ('.npmrc', b'invalid')],
+            [('src/main.ts', b'first'), ('signing.jks', b'invalid')],
+            [('src/main.ts', b'first'), ('node_modules/package/index.js', b'invalid')],
+            [('src/main.ts', b'first'), ('.git/config', b'invalid')],
+        ]
+        for entries in invalid:
+            with self.subTest(entries=entries), tempfile.TemporaryDirectory() as temp:
+                root = Path(temp)
+                with self.assertRaises(ValueError): micro.extract_source(self.archive(entries), root)
+                self.assertEqual(list(root.iterdir()), [])
+
+    def test_archive_budgets_bound_entries_and_declared_expansion(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            with patch.object(micro, 'SOURCE_ENTRIES', 1), self.assertRaisesRegex(ValueError, 'excessive'):
+                micro.extract_source(self.archive([('one', b'1'), ('two', b'2')]), root)
+            member = tarfile.TarInfo('oversized'); member.size = micro.SOURCE_BYTES + 1
+            with self.assertRaisesRegex(ValueError, 'Expanded'):
+                micro.extract_source(member.tobuf(format=tarfile.USTAR_FORMAT) + b'\0' * 1024, root)
+            self.assertEqual(list(root.iterdir()), [])
+
+    def test_source_extraction_cannot_overwrite_existing_work_or_follow_destination_link(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp); existing = root/'existing'; existing.mkdir(); (existing/'keep').write_text('keep')
+            link = root/'link'; link.symlink_to(existing, target_is_directory=True)
+            for destination in (existing, link):
+                with self.assertRaisesRegex(ValueError, 'fresh empty'):
+                    micro.extract_source(self.archive([('keep', b'replacement')]), destination)
+            self.assertEqual((existing/'keep').read_text(), 'keep')
+
     def test_path_escape_and_symlink_are_refused(self):
         with tempfile.TemporaryDirectory() as temp:
             root=Path(temp)/'micro'; root.mkdir(); outside=Path(temp)/'outside'; outside.mkdir()

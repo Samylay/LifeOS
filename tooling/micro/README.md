@@ -26,6 +26,14 @@ mount, no network, credentials, live data or Docker socket, and bounded CPU,
 memory, process count and time. This is container isolation, not a separate
 machine or a certification against kernel escape.
 
+Source exports use an uncompressed Git tar, limited to 100 MB and 20,000 entries.
+The gate validates entry metadata before writing into a fresh empty directory.
+It rejects duplicate normalized paths, file/directory collisions, links, Git
+and dependency directories, and credential-shaped files including signing
+stores and npm configuration. Extraction preserves file bytes and ordinary
+executable bits while removing special permission bits. This gate does not
+prove import completeness; checks must resolve the actual committed app source.
+
 Before the first run, an independent reviewer accepts the actual gate scripts,
 runner configuration and acceptance fixtures at a committed source SHA. Save
 that review as JSON with `source_sha`, `verdict: "accepted"`, `reviewer` and

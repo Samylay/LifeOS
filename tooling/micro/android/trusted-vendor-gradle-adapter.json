@@ -1,0 +1,189 @@
+{
+  "files": [
+    {
+      "afterContext": "ect.ext.has(key)\n        }\n        return result ? rootProject.ext.get(result) : fallback\n    }\n    repositories {\n        google()\n        mavenCentral()\n    }\n    dependencies {\n        def isRunningInContextOfScreensRepo = project == rootProject\n        if (isRunningInContextOfScreensRepo) {\n            classpath('com.android.tools.build:gradle:8.2.1')\n            classpath \"org.jetbrains.kotlin:kotlin-gradle",
+      "afterSha256": "0947baae61e648d4fe440ea980a36c76d03101694d3c2dd73cf09f34ee0a3527",
+      "beforeContext": "ect.ext.has(key)\n        }\n        return result ? rootProject.ext.get(result) : fallback\n    }\n    repositories {\n        google()\n        mavenCentral()\n    }\n    dependencies {\n        def isRunningInContextOfScreensRepo = project == rootProject\n        if (isRunningInContextOfScreensRepo) {\n            classpath('com.android.tools.build:gradle:8.2.1')\n            classpath \"org.jetbrains.kotlin:kotlin-gradle",
+      "beforeSha256": "4105793906ef8974c46ede9a5ffd893177d2d623413fbb1c6898a50df7c31232",
+      "edits": [
+        {
+          "after": "",
+          "before": "    maven {\n        url \"${reactNativeRootDir}/android\"\n    }\n",
+          "purpose": "Remove obsolete empty React Native npm Android Maven fallback"
+        },
+        {
+          "after": "",
+          "before": "    mavenLocal()\n",
+          "purpose": "Reject all worker-local Maven acquisition"
+        },
+        {
+          "after": "com.facebook.react:react-android:0.86.3",
+          "before": "com.facebook.react:react-native:+",
+          "purpose": "Freeze legacy dynamic React alias to unchanged vendor-selected React Android0.86.3"
+        }
+      ],
+      "npmIntegrity": "sha512-2XnWsZToKj76trGtEZzx5ELD/qOICFEprEeUntImmitQFVUkea27fiWdUSITArI356Y1qynpXZINW+Unbhky/A==",
+      "npmTarballBytes": 657943,
+      "npmTarballSha256": "0343ca1cb07ee9e40594bc1f6e07de0cd3ee5e937f88bb7555f14e8e283a1ea3",
+      "npmUrl": "https://registry.npmjs.org/react-native-screens/-/react-native-screens-4.26.2.tgz",
+      "path": "node_modules/react-native-screens/android/build.gradle"
+    },
+    {
+      "afterContext": "repositories {\n        mavenCentral()\n        google()\n    }\n\n    dependencies {\n        classpath(\"org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version\")\n        if (project == rootProject) {\n            classpath(\"com.android.tools.build:gradle:7.3.1\")\n            classpath(\"com.diffplug.spotless:spotless-plugin-gradle:6.11.0\")\n        }\n    }\n}\n\nif (project == rootProject) {\n    apply from: \"spotless.gradle\"\n    return\n}\n\n\ndef getExtOrDefault(name, defaultValue) {\n    return rootProject.",
+      "afterSha256": "be866baf0a706bc1374c3c98cc68b7b4426d5a8b182558208df5240f5db42827",
+      "beforeContext": "inVersion') ? rootProject.ext.get('kotlinVersion') : project.properties['RNSAC_kotlinVersion']\n\n    repositories {\n        mavenCentral()\n        google()\n    }\n\n    dependencies {\n        classpath(\"org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version\")\n        classpath(\"com.android.tools.build:gradle:7.3.1\")\n        classpath(\"com.diffplug.spotless:spotless-plugin-gradle:6.11.0\")\n    }\n}\n\nif (project == r",
+      "beforeSha256": "46ddf952d5733a4f0e08f5dd3291eabc4a7c01632d71936ebfff25a38f42d244",
+      "edits": [
+        {
+          "after": "",
+          "before": "    maven {\n        // All of React Native (JS, Obj-C sources, Android binaries) is installed from npm\n        url \"$rootDir/../node_modules/react-native/android\"\n    }\n",
+          "purpose": "Remove obsolete empty React Native npm Android Maven fallback"
+        },
+        {
+          "after": "com.facebook.react:react-android:0.86.3",
+          "before": "com.facebook.react:react-native:+",
+          "purpose": "Freeze legacy dynamic React alias to unchanged vendor-selected React Android0.86.3"
+        },
+        {
+          "after": "        if (project == rootProject) {\n            classpath(\"com.android.tools.build:gradle:7.3.1\")\n            classpath(\"com.diffplug.spotless:spotless-plugin-gradle:6.11.0\")\n        }\n",
+          "before": "        classpath(\"com.android.tools.build:gradle:7.3.1\")\n        classpath(\"com.diffplug.spotless:spotless-plugin-gradle:6.11.0\")\n",
+          "purpose": "Keep standaloneAGP/Spotless on vendorroot only, inherit existingrootAGP8.12.0 in fixture subprojects"
+        }
+      ],
+      "npmIntegrity": "sha512-/9/MtQz8ODphjsLdZ+GZAIcC/RtoqW9EeShf7Uvnfgm/pzYrJ75y3PV/J1wuAV1T5Dye5ygq4EAW20RoBq0ABQ==",
+      "npmTarballBytes": 49992,
+      "npmTarballSha256": "35830be73b2864a1edb4b40165c846f447f635e498e299ce652e00244f14fa40",
+      "npmUrl": "https://registry.npmjs.org/react-native-safe-area-context/-/react-native-safe-area-context-5.7.0.tgz",
+      "path": "node_modules/react-native-safe-area-context/android/build.gradle"
+    },
+    {
+      "afterContext": "    rootProject.ext.has(prop) ? rootProject.ext.get(prop) : fallback\n    }\n    repositories {\n        google()\n        mavenCentral()\n    }\n\n    dependencies {\n        if (project == rootProject) {\n            classpath(\"com.android.tools.build:gradle:7.2.0\")\n        }\n    }\n}\n\ndef getExtOrDefault(name) {\n  return rootProject.ext.has(name) ? rootProject.ext.get(name) : project.properties['ReactNativePicker_' + name]\n}\n\ndef getExtOrIntegerDefault(name) {\n  return rootProject.ext.has(name) ? rootP",
+      "afterSha256": "a6a3feea92b92ab640cb8836e3ec8f9948ce30f077077ab017eabe24ec034c19",
+      "beforeContext": "rop, fallback ->\n        rootProject.ext.has(prop) ? rootProject.ext.get(prop) : fallback\n    }\n    repositories {\n        google()\n        mavenCentral()\n    }\n\n    dependencies {\n        classpath(\"com.android.tools.build:gradle:7.2.0\")\n    }\n}\n\ndef getExtOrDefault(name) {\n  return rootProject.ext.has(name) ? rootProject.ext.get(name) : project.properties['ReactNativePicker_' + name]\n}\n\ndef getExtOrIntegerDefau",
+      "beforeSha256": "8212800795a4f34b040cfef09c4124335a72b54eb21357416f0176a51e8d7f3b",
+      "edits": [
+        {
+          "after": "",
+          "before": "  maven {\n      // All of React Native (JS, Obj-C sources, Android binaries) is installed from npm\n      url \"$projectDir/../node_modules/react-native/android\"\n  }\n",
+          "purpose": "Remove obsolete empty React Native npm Android Maven fallback"
+        },
+        {
+          "after": "com.facebook.react:react-android:0.86.3",
+          "before": "com.facebook.react:react-native:+",
+          "purpose": "Freeze legacy dynamic React alias to unchanged vendor-selected React Android0.86.3"
+        },
+        {
+          "after": "        if (project == rootProject) {\n            classpath(\"com.android.tools.build:gradle:7.2.0\")\n        }\n",
+          "before": "        classpath(\"com.android.tools.build:gradle:7.2.0\")\n",
+          "purpose": "Keep standaloneAGP/Spotless on vendorroot only, inherit existingrootAGP8.12.0 in fixture subprojects"
+        }
+      ],
+      "npmIntegrity": "sha512-Kf8h1AMnBo54b1fdiVylP2P/iFcZqzpMYcglC28EEFB1DEnOjsNr6Ucqc+3R9e91vHxEDnhZFbYDmAe79P2gjA==",
+      "npmTarballBytes": 71043,
+      "npmTarballSha256": "f6c708f1ca8a94a4a1e364623f97ac92709e419bddcc579e71e0c662ab4d548b",
+      "npmUrl": "https://registry.npmjs.org/@react-native-picker/picker/-/picker-2.11.4.tgz",
+      "path": "node_modules/@react-native-picker/picker/android/build.gradle"
+    },
+    {
+      "afterContext": "s(prop) ? rootProject.ext.get(prop) : fallback\n}\n\nbuildscript {\n  if (project == rootProject) {\n    repositories {\n      google()\n      mavenCentral()\n    }\n\n    dependencies {\n      classpath 'com.android.tools.build:gradle:4.1.2'\n    }\n  }\n}\n\napply plugin: 'com.android.library'\n\ndef agpVersion = com.android.Version.ANDROID_GRADLE_PLUGIN_VERSION.tokenize('.')[0].toInteger()\ndef shouldUseNameSpace = agpVersio",
+      "afterSha256": "b8f0a9120862effacc6e086227351872ad3a03d3a0f46557cfda8db9ad4e3093",
+      "beforeContext": "s(prop) ? rootProject.ext.get(prop) : fallback\n}\n\nbuildscript {\n  if (project == rootProject) {\n    repositories {\n      google()\n      mavenCentral()\n    }\n\n    dependencies {\n      classpath 'com.android.tools.build:gradle:4.1.2'\n    }\n  }\n}\n\napply plugin: 'com.android.library'\n\ndef agpVersion = com.android.Version.ANDROID_GRADLE_PLUGIN_VERSION.tokenize('.')[0].toInteger()\ndef shouldUseNameSpace = agpVersio",
+      "beforeSha256": "fd3425332f42fae652cb6a699f9b4225f863984ed5c3a926b793a5d30ba221b8",
+      "edits": [
+        {
+          "after": "",
+          "before": "  maven {\n    // All of React Native (JS, Obj-C sources, Android binaries) is installed from npm\n    url \"$rootDir/../node_modules/react-native/android\"\n  }\n",
+          "purpose": "Remove obsolete empty React Native npm Android Maven fallback"
+        },
+        {
+          "after": "",
+          "before": "  maven { url \"https://jitpack.io\" }\n",
+          "purpose": "Remove unadmitted JitPack declaration"
+        },
+        {
+          "after": "com.facebook.react:react-android:0.86.3",
+          "before": "com.facebook.react:react-native:+",
+          "purpose": "Freeze legacy dynamic React alias to unchanged vendor-selected React Android0.86.3"
+        }
+      ],
+      "npmIntegrity": "sha512-XwuQoW7/GEgWRMovOQtX3A4PrXhyaZm0lVUiY8qJDvdngjLms9Cpdck6SmGAUNqQwcj2EadHC1HwL0bEyoa/SQ==",
+      "npmTarballBytes": 36877,
+      "npmTarballSha256": "347dfa39827076ec5d27c42e190f78a212450f9e1efebb60ca98a63a2e2dd7f8",
+      "npmUrl": "https://registry.npmjs.org/@react-native-masked-view/masked-view/-/masked-view-0.3.2.tgz",
+      "path": "node_modules/@react-native-masked-view/masked-view/android/build.gradle"
+    },
+    {
+      "afterContext": "ons {\n        release(MavenPublication) {\n          from components.release\n        }\n      }\n      repositories {\n      }\n    }\n  }\n}\n\next.useCoreDependencies = {\n  dependencies {\n    // Avoids cyclic dependencies\n    if (!project.project.name.startsWith(\"expo-modules-core\")) {\n      implementation project.project(':expo-modules-core')\n    }\n    implementation \"org.jetbrains.kotlin:kotlin-stdlib-jdk7:${project.e",
+      "afterSha256": "eb5a539cfbb47bce9ffc8fb9a0713616910e598d3db462acba9632bc35014ba5",
+      "beforeContext": "ons {\n        release(MavenPublication) {\n          from components.release\n        }\n      }\n      repositories {\n        maven {\n          url = mavenLocal().url\n        }\n      }\n    }\n  }\n}\n\next.useCoreDependencies = {\n  dependencies {\n    // Avoids cyclic dependencies\n    if (!project.project.name.startsWith(\"expo-modules-core\")) {\n      implementation project.project(':expo-modules-core')\n    }\n    implementation \"org.jetbrains.kotlin:kotlin-stdlib-jdk7:${project.e",
+      "beforeSha256": "f98d43a447043d50d4b4865fcd792d0734600136f0029fc05cbe92fdc9f81a16",
+      "edits": [
+        {
+          "after": "",
+          "before": "        maven {\n          url = mavenLocal().url\n        }\n",
+          "purpose": "Remove unused publishing MavenLocal target"
+        }
+      ],
+      "npmIntegrity": "sha512-eAJwa5u30r4BTT8cFAcrY3809qG1cPszmEci7//+RjWGA1OMXtwirhVY1H+YtCJPyVGs9MuwrIjqQDMReguG2g==",
+      "npmTarballBytes": 30756139,
+      "npmTarballSha256": "f810b9a307b546cf30f69b9eb546f8bfecd98c86077b375cb3b4293ea002ec1d",
+      "npmUrl": "https://registry.npmjs.org/expo-modules-core/-/expo-modules-core-57.0.19.tgz",
+      "path": "node_modules/expo-modules-core/android/ExpoModulesCorePlugin.gradle"
+    },
+    {
+      "afterContext": "buildscript {\n    repositories {\n        google()\n        mavenCentral()\n    }\n}\n\ndef getExtOrIntegerDefault(name) {\n    return rootProject.ext.has(name) ? rootProject.ext.get(name) : (project.properties['ReactNativeDateTimePicker_' + name]).toInteger()\n}\n\ndef isNewArchitectureEnabled() {\n    // To opt-in for the New Architecture, you can either:\n    // - Set `newArchEnabled` to true inside the `gradle.properties` file\n    // - Invoke gradle with `-newArchEnabled=true`\n    // - Set an environment variable `ORG_GRADLE_PROJECT_newArchEnabled=true`\n    return project.hasProperty(\"newArchEnabled\") && project.newArchEnabled == \"true\"\n}\n\napply plugin: 'com.android.library'\napply plugin: 'org.jetbrains.kotlin.android'\nif (isNewArchitectureEnabled()) {\n  apply plugin: \"com.facebook.react\"\n}\n\n\nandroid {\n    def agpVersion = com.android.Version.ANDROID_GRADLE_PLUGIN_VERSION\n    if (agpVersion.tokenize('.')[0].toInteger() >= 7) {\n      namespace \"com.reactcommunity.rndatetimepicker\"\n    }\n\n    compileSdkVersion getExtOrIntegerDefault('compileSdkVersion')\n\n    // Used to override the NDK path/version on internal CI or by allowing\n    // users to customize the NDK path/version from their root project (e.g. for M1 support)\n    if (rootProject.hasProperty(\"ndkPath\")) {\n        ndkPath rootProject.ext.ndkPath\n    }\n    if (rootProject.hasProperty(\"ndkVersion\")) {\n        ndkVersion rootProject.ext.ndkVersion\n    }\n\n    defaultConfig {\n        minSdkVersion getExtOrIntegerDefault('minSdkVersion')\n        targetSdkVersion getExtOrIntegerDefault('targetSdkVersion')\n        buildConfigField \"boolean\", \"IS_NEW_ARCHITECTURE_ENABLED\", isNewArchitectureEnabled().toString()\n    }\n\n    sourceSets.main {\n        java {\n            if (!isNewArchitectureEnabled()) {\n                srcDirs += 'src/paper/java'\n            }\n        }\n    }\n    kotlinOptions {\n        jvmTarget = '17'\n    }\n}\n\nrepositories {\n    google()\n    mavenCentral()\n}\n\ndependencies {\n    //noinspection GradleDynamicVersion\n    implementation 'com.facebook.react:react-android:0.86.3'\n    implementation 'com.google.android.material:material:1.12.0'\n    implementation 'androidx.core:core-ktx:1.13.1'\n}\n",
+      "afterSha256": "06a79477e3df6c37ff39c1082a95e79b23fb15403faebf33d657e47d844926d5",
+      "beforeContext": "buildscript {\n    repositories {\n        google()\n        mavenCentral()\n    }\n}\n\ndef getExtOrIntegerDefault(name) {\n    return rootProject.ext.has(name) ? rootProject.ext.get(name) : (project.properties['ReactNativeDateTimePicker_' + name]).toInteger()\n}\n\ndef isNewArchitectureEnabled() {\n    // To opt-in for the New Architecture, you can either:\n    // - Set `newArchEnabled` to true inside the `gradle.properties` file\n    // - Invoke gradle with `-newArchEnabled=true`\n    // - Set an environment variable `ORG_GRADLE_PROJECT_newArchEnabled=true`\n    return project.hasProperty(\"newArchEnabled\") && project.newArchEnabled == \"true\"\n}\n\napply plugin: 'com.android.library'\napply plugin: 'org.jetbrains.kotlin.android'\nif (isNewArchitectureEnabled()) {\n  apply plugin: \"com.facebook.react\"\n}\n\n\nandroid {\n    def agpVersion = com.android.Version.ANDROID_GRADLE_PLUGIN_VERSION\n    if (agpVersion.tokenize('.')[0].toInteger() >= 7) {\n      namespace \"com.reactcommunity.rndatetimepicker\"\n    }\n\n    compileSdkVersion getExtOrIntegerDefault('compileSdkVersion')\n\n    // Used to override the NDK path/version on internal CI or by allowing\n    // users to customize the NDK path/version from their root project (e.g. for M1 support)\n    if (rootProject.hasProperty(\"ndkPath\")) {\n        ndkPath rootProject.ext.ndkPath\n    }\n    if (rootProject.hasProperty(\"ndkVersion\")) {\n        ndkVersion rootProject.ext.ndkVersion\n    }\n\n    defaultConfig {\n        minSdkVersion getExtOrIntegerDefault('minSdkVersion')\n        targetSdkVersion getExtOrIntegerDefault('targetSdkVersion')\n        buildConfigField \"boolean\", \"IS_NEW_ARCHITECTURE_ENABLED\", isNewArchitectureEnabled().toString()\n    }\n\n    sourceSets.main {\n        java {\n            if (!isNewArchitectureEnabled()) {\n                srcDirs += 'src/paper/java'\n            }\n        }\n    }\n    kotlinOptions {\n        jvmTarget = '17'\n    }\n}\n\nrepositories {\n    google()\n    mavenLocal()\n    mavenCentral()\n}\n\ndependencies {\n    //noinspection GradleDynamicVersion\n    implementation 'com.facebook.react:react-native:+'\n    implementation 'com.google.android.material:material:1.12.0'\n    implementation 'androidx.core:core-ktx:1.13.1'\n}\n",
+      "beforeSha256": "0868619555537e41e3b63e0d355159c1f3544ac63b3afd19b6be9bc07c5152af",
+      "edits": [
+        {
+          "after": "",
+          "before": "    mavenLocal()\n",
+          "purpose": "Reject all worker-local Maven acquisition"
+        },
+        {
+          "after": "com.facebook.react:react-android:0.86.3",
+          "before": "com.facebook.react:react-native:+",
+          "purpose": "Freeze legacy dynamic React alias to unchanged vendor-selected React Android0.86.3"
+        }
+      ],
+      "npmIntegrity": "sha512-eadbnk+I2vxvW30iTAsm/qlCnMMAadkifIMYNEB2lzhxN/SvlKc7S2V4k5DyrwjdCbqdcMk3t9K6fnUMcAV34w==",
+      "npmTarballBytes": 59648,
+      "npmTarballSha256": "8a0d6fc5af2776aec94a34feeb94e98a13557057a86b3457194d8ec2409699c3",
+      "npmUrl": "https://registry.npmjs.org/@react-native-community/datetimepicker/-/datetimepicker-9.1.0.tgz",
+      "path": "node_modules/@react-native-community/datetimepicker/android/build.gradle"
+    },
+    {
+      "afterContext": "repositories {\n        mavenCentral()\n        google()\n    }\n\n    dependencies {\n        classpath(\"org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version\")\n        if (project == rootProject) {\n            classpath(\"com.android.tools.build:gradle:8.10.1\")\n            classpath(\"com.diffplug.spotless:spotless-plugin-gradle:7.0.4\")\n        }\n    }\n}\n\ndef isNewArchitectureEnabled() {\n    // To opt-in for the New Architecture, you can either:\n    // - Set `newArchEnabled` to true inside the `gr",
+      "afterSha256": "a92be3c7382721db2f5ec6a3621fb9cb0befec0cc95c4919ef281e280c3c90ab",
+      "beforeContext": "linVersion') ? rootProject.ext.get('kotlinVersion') : project.properties['RNGH_kotlinVersion']\n\n    repositories {\n        mavenCentral()\n        google()\n    }\n\n    dependencies {\n        classpath(\"org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version\")\n        classpath(\"com.android.tools.build:gradle:8.10.1\")\n        classpath(\"com.diffplug.spotless:spotless-plugin-gradle:7.0.4\")\n    }\n}\n\ndef isNewArchite",
+      "beforeSha256": "6c4add444dec7a99a37d4c9f8f81cee46aaa6b7aaaefbaaf9a659fd5c81dbc49",
+      "edits": [
+        {
+          "after": "com.facebook.react:react-android:0.86.3",
+          "before": "com.facebook.react:react-native:+",
+          "purpose": "Freeze legacy dynamic React alias to unchanged vendor-selected React Android0.86.3"
+        },
+        {
+          "after": "        if (project == rootProject) {\n            classpath(\"com.android.tools.build:gradle:8.10.1\")\n            classpath(\"com.diffplug.spotless:spotless-plugin-gradle:7.0.4\")\n        }\n",
+          "before": "        classpath(\"com.android.tools.build:gradle:8.10.1\")\n        classpath(\"com.diffplug.spotless:spotless-plugin-gradle:7.0.4\")\n",
+          "purpose": "Keep standaloneAGP/Spotless on vendorroot only, inherit existingrootAGP8.12.0 in fixture subprojects"
+        }
+      ],
+      "npmIntegrity": "sha512-uYIMOKlKENORq2SABE+jIjbPU+h5I/sQKcq2v16zRq848nwEp1fWRVwML4QWqijc8UcXJC25o54S8GQd4Mf2OA==",
+      "npmTarballBytes": 624541,
+      "npmTarballSha256": "07f8dd26291880e0fa8e397c0c221acb6889a9830d44dcb1de4d44f8cb462338",
+      "npmUrl": "https://registry.npmjs.org/react-native-gesture-handler/-/react-native-gesture-handler-2.32.0.tgz",
+      "path": "node_modules/react-native-gesture-handler/android/build.gradle"
+    }
+  ],
+  "reactAndroidVersion": "0.86.3",
+  "runtimeVersionChange": false,
+  "schema": "trusted-vendor-gradle-adapter/1",
+  "sourceEvidence": {
+    "reason": "Vendor RNGP0.86.3 substitutes voided react-native alias and forces package-selected react-android version. RN0.86.3 npm tarball contains no package/android/ Maven files.",
+    "rnGradlePluginDependencyUtilsSha256": "9ac5075f337a243ca019484f972c705fd8dfa094f641610f2a25a063872ae2b5"
+  },
+  "sourceLockSha256": "ae8bbc085fd039716dde9ba98c1039069b93455972f42659c8dccc5cb66fb282",
+  "status": "frozen-proposal-root-review-pending"
+}
