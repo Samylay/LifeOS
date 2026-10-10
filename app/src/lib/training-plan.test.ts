@@ -18,7 +18,8 @@ describe("training plan", () => {
   it("gives every week seven sessions with the agreed running order", () => {
     for (let week = 1; week <= PLAN_WEEKS; week++) {
       const s = sessionsForWeek(week);
-      expect(s.map((x) => x.kind)).toEqual(["gym", "run", "gym", "run", "mobility", "run", week === PLAN_WEEKS ? "run" : "rest"]);
+      const friday = week >= 2 && week <= 23 ? "gym" : "mobility";
+      expect(s.map((x) => x.kind)).toEqual(["gym", "run", "gym", "run", friday, "run", week === PLAN_WEEKS ? "run" : "rest"]);
     }
   });
 
@@ -64,6 +65,23 @@ describe("training plan", () => {
     expect(sessionsForWeek(23)[0].lines.join()).toMatch(/pogo hops 3 x 10/);
     expect(sessionsForWeek(25)[0].lines.join()).not.toMatch(/pogo/);
     expect(sessionsForWeek(26)[0].lines.join()).not.toMatch(/pogo/);
+  });
+
+  it("adds a pull-biased Gym C on Friday with no heavy leg work, and drops it in the taper", () => {
+    const fri = sessionsForWeek(5)[4];
+    expect(fri.title).toBe("Gym C");
+    expect(fri.lines.join()).toMatch(/Cable row/);
+    expect(fri.lines.join()).not.toMatch(/squat|Deadlift/i);
+    expect(sessionsForWeek(1)[4].kind).toBe("mobility");
+    expect(sessionsForWeek(24)[4].kind).toBe("mobility");
+  });
+
+  it("pulls more than it pushes across Wednesday and Friday", () => {
+    const text = [...sessionsForWeek(5)[2].lines, ...sessionsForWeek(5)[4].lines].join("\n");
+    const sets = (re: RegExp) => (text.match(re) ?? []).reduce((n, line) => n + Number(line.match(/(\d+) x/)?.[1] ?? 0), 0);
+    const pull = sets(/(row|pulldown|pull-ups|Face pull)[^\n]* \d+ x/gi);
+    const push = sets(/(Bench press|Overhead press|Lateral raise)[^\n]* \d+ x/gi);
+    expect(pull).toBeGreaterThan(push);
   });
 
   it("keeps heavy legs out of race week", () => {

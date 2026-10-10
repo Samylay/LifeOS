@@ -165,19 +165,20 @@ function gymA(week: number): Session {
     ? ["Back squat: work up to one set of 5, 1 to 2 reps short of failure. Write the load down.",
        "Deadlift: same, one top set of 5.", "Lat pulldown 3 x 10", "Hollow hold: max seconds", "Hanging knee raises 3 x 8"]
     : week === 24
-      ? [...plyoLines(week), "Back squat 2 x 6 to 8", "Deadlift 2 x 5", "Lat pulldown or assisted pull-ups 2 x 8 to 10",
+      ? [...plyoLines(week), "Back squat 2 x 6 to 8", "Deadlift 2 x 5", "Leg curl 2 x 10", "Standing calf raise 2 x 8 to 10",
          "Hanging knee raises to leg raises 2 x 8 to 10", "Hollow hold 2 x 20 to 30 s"]
     : week === 25
       ? ["Back squat 2 x 5 at about 70% of your week 17 load", "Deadlift 2 x 5 at about 70% of your week 17 load",
-         "Lat pulldown 2 x 8", "Hollow hold 2 x 30 s"]
+         "Standing calf raise 2 x 8", "Hollow hold 2 x 30 s"]
     : week === 26
-      ? ["20 minutes, light. No squats or deadlifts: heavy legs stop 7 days before the race.", "Lat pulldown 2 x 8",
+      ? ["20 minutes, light. No squats or deadlifts: heavy legs stop 7 days before the race.", "Standing calf raise 2 x 8",
          "Hanging knee raises 2 x 8", "Hollow hold 2 x 30 s"]
     : [...plyoLines(week),
-       "Back squat 3 x 6 to 8", "Deadlift 3 x 5", "Lat pulldown or assisted pull-ups 3 x 8 to 10",
+       "Back squat, full depth, 3 x 6 to 8", "Deadlift 3 x 5", "Leg curl 3 x 10, three seconds down",
+       "Standing calf raise, stretch at the bottom, 3 x 8 to 10",
        "Hanging knee raises to leg raises 3 x 8 to 10", "Hollow hold 3 x 20 to 30 s, building to 60 s"];
   const taper = week >= 25;
-  return { day: 0, kind: "gym", title: test ? "Gym A: test" : taper ? "Gym A: light" : "Gym A", summary: taper ? "Light, legs protected" : "Lower body, pull, core", lines };
+  return { day: 0, kind: "gym", title: test ? "Gym A: test" : taper ? "Gym A: light" : "Gym A", summary: taper ? "Light, legs protected" : "Legs and core", lines };
 }
 function gymB(week: number): Session {
   const test = week === 1;
@@ -185,16 +186,32 @@ function gymB(week: number): Session {
     ? ["Bench press: work up to one set of 5, 1 to 2 reps short of failure.", "Overhead press: same, one top set of 5.",
        "Row 3 x 10", "Plank: max seconds", "Measure the middle split gap in cm"]
     : week === 24
-      ? ["Bench press 2 x 6 to 8", "Overhead press 2 x 8", "Barbell or dumbbell row 2 x 10", "Lateral raise 2 x 12",
-         "Ab wheel or Pallof press 2 x 8 to 10", "Side plank 2 x 30 s each side"]
+      ? ["Bench press 2 x 6 to 8", "Seated cable row 2 x 8 to 10", "Overhead press 2 x 8", "Lat pulldown or assisted pull-ups 2 x 8 to 10",
+         "Side plank 2 x 30 s each side"]
     : week === 25
       ? ["10-minute minimum session: top set of the bench press at your normal load, plus one core finisher."]
     : week === 26
       ? ["Optional. 10 minutes of mobility is enough. Rest, sleep and food matter more now."]
-    : ["Bench press 3 x 6 to 8", "Overhead press 3 x 8", "Barbell or dumbbell row 3 x 10", "Lateral raise 2 x 12",
-       "Ab wheel or Pallof press 3 x 8 to 10", "Side plank 2 x 30 s each side"];
+    : ["Bench press 3 x 6 to 8", "Seated cable row or chest-supported row, full stretch at the start, 3 x 8 to 10",
+       "Overhead press 3 x 8", "Lat pulldown or assisted pull-ups 3 x 8 to 10",
+       "Bulgarian split squat, full depth, 2 x 8 per leg", "Side plank 2 x 30 s each side"];
   const taper = week >= 25;
-  return { day: 2, kind: "gym", title: test ? "Gym B: test" : week === 25 ? "Gym B: minimum" : week === 26 ? "Gym B: optional" : "Gym B", summary: taper ? "Minimum only" : "Upper body, core", lines };
+  return { day: 2, kind: "gym", title: test ? "Gym B: test" : week === 25 ? "Gym B: minimum" : week === 26 ? "Gym B: optional" : "Gym B", summary: taper ? "Minimum only" : "Upper body, light legs", lines };
+}
+// Friday: the bonus pull session in weeks 2 to 23, otherwise mobility only.
+function friday(week: number): Session {
+  if (week >= 2 && week <= 23) {
+    return {
+      day: 4, kind: "gym", title: "Gym C", summary: "Pull and core, then mobility. Skipped: mobility only",
+      lines: ["Cable row 3 x 10 to 12", "Face pull 3 x 12 to 15", "Lat pulldown or assisted pull-ups 2 x 8 to 10, different grip from Wednesday",
+        "Lateral raise 2 x 12", "Ab wheel or Pallof press 3 x 8 to 10", "No heavy leg work: Saturday is the long run", "Then 15 min mobility"],
+    };
+  }
+  return {
+    day: 4, kind: "mobility", title: "Mobility", summary: "Leg routine with contract-relax, 15 min",
+    lines: ["Butterfly, frog stretch, straddle with 3 rounds of contract-relax", "Hamstrings 2 x 60 s", "Hip flexors 60 s per side",
+      "Quads 60 s per side", "Calves and ankles 60 s per side", "Cossack squat 2 x 6 per side"],
+  };
 }
 
 function amount(s: Step): string {
@@ -228,10 +245,10 @@ export function sessionsForWeek(week: number): Session[] {
     run(1, tue),
     gymB(week),
     run(3, thu),
-    { day: 4, kind: "mobility", title: "Mobility", summary: "Middle split routine, 15 min", lines: ["Butterfly 2 x 60 s", "Frog stretch 2 x 60 s", "Straddle stretch with contract-relax 3 rounds", "Cossack squat 2 x 6 per side"] },
+    friday(week),
     run(5, sat),
     week === PLAN_WEEKS ? RACE_DAY_SESSION
-      : { day: 6, kind: "rest", title: "Rest", summary: "10 min mobility", lines: ["Hip flexors 3 min", "Ankles 3 min", "Straddle stretch 4 min"] },
+      : { day: 6, kind: "rest", title: "Rest", summary: "10 min mobility", lines: ["Hip flexors 3 min", "Ankles and calves 3 min", "Straddle stretch 4 min"] },
   ];
 }
 
@@ -243,6 +260,7 @@ export const TARGETS = [
   { label: "Deadlift 5-rep max", start: "about 53 kg", goal: "80 kg" },
   { label: "Hollow hold", start: "untested", goal: "60 s" },
   { label: "Middle split", start: "measure in week 1", goal: "half the gap" },
+  { label: "Leg mobility (toe touch, knee-to-wall, deep squat)", start: "measure in week 2", goal: "half each gap" },
   { label: "Paris Marathon, 4 Apr 2027", start: "longest run 2.4 km", goal: "finish healthy" },
 ];
 
