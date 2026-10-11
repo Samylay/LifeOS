@@ -44,6 +44,7 @@ Shared rules for T87 to T95 (test and tooling tasks; T86 is done and passed unat
   - **Audit step (report only, do not edit any existing test):** run the full suite once with `LIFEOS_SMOKE=1` exported in the shell (not committed). List in the Log every test file that fails because it opened the default database. Those tests touch the real DB today; Samy decides what to do with them.
   - **Verify:** `npx vitest run src/lib/data-dir.test.ts && npx vitest run && npx tsc --noEmit` (the plain full suite must pass exactly as before), and `grep -rn 'process.cwd(), "data"' src --include='*.ts' | grep -v '\.test\.'` prints only `src/lib/data-dir.ts`.
   - **Done when:** the verify commands pass and the Log has the audit list (possibly empty).
+  BLOCKED (2026-10-12, autoloop): code was reverted because the required full-suite verification cannot pass in this environment. `better-sqlite3` is compiled for Node module ABI 137 while the active Node requires ABI 127; plain `npx vitest run` fails 189 tests in 31 files for that pre-existing native-module mismatch, plus one unrelated assertion. The smoke-mode audit (`LIFEOS_SMOKE=1 npx vitest run`) fails 189 tests in 86 suites before any resolver-specific default-database error is observable, so no test files can be listed as confirmed default-database opens. Focused resolver tests (5/5), `npx tsc --noEmit`, and the fallback grep passed.
 
 - [ ] **T93 - synthetic fixture database builder** (M) - needs T87
   - SAMY 2026-10-10: approved ("fix intelligently and autonomously")
@@ -172,6 +173,10 @@ Shared rules for T87 to T95 (test and tooling tasks; T86 is done and passed unat
   (2026-08-17: done in autoloop — see Log.)
 
 ## Log
+
+- 2026-10-12 (autoloop, T87): BLOCKED before commit; reverted the resolver, scheduler guard, and tests after verification hit the pre-existing `better-sqlite3` Node ABI mismatch (137 installed, 127 required). Smoke audit: 86 failed suites / 189 failed tests, with no confirmed default-database opens because native loading failed first. Focused resolver tests passed 5/5, typecheck passed, and the fallback grep left only `src/lib/data-dir.ts`.
+  Pitch: centralize DB-path safety and make scheduler-free smoke imports possible without changing normal behavior.
+  Quiz: Why was no default-database test list recorded? The native SQLite binding failed before the new path guard could run.
 
 - 2026-10-09 (autoloop, T86): Added a deterministic route inventory generator, `--check`, and tests for real-tree parity and discovery of new page/API files. Verified with `node scripts/gen-inventory.mjs --check`, `npx vitest run src/inventory.test.ts` (2 passed), `npx tsc --noEmit`, and `git diff --check`. Inventory counts: 18 pages and 77 APIs, matching `find src/app -name page.tsx | wc -l` (18) and `find src/app/api -name route.ts | wc -l` (77). Code commit `0a771a6` pushed; this roadmap update is committed separately.
   Pitch: keep route documentation current by deriving it from the app tree.
