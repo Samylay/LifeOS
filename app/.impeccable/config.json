@@ -1,0 +1,26 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "side-tab",
+        "value": "*",
+        "files": [
+          "src/components/camera-capture.tsx"
+        ],
+        "createdAt": "2026-10-12T09:17:03.790Z",
+        "reason": "Claude judged false positive: these are the four corner marks of the camera viewfinder framing guide, not card accent borders. Not user confirmed."
+      },
+      {
+        "rule": "border-accent-on-rounded",
+        "value": "*",
+        "files": [
+          "src/components/camera-capture.tsx"
+        ],
+        "createdAt": "2026-10-12T09:17:03.811Z",
+        "reason": "Claude judged false positive: these are the four corner marks of the camera viewfinder framing guide, not card accent borders. Not user confirmed."
+      }
+    ]
+  }
+}
