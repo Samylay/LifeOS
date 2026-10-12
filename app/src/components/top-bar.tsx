@@ -18,7 +18,7 @@ export function TopBar() {
       <Link href="/settings" aria-label="Settings" title="Settings" className="grid size-11 place-items-center rounded-lg text-muted-foreground transition-transform duration-[var(--dur-fast)] hover:bg-muted hover:text-foreground active:scale-[0.97] lg:hidden">
         <HugeiconsIcon icon={Settings01Icon} size={18} />
       </Link>
-      <Button variant="outline" size="sm" render={<Link href="/chat" aria-label="Assistant" />}>
+      <Button variant="outline" size="sm" className="hidden lg:inline-flex" render={<Link href="/chat" aria-label="Assistant" />}>
         <HugeiconsIcon icon={Chat01Icon} size={16} /><span className="hidden sm:inline">Assistant</span>
       </Button>
     </header>

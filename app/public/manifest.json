@@ -4,8 +4,8 @@
   "description": "The system that gets out of your way.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#080A10",
-  "theme_color": "#080A10",
+  "background_color": "#141416",
+  "theme_color": "#141416",
   "orientation": "portrait-primary",
   "icons": [
     {
