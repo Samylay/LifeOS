@@ -1,0 +1,1967 @@
+{
+  "repositories": [
+    {
+      "files": [
+        {
+          "bytes": 3823160,
+          "path": "host/exp/exponent/expo.modules.sqlite/57.0.3/expo.modules.sqlite-57.0.3.aar",
+          "sha256": "df1da5f5381b01deb84c69e946436e98f69fb7a3c3f55c03b01e88061fd88e4d"
+        },
+        {
+          "bytes": 11551,
+          "path": "host/exp/exponent/expo.modules.sqlite/57.0.3/expo.modules.sqlite-57.0.3-sources.jar",
+          "sha256": "b8f668275e3ec93cff367011da2b3ae7bd83f43a690ce56473395ba6284c8b7c"
+        },
+        {
+          "bytes": 32,
+          "path": "host/exp/exponent/expo.modules.sqlite/57.0.3/expo.modules.sqlite-57.0.3-sources.jar.md5",
+          "sha256": "192afeadde2a8e55099c0b9877adf60baced402d81eb07d39c75a1b732ef045f"
+        },
+        {
+          "bytes": 32,
+          "path": "host/exp/exponent/expo.modules.sqlite/57.0.3/expo.modules.sqlite-57.0.3.aar.md5",
+          "sha256": "9388c71dd1eaf8c85e35563f3803becda71ce4ce997bc74e58f306ed70cfd365"
+        },
+        {
+          "bytes": 32,
+          "path": "host/exp/exponent/expo.modules.sqlite/57.0.3/expo.modules.sqlite-57.0.3.module.md5",
+          "sha256": "4109bc4f5891c04aaefecfa4a2ec3c23bae1ce530b53830c3351419289ef7ee5"
+        },
+        {
+          "bytes": 32,
+          "path": "host/exp/exponent/expo.modules.sqlite/57.0.3/expo.modules.sqlite-57.0.3.pom.md5",
+          "sha256": "73df099ccc263149b7c32fe452b4f1b31a3c431456939536dc392145707f32ba"
+        },
+        {
+          "bytes": 32,
+          "path": "host/exp/exponent/expo.modules.sqlite/maven-metadata.xml.md5",
+          "sha256": "a7b8a55370857e24912bc0ad083a76571a81e4cfbda8af4e47ce1e482ba8084c"
+        },
+        {
+          "bytes": 3282,
+          "path": "host/exp/exponent/expo.modules.sqlite/57.0.3/expo.modules.sqlite-57.0.3.module",
+          "sha256": "ee3f075f3c6a0fd48956f50476ba6b9b2c53dfe35b19cce7f8e1976a1edb57a7"
+        },
+        {
+          "bytes": 2214,
+          "path": "host/exp/exponent/expo.modules.sqlite/57.0.3/expo.modules.sqlite-57.0.3.pom",
+          "sha256": "3af19f382afed8dd75aec53c44bf8e83edc810d919cb7603b9c70e055314bf85"
+        },
+        {
+          "bytes": 40,
+          "path": "host/exp/exponent/expo.modules.sqlite/57.0.3/expo.modules.sqlite-57.0.3-sources.jar.sha1",
+          "sha256": "a5608ce06ecec62b6127358b64b1c6959f0878562b1447cdd31c056298c49386"
+        },
+        {
+          "bytes": 40,
+          "path": "host/exp/exponent/expo.modules.sqlite/57.0.3/expo.modules.sqlite-57.0.3.aar.sha1",
+          "sha256": "45d43c6fea69849dbff88e6e0028b22a4ef7795ca075be1818abfda8fafd572a"
+        },
+        {
+          "bytes": 40,
+          "path": "host/exp/exponent/expo.modules.sqlite/57.0.3/expo.modules.sqlite-57.0.3.module.sha1",
+          "sha256": "b52215721db989468b441eb1647bde2392c26cec114c32e9ca48c523342c13fb"
+        },
+        {
+          "bytes": 40,
+          "path": "host/exp/exponent/expo.modules.sqlite/57.0.3/expo.modules.sqlite-57.0.3.pom.sha1",
+          "sha256": "e895985205fd1507514f976f931880e6c5f491020431f89f285f7ee6ea23da8a"
+        },
+        {
+          "bytes": 40,
+          "path": "host/exp/exponent/expo.modules.sqlite/maven-metadata.xml.sha1",
+          "sha256": "2895833f63e17ca6027ae7b2dfbe0e6b8d54e215f5a9f147d59ff8caf34c1666"
+        },
+        {
+          "bytes": 64,
+          "path": "host/exp/exponent/expo.modules.sqlite/57.0.3/expo.modules.sqlite-57.0.3-sources.jar.sha256",
+          "sha256": "460b3b8e4951182a174aa61d413fe493e597346916181a1a6603e155bcccedad"
+        },
+        {
+          "bytes": 64,
+          "path": "host/exp/exponent/expo.modules.sqlite/57.0.3/expo.modules.sqlite-57.0.3.aar.sha256",
+          "sha256": "7a95f83154177e0c1a2f605b228127e9f3f51e9b27b73606bea63e68d1273934"
+        },
+        {
+          "bytes": 64,
+          "path": "host/exp/exponent/expo.modules.sqlite/57.0.3/expo.modules.sqlite-57.0.3.module.sha256",
+          "sha256": "52a83eedfaa6a8c96ad565373fe59952d42c9588154d4662f96287f4027ddb01"
+        },
+        {
+          "bytes": 64,
+          "path": "host/exp/exponent/expo.modules.sqlite/57.0.3/expo.modules.sqlite-57.0.3.pom.sha256",
+          "sha256": "3ce79276371ba6a2084d499496e0229f78d4639f35f3d29c8f9eb54044541831"
+        },
+        {
+          "bytes": 64,
+          "path": "host/exp/exponent/expo.modules.sqlite/maven-metadata.xml.sha256",
+          "sha256": "aab8cc694976490801249d6cf85dbd47461366b72dafe8899c7abc690a3266fe"
+        },
+        {
+          "bytes": 128,
+          "path": "host/exp/exponent/expo.modules.sqlite/57.0.3/expo.modules.sqlite-57.0.3-sources.jar.sha512",
+          "sha256": "518237c2ff9da530cf90758f7cf1b8c918431854762771c4e890f8ac37fb763c"
+        },
+        {
+          "bytes": 128,
+          "path": "host/exp/exponent/expo.modules.sqlite/57.0.3/expo.modules.sqlite-57.0.3.aar.sha512",
+          "sha256": "b59cca6eef5d832e99b296b45c698cac810828cfc498ddbb6e3156bf85948874"
+        },
+        {
+          "bytes": 128,
+          "path": "host/exp/exponent/expo.modules.sqlite/57.0.3/expo.modules.sqlite-57.0.3.module.sha512",
+          "sha256": "4ab818563711b56b78c4dc60755781527af82561d2820d743eff61ca4fe26f9c"
+        },
+        {
+          "bytes": 128,
+          "path": "host/exp/exponent/expo.modules.sqlite/57.0.3/expo.modules.sqlite-57.0.3.pom.sha512",
+          "sha256": "723ceefa500e1878e6309462c0346480eae1bdbe9dc9c2d51d20df8b7e831ff9"
+        },
+        {
+          "bytes": 128,
+          "path": "host/exp/exponent/expo.modules.sqlite/maven-metadata.xml.sha512",
+          "sha256": "03ee009b145aa3a27a0327f1d41daeadcfd61e3d10ec02ac88c9958cf6aad143"
+        },
+        {
+          "bytes": 346,
+          "path": "host/exp/exponent/expo.modules.sqlite/maven-metadata.xml",
+          "sha256": "72bc2d458f5ca000bc7e23bc0e303d45be74b3aa47ad0dcd01d929d54776fee3"
+        }
+      ],
+      "npmIntegrity": "sha512-gbu9Nwm76DNpSK+MEhCjjjF3/EMyFE96IEDSlfO9jPiF4q48a7bef5EXnWVrwW8rvqCZKYAfSGqSpYNhhhpgIg==",
+      "npmTarballSha256": "1766ba239d7716dd2b255c5636418e6d4fc150bd2fd58427987a32d97c80f66f",
+      "npmUrl": "https://registry.npmjs.org/expo-sqlite/-/expo-sqlite-57.0.3.tgz",
+      "removeMetadata": [
+        "host/exp/exponent/expo.modules.sqlite/maven-metadata.xml.md5",
+        "host/exp/exponent/expo.modules.sqlite/maven-metadata.xml.sha1",
+        "host/exp/exponent/expo.modules.sqlite/maven-metadata.xml.sha256",
+        "host/exp/exponent/expo.modules.sqlite/maven-metadata.xml.sha512",
+        "host/exp/exponent/expo.modules.sqlite/maven-metadata.xml"
+      ],
+      "root": "node_modules/expo-sqlite/local-maven-repo"
+    },
+    {
+      "files": [
+        {
+          "bytes": 17972,
+          "path": "host/exp/exponent/expo.modules.systemui/57.0.4/expo.modules.systemui-57.0.4.aar",
+          "sha256": "d4cd090dce4ae451978bdf20adf73075775b048303f7ddf83c8a6d3844ec5dd0"
+        },
+        {
+          "bytes": 3562,
+          "path": "host/exp/exponent/expo.modules.systemui/57.0.4/expo.modules.systemui-57.0.4-sources.jar",
+          "sha256": "d79c7fe5dc307fb526c8d73b008ceedcaf6e78e311699bdde6433efaf3349413"
+        },
+        {
+          "bytes": 32,
+          "path": "host/exp/exponent/expo.modules.systemui/57.0.4/expo.modules.systemui-57.0.4-sources.jar.md5",
+          "sha256": "bccf5d238ee55b17dfd816d1fbea8025fdcb7412a364405e15225181485bcde7"
+        },
+        {
+          "bytes": 32,
+          "path": "host/exp/exponent/expo.modules.systemui/57.0.4/expo.modules.systemui-57.0.4.aar.md5",
+          "sha256": "916035c83e201d2a7686dd612249bc4a507f23e90433ad263e89ffbdafdf87ae"
+        },
+        {
+          "bytes": 32,
+          "path": "host/exp/exponent/expo.modules.systemui/57.0.4/expo.modules.systemui-57.0.4.module.md5",
+          "sha256": "f11552cdf8777cadcaea9e7a70185e81dfd2c4547c85c52923240fad135bf74e"
+        },
+        {
+          "bytes": 32,
+          "path": "host/exp/exponent/expo.modules.systemui/57.0.4/expo.modules.systemui-57.0.4.pom.md5",
+          "sha256": "444b43ee78d5bdbc7f89cba43ad0c0d5fdfa55db75868f28385f14bfae8e7d6e"
+        },
+        {
+          "bytes": 32,
+          "path": "host/exp/exponent/expo.modules.systemui/maven-metadata.xml.md5",
+          "sha256": "5bd16849b57e3f5f5bfd1cde8cf9e1c6cdc201ba9f9211245fcd8c9dff70f53e"
+        },
+        {
+          "bytes": 3704,
+          "path": "host/exp/exponent/expo.modules.systemui/57.0.4/expo.modules.systemui-57.0.4.module",
+          "sha256": "a2669d8cdb7895b5bc4709fd786bdaf03f3224e39164d34851b2066f0e1fc27a"
+        },
+        {
+          "bytes": 2722,
+          "path": "host/exp/exponent/expo.modules.systemui/57.0.4/expo.modules.systemui-57.0.4.pom",
+          "sha256": "267658c355ab57ff0371be0638ce5517bb77d979b33d1f055ab08cb3ba56f084"
+        },
+        {
+          "bytes": 40,
+          "path": "host/exp/exponent/expo.modules.systemui/57.0.4/expo.modules.systemui-57.0.4-sources.jar.sha1",
+          "sha256": "5c8f7de341d38b09ba7cd1134b0c7b293b3e7b7bcf17586fe0eb68f5b6a46309"
+        },
+        {
+          "bytes": 40,
+          "path": "host/exp/exponent/expo.modules.systemui/57.0.4/expo.modules.systemui-57.0.4.aar.sha1",
+          "sha256": "2c4b8749ee913730f21b6fed880acad3b4e11655a12ed0b9693855a180f3a78a"
+        },
+        {
+          "bytes": 40,
+          "path": "host/exp/exponent/expo.modules.systemui/57.0.4/expo.modules.systemui-57.0.4.module.sha1",
+          "sha256": "9793fff149e5eb048365c7ebac1efabcf51cb19a025324e06d8e3e0598489120"
+        },
+        {
+          "bytes": 40,
+          "path": "host/exp/exponent/expo.modules.systemui/57.0.4/expo.modules.systemui-57.0.4.pom.sha1",
+          "sha256": "9c8c2aae76bb264f2a595553848c866d9ee0c93a9628afb40ae5319705cdcc10"
+        },
+        {
+          "bytes": 40,
+          "path": "host/exp/exponent/expo.modules.systemui/maven-metadata.xml.sha1",
+          "sha256": "ab83012cbe73d63835ed5e71c4fd0e42499a3703fb123b3330dde978a65c51d4"
+        },
+        {
+          "bytes": 64,
+          "path": "host/exp/exponent/expo.modules.systemui/57.0.4/expo.modules.systemui-57.0.4-sources.jar.sha256",
+          "sha256": "05fc59b195c12ebff5845475519bc2e294638c434883a7d460c530d18c9bc626"
+        },
+        {
+          "bytes": 64,
+          "path": "host/exp/exponent/expo.modules.systemui/57.0.4/expo.modules.systemui-57.0.4.aar.sha256",
+          "sha256": "16f606dae6fc3fc66b83a297b23bfde9c43668ba3cc4f4e8d7a75f42b7049128"
+        },
+        {
+          "bytes": 64,
+          "path": "host/exp/exponent/expo.modules.systemui/57.0.4/expo.modules.systemui-57.0.4.module.sha256",
+          "sha256": "4ca3d2f1b4e19a00b7b1b5040ad4623d43f177f35d7d1466e7933e9946f30e6b"
+        },
+        {
+          "bytes": 64,
+          "path": "host/exp/exponent/expo.modules.systemui/57.0.4/expo.modules.systemui-57.0.4.pom.sha256",
+          "sha256": "d5bdd3e148bfe04185b7d68ea41b71874b423ea710c1ff8687bfc750cf899666"
+        },
+        {
+          "bytes": 64,
+          "path": "host/exp/exponent/expo.modules.systemui/maven-metadata.xml.sha256",
+          "sha256": "89d07e02d889ccb2dd8b5137c16a163a6339d27d199b3930523e52fcd867e341"
+        },
+        {
+          "bytes": 128,
+          "path": "host/exp/exponent/expo.modules.systemui/57.0.4/expo.modules.systemui-57.0.4-sources.jar.sha512",
+          "sha256": "80f6d3c02af361f9202264a591fa7689d1d3e5aa284c2eff21fab8ce111ee7e4"
+        },
+        {
+          "bytes": 128,
+          "path": "host/exp/exponent/expo.modules.systemui/57.0.4/expo.modules.systemui-57.0.4.aar.sha512",
+          "sha256": "256f57839645df2edfcb0bac2f6e7043b1bc2ca6fa2fefe2801bf2dbc7e3504c"
+        },
+        {
+          "bytes": 128,
+          "path": "host/exp/exponent/expo.modules.systemui/57.0.4/expo.modules.systemui-57.0.4.module.sha512",
+          "sha256": "3e74a8bb2b3f888852f86c94d5cef34a197fd04b619a648a2efaa7792b1ff90b"
+        },
+        {
+          "bytes": 128,
+          "path": "host/exp/exponent/expo.modules.systemui/57.0.4/expo.modules.systemui-57.0.4.pom.sha512",
+          "sha256": "066403fa8ba78263d41d898be0a5ec13e84a877f08df6a4b52319cac1aae52f5"
+        },
+        {
+          "bytes": 128,
+          "path": "host/exp/exponent/expo.modules.systemui/maven-metadata.xml.sha512",
+          "sha256": "2a8751df03a6d31d1a63c1c049f2b88da586b7b06aa01f26c78cded22c200f9c"
+        },
+        {
+          "bytes": 348,
+          "path": "host/exp/exponent/expo.modules.systemui/maven-metadata.xml",
+          "sha256": "e987c7b81b9c1e5381926943e98c2c763356efff70b17e89120c56e1d3ac374d"
+        }
+      ],
+      "npmIntegrity": "sha512-z//rxQJzhTNA1PcKrUtWmrd21jAS3nEDu1b0n8B/7LTTR933OcsZYP1HnbaZifuo2ZH/h7nce2Ow61WZ1Ig2bg==",
+      "npmTarballSha256": "fb07513813eadcd4c8d9f12c8a1b0f10f17e811d97e7e7d5284cb28d9576d50e",
+      "npmUrl": "https://registry.npmjs.org/expo-system-ui/-/expo-system-ui-57.0.4.tgz",
+      "removeMetadata": [
+        "host/exp/exponent/expo.modules.systemui/maven-metadata.xml.md5",
+        "host/exp/exponent/expo.modules.systemui/maven-metadata.xml.sha1",
+        "host/exp/exponent/expo.modules.systemui/maven-metadata.xml.sha256",
+        "host/exp/exponent/expo.modules.systemui/maven-metadata.xml.sha512",
+        "host/exp/exponent/expo.modules.systemui/maven-metadata.xml"
+      ],
+      "root": "node_modules/expo-system-ui/local-maven-repo"
+    },
+    {
+      "files": [
+        {
+          "bytes": 4219,
+          "path": "host/exp/exponent/expo.modules.statusbar/57.0.1/expo.modules.statusbar-57.0.1.aar",
+          "sha256": "be5d8dc65b7c6b4d95010745052b684de34ba80bb521a1ff0de1028c3800ed71"
+        },
+        {
+          "bytes": 1964,
+          "path": "host/exp/exponent/expo.modules.statusbar/57.0.1/expo.modules.statusbar-57.0.1-sources.jar",
+          "sha256": "38fbc64f2188add1af8dc6f57fc342e55efdde687857562a73f6f636040dc972"
+        },
+        {
+          "bytes": 32,
+          "path": "host/exp/exponent/expo.modules.statusbar/57.0.1/expo.modules.statusbar-57.0.1-sources.jar.md5",
+          "sha256": "f66d8be8f194333c11dde82c35f3275b36442281b5ff4a61a96ba8bf541af62a"
+        },
+        {
+          "bytes": 32,
+          "path": "host/exp/exponent/expo.modules.statusbar/57.0.1/expo.modules.statusbar-57.0.1.aar.md5",
+          "sha256": "9ae54e6bd3bbf8320522c8a701538cc5ba307170a02e67003844c3a598412b0d"
+        },
+        {
+          "bytes": 32,
+          "path": "host/exp/exponent/expo.modules.statusbar/57.0.1/expo.modules.statusbar-57.0.1.module.md5",
+          "sha256": "dd7baa56a4bb512a837a6b10b4cdb5584847a8f3e80119d42270c095905ca550"
+        },
+        {
+          "bytes": 32,
+          "path": "host/exp/exponent/expo.modules.statusbar/57.0.1/expo.modules.statusbar-57.0.1.pom.md5",
+          "sha256": "9465fd636f9e986fd174dd351f0219f7df3769ba59595d053a861e4b87edbc38"
+        },
+        {
+          "bytes": 32,
+          "path": "host/exp/exponent/expo.modules.statusbar/maven-metadata.xml.md5",
+          "sha256": "992eaa3b31979d97075cba0b203fd92f25f951ba08e24d1df04f9f33b96da073"
+        },
+        {
+          "bytes": 3611,
+          "path": "host/exp/exponent/expo.modules.statusbar/57.0.1/expo.modules.statusbar-57.0.1.module",
+          "sha256": "d2ebfb455f15c2d67404964f64e9cbd7d3f0d27feea19a29d2c34a6068463d8e"
+        },
+        {
+          "bytes": 2571,
+          "path": "host/exp/exponent/expo.modules.statusbar/57.0.1/expo.modules.statusbar-57.0.1.pom",
+          "sha256": "deefd7a6aef1ce43ddf654870e6a48fbdb172051fe005a56a88b245f2cd5a668"
+        },
+        {
+          "bytes": 40,
+          "path": "host/exp/exponent/expo.modules.statusbar/57.0.1/expo.modules.statusbar-57.0.1-sources.jar.sha1",
+          "sha256": "858d3435f36090bafbe95c4df7515190e202c0fc933ecb3c94e6664c95a0b1ae"
+        },
+        {
+          "bytes": 40,
+          "path": "host/exp/exponent/expo.modules.statusbar/57.0.1/expo.modules.statusbar-57.0.1.aar.sha1",
+          "sha256": "b6666cb156f35552bcbc9051e9f63e3fc58a271c9a795762fb23b190282447ea"
+        },
+        {
+          "bytes": 40,
+          "path": "host/exp/exponent/expo.modules.statusbar/57.0.1/expo.modules.statusbar-57.0.1.module.sha1",
+          "sha256": "1f3eb80427e66eacf8f437331012c6eac7dd76491163f5fea42931860ce50335"
+        },
+        {
+          "bytes": 40,
+          "path": "host/exp/exponent/expo.modules.statusbar/57.0.1/expo.modules.statusbar-57.0.1.pom.sha1",
+          "sha256": "20b90d4710cc126c492d0904e0be8e545fec92af1a185b80cd2c638aa7696ea7"
+        },
+        {
+          "bytes": 40,
+          "path": "host/exp/exponent/expo.modules.statusbar/maven-metadata.xml.sha1",
+          "sha256": "991458966dc2d1b10e11afbc901a42839c3033de70fc3e32485e348a98a8c9d5"
+        },
+        {
+          "bytes": 64,
+          "path": "host/exp/exponent/expo.modules.statusbar/57.0.1/expo.modules.statusbar-57.0.1-sources.jar.sha256",
+          "sha256": "3c53ac2c5831c96af0f7057743dc928b83425968e2bdafd4258ea0657f877ed0"
+        },
+        {
+          "bytes": 64,
+          "path": "host/exp/exponent/expo.modules.statusbar/57.0.1/expo.modules.statusbar-57.0.1.aar.sha256",
+          "sha256": "0ae35aea8b16c8858cc04025d3d23d404f2ab7a2a484ac51e070b290ecc9c06c"
+        },
+        {
+          "bytes": 64,
+          "path": "host/exp/exponent/expo.modules.statusbar/57.0.1/expo.modules.statusbar-57.0.1.module.sha256",
+          "sha256": "95a4047ac25da34e20e4c6abe72e865ddbbce7bd0c9d04a0c78924ce491aafc7"
+        },
+        {
+          "bytes": 64,
+          "path": "host/exp/exponent/expo.modules.statusbar/57.0.1/expo.modules.statusbar-57.0.1.pom.sha256",
+          "sha256": "ead8f5f29eef7d1991ab5beeb488c770e79daa9be685c02e7b070819bb05982b"
+        },
+        {
+          "bytes": 64,
+          "path": "host/exp/exponent/expo.modules.statusbar/maven-metadata.xml.sha256",
+          "sha256": "2847139f8213317f08a7fba078bf6626db99ef0bc76015c8978896fc4f7d389e"
+        },
+        {
+          "bytes": 128,
+          "path": "host/exp/exponent/expo.modules.statusbar/57.0.1/expo.modules.statusbar-57.0.1-sources.jar.sha512",
+          "sha256": "c39422b1cfda32e5bd018fd57a370acf128b01810c5be4274bc8c9a2b993da92"
+        },
+        {
+          "bytes": 128,
+          "path": "host/exp/exponent/expo.modules.statusbar/57.0.1/expo.modules.statusbar-57.0.1.aar.sha512",
+          "sha256": "208e6bb5f838d60db5df2a2986e1bd102236d2d95acf186c09bca5c1618d34b8"
+        },
+        {
+          "bytes": 128,
+          "path": "host/exp/exponent/expo.modules.statusbar/57.0.1/expo.modules.statusbar-57.0.1.module.sha512",
+          "sha256": "65fd21ad0e1d4e7e192cdd42421a18f7a2e4a76a6c49429dc0910c33ae810268"
+        },
+        {
+          "bytes": 128,
+          "path": "host/exp/exponent/expo.modules.statusbar/57.0.1/expo.modules.statusbar-57.0.1.pom.sha512",
+          "sha256": "c80356b81fa77f30437ead5d780b5f8283cc83cc216be03d414b984e85f9a387"
+        },
+        {
+          "bytes": 128,
+          "path": "host/exp/exponent/expo.modules.statusbar/maven-metadata.xml.sha512",
+          "sha256": "e60ce923f56c10bfd4cb032009ce4d4f74af9bec82222af89eac50eadeb62a7d"
+        },
+        {
+          "bytes": 349,
+          "path": "host/exp/exponent/expo.modules.statusbar/maven-metadata.xml",
+          "sha256": "f60d85a5f16f98c4a85a910778c1ac19075f87cccd061124a593bdd7585757b9"
+        }
+      ],
+      "npmIntegrity": "sha512-Xwaq1gAoVRWx5dPG5VhT5RSbnI9OilhZnO5qoPBnUaBAa5VzRzfdS8q0/bsPt0jR2DKLtGuP0bQ6efMJ4RIMDg==",
+      "npmTarballSha256": "8ccdc0a9eee86ba0545c8f8d2878a02fa8297fb6a5dff735f7ec85f43c363948",
+      "npmUrl": "https://registry.npmjs.org/expo-status-bar/-/expo-status-bar-57.0.1.tgz",
+      "removeMetadata": [
+        "host/exp/exponent/expo.modules.statusbar/maven-metadata.xml.md5",
+        "host/exp/exponent/expo.modules.statusbar/maven-metadata.xml.sha1",
+        "host/exp/exponent/expo.modules.statusbar/maven-metadata.xml.sha256",
+        "host/exp/exponent/expo.modules.statusbar/maven-metadata.xml.sha512",
+        "host/exp/exponent/expo.modules.statusbar/maven-metadata.xml"
+      ],
+      "root": "node_modules/expo-status-bar/local-maven-repo"
+    },
+    {
+      "files": [
+        {
+          "bytes": 15835,
+          "path": "expo/modules/router/expo.modules.router/57.0.23/expo.modules.router-57.0.23.aar",
+          "sha256": "7c41d508ab24d199ead0eb06525957cdd227a73925863865bf2956d48cb707ef"
+        },
+        {
+          "bytes": 2326,
+          "path": "expo/modules/router/expo.modules.router/57.0.23/expo.modules.router-57.0.23-sources.jar",
+          "sha256": "2add0f802e663eb9b5f90e086dca0e0e337a1442e15fb372a05945e01ee0d289"
+        },
+        {
+          "bytes": 32,
+          "path": "expo/modules/router/expo.modules.router/57.0.23/expo.modules.router-57.0.23-sources.jar.md5",
+          "sha256": "0a892d8ff66f2e30985970ba7676df4f518f6da6ad2b4f28fe6a5dd2567ead3a"
+        },
+        {
+          "bytes": 32,
+          "path": "expo/modules/router/expo.modules.router/57.0.23/expo.modules.router-57.0.23.aar.md5",
+          "sha256": "dae60d3d66d02938b652098e7ee935b9a80a780fa0fdfc3bb7595be8237a2aeb"
+        },
+        {
+          "bytes": 32,
+          "path": "expo/modules/router/expo.modules.router/57.0.23/expo.modules.router-57.0.23.module.md5",
+          "sha256": "49577e12eb2f03947d5cfb22f7d1867f739cd5ba116217e03a56c5fec1787a07"
+        },
+        {
+          "bytes": 32,
+          "path": "expo/modules/router/expo.modules.router/57.0.23/expo.modules.router-57.0.23.pom.md5",
+          "sha256": "5ada3e20cf9c40e03bcc78fc72fdc76e22621fa7cb0b07f2547721e1f754bf86"
+        },
+        {
+          "bytes": 32,
+          "path": "expo/modules/router/expo.modules.router/maven-metadata.xml.md5",
+          "sha256": "fc2517219389b54fcb41bd553f00d77b440507711cc1d9180c91f71154175bff"
+        },
+        {
+          "bytes": 3457,
+          "path": "expo/modules/router/expo.modules.router/57.0.23/expo.modules.router-57.0.23.module",
+          "sha256": "6fb5d1f29eb7fd9cf757d606691f2ebc1d5dc94548f34d181a4830d85fd341fb"
+        },
+        {
+          "bytes": 2406,
+          "path": "expo/modules/router/expo.modules.router/57.0.23/expo.modules.router-57.0.23.pom",
+          "sha256": "a9ae4ddbfbd616ee4e0f7d08d3f4825f1e64e40ba27b4e9dd95cec6d627bef92"
+        },
+        {
+          "bytes": 40,
+          "path": "expo/modules/router/expo.modules.router/57.0.23/expo.modules.router-57.0.23-sources.jar.sha1",
+          "sha256": "45e15b04c1af0c346e682d9de218f0ac7737e236a856caca6c94f50e85f31c2f"
+        },
+        {
+          "bytes": 40,
+          "path": "expo/modules/router/expo.modules.router/57.0.23/expo.modules.router-57.0.23.aar.sha1",
+          "sha256": "00497d7991e9de1019dda442de5441ce3f02b0e5e4c57093ba94ae80b98afe74"
+        },
+        {
+          "bytes": 40,
+          "path": "expo/modules/router/expo.modules.router/57.0.23/expo.modules.router-57.0.23.module.sha1",
+          "sha256": "8b1b6cf42f8723e9e89b2ab50c7cebd8169a2d04ca1f0cb7d89ea3cfacd9dc0b"
+        },
+        {
+          "bytes": 40,
+          "path": "expo/modules/router/expo.modules.router/57.0.23/expo.modules.router-57.0.23.pom.sha1",
+          "sha256": "b86a6b121e832e53dbcdc2fcdf7de1363d5c7d14affa4391ac8543cb30d17ed0"
+        },
+        {
+          "bytes": 40,
+          "path": "expo/modules/router/expo.modules.router/maven-metadata.xml.sha1",
+          "sha256": "1cdfb63a376f9d733e6a3d12d4b52d588157890183d840bd286c4eb2bb4302c3"
+        },
+        {
+          "bytes": 64,
+          "path": "expo/modules/router/expo.modules.router/57.0.23/expo.modules.router-57.0.23-sources.jar.sha256",
+          "sha256": "d1e19d57fc620ebbdbb16028faf6557e6ea19d1175e1a491d4ba99e064cb7a29"
+        },
+        {
+          "bytes": 64,
+          "path": "expo/modules/router/expo.modules.router/57.0.23/expo.modules.router-57.0.23.aar.sha256",
+          "sha256": "d082f709c6b0593c8e4281f58ef232c23c13e273bbd16f6cd305ccaf4350936e"
+        },
+        {
+          "bytes": 64,
+          "path": "expo/modules/router/expo.modules.router/57.0.23/expo.modules.router-57.0.23.module.sha256",
+          "sha256": "9b1b878da7da053222062f2125d0205336cf25b72e44f0ac22aab0b9691c1d32"
+        },
+        {
+          "bytes": 64,
+          "path": "expo/modules/router/expo.modules.router/57.0.23/expo.modules.router-57.0.23.pom.sha256",
+          "sha256": "4c6dbf243c812efa20349775088714f9ab8cfc9c00e4e7c7ffcf5bdca8cccfc7"
+        },
+        {
+          "bytes": 64,
+          "path": "expo/modules/router/expo.modules.router/maven-metadata.xml.sha256",
+          "sha256": "ad8236b31c5fad9712204c66547ee3dfebb8826e3b82f5aa4314d9bdbad7aeba"
+        },
+        {
+          "bytes": 128,
+          "path": "expo/modules/router/expo.modules.router/57.0.23/expo.modules.router-57.0.23-sources.jar.sha512",
+          "sha256": "74ba0466095703c386aacd8c37d16e330632276acdaf04674457d716a75491a4"
+        },
+        {
+          "bytes": 128,
+          "path": "expo/modules/router/expo.modules.router/57.0.23/expo.modules.router-57.0.23.aar.sha512",
+          "sha256": "d72f6769267f617857ed39f941062ad62fad98255dbe653af1272a7a493f5494"
+        },
+        {
+          "bytes": 128,
+          "path": "expo/modules/router/expo.modules.router/57.0.23/expo.modules.router-57.0.23.module.sha512",
+          "sha256": "dfb70cff6ff219e9b24ce1e1cebf23f3e72737f5b1149422c7eb50d8cc5b17e0"
+        },
+        {
+          "bytes": 128,
+          "path": "expo/modules/router/expo.modules.router/57.0.23/expo.modules.router-57.0.23.pom.sha512",
+          "sha256": "b158c05a677f81a9e1f8719729b9f32ffc76ce610291638e400201f1ad0929a3"
+        },
+        {
+          "bytes": 128,
+          "path": "expo/modules/router/expo.modules.router/maven-metadata.xml.sha512",
+          "sha256": "1dde48908fadb7c9832b7f9c1dbfc4e64a9a0103083087bf39ce223f648f8630"
+        },
+        {
+          "bytes": 351,
+          "path": "expo/modules/router/expo.modules.router/maven-metadata.xml",
+          "sha256": "62c127ac9cef099dd0a402a4ccb4b0b9207b559a853701913ab013a67477fa34"
+        }
+      ],
+      "npmIntegrity": "sha512-u/iWSdQovEma/owymgz8etxGAif5ZrC8YdXYeGQhDRZwXpAvraordYV0SWej1QWWbYoIkgXcoqHVkgsAff8P4w==",
+      "npmTarballSha256": "e9b52e76709c16b547257974f6f8fd6786f2c03606af33695fabcad00e514ab8",
+      "npmUrl": "https://registry.npmjs.org/expo-router/-/expo-router-57.0.23.tgz",
+      "removeMetadata": [
+        "expo/modules/router/expo.modules.router/maven-metadata.xml.md5",
+        "expo/modules/router/expo.modules.router/maven-metadata.xml.sha1",
+        "expo/modules/router/expo.modules.router/maven-metadata.xml.sha256",
+        "expo/modules/router/expo.modules.router/maven-metadata.xml.sha512",
+        "expo/modules/router/expo.modules.router/maven-metadata.xml"
+      ],
+      "root": "node_modules/expo-router/local-maven-repo"
+    },
+    {
+      "files": [
+        {
+          "bytes": 26004,
+          "path": "host/exp/exponent/expo.modules.splashscreen/57.0.9/expo.modules.splashscreen-57.0.9.aar",
+          "sha256": "f36cdaf4241abc29e138f0a0c44ace5b8f36a43dfbcbcba7ad8745bd431f588e"
+        },
+        {
+          "bytes": 3255,
+          "path": "host/exp/exponent/expo.modules.splashscreen/57.0.9/expo.modules.splashscreen-57.0.9-sources.jar",
+          "sha256": "4f4ec662f0535b38318695d84eba02ddf1aca3cc6c26e57cd9b38488fc7bb323"
+        },
+        {
+          "bytes": 32,
+          "path": "host/exp/exponent/expo.modules.splashscreen/57.0.9/expo.modules.splashscreen-57.0.9-sources.jar.md5",
+          "sha256": "49e19759afafb6c7047a114f07f6dac63e2374d4cbc5144a2bcea0102e3443a2"
+        },
+        {
+          "bytes": 32,
+          "path": "host/exp/exponent/expo.modules.splashscreen/57.0.9/expo.modules.splashscreen-57.0.9.aar.md5",
+          "sha256": "d08416fdbfe0c76f9cf23ed824b0f74e9949f1c3a61b1c674289a944480a4329"
+        },
+        {
+          "bytes": 32,
+          "path": "host/exp/exponent/expo.modules.splashscreen/57.0.9/expo.modules.splashscreen-57.0.9.module.md5",
+          "sha256": "97333999fbaf72a0a5102f6fe32ed5b518c4afaa94a4b2932feef015e550d33d"
+        },
+        {
+          "bytes": 32,
+          "path": "host/exp/exponent/expo.modules.splashscreen/57.0.9/expo.modules.splashscreen-57.0.9.pom.md5",
+          "sha256": "2d1e7c6784fab562a6ed8d4c4b02a719adcbaaa5a248ed7a09edef4cef91f500"
+        },
+        {
+          "bytes": 32,
+          "path": "host/exp/exponent/expo.modules.splashscreen/maven-metadata.xml.md5",
+          "sha256": "bb9cefe2e72847d66e621c4a509cef9e8ef1332fef7a40a679a6b1ed1c238eb7"
+        },
+        {
+          "bytes": 3744,
+          "path": "host/exp/exponent/expo.modules.splashscreen/57.0.9/expo.modules.splashscreen-57.0.9.module",
+          "sha256": "13d554b7b8c5dd863d09d5390e9df42938974a3eb7edeaeb9719f0b7fd349f85"
+        },
+        {
+          "bytes": 2742,
+          "path": "host/exp/exponent/expo.modules.splashscreen/57.0.9/expo.modules.splashscreen-57.0.9.pom",
+          "sha256": "450ad88ba19832bf11a7350e153309e9707b1dbeb5b7222e3414b13f5878e65e"
+        },
+        {
+          "bytes": 40,
+          "path": "host/exp/exponent/expo.modules.splashscreen/57.0.9/expo.modules.splashscreen-57.0.9-sources.jar.sha1",
+          "sha256": "03cfb4a68c6021723fd3fdd298ccb94f4ea0a3fd35feb27e46aacc43f7e61cc1"
+        },
+        {
+          "bytes": 40,
+          "path": "host/exp/exponent/expo.modules.splashscreen/57.0.9/expo.modules.splashscreen-57.0.9.aar.sha1",
+          "sha256": "d340b2528d31563c60d4eba81ff712b7db2710506e81a12f477e684bbf38cf9a"
+        },
+        {
+          "bytes": 40,
+          "path": "host/exp/exponent/expo.modules.splashscreen/57.0.9/expo.modules.splashscreen-57.0.9.module.sha1",
+          "sha256": "c5b4e573740e2d48f39e169b90cbe6c2fb58181fa2d3840ab007fdf7185542b8"
+        },
+        {
+          "bytes": 40,
+          "path": "host/exp/exponent/expo.modules.splashscreen/57.0.9/expo.modules.splashscreen-57.0.9.pom.sha1",
+          "sha256": "10245383d84f0762fa9be418fa652eefda45cc3c216c63c6c605c28866a0c0fc"
+        },
+        {
+          "bytes": 40,
+          "path": "host/exp/exponent/expo.modules.splashscreen/maven-metadata.xml.sha1",
+          "sha256": "230d6b2e28ee302e2838e1341cdd2d5622556dce222b5d0542233239a5bffddf"
+        },
+        {
+          "bytes": 64,
+          "path": "host/exp/exponent/expo.modules.splashscreen/57.0.9/expo.modules.splashscreen-57.0.9-sources.jar.sha256",
+          "sha256": "1207b101257f87565900799b1bdeb3539b5bf031f6c97c2b6b236f203b6f3149"
+        },
+        {
+          "bytes": 64,
+          "path": "host/exp/exponent/expo.modules.splashscreen/57.0.9/expo.modules.splashscreen-57.0.9.aar.sha256",
+          "sha256": "b87a0153d14dbd82688f4971d2fa65cc4eae65eb40ba299e127faf407600ac5e"
+        },
+        {
+          "bytes": 64,
+          "path": "host/exp/exponent/expo.modules.splashscreen/57.0.9/expo.modules.splashscreen-57.0.9.module.sha256",
+          "sha256": "8ff1b7ebef1a3dfeffa137ca29995091bda113363f808326061a0b57dd8b3407"
+        },
+        {
+          "bytes": 64,
+          "path": "host/exp/exponent/expo.modules.splashscreen/57.0.9/expo.modules.splashscreen-57.0.9.pom.sha256",
+          "sha256": "9fc305db7576f3b246a56019befea23d6adca51736f94342f6060097e46008b3"
+        },
+        {
+          "bytes": 64,
+          "path": "host/exp/exponent/expo.modules.splashscreen/maven-metadata.xml.sha256",
+          "sha256": "85095c1d9a5dbd6576960528138196c9f79d60a82ee9a25e9a53998a82dfd8e9"
+        },
+        {
+          "bytes": 128,
+          "path": "host/exp/exponent/expo.modules.splashscreen/57.0.9/expo.modules.splashscreen-57.0.9-sources.jar.sha512",
+          "sha256": "989bdd5215149d315037d132c5d1eb9b413a4c504ec26b7339d1f8fe832cb33c"
+        },
+        {
+          "bytes": 128,
+          "path": "host/exp/exponent/expo.modules.splashscreen/57.0.9/expo.modules.splashscreen-57.0.9.aar.sha512",
+          "sha256": "f760f73c5f8b9cc788879bd37cf9c34d4cf1a0bc3bd63221ada8bc09fe0c94ec"
+        },
+        {
+          "bytes": 128,
+          "path": "host/exp/exponent/expo.modules.splashscreen/57.0.9/expo.modules.splashscreen-57.0.9.module.sha512",
+          "sha256": "c7172936e6a9adb66cdf66754e30be7a5a1ac76ff38fdc9d853319f40cb8d8c4"
+        },
+        {
+          "bytes": 128,
+          "path": "host/exp/exponent/expo.modules.splashscreen/57.0.9/expo.modules.splashscreen-57.0.9.pom.sha512",
+          "sha256": "231b44338b56716e9ddb4fdcf075e28f044c8b23afa5b36d204ea9e7a424056b"
+        },
+        {
+          "bytes": 128,
+          "path": "host/exp/exponent/expo.modules.splashscreen/maven-metadata.xml.sha512",
+          "sha256": "7bec27cd3ec57c994b903f7df9f4f73032e8bb0955cbad0ba1ffc430fe5bc79e"
+        },
+        {
+          "bytes": 352,
+          "path": "host/exp/exponent/expo.modules.splashscreen/maven-metadata.xml",
+          "sha256": "0388bca3946773379ae16a6c45754b398266be9991ed95ee585137be60bc060b"
+        }
+      ],
+      "npmIntegrity": "sha512-7cKDn7uBwg0RkcmY015/5j9st4msWJ4zQiPmQdVZoppW3cFSbv05n7xhM6CjUU466Tx4VRTqDF21HuIHkmnEtA==",
+      "npmTarballSha256": "4e3dd90ca1b2235818d3ebe1d9b7e116ea693c18ab4d28f50e34015ef7fbaa9d",
+      "npmUrl": "https://registry.npmjs.org/expo-splash-screen/-/expo-splash-screen-57.0.9.tgz",
+      "removeMetadata": [
+        "host/exp/exponent/expo.modules.splashscreen/maven-metadata.xml.md5",
+        "host/exp/exponent/expo.modules.splashscreen/maven-metadata.xml.sha1",
+        "host/exp/exponent/expo.modules.splashscreen/maven-metadata.xml.sha256",
+        "host/exp/exponent/expo.modules.splashscreen/maven-metadata.xml.sha512",
+        "host/exp/exponent/expo.modules.splashscreen/maven-metadata.xml"
+      ],
+      "root": "node_modules/expo-splash-screen/local-maven-repo"
+    },
+    {
+      "files": [
+        {
+          "bytes": 20061,
+          "path": "host/exp/exponent/expo.modules.localization/57.0.2/expo.modules.localization-57.0.2.aar",
+          "sha256": "08162bb2d72edca1ce1d787f3a8808aa0fc1509e3c368ce19e1f48e21a74fd1e"
+        },
+        {
+          "bytes": 4443,
+          "path": "host/exp/exponent/expo.modules.localization/57.0.2/expo.modules.localization-57.0.2-sources.jar",
+          "sha256": "d3379530503d6cde062d064fcd6c1e5b162e4f4a0677f8062543f87577058373"
+        },
+        {
+          "bytes": 32,
+          "path": "host/exp/exponent/expo.modules.localization/57.0.2/expo.modules.localization-57.0.2-sources.jar.md5",
+          "sha256": "84132c432a2e6e90fa80e0ce2590ccb80b75a036ace5b2fdd3abb978af5b7c66"
+        },
+        {
+          "bytes": 32,
+          "path": "host/exp/exponent/expo.modules.localization/57.0.2/expo.modules.localization-57.0.2.aar.md5",
+          "sha256": "e5bab616b575e9dbacec19f892237043a7b887db39c627ac31386acf346a7784"
+        },
+        {
+          "bytes": 32,
+          "path": "host/exp/exponent/expo.modules.localization/57.0.2/expo.modules.localization-57.0.2.module.md5",
+          "sha256": "936474aba21285d2dddcc8d3dcc8886a0896f86c64c15f9d0bf9fdc4720b14b5"
+        },
+        {
+          "bytes": 32,
+          "path": "host/exp/exponent/expo.modules.localization/57.0.2/expo.modules.localization-57.0.2.pom.md5",
+          "sha256": "a62adcf257f5036c9a147f72e7638c9785cd8b4e3b6938fbaa17e704796aa752"
+        },
+        {
+          "bytes": 32,
+          "path": "host/exp/exponent/expo.modules.localization/maven-metadata.xml.md5",
+          "sha256": "548def38e04937c9db40421bd921a9bf4b47df19f9bed8da71945a20d60a9a5e"
+        },
+        {
+          "bytes": 3574,
+          "path": "host/exp/exponent/expo.modules.localization/57.0.2/expo.modules.localization-57.0.2.module",
+          "sha256": "25cc13f15b6dd229d59036121e811067dbf5f886e643115477c8b2b5302b572e"
+        },
+        {
+          "bytes": 2554,
+          "path": "host/exp/exponent/expo.modules.localization/57.0.2/expo.modules.localization-57.0.2.pom",
+          "sha256": "69bf1391d1a8b5e7cf358ec77559c1c8b4e8cddef46d9d64a0d7afd5236d33df"
+        },
+        {
+          "bytes": 40,
+          "path": "host/exp/exponent/expo.modules.localization/57.0.2/expo.modules.localization-57.0.2-sources.jar.sha1",
+          "sha256": "4145d3dca2af82faa3cf5593359b360c7a58025a000cfebf0cd1af0f31465d06"
+        },
+        {
+          "bytes": 40,
+          "path": "host/exp/exponent/expo.modules.localization/57.0.2/expo.modules.localization-57.0.2.aar.sha1",
+          "sha256": "1148e6fcb024b929b1a0eb69b06adba64da4e4b35f2c6b754d0552320143213e"
+        },
+        {
+          "bytes": 40,
+          "path": "host/exp/exponent/expo.modules.localization/57.0.2/expo.modules.localization-57.0.2.module.sha1",
+          "sha256": "aa3ebcf0792e0ae1c4b15cd002abd0653607706b9ff7475ea6ab2d75206a9604"
+        },
+        {
+          "bytes": 40,
+          "path": "host/exp/exponent/expo.modules.localization/57.0.2/expo.modules.localization-57.0.2.pom.sha1",
+          "sha256": "922ac04fb459aa7524eeb676f506486586d2401c194087927c6e36c1bcdc0b7c"
+        },
+        {
+          "bytes": 40,
+          "path": "host/exp/exponent/expo.modules.localization/maven-metadata.xml.sha1",
+          "sha256": "bc8d669a4d552c7054a291b06163be9dc8722ee3852c7574a33f4e5197e9c4a8"
+        },
+        {
+          "bytes": 64,
+          "path": "host/exp/exponent/expo.modules.localization/57.0.2/expo.modules.localization-57.0.2-sources.jar.sha256",
+          "sha256": "3f4190cc373e79c81cbcdcbf6b8acba8bc89f5bb93c323f7cf05ab37e9a15abc"
+        },
+        {
+          "bytes": 64,
+          "path": "host/exp/exponent/expo.modules.localization/57.0.2/expo.modules.localization-57.0.2.aar.sha256",
+          "sha256": "b64a5df1c1cca2a9e755fa59473114669af5d5c78aa9ff36a80a0e2013a12919"
+        },
+        {
+          "bytes": 64,
+          "path": "host/exp/exponent/expo.modules.localization/57.0.2/expo.modules.localization-57.0.2.module.sha256",
+          "sha256": "6cda2e9d8510ea7d34cbb7e8da049f32db85656172a20871978cc113185a6650"
+        },
+        {
+          "bytes": 64,
+          "path": "host/exp/exponent/expo.modules.localization/57.0.2/expo.modules.localization-57.0.2.pom.sha256",
+          "sha256": "32f0ba59c88e4e9adec4bd3f3b6dcba7543e11e3387a7a2d7a8ea94ba04eba4e"
+        },
+        {
+          "bytes": 64,
+          "path": "host/exp/exponent/expo.modules.localization/maven-metadata.xml.sha256",
+          "sha256": "4a107ec96e217939ea453423ebff2037117041304605c650756a2b1e2b66c02b"
+        },
+        {
+          "bytes": 128,
+          "path": "host/exp/exponent/expo.modules.localization/57.0.2/expo.modules.localization-57.0.2-sources.jar.sha512",
+          "sha256": "42636e9db17063aee244b16ab63184d56bc28ad9091665843d2f53a695537421"
+        },
+        {
+          "bytes": 128,
+          "path": "host/exp/exponent/expo.modules.localization/57.0.2/expo.modules.localization-57.0.2.aar.sha512",
+          "sha256": "fce33ce7822b02883b6a0b8041b3cf0e91b2313eafdc61f7ae11f2418a1e0569"
+        },
+        {
+          "bytes": 128,
+          "path": "host/exp/exponent/expo.modules.localization/57.0.2/expo.modules.localization-57.0.2.module.sha512",
+          "sha256": "440414bc20760190a59b8d05f266b6b4e02979ee7b911e2c44cb74a6ca5259a9"
+        },
+        {
+          "bytes": 128,
+          "path": "host/exp/exponent/expo.modules.localization/57.0.2/expo.modules.localization-57.0.2.pom.sha512",
+          "sha256": "e29d2e67a4309611c4817feb8ff36b15318465ad2b46d0ecd8eef17687482a79"
+        },
+        {
+          "bytes": 128,
+          "path": "host/exp/exponent/expo.modules.localization/maven-metadata.xml.sha512",
+          "sha256": "d3738877982734aa5b785a7ddf32f19d60337011420df6901743864e85b97ea9"
+        },
+        {
+          "bytes": 352,
+          "path": "host/exp/exponent/expo.modules.localization/maven-metadata.xml",
+          "sha256": "8136d218fef1774b2648224877d045058a4ef8e0177868385739bd7cd3ec1592"
+        }
+      ],
+      "npmIntegrity": "sha512-sIKYH3Ivddoge568WY6j+Kp2MAAZzWWqEnY2bokLkJFwX366tGL1mEnoY2WUi/qHatFFPop2yqDdurzbhnnimQ==",
+      "npmTarballSha256": "4397371653d22613a1e50defe2326b2ceb604aa15f7bc89d4b3fbc8eedfa4c87",
+      "npmUrl": "https://registry.npmjs.org/expo-localization/-/expo-localization-57.0.2.tgz",
+      "removeMetadata": [
+        "host/exp/exponent/expo.modules.localization/maven-metadata.xml.md5",
+        "host/exp/exponent/expo.modules.localization/maven-metadata.xml.sha1",
+        "host/exp/exponent/expo.modules.localization/maven-metadata.xml.sha256",
+        "host/exp/exponent/expo.modules.localization/maven-metadata.xml.sha512",
+        "host/exp/exponent/expo.modules.localization/maven-metadata.xml"
+      ],
+      "root": "node_modules/expo-localization/local-maven-repo"
+    },
+    {
+      "files": [
+        {
+          "bytes": 13309,
+          "path": "host/exp/exponent/expo.modules.linking/57.0.11/expo.modules.linking-57.0.11.aar",
+          "sha256": "871c78452f5f85ddd6fe5af6789d985ce1e8c8f152c4161dee41779ced119f01"
+        },
+        {
+          "bytes": 2399,
+          "path": "host/exp/exponent/expo.modules.linking/57.0.11/expo.modules.linking-57.0.11-sources.jar",
+          "sha256": "a00ae7ad7f5d07a33f01b8af1caa9877b157308b68cff84358de4343c90fb61c"
+        },
+        {
+          "bytes": 32,
+          "path": "host/exp/exponent/expo.modules.linking/57.0.11/expo.modules.linking-57.0.11-sources.jar.md5",
+          "sha256": "e207cd274244b248ff5e5e618da17d9d36fb8a18b881bcaf9dd6a19251b587da"
+        },
+        {
+          "bytes": 32,
+          "path": "host/exp/exponent/expo.modules.linking/57.0.11/expo.modules.linking-57.0.11.aar.md5",
+          "sha256": "91188e3e56c360c43c9a0ce619a633f9e7a6093466c41816e073fc1908a58ad4"
+        },
+        {
+          "bytes": 32,
+          "path": "host/exp/exponent/expo.modules.linking/57.0.11/expo.modules.linking-57.0.11.module.md5",
+          "sha256": "2eed0a06c54c191d1f6598ff0cd6a310c4cb0d21893377b0976be55ec0705724"
+        },
+        {
+          "bytes": 32,
+          "path": "host/exp/exponent/expo.modules.linking/57.0.11/expo.modules.linking-57.0.11.pom.md5",
+          "sha256": "d80f273a9208d2033d0a6943ec2b1794201eb40fada06090600de8490baf5e6a"
+        },
+        {
+          "bytes": 32,
+          "path": "host/exp/exponent/expo.modules.linking/maven-metadata.xml.md5",
+          "sha256": "b572763488219bcbff77dcf86b9a0f42a4c18334824706b25cb5cb651f4896d8"
+        },
+        {
+          "bytes": 3291,
+          "path": "host/exp/exponent/expo.modules.linking/57.0.11/expo.modules.linking-57.0.11.module",
+          "sha256": "2b7ff5f20ccdcbb091fcd7c5b468b5306aac431d5eece34eebac6f9a18f7e84d"
+        },
+        {
+          "bytes": 2217,
+          "path": "host/exp/exponent/expo.modules.linking/57.0.11/expo.modules.linking-57.0.11.pom",
+          "sha256": "f8187e63dd819b0d7408c5f31f590b3da12b2821dd284eecb968d3228274372d"
+        },
+        {
+          "bytes": 40,
+          "path": "host/exp/exponent/expo.modules.linking/57.0.11/expo.modules.linking-57.0.11-sources.jar.sha1",
+          "sha256": "68958e94a1c4e8a5c8e417bc97ceecb5adc0e428ce312514e8f5a5e378019621"
+        },
+        {
+          "bytes": 40,
+          "path": "host/exp/exponent/expo.modules.linking/57.0.11/expo.modules.linking-57.0.11.aar.sha1",
+          "sha256": "f8c8f06c26763d51d71d4f58a6de0acdbafcfb6e93703e548225eff10f543187"
+        },
+        {
+          "bytes": 40,
+          "path": "host/exp/exponent/expo.modules.linking/57.0.11/expo.modules.linking-57.0.11.module.sha1",
+          "sha256": "fecf7da52e14fd1d7561ff787a9cd8d1c7d16ef79083bc25f1c8c48e8609ab73"
+        },
+        {
+          "bytes": 40,
+          "path": "host/exp/exponent/expo.modules.linking/57.0.11/expo.modules.linking-57.0.11.pom.sha1",
+          "sha256": "21ad6fead7a92370c1e8e39b199cfcc60623a640a9ee7f0219194511ab808a6b"
+        },
+        {
+          "bytes": 40,
+          "path": "host/exp/exponent/expo.modules.linking/maven-metadata.xml.sha1",
+          "sha256": "4ec425ae3f0808b7a240964f8c031cd0b1b4fb0e786cf3617a340c02e2182e3c"
+        },
+        {
+          "bytes": 64,
+          "path": "host/exp/exponent/expo.modules.linking/57.0.11/expo.modules.linking-57.0.11-sources.jar.sha256",
+          "sha256": "82428838485914f5b06b39d23383fb476132de25860905800ea79d3dfdd45664"
+        },
+        {
+          "bytes": 64,
+          "path": "host/exp/exponent/expo.modules.linking/57.0.11/expo.modules.linking-57.0.11.aar.sha256",
+          "sha256": "e28427b956acead2100fac16a3ddfb481d256db70c54908e367e2875d88d81ad"
+        },
+        {
+          "bytes": 64,
+          "path": "host/exp/exponent/expo.modules.linking/57.0.11/expo.modules.linking-57.0.11.module.sha256",
+          "sha256": "70dc12aea9bbb5061f621dd6c2fd0296fc01b05bdb8f82e9b9b727caa29b691f"
+        },
+        {
+          "bytes": 64,
+          "path": "host/exp/exponent/expo.modules.linking/57.0.11/expo.modules.linking-57.0.11.pom.sha256",
+          "sha256": "50614359cb8a050b217b9b52a02c385e0bdeb0706660f023840bbe101aad6d7a"
+        },
+        {
+          "bytes": 64,
+          "path": "host/exp/exponent/expo.modules.linking/maven-metadata.xml.sha256",
+          "sha256": "da7744964e01a82e2ce305ab90753eb1f9d08999ad6bf8331aadf771f6680978"
+        },
+        {
+          "bytes": 128,
+          "path": "host/exp/exponent/expo.modules.linking/57.0.11/expo.modules.linking-57.0.11-sources.jar.sha512",
+          "sha256": "9a8ca6821bda44e55d41bda06721db25a090c538ac09c79fe2f3c22be9974fbe"
+        },
+        {
+          "bytes": 128,
+          "path": "host/exp/exponent/expo.modules.linking/57.0.11/expo.modules.linking-57.0.11.aar.sha512",
+          "sha256": "476e8047772ed1884bbe380f8041d1eed89d9c5cf5c2d66ae1466f4a28832189"
+        },
+        {
+          "bytes": 128,
+          "path": "host/exp/exponent/expo.modules.linking/57.0.11/expo.modules.linking-57.0.11.module.sha512",
+          "sha256": "5ba4ecfbdffe439da6bec30ec1e7f0e530366350d166494c2abf0c88c553771b"
+        },
+        {
+          "bytes": 128,
+          "path": "host/exp/exponent/expo.modules.linking/57.0.11/expo.modules.linking-57.0.11.pom.sha512",
+          "sha256": "139c51cccb42abab7d56db0251cf1ef26432445ed9d0c0875504dc7929a65eb1"
+        },
+        {
+          "bytes": 128,
+          "path": "host/exp/exponent/expo.modules.linking/maven-metadata.xml.sha512",
+          "sha256": "90c86e365d4c1d590706c422f607876eebe3ab4a062826a991f3fd89cc55841f"
+        },
+        {
+          "bytes": 350,
+          "path": "host/exp/exponent/expo.modules.linking/maven-metadata.xml",
+          "sha256": "d2e1f9c0401678bfd00e03b5dd728cd542b8febfa29c31b6bc825c05e5c33609"
+        }
+      ],
+      "npmIntegrity": "sha512-bfTyiPb8szacs8XkGowXt5ssH/vbF26vFG8WUWQar8CcRpQcIzXY980ZkP7pK7Pcdy5MattwFdujrWOxwv5s3Q==",
+      "npmTarballSha256": "8616f142fa9a3595699a69d8579933ebf6c343fd0d61441c1f182503aabcd6c4",
+      "npmUrl": "https://registry.npmjs.org/expo-linking/-/expo-linking-57.0.11.tgz",
+      "removeMetadata": [
+        "host/exp/exponent/expo.modules.linking/maven-metadata.xml.md5",
+        "host/exp/exponent/expo.modules.linking/maven-metadata.xml.sha1",
+        "host/exp/exponent/expo.modules.linking/maven-metadata.xml.sha256",
+        "host/exp/exponent/expo.modules.linking/maven-metadata.xml.sha512",
+        "host/exp/exponent/expo.modules.linking/maven-metadata.xml"
+      ],
+      "root": "node_modules/expo-linking/local-maven-repo"
+    },
+    {
+      "files": [
+        {
+          "bytes": 29409,
+          "path": "host/exp/exponent/expo.modules.font/57.0.4/expo.modules.font-57.0.4.aar",
+          "sha256": "d7ea73905f045bfec5b9c40172b9b29f327d7a80a0bf05389d12966d157a1430"
+        },
+        {
+          "bytes": 4135,
+          "path": "host/exp/exponent/expo.modules.font/57.0.4/expo.modules.font-57.0.4-sources.jar",
+          "sha256": "87a25fe7ac775341198279e739706b7594f5a863da55f215422209e737e5562f"
+        },
+        {
+          "bytes": 32,
+          "path": "host/exp/exponent/expo.modules.font/57.0.4/expo.modules.font-57.0.4-sources.jar.md5",
+          "sha256": "ff95aabfe6dbdfeb5b42aadda6a08dac7ece751c7a29945bd19a345b2305f7c3"
+        },
+        {
+          "bytes": 32,
+          "path": "host/exp/exponent/expo.modules.font/57.0.4/expo.modules.font-57.0.4.aar.md5",
+          "sha256": "d38e1b8938fa4767ecc567111153647257466ac72fab13f5781ea0d4aaa27829"
+        },
+        {
+          "bytes": 32,
+          "path": "host/exp/exponent/expo.modules.font/57.0.4/expo.modules.font-57.0.4.module.md5",
+          "sha256": "10190406808a78ec90e5c2ba49f4ad7cc711be6339383fd18fe6e0ccb4488fa2"
+        },
+        {
+          "bytes": 32,
+          "path": "host/exp/exponent/expo.modules.font/57.0.4/expo.modules.font-57.0.4.pom.md5",
+          "sha256": "444020de9fffce6b307ddb47a991b3f2da1c802b4b6b17853833260cfdc48776"
+        },
+        {
+          "bytes": 32,
+          "path": "host/exp/exponent/expo.modules.font/maven-metadata.xml.md5",
+          "sha256": "719f470d476a8752a212e9b9fff1caa1d7a279b32598fe4c3ee6d160237e4e0f"
+        },
+        {
+          "bytes": 3361,
+          "path": "host/exp/exponent/expo.modules.font/57.0.4/expo.modules.font-57.0.4.module",
+          "sha256": "dad0ffa3154c0b11867d03cf4442d8a1d0ab33b66b33a6670692aa67599cf9bd"
+        },
+        {
+          "bytes": 2363,
+          "path": "host/exp/exponent/expo.modules.font/57.0.4/expo.modules.font-57.0.4.pom",
+          "sha256": "6b862b6783e24f53ebf6887b2473b6a5c9be85c26b0f3adab82408f599afae96"
+        },
+        {
+          "bytes": 40,
+          "path": "host/exp/exponent/expo.modules.font/57.0.4/expo.modules.font-57.0.4-sources.jar.sha1",
+          "sha256": "22bb10f938dc15f8a8a4f26c95cd53ca67dbae1ed880444b794cef714e0be965"
+        },
+        {
+          "bytes": 40,
+          "path": "host/exp/exponent/expo.modules.font/57.0.4/expo.modules.font-57.0.4.aar.sha1",
+          "sha256": "f85568e4ddd09868df324edaaa3557686c9dd883c0888ca029d9fe6524e237b4"
+        },
+        {
+          "bytes": 40,
+          "path": "host/exp/exponent/expo.modules.font/57.0.4/expo.modules.font-57.0.4.module.sha1",
+          "sha256": "5de85c3d58a49a51029d697634c9d4c02416dc9817b07b543a2ce0eb0f643681"
+        },
+        {
+          "bytes": 40,
+          "path": "host/exp/exponent/expo.modules.font/57.0.4/expo.modules.font-57.0.4.pom.sha1",
+          "sha256": "d2159b7fbb0c286cde52e72034159be440c8427d293a75101add448c2801ea20"
+        },
+        {
+          "bytes": 40,
+          "path": "host/exp/exponent/expo.modules.font/maven-metadata.xml.sha1",
+          "sha256": "86f61dad2babf83242955ae03dd5c6b1cb386c4eb7a81bb2a1ce605c61f775c9"
+        },
+        {
+          "bytes": 64,
+          "path": "host/exp/exponent/expo.modules.font/57.0.4/expo.modules.font-57.0.4-sources.jar.sha256",
+          "sha256": "d6261dd9307788bd1579d5bde63e0327b73a380aa52ac86ce7bb321745ebdcf1"
+        },
+        {
+          "bytes": 64,
+          "path": "host/exp/exponent/expo.modules.font/57.0.4/expo.modules.font-57.0.4.aar.sha256",
+          "sha256": "69379b0f5e550cb6716c55aa5ea107a542cfe73c16ede56b9a39d0450f159cfe"
+        },
+        {
+          "bytes": 64,
+          "path": "host/exp/exponent/expo.modules.font/57.0.4/expo.modules.font-57.0.4.module.sha256",
+          "sha256": "46298d753e98a941064de53dc6f9cadeb0b2291ef65f8a941ff169cf5af6e35b"
+        },
+        {
+          "bytes": 64,
+          "path": "host/exp/exponent/expo.modules.font/57.0.4/expo.modules.font-57.0.4.pom.sha256",
+          "sha256": "42d7a7a852fe7556b74ae2a5642c6c951a3eac66bf9ee78f1d19d6ca060bb74d"
+        },
+        {
+          "bytes": 64,
+          "path": "host/exp/exponent/expo.modules.font/maven-metadata.xml.sha256",
+          "sha256": "fb507282a5e84e9bb8d51597232b1fd74dceeeec75cc74f190ad03c779710234"
+        },
+        {
+          "bytes": 128,
+          "path": "host/exp/exponent/expo.modules.font/57.0.4/expo.modules.font-57.0.4-sources.jar.sha512",
+          "sha256": "c647b0a748e293589c0efd33d089718ebe75658b0d6f86bd3ff6133b0c1b832e"
+        },
+        {
+          "bytes": 128,
+          "path": "host/exp/exponent/expo.modules.font/57.0.4/expo.modules.font-57.0.4.aar.sha512",
+          "sha256": "a8527f7681aafe39d3b918e32bece029516c9728bbf3a4ce5ad5c9091f326d6c"
+        },
+        {
+          "bytes": 128,
+          "path": "host/exp/exponent/expo.modules.font/57.0.4/expo.modules.font-57.0.4.module.sha512",
+          "sha256": "ce5b719b592b8e5952b675f20e648f130e57965af2cad6a987eebbc36a22786d"
+        },
+        {
+          "bytes": 128,
+          "path": "host/exp/exponent/expo.modules.font/57.0.4/expo.modules.font-57.0.4.pom.sha512",
+          "sha256": "99a7c157b716e669a95a3b8875cd6e2630a51b3075dcebe3427c0dabd93daf06"
+        },
+        {
+          "bytes": 128,
+          "path": "host/exp/exponent/expo.modules.font/maven-metadata.xml.sha512",
+          "sha256": "5c1b3e375dd05e9779dce65860fbc831166ea1a3544af82d7ace00b2040a7a46"
+        },
+        {
+          "bytes": 344,
+          "path": "host/exp/exponent/expo.modules.font/maven-metadata.xml",
+          "sha256": "6c66ffd7a59999ca8f3f0b8f75411e160405a92394fd7d430202470e5aa36904"
+        }
+      ],
+      "npmIntegrity": "sha512-7WOMC2oA6xCfOm8bbofqWn2bIqyWFm7YLEnpc/gA1MJH0Ll0TfT/3+CqRkoW2eNRWMS8sxrz5WukUmSvmNquHA==",
+      "npmTarballSha256": "a0c31613129a759ed77313e1fb28bf3645a550e4752042693c6729c39737e00e",
+      "npmUrl": "https://registry.npmjs.org/expo-font/-/expo-font-57.0.4.tgz",
+      "removeMetadata": [
+        "host/exp/exponent/expo.modules.font/maven-metadata.xml.md5",
+        "host/exp/exponent/expo.modules.font/maven-metadata.xml.sha1",
+        "host/exp/exponent/expo.modules.font/maven-metadata.xml.sha256",
+        "host/exp/exponent/expo.modules.font/maven-metadata.xml.sha512",
+        "host/exp/exponent/expo.modules.font/maven-metadata.xml"
+      ],
+      "root": "node_modules/expo-font/local-maven-repo"
+    },
+    {
+      "files": [
+        {
+          "bytes": 131111,
+          "path": "host/exp/exponent/expo.modules.crypto/57.0.3/expo.modules.crypto-57.0.3.aar",
+          "sha256": "6f89550add5e063de713a5bb88b3a054cc556062dda842835e4f7ed9c6081b98"
+        },
+        {
+          "bytes": 11030,
+          "path": "host/exp/exponent/expo.modules.crypto/57.0.3/expo.modules.crypto-57.0.3-sources.jar",
+          "sha256": "5af963a29f0db52114c4ed2c51ffda9d7491d260c84c82fd29248869d1f43404"
+        },
+        {
+          "bytes": 32,
+          "path": "host/exp/exponent/expo.modules.crypto/57.0.3/expo.modules.crypto-57.0.3-sources.jar.md5",
+          "sha256": "05b3d22f88b21d0edf4980c8e3e4bd39072d2233d131e2cd57e5f1be08e9364a"
+        },
+        {
+          "bytes": 32,
+          "path": "host/exp/exponent/expo.modules.crypto/57.0.3/expo.modules.crypto-57.0.3.aar.md5",
+          "sha256": "8163c6923cae42c277c9a350d8959ec8e04cab856d57ea1b274c630c9fa80d76"
+        },
+        {
+          "bytes": 32,
+          "path": "host/exp/exponent/expo.modules.crypto/57.0.3/expo.modules.crypto-57.0.3.module.md5",
+          "sha256": "e284ca577785b89944832b279b61d1efa6f52c2e3ea3a414941cb6731c54d664"
+        },
+        {
+          "bytes": 32,
+          "path": "host/exp/exponent/expo.modules.crypto/57.0.3/expo.modules.crypto-57.0.3.pom.md5",
+          "sha256": "eec40adcd7b5473b3641a2ca7e38d7cc9899ec87d32f35f70850a2f773f81ae5"
+        },
+        {
+          "bytes": 32,
+          "path": "host/exp/exponent/expo.modules.crypto/maven-metadata.xml.md5",
+          "sha256": "1ca9f5a0a27d806f1205271dbb53c512f9cbb992310b5dc6eac5a7c4f990e614"
+        },
+        {
+          "bytes": 3280,
+          "path": "host/exp/exponent/expo.modules.crypto/57.0.3/expo.modules.crypto-57.0.3.module",
+          "sha256": "d551c29123a930bec0cf56e507c6e8940474af76a13655e9df26ccee661918dd"
+        },
+        {
+          "bytes": 2214,
+          "path": "host/exp/exponent/expo.modules.crypto/57.0.3/expo.modules.crypto-57.0.3.pom",
+          "sha256": "6163252abf902386bad82835e617d5d8bbdd5db1537299213fd192a1fceff6c2"
+        },
+        {
+          "bytes": 40,
+          "path": "host/exp/exponent/expo.modules.crypto/57.0.3/expo.modules.crypto-57.0.3-sources.jar.sha1",
+          "sha256": "8db16ab48b9c651681e0f0b6b18050567ee77c036c291815823e542b53f2dd22"
+        },
+        {
+          "bytes": 40,
+          "path": "host/exp/exponent/expo.modules.crypto/57.0.3/expo.modules.crypto-57.0.3.aar.sha1",
+          "sha256": "5944346455da4906ced482496fe099c5955057d36ada3f4e047b8eec3a07a0f0"
+        },
+        {
+          "bytes": 40,
+          "path": "host/exp/exponent/expo.modules.crypto/57.0.3/expo.modules.crypto-57.0.3.module.sha1",
+          "sha256": "8c43622a4811b0bf9ff06b87fea87786bb2f7f5e98dccb399b2f8f3ccf559b26"
+        },
+        {
+          "bytes": 40,
+          "path": "host/exp/exponent/expo.modules.crypto/57.0.3/expo.modules.crypto-57.0.3.pom.sha1",
+          "sha256": "eb827587adfe42887dcf89b3364d346522b7659fe5c9d2b8dd303f6f8e69fbd8"
+        },
+        {
+          "bytes": 40,
+          "path": "host/exp/exponent/expo.modules.crypto/maven-metadata.xml.sha1",
+          "sha256": "28df705cbb0850eeccfc40be71c2d13931138cd2abea2fea09155fc3c4fe023a"
+        },
+        {
+          "bytes": 64,
+          "path": "host/exp/exponent/expo.modules.crypto/57.0.3/expo.modules.crypto-57.0.3-sources.jar.sha256",
+          "sha256": "395ae69cdc7101bc5c8de505df5999ab9a27a0161d7d237434725f49ef7ad1a1"
+        },
+        {
+          "bytes": 64,
+          "path": "host/exp/exponent/expo.modules.crypto/57.0.3/expo.modules.crypto-57.0.3.aar.sha256",
+          "sha256": "18d9c7df9d05da1065fe1741b62f23912214e62df9eca0fe73343d1ab04a28a8"
+        },
+        {
+          "bytes": 64,
+          "path": "host/exp/exponent/expo.modules.crypto/57.0.3/expo.modules.crypto-57.0.3.module.sha256",
+          "sha256": "3ea2bef3857b2e27b73a4862e04a0caa36f9f5e753932fa39eb0c013f8c9dd24"
+        },
+        {
+          "bytes": 64,
+          "path": "host/exp/exponent/expo.modules.crypto/57.0.3/expo.modules.crypto-57.0.3.pom.sha256",
+          "sha256": "9bad7be2cae52b0d29dd67c2603556b17dd68d96693e65d5f8444a8520e87c2c"
+        },
+        {
+          "bytes": 64,
+          "path": "host/exp/exponent/expo.modules.crypto/maven-metadata.xml.sha256",
+          "sha256": "fd8da5187e751cf7c41cf317aa248077304aecdbc0bf453be2cd488e104a3ebc"
+        },
+        {
+          "bytes": 128,
+          "path": "host/exp/exponent/expo.modules.crypto/57.0.3/expo.modules.crypto-57.0.3-sources.jar.sha512",
+          "sha256": "003c143933687bcd4da11574093221f9f6cdab33742c3c6176e7cfbef55e49b4"
+        },
+        {
+          "bytes": 128,
+          "path": "host/exp/exponent/expo.modules.crypto/57.0.3/expo.modules.crypto-57.0.3.aar.sha512",
+          "sha256": "20ea020731e1f636e265e21e354114bca9e7403bfa2c800e8972f7b6be5ffaaf"
+        },
+        {
+          "bytes": 128,
+          "path": "host/exp/exponent/expo.modules.crypto/57.0.3/expo.modules.crypto-57.0.3.module.sha512",
+          "sha256": "498a6dbf8dc97ca3ff153b37b61236a6a8b9546acefaf34d0a15ccc52804c9be"
+        },
+        {
+          "bytes": 128,
+          "path": "host/exp/exponent/expo.modules.crypto/57.0.3/expo.modules.crypto-57.0.3.pom.sha512",
+          "sha256": "c7e70b90c7c1ac868738e8845658dfc7c3953c926b764e56cf9fd9abe59af66a"
+        },
+        {
+          "bytes": 128,
+          "path": "host/exp/exponent/expo.modules.crypto/maven-metadata.xml.sha512",
+          "sha256": "194f70aef004e6ddc1072e613517f3b29e124573cb58ab80d5f6908665931c53"
+        },
+        {
+          "bytes": 346,
+          "path": "host/exp/exponent/expo.modules.crypto/maven-metadata.xml",
+          "sha256": "290a4c83ddcb22eab28346240738d8b172dc31c8aa88c89158c055e6347c79a9"
+        }
+      ],
+      "npmIntegrity": "sha512-SAWqEfF37nc8ot7bXsVmu9AFYwQdC2kGvH/eNAHiR3bmlcf1Vv8wu9AnGKT+a90r3T8YfwMpZP4QAYlo4vCn9w==",
+      "npmTarballSha256": "c80b5c2fde4f760f558fdc616ecad125b4853813a576c1e0c39ff165979d38cb",
+      "npmUrl": "https://registry.npmjs.org/expo-crypto/-/expo-crypto-57.0.3.tgz",
+      "removeMetadata": [
+        "host/exp/exponent/expo.modules.crypto/maven-metadata.xml.md5",
+        "host/exp/exponent/expo.modules.crypto/maven-metadata.xml.sha1",
+        "host/exp/exponent/expo.modules.crypto/maven-metadata.xml.sha256",
+        "host/exp/exponent/expo.modules.crypto/maven-metadata.xml.sha512",
+        "host/exp/exponent/expo.modules.crypto/maven-metadata.xml"
+      ],
+      "root": "node_modules/expo-crypto/local-maven-repo"
+    },
+    {
+      "files": [
+        {
+          "bytes": 79547,
+          "path": "expo/modules/webview/expo.modules.webview/57.0.1/expo.modules.webview-57.0.1.aar",
+          "sha256": "2d319293dab9a90216f66c1788188656d5960a77f6cb14baaceeaa4eff370b7e"
+        },
+        {
+          "bytes": 9240,
+          "path": "expo/modules/webview/expo.modules.webview/57.0.1/expo.modules.webview-57.0.1-sources.jar",
+          "sha256": "d185b319e0ffc038ab8bd032558f9afc64761d41f56f05e6209c81d82707c2cf"
+        },
+        {
+          "bytes": 32,
+          "path": "expo/modules/webview/expo.modules.webview/57.0.1/expo.modules.webview-57.0.1-sources.jar.md5",
+          "sha256": "95933d185c97b7c4a505f0c8118f509368069874f4563ef390751a4d82679527"
+        },
+        {
+          "bytes": 32,
+          "path": "expo/modules/webview/expo.modules.webview/57.0.1/expo.modules.webview-57.0.1.aar.md5",
+          "sha256": "a354570e710b63f499e7a03004ef4654dcd3cad8404a2bed60306d92fab03588"
+        },
+        {
+          "bytes": 32,
+          "path": "expo/modules/webview/expo.modules.webview/57.0.1/expo.modules.webview-57.0.1.module.md5",
+          "sha256": "55c2d39d1b0a0def4ff3180a123885069324b055480add8cafd91ec817276018"
+        },
+        {
+          "bytes": 32,
+          "path": "expo/modules/webview/expo.modules.webview/57.0.1/expo.modules.webview-57.0.1.pom.md5",
+          "sha256": "df0d17db0b1e7666c7f29f3c200ff853a24f9c792acb7d2400f9c6ac8eb1ffa0"
+        },
+        {
+          "bytes": 32,
+          "path": "expo/modules/webview/expo.modules.webview/maven-metadata.xml.md5",
+          "sha256": "a573c434538dc83ae54563a8668b2b3e2e939fe2e777d2c7eed3d4c5d24ec90f"
+        },
+        {
+          "bytes": 3287,
+          "path": "expo/modules/webview/expo.modules.webview/57.0.1/expo.modules.webview-57.0.1.module",
+          "sha256": "aa6ee1962f2127cad01041777ea21a15d8919bab8804c13792cdb283de1b1b28"
+        },
+        {
+          "bytes": 2219,
+          "path": "expo/modules/webview/expo.modules.webview/57.0.1/expo.modules.webview-57.0.1.pom",
+          "sha256": "5407bfd2291dd5ba7ec87082fd148b3c7618fd624546d204d6655254cadaf5af"
+        },
+        {
+          "bytes": 40,
+          "path": "expo/modules/webview/expo.modules.webview/57.0.1/expo.modules.webview-57.0.1-sources.jar.sha1",
+          "sha256": "17c88b43f1e3ab22e627f8e7d870967260e6a96cc1f96e968d543371fc2923be"
+        },
+        {
+          "bytes": 40,
+          "path": "expo/modules/webview/expo.modules.webview/57.0.1/expo.modules.webview-57.0.1.aar.sha1",
+          "sha256": "22c4a6793ee394d6330e5e107a35222e4dc533e1b4084f27db06ae792efd2abd"
+        },
+        {
+          "bytes": 40,
+          "path": "expo/modules/webview/expo.modules.webview/57.0.1/expo.modules.webview-57.0.1.module.sha1",
+          "sha256": "e7d554b7dc79be1591d4cc427b1b33f86bd401a8ec8588fe5ea04c89b7c4f105"
+        },
+        {
+          "bytes": 40,
+          "path": "expo/modules/webview/expo.modules.webview/57.0.1/expo.modules.webview-57.0.1.pom.sha1",
+          "sha256": "8a7ca7bbae9caecd4e0904ec8c3b7180a0201def10605b2d625271788c0df118"
+        },
+        {
+          "bytes": 40,
+          "path": "expo/modules/webview/expo.modules.webview/maven-metadata.xml.sha1",
+          "sha256": "009bf84e20b4d1246a4c4a41b553951e398e5bad1e5d9969ccc916c2a7114fc0"
+        },
+        {
+          "bytes": 64,
+          "path": "expo/modules/webview/expo.modules.webview/57.0.1/expo.modules.webview-57.0.1-sources.jar.sha256",
+          "sha256": "a8e272ac0af33fd931b9b4878b39d26a57109594e6e50fef822caea8ba595d3b"
+        },
+        {
+          "bytes": 64,
+          "path": "expo/modules/webview/expo.modules.webview/57.0.1/expo.modules.webview-57.0.1.aar.sha256",
+          "sha256": "6072cff9ffcf666059eb92726df2c579bcbea0c8470df6595dd203d8f9fa2151"
+        },
+        {
+          "bytes": 64,
+          "path": "expo/modules/webview/expo.modules.webview/57.0.1/expo.modules.webview-57.0.1.module.sha256",
+          "sha256": "ecaabf2d9d925520929f08cc83ed7e497d5c2d96070618f4868c83b73f37f7ca"
+        },
+        {
+          "bytes": 64,
+          "path": "expo/modules/webview/expo.modules.webview/57.0.1/expo.modules.webview-57.0.1.pom.sha256",
+          "sha256": "946a5b426c953cd0ebc3f38f43a0ff29e14c4f63e86bfa7476f265e0554bd297"
+        },
+        {
+          "bytes": 64,
+          "path": "expo/modules/webview/expo.modules.webview/maven-metadata.xml.sha256",
+          "sha256": "a573896a2ad853202bb7f56ff511c0be09149eff53405c803b9bee1ef939cc09"
+        },
+        {
+          "bytes": 128,
+          "path": "expo/modules/webview/expo.modules.webview/57.0.1/expo.modules.webview-57.0.1-sources.jar.sha512",
+          "sha256": "07eb842aed151b08a9957c79f94a936f7f13c84329bbb30eb84bdbe31b95d361"
+        },
+        {
+          "bytes": 128,
+          "path": "expo/modules/webview/expo.modules.webview/57.0.1/expo.modules.webview-57.0.1.aar.sha512",
+          "sha256": "36002083ea96a433a982f387a23192bad148f05d9f2efe8bbef087c46eb1ab54"
+        },
+        {
+          "bytes": 128,
+          "path": "expo/modules/webview/expo.modules.webview/57.0.1/expo.modules.webview-57.0.1.module.sha512",
+          "sha256": "50f333abff1ca1bbd8b2be8c2c0e4913955a6ebbbb3b8578086d5c217f5a6f99"
+        },
+        {
+          "bytes": 128,
+          "path": "expo/modules/webview/expo.modules.webview/57.0.1/expo.modules.webview-57.0.1.pom.sha512",
+          "sha256": "30494a97541f3ef79c4f3b38fc3bb6b965c524cc90c202e4e7284b4d8b16cd7f"
+        },
+        {
+          "bytes": 128,
+          "path": "expo/modules/webview/expo.modules.webview/maven-metadata.xml.sha512",
+          "sha256": "2abd38ef1681fea1313cf8a10b3d9ffc930b65107087175d178c02aaa98806b6"
+        },
+        {
+          "bytes": 350,
+          "path": "expo/modules/webview/expo.modules.webview/maven-metadata.xml",
+          "sha256": "e3e30607ed29c27a0f4b556804a036a7244f14a344a35f40c847ef2646107439"
+        }
+      ],
+      "npmIntegrity": "sha512-lAKsME4SAq+8sf56oN0DX5TBYyruupoRxbWbD2xf9RnKY8y6x8eb9LCE5pxSN0qyWdqnp+0wmyWzDkKboThKAw==",
+      "npmTarballSha256": "2b69ab3556f94617b1e714c022b149107537322838540d08774e63d602936fdf",
+      "npmUrl": "https://registry.npmjs.org/@expo/dom-webview/-/dom-webview-57.0.1.tgz",
+      "removeMetadata": [
+        "expo/modules/webview/expo.modules.webview/maven-metadata.xml.md5",
+        "expo/modules/webview/expo.modules.webview/maven-metadata.xml.sha1",
+        "expo/modules/webview/expo.modules.webview/maven-metadata.xml.sha256",
+        "expo/modules/webview/expo.modules.webview/maven-metadata.xml.sha512",
+        "expo/modules/webview/expo.modules.webview/maven-metadata.xml"
+      ],
+      "root": "node_modules/@expo/dom-webview/local-maven-repo"
+    },
+    {
+      "files": [
+        {
+          "bytes": 2073794,
+          "path": "expo/modules/ui/expo.modules.ui/57.0.20/expo.modules.ui-57.0.20.aar",
+          "sha256": "9b7ca89ceb5c49b9295de22b70afe86f4b486b10a7616d07b11c4b2f09becc54"
+        },
+        {
+          "bytes": 105215,
+          "path": "expo/modules/ui/expo.modules.ui/57.0.20/expo.modules.ui-57.0.20-sources.jar",
+          "sha256": "27ca3d4c9580433a6848cb86719f6d488b13cafbbd2ae1cef5069f077a626e39"
+        },
+        {
+          "bytes": 32,
+          "path": "expo/modules/ui/expo.modules.ui/57.0.20/expo.modules.ui-57.0.20-sources.jar.md5",
+          "sha256": "628651d48e17e31de111355c5bd0707aec01276a92e8fed29a54c0a24c892902"
+        },
+        {
+          "bytes": 32,
+          "path": "expo/modules/ui/expo.modules.ui/57.0.20/expo.modules.ui-57.0.20.aar.md5",
+          "sha256": "caabdbd74636a888fb7381cf7d24ba7c80d3ace2c3b344adfb2e84bd1725e94a"
+        },
+        {
+          "bytes": 32,
+          "path": "expo/modules/ui/expo.modules.ui/57.0.20/expo.modules.ui-57.0.20.module.md5",
+          "sha256": "7f9f4011d7ec25dda6c1c43a56b94a7174215063cdc44008242b9e22046169a5"
+        },
+        {
+          "bytes": 32,
+          "path": "expo/modules/ui/expo.modules.ui/57.0.20/expo.modules.ui-57.0.20.pom.md5",
+          "sha256": "601b14a3e0aad1871b2b1425f556edf1c9f852f6043980d5fb3953034ade311e"
+        },
+        {
+          "bytes": 32,
+          "path": "expo/modules/ui/expo.modules.ui/maven-metadata.xml.md5",
+          "sha256": "d023c91e98e140ed4df6c2c1386b29c9dad3a6bc87b12e4063957ff8ee0d7cd0"
+        },
+        {
+          "bytes": 5059,
+          "path": "expo/modules/ui/expo.modules.ui/57.0.20/expo.modules.ui-57.0.20.module",
+          "sha256": "28357022d94d12ff78dbc28545b3197adca9a9d97990f52b5f04e726f77ae8e1"
+        },
+        {
+          "bytes": 4239,
+          "path": "expo/modules/ui/expo.modules.ui/57.0.20/expo.modules.ui-57.0.20.pom",
+          "sha256": "215f6bbb2ba68f9ed7aa190d3b92e9ee373548a90b5978638ca34829bc91a5a6"
+        },
+        {
+          "bytes": 40,
+          "path": "expo/modules/ui/expo.modules.ui/57.0.20/expo.modules.ui-57.0.20-sources.jar.sha1",
+          "sha256": "e3397730ff9b9607f3aa9ba53b28db5e3678763e82582a81a5b53400b383f2c0"
+        },
+        {
+          "bytes": 40,
+          "path": "expo/modules/ui/expo.modules.ui/57.0.20/expo.modules.ui-57.0.20.aar.sha1",
+          "sha256": "79b459871d0646d29b9551a52e333d0685a86a22fe670741742f72af583eaafd"
+        },
+        {
+          "bytes": 40,
+          "path": "expo/modules/ui/expo.modules.ui/57.0.20/expo.modules.ui-57.0.20.module.sha1",
+          "sha256": "5f70f2c35c53cca90c44d94d57049a7c8a9454372a563069f6fccb1c21686038"
+        },
+        {
+          "bytes": 40,
+          "path": "expo/modules/ui/expo.modules.ui/57.0.20/expo.modules.ui-57.0.20.pom.sha1",
+          "sha256": "b5b4972be93f0a685c6bb1dbe2f559ac6b75ad191824fd73e9b61820ff96fe05"
+        },
+        {
+          "bytes": 40,
+          "path": "expo/modules/ui/expo.modules.ui/maven-metadata.xml.sha1",
+          "sha256": "967e1eab2f2849bd051d67beacef4affdab9debd9c35973c0c93b4b0e62e67b7"
+        },
+        {
+          "bytes": 64,
+          "path": "expo/modules/ui/expo.modules.ui/57.0.20/expo.modules.ui-57.0.20-sources.jar.sha256",
+          "sha256": "2e8fbe594ef32b50545b0d8a1d12b68fc94d9d73d8eae5f9197fa8edfe51d580"
+        },
+        {
+          "bytes": 64,
+          "path": "expo/modules/ui/expo.modules.ui/57.0.20/expo.modules.ui-57.0.20.aar.sha256",
+          "sha256": "bd6738aa33dfd5b273050b4a54a2ca60e842df29e48aefb7e763ba94095a8f0d"
+        },
+        {
+          "bytes": 64,
+          "path": "expo/modules/ui/expo.modules.ui/57.0.20/expo.modules.ui-57.0.20.module.sha256",
+          "sha256": "2a3d04b254a79a95dc96c0ae8f2fb1c645e606cb16ba56c253c9c617ebc928e4"
+        },
+        {
+          "bytes": 64,
+          "path": "expo/modules/ui/expo.modules.ui/57.0.20/expo.modules.ui-57.0.20.pom.sha256",
+          "sha256": "41a17640983da8366a779f79f74d225eb77e9bcbf616fb7638620a087f901f42"
+        },
+        {
+          "bytes": 64,
+          "path": "expo/modules/ui/expo.modules.ui/maven-metadata.xml.sha256",
+          "sha256": "f3e24356c63276d3f0072b0dcb8ea9205b343fdf6b9a090864fa3945d87c4e25"
+        },
+        {
+          "bytes": 128,
+          "path": "expo/modules/ui/expo.modules.ui/57.0.20/expo.modules.ui-57.0.20-sources.jar.sha512",
+          "sha256": "1d6fb4b896714d7a45ad159161b902c7954704c98fd613c023992ebb6b599590"
+        },
+        {
+          "bytes": 128,
+          "path": "expo/modules/ui/expo.modules.ui/57.0.20/expo.modules.ui-57.0.20.aar.sha512",
+          "sha256": "71b1725d49e8930ec2d9dcd614f8b2001d2f389971efb589825b005ed898bd58"
+        },
+        {
+          "bytes": 128,
+          "path": "expo/modules/ui/expo.modules.ui/57.0.20/expo.modules.ui-57.0.20.module.sha512",
+          "sha256": "48f61ce8b01741a510e78435033c9d7b30632d3f410155c34b2e95978fd8b7d9"
+        },
+        {
+          "bytes": 128,
+          "path": "expo/modules/ui/expo.modules.ui/57.0.20/expo.modules.ui-57.0.20.pom.sha512",
+          "sha256": "b910b89d273de6beb3adc5df3ab7ebdce74314b88e0209cb0815a92ae6661580"
+        },
+        {
+          "bytes": 128,
+          "path": "expo/modules/ui/expo.modules.ui/maven-metadata.xml.sha512",
+          "sha256": "a13b9ebf60ba0e7a794ebf2ad2b252d78d93604d2dfffbcda6ff3d2f725cca07"
+        },
+        {
+          "bytes": 343,
+          "path": "expo/modules/ui/expo.modules.ui/maven-metadata.xml",
+          "sha256": "24ab2f0670c5032cddc11479196d1c37ca62c00553dd61e91adcf9fa8e4b6cdd"
+        }
+      ],
+      "npmIntegrity": "sha512-0ChmuyWBwEy3JHMR5wDkJGyvkTR5zH3BTwjJrv3f2ymtamhpU9hD5uH4GsLoWuB6MJFOPTuchq4zByZbtgPyNw==",
+      "npmTarballSha256": "a1cf356b8dd0bd1d34463e404c41d3da5354c2ad80fd9b68ef998d2788a3967a",
+      "npmUrl": "https://registry.npmjs.org/@expo/ui/-/ui-57.0.20.tgz",
+      "removeMetadata": [
+        "expo/modules/ui/expo.modules.ui/maven-metadata.xml.md5",
+        "expo/modules/ui/expo.modules.ui/maven-metadata.xml.sha1",
+        "expo/modules/ui/expo.modules.ui/maven-metadata.xml.sha256",
+        "expo/modules/ui/expo.modules.ui/maven-metadata.xml.sha512",
+        "expo/modules/ui/expo.modules.ui/maven-metadata.xml"
+      ],
+      "root": "node_modules/expo-router/node_modules/@expo/ui/local-maven-repo"
+    },
+    {
+      "files": [
+        {
+          "bytes": 15770,
+          "path": "host/exp/exponent/expo.modules.keepawake/57.0.2/expo.modules.keepawake-57.0.2.aar",
+          "sha256": "7f059d9be13ca2b9658a205a61ffa8490a004c7ce83ea9ed76044058237739c4"
+        },
+        {
+          "bytes": 2234,
+          "path": "host/exp/exponent/expo.modules.keepawake/57.0.2/expo.modules.keepawake-57.0.2-sources.jar",
+          "sha256": "f491abf3901c42dd5c889d2b4864f4444faa528a687c60491e3565d9707124c6"
+        },
+        {
+          "bytes": 32,
+          "path": "host/exp/exponent/expo.modules.keepawake/57.0.2/expo.modules.keepawake-57.0.2-sources.jar.md5",
+          "sha256": "19c482fe8f0a5a8839afc0dfd65d9916aa2070bd1e45fe1f6e813237f478f683"
+        },
+        {
+          "bytes": 32,
+          "path": "host/exp/exponent/expo.modules.keepawake/57.0.2/expo.modules.keepawake-57.0.2.aar.md5",
+          "sha256": "6a5f8df0cbf9f630d21a3373471045065015ee2def4d5f748a35689e283313b2"
+        },
+        {
+          "bytes": 32,
+          "path": "host/exp/exponent/expo.modules.keepawake/57.0.2/expo.modules.keepawake-57.0.2.module.md5",
+          "sha256": "33f6a66377d85db93d3f223b18b33c01536b7c790de4abde85428e6c7724d021"
+        },
+        {
+          "bytes": 32,
+          "path": "host/exp/exponent/expo.modules.keepawake/57.0.2/expo.modules.keepawake-57.0.2.pom.md5",
+          "sha256": "5ae5bdd885a9633611be8af5b60baf62d2d5914c804ec2571da53beaf4b68a3e"
+        },
+        {
+          "bytes": 32,
+          "path": "host/exp/exponent/expo.modules.keepawake/maven-metadata.xml.md5",
+          "sha256": "563a30ac733ce47d776eb41365b407eac55981eae379e635ed13c9fd5c698dc3"
+        },
+        {
+          "bytes": 3298,
+          "path": "host/exp/exponent/expo.modules.keepawake/57.0.2/expo.modules.keepawake-57.0.2.module",
+          "sha256": "bd676576ae41261215d20993882135666bd6f3fa6459ff9c5aa410b3b327d9fe"
+        },
+        {
+          "bytes": 2220,
+          "path": "host/exp/exponent/expo.modules.keepawake/57.0.2/expo.modules.keepawake-57.0.2.pom",
+          "sha256": "065370ebe611154e8274afebe24b50dba11807e276662b5ad6c16eb57dbe7367"
+        },
+        {
+          "bytes": 40,
+          "path": "host/exp/exponent/expo.modules.keepawake/57.0.2/expo.modules.keepawake-57.0.2-sources.jar.sha1",
+          "sha256": "39c9d53a998253cce8e93e6d2c2599c19b7a60dc64653392127d515d315cea97"
+        },
+        {
+          "bytes": 40,
+          "path": "host/exp/exponent/expo.modules.keepawake/57.0.2/expo.modules.keepawake-57.0.2.aar.sha1",
+          "sha256": "4c154772a6110140efac204efa099bf6185d54e8b067edff3c9fa403000aa126"
+        },
+        {
+          "bytes": 40,
+          "path": "host/exp/exponent/expo.modules.keepawake/57.0.2/expo.modules.keepawake-57.0.2.module.sha1",
+          "sha256": "ea4cb34f882e3767da6eca01b60d42557479688e713b7f56892de0144989e18f"
+        },
+        {
+          "bytes": 40,
+          "path": "host/exp/exponent/expo.modules.keepawake/57.0.2/expo.modules.keepawake-57.0.2.pom.sha1",
+          "sha256": "a215e92c9d3f875b835def50cac1756b5667538055d998ccffcad4b6bfb359cb"
+        },
+        {
+          "bytes": 40,
+          "path": "host/exp/exponent/expo.modules.keepawake/maven-metadata.xml.sha1",
+          "sha256": "9f9bc50f0470a95d53bca32b435ed9e9bb9f7e8a6de18c015afb82ccc47ad2c7"
+        },
+        {
+          "bytes": 64,
+          "path": "host/exp/exponent/expo.modules.keepawake/57.0.2/expo.modules.keepawake-57.0.2-sources.jar.sha256",
+          "sha256": "2f30f533e65bcb7f17956152a6ad00a723ab44723e21de247d5861040c91de6f"
+        },
+        {
+          "bytes": 64,
+          "path": "host/exp/exponent/expo.modules.keepawake/57.0.2/expo.modules.keepawake-57.0.2.aar.sha256",
+          "sha256": "b271e0e635f51c04b0367ffd302399cba3293ae8c2f8c8f99634dc47eeb1d229"
+        },
+        {
+          "bytes": 64,
+          "path": "host/exp/exponent/expo.modules.keepawake/57.0.2/expo.modules.keepawake-57.0.2.module.sha256",
+          "sha256": "3af424972d75826dbe8e9a02dbff9f971b3e454a872db128f149523547063dad"
+        },
+        {
+          "bytes": 64,
+          "path": "host/exp/exponent/expo.modules.keepawake/57.0.2/expo.modules.keepawake-57.0.2.pom.sha256",
+          "sha256": "ea5627579fe9412f5a0ce15b3cab504ee42fe53274d15a6cd351275ed36b59ec"
+        },
+        {
+          "bytes": 64,
+          "path": "host/exp/exponent/expo.modules.keepawake/maven-metadata.xml.sha256",
+          "sha256": "22ef2015819744010ec53c6ec91bb80d414f1e551ce6912ba2b3aba54f1d0819"
+        },
+        {
+          "bytes": 128,
+          "path": "host/exp/exponent/expo.modules.keepawake/57.0.2/expo.modules.keepawake-57.0.2-sources.jar.sha512",
+          "sha256": "be953ca2598bb0939338351a4250990c7e9da493f0b0e66bd4b292e599309549"
+        },
+        {
+          "bytes": 128,
+          "path": "host/exp/exponent/expo.modules.keepawake/57.0.2/expo.modules.keepawake-57.0.2.aar.sha512",
+          "sha256": "deb232e1a3207a62827c798e729a32e253e84276924a936c0db183f11ec7141f"
+        },
+        {
+          "bytes": 128,
+          "path": "host/exp/exponent/expo.modules.keepawake/57.0.2/expo.modules.keepawake-57.0.2.module.sha512",
+          "sha256": "20933daefcc51b1f4363744dc7c15015135c1c64451aaf55668cd5bab063afed"
+        },
+        {
+          "bytes": 128,
+          "path": "host/exp/exponent/expo.modules.keepawake/57.0.2/expo.modules.keepawake-57.0.2.pom.sha512",
+          "sha256": "893113d7992f56adb89bb8a9f20d83c1111dfd86ff3195ade497ecc9ff8d4189"
+        },
+        {
+          "bytes": 128,
+          "path": "host/exp/exponent/expo.modules.keepawake/maven-metadata.xml.sha512",
+          "sha256": "0d0b5e28d2eb3ac5453767c2d6b38ac4d9e49edc9d6be5225bf953d4409c216b"
+        },
+        {
+          "bytes": 349,
+          "path": "host/exp/exponent/expo.modules.keepawake/maven-metadata.xml",
+          "sha256": "f817734638507c999f81d182065b7481a31359141030946481348b3b1920a4e3"
+        }
+      ],
+      "npmIntegrity": "sha512-GqgH746wtJImmsbyHmCQoi7cOslKuWQBbJHXr53S35Bpf5UvxCAztvnitUEd7D0QvFN2rvkOhylbZpgZZfBLlQ==",
+      "npmTarballSha256": "7a074be1d262144614671ad8d11fbed1052826749bb4481f723c1c9ffa317951",
+      "npmUrl": "https://registry.npmjs.org/expo-keep-awake/-/expo-keep-awake-57.0.2.tgz",
+      "removeMetadata": [
+        "host/exp/exponent/expo.modules.keepawake/maven-metadata.xml.md5",
+        "host/exp/exponent/expo.modules.keepawake/maven-metadata.xml.sha1",
+        "host/exp/exponent/expo.modules.keepawake/maven-metadata.xml.sha256",
+        "host/exp/exponent/expo.modules.keepawake/maven-metadata.xml.sha512",
+        "host/exp/exponent/expo.modules.keepawake/maven-metadata.xml"
+      ],
+      "root": "node_modules/expo/node_modules/expo-keep-awake/local-maven-repo"
+    },
+    {
+      "files": [
+        {
+          "bytes": 29619,
+          "path": "expo/modules/asset/expo.modules.asset/57.0.18/expo.modules.asset-57.0.18.aar",
+          "sha256": "1e71ea20d2ce42ff6ab775611fd7a0bd7f6dbb02af4e8b16c31e3ea1251d3c21"
+        },
+        {
+          "bytes": 4369,
+          "path": "expo/modules/asset/expo.modules.asset/57.0.18/expo.modules.asset-57.0.18-sources.jar",
+          "sha256": "3e0978bd705ddf8bbe335aa372165f5bc4fdb569d98214fa9e8f68d9657f083e"
+        },
+        {
+          "bytes": 32,
+          "path": "expo/modules/asset/expo.modules.asset/57.0.18/expo.modules.asset-57.0.18-sources.jar.md5",
+          "sha256": "1bb610f7857f6912430d2e0a6b0b46b06c1dc98bef0b5ccf3bdc613323c7217b"
+        },
+        {
+          "bytes": 32,
+          "path": "expo/modules/asset/expo.modules.asset/57.0.18/expo.modules.asset-57.0.18.aar.md5",
+          "sha256": "12362e51079fd24b4b5e3ba5eb0f232967bf50edad2fc00f94b29a04fb94f21d"
+        },
+        {
+          "bytes": 32,
+          "path": "expo/modules/asset/expo.modules.asset/57.0.18/expo.modules.asset-57.0.18.module.md5",
+          "sha256": "6e4f90ea25ec61936ab459bc4c1b561365be5bc403715c913880f9a485eff33b"
+        },
+        {
+          "bytes": 32,
+          "path": "expo/modules/asset/expo.modules.asset/57.0.18/expo.modules.asset-57.0.18.pom.md5",
+          "sha256": "414fd532728f16d13795c5cd9151016eadeaf8343be971fed8a519fc32a46a4e"
+        },
+        {
+          "bytes": 32,
+          "path": "expo/modules/asset/expo.modules.asset/maven-metadata.xml.md5",
+          "sha256": "cea75deedf41943bdefd103f95d9614bc98240028cf850b2103b84888ccb794f"
+        },
+        {
+          "bytes": 3537,
+          "path": "expo/modules/asset/expo.modules.asset/57.0.18/expo.modules.asset-57.0.18.module",
+          "sha256": "c38f36a03c33d1178174ff31e1d818894ebaedfbfad84eab6c669be105987b83"
+        },
+        {
+          "bytes": 2546,
+          "path": "expo/modules/asset/expo.modules.asset/57.0.18/expo.modules.asset-57.0.18.pom",
+          "sha256": "b077e6fc32eb306a434ea8398e01736b9d43b7e5a6fa719794c827053b85aa7d"
+        },
+        {
+          "bytes": 40,
+          "path": "expo/modules/asset/expo.modules.asset/57.0.18/expo.modules.asset-57.0.18-sources.jar.sha1",
+          "sha256": "9cbd27bdeb9ccf801c8ae8cf41b9e9c3dc103fdabdd1baa64729001c4e91c21c"
+        },
+        {
+          "bytes": 40,
+          "path": "expo/modules/asset/expo.modules.asset/57.0.18/expo.modules.asset-57.0.18.aar.sha1",
+          "sha256": "9716bad0b0a981a6b9935b72268b8972549f97c47fb3103c11dcdb2471224373"
+        },
+        {
+          "bytes": 40,
+          "path": "expo/modules/asset/expo.modules.asset/57.0.18/expo.modules.asset-57.0.18.module.sha1",
+          "sha256": "a22c473061c3c9e6e4fe0bd5232339cadc5d029284243fce473c90d9fc2be2e6"
+        },
+        {
+          "bytes": 40,
+          "path": "expo/modules/asset/expo.modules.asset/57.0.18/expo.modules.asset-57.0.18.pom.sha1",
+          "sha256": "30c4cfb5adad7047f78028d024684fd29a20820fda6068b5b149bc6fc9e039b7"
+        },
+        {
+          "bytes": 40,
+          "path": "expo/modules/asset/expo.modules.asset/maven-metadata.xml.sha1",
+          "sha256": "94ca4a1a3a4f8b8fc501fd749f27f5dd9a13c8d9aac2669cf657979f83eda23c"
+        },
+        {
+          "bytes": 64,
+          "path": "expo/modules/asset/expo.modules.asset/57.0.18/expo.modules.asset-57.0.18-sources.jar.sha256",
+          "sha256": "a3810592e4e99ddadd78a885cc729b9fa7be71f56e9925c6957f4f1eb978a92f"
+        },
+        {
+          "bytes": 64,
+          "path": "expo/modules/asset/expo.modules.asset/57.0.18/expo.modules.asset-57.0.18.aar.sha256",
+          "sha256": "6185eaf27ce5539e4e2757f234dd9e6f0de7fc69d91ae352e341bae458fdca09"
+        },
+        {
+          "bytes": 64,
+          "path": "expo/modules/asset/expo.modules.asset/57.0.18/expo.modules.asset-57.0.18.module.sha256",
+          "sha256": "c1ca0d89ba9ff4d3cf3ead8f30a8e6b3df1405142007bc9cf14ad04cd39bb291"
+        },
+        {
+          "bytes": 64,
+          "path": "expo/modules/asset/expo.modules.asset/57.0.18/expo.modules.asset-57.0.18.pom.sha256",
+          "sha256": "597ee9c8e94cb32ea024fb302c7be91fc42852f3b35e77a04d940a2ecee219d0"
+        },
+        {
+          "bytes": 64,
+          "path": "expo/modules/asset/expo.modules.asset/maven-metadata.xml.sha256",
+          "sha256": "959c021360ec25ed12f82754fed4f019f151d8a27470882a71dfc030dfcdeb06"
+        },
+        {
+          "bytes": 128,
+          "path": "expo/modules/asset/expo.modules.asset/57.0.18/expo.modules.asset-57.0.18-sources.jar.sha512",
+          "sha256": "fb8915e42129749e71ae135a3d435fa9e344c6eb1203e6fa02b6328bf2047671"
+        },
+        {
+          "bytes": 128,
+          "path": "expo/modules/asset/expo.modules.asset/57.0.18/expo.modules.asset-57.0.18.aar.sha512",
+          "sha256": "04e9af82b45c38a67de7cfb114eee950929c88e484c3d2d80146294d5b1378da"
+        },
+        {
+          "bytes": 128,
+          "path": "expo/modules/asset/expo.modules.asset/57.0.18/expo.modules.asset-57.0.18.module.sha512",
+          "sha256": "5e0cc9f277435c05cb9e613f9fe1134bdea0a90f80a0d9818fbba2e14dcf0938"
+        },
+        {
+          "bytes": 128,
+          "path": "expo/modules/asset/expo.modules.asset/57.0.18/expo.modules.asset-57.0.18.pom.sha512",
+          "sha256": "276acb53baa94e4fda2268b8633a84efb38b273fac44d49d0bce96f4f8ef3022"
+        },
+        {
+          "bytes": 128,
+          "path": "expo/modules/asset/expo.modules.asset/maven-metadata.xml.sha512",
+          "sha256": "1ac6ed3ca94cd28c5cae21f17ad320ce944993012a5ada206a4bf5684816c17b"
+        },
+        {
+          "bytes": 349,
+          "path": "expo/modules/asset/expo.modules.asset/maven-metadata.xml",
+          "sha256": "7e5b8e255f2e9f00a0ec07a570c609754e12c5194a058201ef6429a85fe42194"
+        }
+      ],
+      "npmIntegrity": "sha512-zDIQkUr0NM2S7YRj98Zohf/OBuM1q0o4ctxLz1C1oe4/33lHNLjp+2v3qUtBWVwn0zKka8UGADmS8M+83Wi6pw==",
+      "npmTarballSha256": "b6533829c589a7acc746f4666dfd45188eaf2e5f717f8c8fbff2cf6c104bdda2",
+      "npmUrl": "https://registry.npmjs.org/expo-asset/-/expo-asset-57.0.18.tgz",
+      "removeMetadata": [
+        "expo/modules/asset/expo.modules.asset/maven-metadata.xml.md5",
+        "expo/modules/asset/expo.modules.asset/maven-metadata.xml.sha1",
+        "expo/modules/asset/expo.modules.asset/maven-metadata.xml.sha256",
+        "expo/modules/asset/expo.modules.asset/maven-metadata.xml.sha512",
+        "expo/modules/asset/expo.modules.asset/maven-metadata.xml"
+      ],
+      "root": "node_modules/expo/node_modules/expo-asset/local-maven-repo"
+    },
+    {
+      "files": [
+        {
+          "bytes": 693468,
+          "path": "host/exp/exponent/expo.modules.filesystem/57.0.7/expo.modules.filesystem-57.0.7.aar",
+          "sha256": "3e2b67c2e0b15fd89354be1f282473e954058d89970ea7e91ec0aebb42fd5833"
+        },
+        {
+          "bytes": 51453,
+          "path": "host/exp/exponent/expo.modules.filesystem/57.0.7/expo.modules.filesystem-57.0.7-sources.jar",
+          "sha256": "198d441c46eefe2bcf7a848a0a2526d708f4aedf7df793afd661220a58f0ac80"
+        },
+        {
+          "bytes": 32,
+          "path": "host/exp/exponent/expo.modules.filesystem/57.0.7/expo.modules.filesystem-57.0.7-sources.jar.md5",
+          "sha256": "d770e6095f04dd4dd9407c6ef7b833b0a3d8125fb07349db6d174ff8127039b7"
+        },
+        {
+          "bytes": 32,
+          "path": "host/exp/exponent/expo.modules.filesystem/57.0.7/expo.modules.filesystem-57.0.7.aar.md5",
+          "sha256": "26137688030f5563991fc97369640c4e1cae5d2018e5d2f87c9c3eb11fb51345"
+        },
+        {
+          "bytes": 32,
+          "path": "host/exp/exponent/expo.modules.filesystem/57.0.7/expo.modules.filesystem-57.0.7.module.md5",
+          "sha256": "2c53611cdd47ba7b086c8e2e3440f5d412cf5df3e0390cacc6c8f765b03c2f71"
+        },
+        {
+          "bytes": 32,
+          "path": "host/exp/exponent/expo.modules.filesystem/57.0.7/expo.modules.filesystem-57.0.7.pom.md5",
+          "sha256": "6a085e3856c432ddd93ef8b4d72ea2427490da2c4d933190a3b5a84a3bb11881"
+        },
+        {
+          "bytes": 32,
+          "path": "host/exp/exponent/expo.modules.filesystem/maven-metadata.xml.md5",
+          "sha256": "d4c67e2e62ea17ba3990b97a3ef2d7d94ef0a15ff941062cc3db96256587e6f8"
+        },
+        {
+          "bytes": 5384,
+          "path": "host/exp/exponent/expo.modules.filesystem/57.0.7/expo.modules.filesystem-57.0.7.module",
+          "sha256": "47c92e67b37e17c9e5e7d076f265f34d07cb95b07b6b5d4753be9b0448b270d7"
+        },
+        {
+          "bytes": 3456,
+          "path": "host/exp/exponent/expo.modules.filesystem/57.0.7/expo.modules.filesystem-57.0.7.pom",
+          "sha256": "0a6449854b323883d5da16582a5b2bee88c74a1f4ce38e68d8215071494db7a3"
+        },
+        {
+          "bytes": 40,
+          "path": "host/exp/exponent/expo.modules.filesystem/57.0.7/expo.modules.filesystem-57.0.7-sources.jar.sha1",
+          "sha256": "9c6fbf6ee3c9eccfb897fc96a1b5f39d64a26c4ef5e3dc5bd99118479b94624b"
+        },
+        {
+          "bytes": 40,
+          "path": "host/exp/exponent/expo.modules.filesystem/57.0.7/expo.modules.filesystem-57.0.7.aar.sha1",
+          "sha256": "b77b04ddbb66dd1397601b4e7c968309edd2b185eb8885891750387b101bc0e1"
+        },
+        {
+          "bytes": 40,
+          "path": "host/exp/exponent/expo.modules.filesystem/57.0.7/expo.modules.filesystem-57.0.7.module.sha1",
+          "sha256": "f02755656d8fff1cebfcce4249d511e063be31bb572da48c18dfd57f78daabcb"
+        },
+        {
+          "bytes": 40,
+          "path": "host/exp/exponent/expo.modules.filesystem/57.0.7/expo.modules.filesystem-57.0.7.pom.sha1",
+          "sha256": "ccdd110b97b09f92495ebfb85ff4ccde62ed0e17a2d0f95adb278a1c0b7f2e34"
+        },
+        {
+          "bytes": 40,
+          "path": "host/exp/exponent/expo.modules.filesystem/maven-metadata.xml.sha1",
+          "sha256": "532c7ecd7f1efff6ccc29d50ee8530eb80b3c770bd9652c92862367dc24312cb"
+        },
+        {
+          "bytes": 64,
+          "path": "host/exp/exponent/expo.modules.filesystem/57.0.7/expo.modules.filesystem-57.0.7-sources.jar.sha256",
+          "sha256": "e49fded2e88b00cdf514cde704456b377c9f267c1c46800433c448af937bf332"
+        },
+        {
+          "bytes": 64,
+          "path": "host/exp/exponent/expo.modules.filesystem/57.0.7/expo.modules.filesystem-57.0.7.aar.sha256",
+          "sha256": "d1813e6300c25f46bffbc35c4d9f3c10a87b9f0f3d2d82e24067ca055be96a42"
+        },
+        {
+          "bytes": 64,
+          "path": "host/exp/exponent/expo.modules.filesystem/57.0.7/expo.modules.filesystem-57.0.7.module.sha256",
+          "sha256": "a7a56c9c16b341303815d28c5ba7d8b27c192dd67f9b390b44d69d336d619783"
+        },
+        {
+          "bytes": 64,
+          "path": "host/exp/exponent/expo.modules.filesystem/57.0.7/expo.modules.filesystem-57.0.7.pom.sha256",
+          "sha256": "40525cc874e5e8795fa39c379fe3e04dca0992f726aa8e1f13124bb9a6baf3fb"
+        },
+        {
+          "bytes": 64,
+          "path": "host/exp/exponent/expo.modules.filesystem/maven-metadata.xml.sha256",
+          "sha256": "31bbd18c0a80dec6735bd65fc53e6f8da44966ce60546d2e3287c2834b7fb02a"
+        },
+        {
+          "bytes": 128,
+          "path": "host/exp/exponent/expo.modules.filesystem/57.0.7/expo.modules.filesystem-57.0.7-sources.jar.sha512",
+          "sha256": "650860f23e1d604aaee7aaf4d31a54be8cf2318bd02f5a927f9026dbf506aad8"
+        },
+        {
+          "bytes": 128,
+          "path": "host/exp/exponent/expo.modules.filesystem/57.0.7/expo.modules.filesystem-57.0.7.aar.sha512",
+          "sha256": "e55cc77150ca9d135dfdd255057cc216c91876afdca223942ec4035bf3ef9a59"
+        },
+        {
+          "bytes": 128,
+          "path": "host/exp/exponent/expo.modules.filesystem/57.0.7/expo.modules.filesystem-57.0.7.module.sha512",
+          "sha256": "02d28fbf9fb85a0f08c258301434ef648c9d36820abbf0870ee8047c9a86c5fc"
+        },
+        {
+          "bytes": 128,
+          "path": "host/exp/exponent/expo.modules.filesystem/57.0.7/expo.modules.filesystem-57.0.7.pom.sha512",
+          "sha256": "53f1830d6bb323f147da7ecf2e2a41fc2797bfed1dcb57974761d5570acd904d"
+        },
+        {
+          "bytes": 128,
+          "path": "host/exp/exponent/expo.modules.filesystem/maven-metadata.xml.sha512",
+          "sha256": "24f54839fe043f6ba960ace6c402806275df22d6e442bfbacbb243edc948c4b1"
+        },
+        {
+          "bytes": 350,
+          "path": "host/exp/exponent/expo.modules.filesystem/maven-metadata.xml",
+          "sha256": "1229d7b060eb746c7e3a3893d3a3842bb5ad2a2f3b8703d4e73e7b1678113f0d"
+        }
+      ],
+      "npmIntegrity": "sha512-1vkZRadOsIputFDBcclqBa1pO3iXOO6iIsdqJipQWw4V5TSnWgmRTuOF7ro8IzrVue+PHbum++KCG3Tawem4cg==",
+      "npmTarballSha256": "6e6c41298ef68fff2e894ca85517d8c494c40b16e5032501575769717b0a29a9",
+      "npmUrl": "https://registry.npmjs.org/expo-file-system/-/expo-file-system-57.0.7.tgz",
+      "removeMetadata": [
+        "host/exp/exponent/expo.modules.filesystem/maven-metadata.xml.md5",
+        "host/exp/exponent/expo.modules.filesystem/maven-metadata.xml.sha1",
+        "host/exp/exponent/expo.modules.filesystem/maven-metadata.xml.sha256",
+        "host/exp/exponent/expo.modules.filesystem/maven-metadata.xml.sha512",
+        "host/exp/exponent/expo.modules.filesystem/maven-metadata.xml"
+      ],
+      "root": "node_modules/expo/node_modules/expo-file-system/local-maven-repo"
+    }
+  ],
+  "schema": "locked-npm-local-maven/1",
+  "sourceLockSha256": "ae8bbc085fd039716dde9ba98c1039069b93455972f42659c8dccc5cb66fb282",
+  "status": "proposed-root-review-pending"
+}

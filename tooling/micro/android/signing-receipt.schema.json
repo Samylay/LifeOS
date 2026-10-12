@@ -1,0 +1,223 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Proposal: context-bound signing replay with retained source lineage",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "context",
+    "status",
+    "startedAt",
+    "finishedAt",
+    "unsignedApkSha256",
+    "signedApkSha256",
+    "certificateSha256",
+    "exitCode",
+    "cleanup",
+    "log",
+    "rawReceipt",
+    "snapshot"
+  ],
+  "properties": {
+    "schema": {
+      "const": "micro.android.signing/1"
+    },
+    "context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "projectId",
+        "adapterId",
+        "sourceSha",
+        "identities"
+      ],
+      "properties": {
+        "projectId": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]{0,79}$"
+        },
+        "adapterId": {
+          "const": "expo-android"
+        },
+        "sourceSha": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        },
+        "identities": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "sourceArchive",
+            "sourceLock",
+            "policy",
+            "adapter",
+            "toolchain",
+            "recipe",
+            "suite",
+            "recovery",
+            "npmSeal",
+            "mavenSeal",
+            "scannerPolicy"
+          ],
+          "properties": {
+            "sourceArchive": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "sourceLock": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "policy": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "adapter": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "toolchain": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "recipe": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "suite": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "recovery": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "npmSeal": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "mavenSeal": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "scannerPolicy": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          }
+        }
+      }
+    },
+    "status": {
+      "const": "signed"
+    },
+    "startedAt": {
+      "type": "number",
+      "minimum": 0
+    },
+    "finishedAt": {
+      "type": "number",
+      "minimum": 0
+    },
+    "unsignedApkSha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "signedApkSha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "certificateSha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "exitCode": {
+      "type": "integer",
+      "const": 0
+    },
+    "cleanup": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "absent"
+      ],
+      "properties": {
+        "absent": {
+          "const": true
+        }
+      }
+    },
+    "log": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256",
+        "bytes"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[^\\\\]+$"
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "bytes": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "rawReceipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256",
+        "bytes"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[^\\\\]+$"
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "bytes": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "snapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256",
+        "bytes"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[^\\\\]+$"
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "bytes": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    }
+  }
+}

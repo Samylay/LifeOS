@@ -1,0 +1,23 @@
+{
+  "schema": 1,
+  "image": "sha256:fa1b19db00f05c95f38c0c6cab71fdf367aef1d288fd8262d559951d42affdc1",
+  "tools": {
+    "gitleaks": {"version": "8.30.1", "binarySha256": "88f91962aa2f93ac6ab281d553b9e125f5197bbbce38f9f2437f7299c32e5509"},
+    "syft": {"version": "1.52.0", "binarySha256": "15a52d0122953081d16e6695f48055216a4de293bb005948663bb739a63880f9"},
+    "grype": {"version": "0.119.0", "binarySha256": "e02ba25615668c6bae03473e3c6493b6dfffc2e4e419f65f9bd62555ac10cd0e"}
+  },
+  "databaseMaxAgeSeconds": 432000,
+  "databasePublicUrl": "https://grype.anchore.io/databases",
+  "publicCaSha256": "80eedd808e4cbd6fd42e125da2ea225fd1365d8e29edef8bcc45ff8bc7044ce2",
+  "failOn": "high",
+  "waivers": [],
+  "memoryBytes": 1073741824,
+  "temporaryBytes": 402653184,
+  "outputBytes": 67108864,
+  "timeoutSeconds": 300,
+  "acquisitionBytes": 4294967296,
+  "stateBytes": 8589934592,
+  "inputBytes": 1073741824,
+  "minimumAvailableBytes": 2147483648,
+  "nativeOverlapAvailableBytes": 9663676416
+}
