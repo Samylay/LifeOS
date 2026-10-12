@@ -4,7 +4,7 @@ import { CSSProperties, KeyboardEvent, useEffect, useRef, useState } from "react
 import Link from "next/link";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { Activity01Icon, Settings01Icon } from "@hugeicons/core-free-icons";
-import { ArrowDown, ArrowUp, Camera, Check, Copy, ImagePlus, LoaderCircle, Plus, RotateCcw, Sparkles, Square, Mic, X } from "lucide-react";
+import { ArrowDown, ArrowUp, Camera, Check, Copy, ImagePlus, LoaderCircle, Plus, RotateCcw, Sparkles, Square, Mic, X, Server, ListPlus, ListChecks, Terminal } from "lucide-react";
 import { toast } from "sonner";
 import { useVoiceRecorder } from "@/lib/use-voice-recorder";
 import { RunNowChip } from "@/components/run-now-chip";
@@ -21,10 +21,11 @@ import type { FoodPhoto } from "@/lib/food-model";
 import { ChatMarkdown } from "./chat-markdown";
 
 const starters = [
-  { title: "Homelab status", prompt: "What's the status of my homelab?" },
-  { title: "Add a Todoist task", prompt: "Add a task to Todoist: " },
-  { title: "Task progress", prompt: "Check the progress of my tasks." },
-  { title: "Start a Codex session", prompt: "Start a Codex session: " },
+  { title: "Log a meal", prompt: "", icon: Camera, camera: true },
+  { title: "Homelab status", prompt: "What's the status of my homelab?", icon: Server },
+  { title: "Add a Todoist task", prompt: "Add a task to Todoist: ", icon: ListPlus },
+  { title: "Task progress", prompt: "Check the progress of my tasks.", icon: ListChecks },
+  { title: "Start a Codex session", prompt: "Start a Codex session: ", icon: Terminal },
 ];
 
 export function ChatWorkspace() {
@@ -35,6 +36,14 @@ export function ChatWorkspace() {
   const [uploading, setUploading] = useState(false);
   const [cameraOpen, setCameraOpen] = useState(false);
   const galleryRef = useRef<HTMLInputElement>(null);
+  // /chat?camera=1 (the Today card) opens the camera straight away.
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    if (url.searchParams.get("camera") !== "1") return;
+    url.searchParams.delete("camera");
+    window.history.replaceState(window.history.state, "", url);
+    setCameraOpen(true);
+  }, []);
   const scrollRef = useRef<HTMLDivElement>(null);
   const pinnedRef = useRef(true);
   const [showLatest, setShowLatest] = useState(false);
@@ -115,17 +124,17 @@ export function ChatWorkspace() {
       <div className="flex min-h-0 flex-1 flex-col">
         {conversation.length === 0 && !loading && !restoring ? (
           <div className="flex min-h-0 flex-1 flex-col items-center overflow-y-auto px-4 py-6 text-center sm:py-10">
-            <div className="flex min-h-0 flex-1 flex-col justify-center">
+            <div className="flex min-h-0 flex-1 flex-col justify-end">
             <h2 className="max-w-lg text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">What would you like to do?</h2>
             <div className="mt-6 grid w-full max-w-xl gap-2 sm:grid-cols-2">
-              {starters.map(({ title, prompt }) => (
+              {starters.map(({ title, prompt, icon: Icon, camera }) => (
                 <button
                   key={title}
                   type="button"
-                  onClick={() => { setInput(prompt); textareaRef.current?.focus(); }}
+                  onClick={() => { if (camera) { setCameraOpen(true); return; } setInput(prompt); textareaRef.current?.focus(); }}
                   className="group flex min-h-14 items-center gap-3 rounded-xl border border-border/80 bg-card/70 px-4 text-left transition-transform duration-150 ease-[var(--ease-out-custom)] hover:border-primary/30 hover:bg-card active:scale-[0.97]"
                 >
-                  <span className="text-sm font-medium text-foreground">{title}</span>
+                  <Icon size={18} className="shrink-0 text-muted-foreground" /><span className="text-sm font-medium text-foreground">{title}</span>
                 </button>
               ))}
             </div>
@@ -174,7 +183,7 @@ export function ChatWorkspace() {
               <div className="min-w-0 flex-1"><p className="text-xs font-medium">Ready to log your meal</p><p className="text-[11px] text-muted-foreground">Add details below, or send the photo on its own.</p></div>
               <button type="button" aria-label="Remove photo" disabled={uploading} onClick={() => setDraft(null)} className="flex size-10 shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted transition-transform duration-150 ease-[var(--ease-out-custom)] active:scale-[0.97]"><X size={16} /></button>
             </div>}
-            {cameraOpen && <CameraCapture onClose={() => setCameraOpen(false)} onCapture={(file) => { setCameraOpen(false); void choosePhoto(file); }} />}
+            {cameraOpen && <CameraCapture onClose={() => setCameraOpen(false)} onGallery={() => { setCameraOpen(false); galleryRef.current?.click(); }} onCapture={(file) => { setCameraOpen(false); void choosePhoto(file); }} />}
             <input ref={galleryRef} type="file" accept="image/*" aria-label="Choose a photo" className="hidden" onChange={(event) => { void choosePhoto(event.target.files?.[0]); event.target.value = ""; }} />
             <textarea
               ref={textareaRef}

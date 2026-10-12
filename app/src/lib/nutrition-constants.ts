@@ -17,3 +17,8 @@ export const DEFAULT_NUTRITION_SETTINGS: NutritionSettings = {
 };
 
 export const BLOCKS_PER_DAY = 4;
+
+// Daily protein target in grams: 1.8 g/kg at 84 kg, from the 2026-10-10 revision of
+// the vault workout plan (04-Areas/Health/workout-plan.md). Not a calorie target:
+// calories are set after the two-week calibration.
+export const PROTEIN_TARGET_G = 150;

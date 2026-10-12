@@ -1,15 +1,16 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
-import { Camera, LoaderCircle } from "lucide-react";
+import { Inbox, LoaderCircle } from "lucide-react";
 import { toast } from "sonner";
 import { prepareChatPhoto } from "@/lib/prepare-chat-photo";
+import { CameraCapture } from "./camera-capture";
 
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "./ui/sheet";
 
 export function PhotoInboxCapture({ compact = false }: { compact?: boolean }) {
-  const input = useRef<HTMLInputElement>(null);
+  const [cameraOpen, setCameraOpen] = useState(false);
   const [draft, setDraft] = useState<{ file: File; url: string } | null>(null);
   const [caption, setCaption] = useState("");
   const [busy, setBusy] = useState(false);
@@ -37,9 +38,9 @@ export function PhotoInboxCapture({ compact = false }: { compact?: boolean }) {
   }
   const press = "transition-transform duration-150 ease-[var(--ease-out-custom)] active:scale-[0.97]";
   return <div className="relative">
-    <input ref={input} type="file" accept="image/*" capture="environment" className="hidden" onChange={event => { void choose(event.target.files?.[0]); event.target.value = ""; }} />
-    <button type="button" onClick={() => input.current?.click()} disabled={busy} aria-label="Capture photo to inbox" title="Capture photo to inbox" className={`inline-flex min-h-11 items-center gap-2 rounded-lg px-2 text-xs text-muted-foreground hover:bg-muted disabled:opacity-40 ${press}`}>
-      {busy ? <LoaderCircle size={16} className="animate-spin" /> : <Camera size={16} />}<span className={compact ? "hidden sm:inline" : undefined}>Inbox photo</span>
+    {cameraOpen && <CameraCapture onClose={() => setCameraOpen(false)} onCapture={file => { setCameraOpen(false); void choose(file); }} />}
+    <button type="button" onClick={() => setCameraOpen(true)} disabled={busy} aria-label="Capture photo to inbox" title="Capture photo to inbox" className={`inline-flex min-h-11 items-center gap-2 rounded-lg px-2 text-xs text-muted-foreground hover:bg-muted disabled:opacity-40 ${press}`}>
+      {busy ? <LoaderCircle size={16} className="animate-spin" /> : <Inbox size={16} />}<span className={compact ? "hidden sm:inline" : undefined}>Inbox photo</span>
     </button>
     <Sheet open={!!draft} onOpenChange={open => { if (!open && !busy) setDraft(null); }}>
       <SheetContent side="bottom" className="mx-auto max-h-[90dvh] max-w-lg overflow-y-auto rounded-t-2xl pb-[max(1rem,env(safe-area-inset-bottom))]">

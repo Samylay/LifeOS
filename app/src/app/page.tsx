@@ -8,6 +8,7 @@ import { ProgressRing } from "@/components/charts";
 import { BriefCards } from "@/components/brief/brief-cards";
 import { Celebration } from "@/components/celebration";
 import { EmptyState } from "@/components/empty-state";
+import { FoodTodayCard } from "@/components/food-today-card";
 import { GoalsCard } from "@/components/goals-card";
 import { Skeleton } from "@/components/skeleton";
 import { Button } from "@/components/ui/button";
@@ -158,6 +159,8 @@ export default function Today() {
           })}
         </section>
       )}
+
+      <FoodTodayCard />
 
       <section aria-label="What needs attention" className="space-y-3">
         {briefErr && !brief && (
