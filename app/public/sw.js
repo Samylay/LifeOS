@@ -1,12 +1,32 @@
-// LifeOS service worker — web-push only. No caching, no offline logic:
-// its single job is rendering pushed notifications and opening the pushed
-// message's in-app path (payload `url`, /status when absent) on tap.
-self.addEventListener("install", () => {
+// LifeOS service worker. Two jobs: render pushed notifications and open the
+// pushed message's in-app path (payload `url`, /status when absent) on tap,
+// and show /offline.html when a page navigation fails because the network is
+// unreachable. The only cached file is /offline.html. No API or asset caching.
+const OFFLINE_CACHE = "lifeos-offline-v1";
+const OFFLINE_URL = "/offline.html";
+
+self.addEventListener("install", (event) => {
+  // A failed precache must not block installing the push handler.
+  event.waitUntil(
+    caches.open(OFFLINE_CACHE).then((cache) => cache.add(OFFLINE_URL)).catch(() => {})
+  );
   self.skipWaiting();
 });
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(self.clients.claim());
+});
+
+// Navigation requests only. Everything else (API calls, assets, RSC fetches)
+// goes straight to the network because this handler never calls respondWith.
+self.addEventListener("fetch", (event) => {
+  if (event.request.mode !== "navigate") return;
+  event.respondWith(
+    fetch(event.request).catch(async () => {
+      const cached = await caches.match(OFFLINE_URL, { cacheName: OFFLINE_CACHE });
+      return cached || new Response("LifeOS is not reachable.", { status: 503, headers: { "Content-Type": "text/plain" } });
+    })
+  );
 });
 
 self.addEventListener("push", (event) => {

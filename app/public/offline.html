@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#141416">
+<title>LifeOS offline</title>
+<style>
+  html, body { height: 100%; margin: 0; }
+  body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1.25rem;
+    padding: 1rem;
+    box-sizing: border-box;
+    background: #141416;
+    color: #fafafa;
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    text-align: center;
+  }
+  p { margin: 0; max-width: 20rem; font-size: 1.0625rem; line-height: 1.5; }
+  button {
+    min-height: 2.75rem;
+    padding: 0 1.5rem;
+    border: 0;
+    border-radius: 0.75rem;
+    background: #e4e4e7;
+    color: #141416;
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 150ms cubic-bezier(0.25, 1, 0.5, 1);
+  }
+  button:active { transform: scale(0.97); }
+  @media (prefers-reduced-motion: reduce) { button { transition-duration: 0.01ms; } }
+</style>
+</head>
+<body>
+<p>LifeOS is not reachable. Check that Tailscale is connected.</p>
+<button type="button" onclick="location.reload()">Retry</button>
+</body>
+</html>
