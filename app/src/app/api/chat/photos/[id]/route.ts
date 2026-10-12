@@ -9,7 +9,7 @@ export async function GET(_req: NextRequest, context: Context) {
   try {
     const { id } = await context.params;
     const photo = getFoodPhoto(id);
-    return new NextResponse(new Uint8Array(photoBytes(id)), { headers: { "Content-Type": photo.mime, "X-Content-Type-Options": "nosniff", "Cache-Control": "private, max-age=86400" } });
+    return new NextResponse(new Uint8Array(photoBytes(id)), { headers: { "Content-Type": photo.mime, "X-Content-Type-Options": "nosniff", "Cache-Control": "private, no-store" } });
   } catch (error) { return failure(error); }
 }
 export async function PATCH(req: NextRequest, context: Context) {

@@ -1,5 +1,5 @@
 import { dirname, join } from "node:path";
-import { readFileSync, mkdirSync, writeFileSync } from "node:fs";
+import { readFileSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { getDoc, listDocs, runInTransaction, setDoc, updateDoc } from "./server-db";
 import { FoodError, foodDate, foodTotals, validId, validateEstimate, validateFoodTime, NUTRIENTS, type FoodPhoto } from "./food-model";
@@ -37,9 +37,11 @@ export function saveFoodPhoto(input: { id: string; sessionId: string; caption: s
       return existing as unknown as FoodPhoto;
     }
     mkdirSync(directory(), { recursive: true, mode: 0o700 });
-    writeFileSync(join(directory(), input.id), input.bytes, { mode: 0o600, flag: "wx" });
+    const file = join(directory(), input.id);
+    writeFileSync(file, input.bytes, { mode: 0o600, flag: "wx" });
     const photo: FoodPhoto = { id: input.id, sessionId: input.sessionId, caption: input.caption, mime: input.mime, imageUrl: `/api/chat/photos/${input.id}`, createdAt: new Date().toISOString(), ...time, state: "pending", estimate: null, portion: 1, revision: 0, correction: "", error: null };
-    setDoc(FOOD_PHOTOS, input.id, { ...photo, digest });
+    try { setDoc(FOOD_PHOTOS, input.id, { ...photo, digest }); }
+    catch (error) { rmSync(file, { force: true }); throw error; }  // an orphan file would make every retry fail with EEXIST
     return photo;
   });
 }
