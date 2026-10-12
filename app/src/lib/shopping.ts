@@ -298,3 +298,16 @@ export function buyByName(lines: ParsedLine[]): NamedPurchase[] {
 export function shoppingState() {
   return { entries: listEntries(), pantry: listPantry() };
 }
+
+/** JSON error for the shopping and pantry routes: validation errors keep their status, anything else is a 500. */
+export function shoppingErrorResponse(error: unknown): Response {
+  if (error instanceof ShoppingError) return Response.json({ error: error.message }, { status: error.status });
+  console.error("shopping route failed:", error);
+  return Response.json({ error: "Shopping request failed" }, { status: 500 });
+}
+
+export async function readJsonBody(req: Request): Promise<Record<string, unknown>> {
+  const body: unknown = await req.json().catch(() => null);
+  if (!body || typeof body !== "object" || Array.isArray(body)) throw new ShoppingError("Send a JSON object");
+  return body as Record<string, unknown>;
+}
