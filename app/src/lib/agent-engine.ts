@@ -194,6 +194,58 @@ export const APP_TOOLS: OpenAI.ChatCompletionTool[] = [
   {
     type: "function",
     function: {
+      name: "add_to_shopping_list",
+      description:
+        "Add groceries to the shopping list. Pass each item exactly as the user said it; the app resolves the words to the user's own pantry items and aliases, so do not rename, translate or expand them.",
+      parameters: {
+        type: "object",
+        properties: {
+          items: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                name: { type: "string", description: "Item exactly as the user said it" },
+                quantity: { type: "number", description: "Amount (optional)" },
+                unit: { type: "string", enum: ["unit", "pack", "g", "kg", "ml", "l"], description: "Unit of the amount (optional)" },
+              },
+              required: ["name"],
+            },
+          },
+        },
+        required: ["items"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "mark_groceries_bought",
+      description:
+        "Record groceries the user bought (\"I bought eggs and bread\"): restocks the pantry, stamps today's purchase date and clears them from the shopping list. Pass names as the user said them. A name that only resembles several pantry items is not applied; the result lists the candidates so you can ask which one was meant.",
+      parameters: {
+        type: "object",
+        properties: {
+          items: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                name: { type: "string", description: "Item exactly as the user said it" },
+                quantity: { type: "number", description: "Amount bought (optional)" },
+                unit: { type: "string", enum: ["unit", "pack", "g", "kg", "ml", "l"], description: "Unit of the amount (optional)" },
+              },
+              required: ["name"],
+            },
+          },
+        },
+        required: ["items"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
       name: "complete_task",
       description:
         "Mark an existing open task as done, fuzzy-matching by title.",

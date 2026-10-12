@@ -36,4 +36,10 @@ describe("navigation destinations", () => {
     expect(surfaceTitle("/workflows")).toBe("Inbox");
     expect(surfaceTitle("/decide/dispatch")).toBe("Inbox");
   });
+  it("treats Shopping as a view of Training, not a destination", () => {
+    expect(NAV_ITEMS.some((item) => item.href === "/shopping")).toBe(false);
+    expect(activeDestination("/shopping")?.href).toBe("/workouts");
+    expect(surfaceTitle("/shopping")).toBe("Shopping");
+    expect(activeDestination("/shoppingcart")).toBeUndefined();
+  });
 });

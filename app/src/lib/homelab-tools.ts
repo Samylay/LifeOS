@@ -180,6 +180,11 @@ export const HOMELAB_TOOLS = [
     parameters: { type: "object", properties: { id: { type: "string" }, portion: { type: "number" }, eatenAt: { type: "string" }, timezone: { type: "string" }, correction: { type: "string" } }, required: ["id"] },
   },
   {
+    name: "resolve_pantry_item",
+    description: "Look up what a food word means in the user's pantry: the item that owns it as a name or alias (for example a short word the user set as the default for one product), or the items it only resembles. Call before interpreting a food the user mentions or before marking groceries bought when the word may be ambiguous. Never guess between candidates; ask.",
+    parameters: { type: "object", properties: { term: { type: "string", description: "The word or phrase exactly as the user said it" } }, required: ["term"] },
+  },
+  {
     name: "search_lifeos_data",
     description:
       "Search and read LifeOS records across its task, habit, project, reminder, notification, finance, training, lead, knowledge, teaching, chat, and triage surfaces. Use this before answering questions about app data or before changing an existing record. Secrets and service credentials are redacted.",
@@ -301,6 +306,7 @@ export const HOMELAB_TOOL_NAMES = new Set<string>(HOMELAB_TOOLS.map((t) => t.nam
 export const HOMELAB_TOOL_STATUS: Record<string, string> = {
   get_food_log: "Reading your food diary…",
   correct_food_log: "Updating your meal…",
+  resolve_pantry_item: "Checking your pantry…",
   search_lifeos_data: "Searching LifeOS…",
   change_lifeos_data: "Updating LifeOS…",
   homelab_overview: "Checking what's queued…",
@@ -362,6 +368,18 @@ export async function executeHomelabTool(
         const data = correctFoodPhoto(String(input.id || ""), input);
         return { tool, summary: data.state === "pending" ? "Meal correction saved for analysis" : "Meal updated", data };
       } catch (error) { return { tool, summary: "Couldn't update the meal", data: { error: error instanceof Error ? error.message : "Invalid correction" }, failed: true }; }
+    }
+    case "resolve_pantry_item": {
+      try {
+        const { resolve } = await import("./shopping");
+        const { item, via, candidates } = resolve(String(input.term ?? ""));
+        const brief = (i: { id: string; name: string; aliases: string[]; inStock: boolean; nutrition: unknown }) => ({ id: i.id, name: i.name, aliases: i.aliases, inStock: i.inStock, nutrition: i.nutrition });
+        return {
+          tool,
+          summary: item ? `"${input.term}" is ${item.name}` : candidates.length ? `"${input.term}" is unclear` : `"${input.term}" is not in the pantry`,
+          data: { item: item ? brief(item) : null, via, candidates: candidates.map(brief) },
+        };
+      } catch (error) { return { tool, summary: "Couldn't read the pantry", data: { error: error instanceof Error ? error.message : "Invalid term" }, failed: true }; }
     }
     case "search_lifeos_data": {
       const collection = String(input.collection ?? "");
