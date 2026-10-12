@@ -33,7 +33,6 @@ export function ChatWorkspace() {
   const [draft, setDraft] = useState<{ file: File; url: string; id: string; eatenAt: string } | null>(null);
   const [preparing, setPreparing] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const cameraRef = useRef<HTMLInputElement>(null);
   const [cameraOpen, setCameraOpen] = useState(false);
   const galleryRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -175,8 +174,7 @@ export function ChatWorkspace() {
               <div className="min-w-0 flex-1"><p className="text-xs font-medium">Ready to log your meal</p><p className="text-[11px] text-muted-foreground">Add details below, or send the photo on its own.</p></div>
               <button type="button" aria-label="Remove photo" disabled={uploading} onClick={() => setDraft(null)} className="flex size-10 shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted transition-transform duration-150 ease-[var(--ease-out-custom)] active:scale-[0.97]"><X size={16} /></button>
             </div>}
-            {cameraOpen && <CameraCapture onClose={() => setCameraOpen(false)} onCapture={(file) => { setCameraOpen(false); void choosePhoto(file); }} onUnavailable={() => { setCameraOpen(false); cameraRef.current?.click(); }} />}
-            <input ref={cameraRef} type="file" accept="image/*" capture="environment" aria-label="Take a photo" className="hidden" onChange={(event) => { void choosePhoto(event.target.files?.[0]); event.target.value = ""; }} />
+            {cameraOpen && <CameraCapture onClose={() => setCameraOpen(false)} onCapture={(file) => { setCameraOpen(false); void choosePhoto(file); }} />}
             <input ref={galleryRef} type="file" accept="image/*" aria-label="Choose a photo" className="hidden" onChange={(event) => { void choosePhoto(event.target.files?.[0]); event.target.value = ""; }} />
             <textarea
               ref={textareaRef}
