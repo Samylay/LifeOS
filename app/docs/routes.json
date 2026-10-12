@@ -66,6 +66,7 @@
   {"kind":"page","route":"/settings","file":"src/app/settings/page.tsx","methods":[],"dynamic":false,"params":[],"hasColocatedTest":false},
   {"kind":"page","route":"/settings/habits","file":"src/app/settings/habits/page.tsx","methods":[],"dynamic":false,"params":[],"hasColocatedTest":false},
   {"kind":"api","route":"/shopping","file":"src/app/api/shopping/route.ts","methods":["GET","POST","PATCH","DELETE"],"dynamic":false,"params":[],"hasColocatedTest":true},
+  {"kind":"page","route":"/shopping","file":"src/app/shopping/page.tsx","methods":[],"dynamic":false,"params":[],"hasColocatedTest":false},
   {"kind":"api","route":"/shopping/bought","file":"src/app/api/shopping/bought/route.ts","methods":["POST"],"dynamic":false,"params":[],"hasColocatedTest":true},
   {"kind":"api","route":"/shopping/resolve","file":"src/app/api/shopping/resolve/route.ts","methods":["GET"],"dynamic":false,"params":[],"hasColocatedTest":true},
   {"kind":"api","route":"/status","file":"src/app/api/status/route.ts","methods":["GET"],"dynamic":false,"params":[],"hasColocatedTest":false},

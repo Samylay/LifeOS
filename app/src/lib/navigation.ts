@@ -26,6 +26,11 @@ export function activeDestination(pathname: string) {
   if (pathname === "/workflows" || pathname.startsWith("/workflows/")) {
     return NAV_ITEMS.find((item) => item.href === "/decide");
   }
+  // Shopping and the pantry are fuel for training, so they sit under Training
+  // instead of taking a bottom-nav slot (the inventory is capped at seven).
+  if (pathname === "/shopping" || pathname.startsWith("/shopping/")) {
+    return NAV_ITEMS.find((item) => item.href === "/workouts");
+  }
   if (pathname === "/pager" || pathname.startsWith("/pager/")) {
     return NAV_ITEMS.find((item) => item.href === "/status");
   }
@@ -34,6 +39,7 @@ export function activeDestination(pathname: string) {
 }
 export function surfaceTitle(pathname: string) {
   if (pathname === "/saved") return "Saved";
+  if (pathname === "/shopping") return "Shopping";
   if (pathname === "/knowledge/teach") return "Teach";
   if (pathname.startsWith("/knowledge/teach/")) return "Teach session";
   return activeDestination(pathname)?.label ?? "Today";
