@@ -194,6 +194,9 @@ export default function StatusPage() {
   const sorted = [...containers].sort((a, b) => Number(a.up) - Number(b.up));
   const running = containers.filter((container) => container.up).length;
   const goals = data?.goals;
+  const containerProblems = (data?.problems ?? []).filter((p) => p.kind === "container");
+  const groupContainers = containerProblems.length > 1;
+  const singleProblems = (data?.problems ?? []).filter((p) => !(groupContainers && p.kind === "container"));
   const ageSeconds = updatedAt === null ? null : Math.max(0, Math.round((now - updatedAt) / 1_000));
   const stale = updatedAt !== null && now - updatedAt > STALE_AFTER_MS;
 
@@ -247,7 +250,41 @@ export default function StatusPage() {
             </div>
           ) : (
             <ul className="space-y-2">
-              {data.problems!.map((p) => (
+              {groupContainers && (
+                <li
+                  className="rounded-xl border p-3"
+                  style={{
+                    borderColor: containerProblems.some((p) => p.severity === "down") ? "var(--destructive)" : "var(--warning)",
+                    background: `color-mix(in srgb, ${containerProblems.some((p) => p.severity === "down") ? "var(--destructive)" : "var(--warning)"} 8%, transparent)`,
+                  }}
+                >
+                  <div className="flex items-center gap-3">
+                    <AlertTriangle
+                      size={18}
+                      className="shrink-0"
+                      style={{ color: containerProblems.some((p) => p.severity === "down") ? "var(--destructive)" : "var(--warning)" }}
+                      aria-hidden
+                    />
+                    <p className="text-sm font-medium text-foreground">{containerProblems.length} containers need attention</p>
+                  </div>
+                  <ul className="mt-2 divide-y divide-border/60 pl-[30px]">
+                    {containerProblems.map((p) => (
+                      <li key={p.title} className="flex min-w-0 items-baseline justify-between gap-3 py-1.5 text-sm">
+                        <span className="min-w-0 truncate text-foreground">{p.label ?? p.title}</span>
+                        <span className="shrink-0 text-xs tabular-nums text-muted-foreground">{p.detail}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  <Link
+                    href="#container-details"
+                    className="ml-[30px] inline-flex min-h-11 items-center gap-1 text-sm font-medium text-primary pressable active:scale-[0.97]"
+                  >
+                    Review containers
+                    <ExternalLink size={13} aria-hidden="true" />
+                  </Link>
+                </li>
+              )}
+              {singleProblems.map((p) => (
                 <li
                   key={`${p.kind}:${p.title}`}
                   className="flex items-start gap-3 rounded-xl border p-3"
