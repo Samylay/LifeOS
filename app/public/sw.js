@@ -1,5 +1,5 @@
 // LifeOS service worker. Two jobs: render pushed notifications and open the
-// pushed message's in-app path (payload `url`, /status when absent) on tap,
+// pushed message's in-app path (payload `url`, /pager when absent) on tap,
 // and show /offline.html when a page navigation fails because the network is
 // unreachable. The only cached file is /offline.html. No API or asset caching.
 const OFFLINE_CACHE = "lifeos-offline-v1";
@@ -30,7 +30,7 @@ self.addEventListener("fetch", (event) => {
 });
 
 self.addEventListener("push", (event) => {
-  let data = { title: "LifeOS", body: "", tag: "lifeos", url: "/status" };
+  let data = { title: "LifeOS", body: "", tag: "lifeos", url: "/pager" };
   try {
     if (event.data) data = { ...data, ...event.data.json() };
   } catch {
@@ -40,7 +40,7 @@ self.addEventListener("push", (event) => {
   const url =
     typeof data.url === "string" && data.url.startsWith("/") && !data.url.startsWith("//")
       ? data.url
-      : "/status";
+      : "/pager";
   event.waitUntil(
     self.registration.showNotification(data.title, {
       body: data.body,
@@ -69,9 +69,9 @@ function isStandalone(client) {
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
   const requested = event.notification.data?.url;
-  const path = typeof requested === "string" && requested.startsWith("/") && !requested.startsWith("//") ? requested : "/status";
+  const path = typeof requested === "string" && requested.startsWith("/") && !requested.startsWith("//") ? requested : "/pager";
   const url = new URL(path, self.registration.scope);
-  if (url.origin !== self.location.origin) url.href = new URL("/status", self.registration.scope).href;
+  if (url.origin !== self.location.origin) url.href = new URL("/pager", self.registration.scope).href;
   event.waitUntil((async () => {
     const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
     const local = windows.filter(client => new URL(client.url).origin === self.location.origin);
