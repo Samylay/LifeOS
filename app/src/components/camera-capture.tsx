@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Camera, X } from "lucide-react";
 
 // Live camera viewfinder. `<input capture>` is only a hint, and many browsers
@@ -57,7 +58,9 @@ export function CameraCapture({ onCapture, onClose }: {
     }, "image/jpeg", 0.9);
   };
 
-  return <div role="dialog" aria-modal="true" aria-label="Camera" className="fixed inset-0 z-50 flex flex-col bg-black">
+  // Portal to <body>: inside the chat composer the dialog sat in a lower stacking
+  // context than the bottom nav, which covered the shutter and close buttons.
+  return createPortal(<div role="dialog" aria-modal="true" aria-label="Camera" className="fixed inset-0 z-[100] flex h-dvh flex-col bg-black">
     {error
       ? <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 px-8 text-center text-white">
         <p role="alert" className="text-sm">{error}</p>
@@ -69,5 +72,5 @@ export function CameraCapture({ onCapture, onClose }: {
       <button type="button" aria-label="Take photo" disabled={!ready} onClick={snap} className="flex size-16 items-center justify-center rounded-full border-4 border-white bg-white/25 text-white transition-transform duration-150 ease-[var(--ease-out-custom)] active:scale-[0.97] disabled:opacity-40"><Camera size={24} /></button>
       <span className="size-12" aria-hidden />
     </div>
-  </div>;
+  </div>, document.body);
 }
