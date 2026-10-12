@@ -136,7 +136,7 @@ export default function Today() {
       />
 
       {todayHabits.length > 0 && (
-        <section aria-label="Habits" className="flex justify-center gap-2 overflow-x-auto py-1 sm:gap-8">
+        <section aria-label="Habits" className="flex justify-center gap-2 overflow-x-auto sm:gap-8">
           {todayHabits.map((habit) => {
             const done = isDone(habit);
             return (
@@ -147,10 +147,10 @@ export default function Today() {
                 aria-pressed={done}
                 disabled={habitSaving[habit.id] || isAutoCompleted(habit)}
                 onClick={() => void handleToggle(habit.id, done)}
-                className="flex min-h-11 min-w-24 flex-col items-center gap-1 rounded-xl px-2 py-1 text-center transition-transform duration-[var(--dur-fast)] ease-[var(--ease-out-custom)] active:scale-[0.97]"
+                className="flex min-h-11 min-w-24 flex-col items-center gap-0.5 rounded-xl px-2 py-0.5 text-center transition-transform duration-[var(--dur-fast)] ease-[var(--ease-out-custom)] active:scale-[0.97]"
               >
                 <span aria-hidden="true">
-                  <ProgressRing value={done ? 1 : 0} goal={1} size={76} strokeWidth={6} label={done ? <Check size={16} /> : undefined} />
+                  <ProgressRing value={done ? 1 : 0} goal={1} size={56} strokeWidth={5} label={done ? <Check size={16} /> : undefined} />
                 </span>
                 <span className="max-w-28 truncate text-xs font-medium text-foreground">{habit.name}</span>
                 <span className="text-xs tabular-nums text-muted-foreground">{streakText(habit, isAutoCompleted(habit))}</span>
