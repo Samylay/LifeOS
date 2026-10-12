@@ -57,6 +57,13 @@ describe("list", () => {
     expect(shopping.addLowStock()).toEqual([]);
     expect(shopping.listEntries().every((e) => e.source === "low-stock")).toBe(true);
   });
+
+  it("treats a checked entry as already listed", () => {
+    shopping.createPantryItem({ name: "Out", inStock: false });
+    const [entry] = shopping.addEntries([line("Out")]);
+    shopping.setEntryChecked(entry.entry.id, true);
+    expect(shopping.addLowStock()).toEqual([]);
+  });
 });
 
 describe("bought flow", () => {

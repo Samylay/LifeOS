@@ -201,10 +201,10 @@ export function addEntries(lines: ParsedLine[], source: EntrySource = "manual", 
   });
 }
 
-/** Adds every low-stock or out-of-stock pantry item that is not already on the list. */
+/** Adds every low-stock or out-of-stock pantry item that is not already on the list (checked entries count: they are in the cart). */
 export function addLowStock(): ShoppingEntry[] {
   return runInTransaction(() => {
-    const listed = new Set(listEntries().filter((e) => !e.checked && e.itemId).map((e) => e.itemId));
+    const listed = new Set(listEntries().filter((e) => e.itemId).map((e) => e.itemId));
     const stamp = now();
     return listPantry().filter((item) => isLowStock(item) && !listed.has(item.id)).map((item) => {
       const id = createDoc(SHOPPING_LIST, {
