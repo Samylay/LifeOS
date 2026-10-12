@@ -178,8 +178,11 @@ export function ChatWorkspace() {
         <div className="shrink-0 bg-background px-3 pb-2 pt-2 sm:px-4">
           <div className="mx-auto max-w-3xl rounded-2xl border border-border bg-card shadow-[0_8px_28px_-16px_rgba(0,0,0,0.5)] focus-within:border-primary/35 focus-within:shadow-[0_10px_32px_-16px_rgba(107,142,121,0.32)]">
             {draft && <div className="flex items-center gap-3 px-3 pt-3">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={draft.url} alt="Photo ready to send" className="size-16 rounded-lg object-cover" />
+              <div className={`relative shrink-0 overflow-hidden rounded-lg ${uploading ? "size-[120px]" : "size-16"}`}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={draft.url} alt={uploading ? "Photo being analysed" : "Photo ready to send"} className="size-full object-cover" />
+                {uploading && <div role="status" className="absolute inset-0 flex animate-pulse items-center justify-center bg-background/60 text-sm font-medium text-foreground">Analysing</div>}
+              </div>
               <div className="min-w-0 flex-1"><p className="text-xs font-medium">Ready to log your meal</p><p className="text-[11px] text-muted-foreground">Add details below, or send the photo on its own.</p></div>
               <button type="button" aria-label="Remove photo" disabled={uploading} onClick={() => setDraft(null)} className="flex size-10 shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted transition-transform duration-150 ease-[var(--ease-out-custom)] active:scale-[0.97]"><X size={16} /></button>
             </div>}
