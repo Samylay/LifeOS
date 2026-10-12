@@ -22,7 +22,7 @@ export function FoodTodayCard() {
   const kcal = Math.round(summary?.totals.kcal?.value ?? 0);
   const meals = summary?.mealCount ?? 0;
   return <section aria-label="Food today" className="flex items-center gap-4 rounded-xl border border-border bg-card p-4">
-    <span aria-hidden="true"><ProgressRing value={protein} goal={PROTEIN_TARGET_G} size={56} strokeWidth={5} /></span>
+    <span aria-hidden="true"><ProgressRing value={protein} goal={PROTEIN_TARGET_G} size={56} strokeWidth={5} label={<span className="text-xs font-semibold tabular-nums">{protein}</span>} /></span>
     <div className="min-w-0 flex-1">
       <p className="text-sm font-medium">Food today</p>
       <p className="truncate text-xs tabular-nums text-muted-foreground">{meals ? `${kcal} kcal · ${protein} / ${PROTEIN_TARGET_G} g protein` : "Nothing logged yet"}</p>
