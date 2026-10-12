@@ -191,22 +191,24 @@ export function TrainingDashboard() {
 
     {!configured && <Card className="p-4"><EmptyState icon={Activity} title="Strava is not connected" hint="Connect Strava in Settings to see actual training and fitness trends." /></Card>}
 
-    <section aria-label="Race readiness" className="grid gap-3 sm:grid-cols-[1.1fr_1.4fr_1fr]">
-      <Card className="flex min-h-36 flex-col justify-between p-4">
-        <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Days to Paris Marathon</span>
-        <div><span className="font-mono text-4xl font-bold tabular-nums">{daysToRace}</span><p className="mt-1 text-sm text-muted-foreground">{raceDateLabel}</p></div>
-      </Card>
-      <Card className="flex min-h-36 flex-col justify-between gap-3 p-4">
-        <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{upcoming?.isToday ? "Today" : "Next session"}</span>
-        {upcoming ? <div className="space-y-1">
-          <p className="text-lg font-semibold leading-snug">{upcoming.session.title}</p>
-          <p className="text-sm text-muted-foreground">{upcoming.isToday ? upcoming.session.summary : `${new Date(`${upcoming.date}T00:00:00Z`).toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "short", timeZone: "UTC" })} · ${upcoming.session.summary}`}</p>
-          <a href="#plan-details" className="inline-flex min-h-9 items-center text-xs font-medium text-primary underline underline-offset-2">See the full session</a>
-        </div> : <p className="text-sm text-muted-foreground">The 26-week block is complete.</p>}
-      </Card>
-      <Card className="flex min-h-36 flex-col justify-between p-4">
-        <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Current form</span>
-        <div><span className={`font-mono text-4xl font-bold tabular-nums ${form.className}`}>{Math.round(currentForm)}</span><p className={`mt-1 text-sm ${form.className}`}>{form.label}</p></div>
+    <section aria-label="Race readiness">
+      <Card className="grid gap-0 divide-y divide-border p-0 sm:grid-cols-[1.1fr_1.4fr_1fr] sm:divide-x sm:divide-y-0">
+        <div className="flex flex-col justify-between gap-3 p-4">
+          <span className="section-label">Days to Paris Marathon</span>
+          <div><span className="text-4xl font-bold tabular-nums">{daysToRace}</span><p className="mt-1 text-sm text-muted-foreground">{raceDateLabel}</p></div>
+        </div>
+        <div className="flex flex-col justify-between gap-3 p-4">
+          <span className="section-label">{upcoming?.isToday ? "Today" : "Next session"}</span>
+          {upcoming ? <div className="space-y-1">
+            <p className="text-lg font-semibold leading-snug">{upcoming.session.title}</p>
+            <p className="text-sm text-muted-foreground">{upcoming.isToday ? upcoming.session.summary : `${new Date(`${upcoming.date}T00:00:00Z`).toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "short", timeZone: "UTC" })} · ${upcoming.session.summary}`}</p>
+            <a href="#plan-details" className="inline-flex min-h-9 items-center text-xs font-medium text-primary underline underline-offset-2">See the full session</a>
+          </div> : <p className="text-sm text-muted-foreground">The 26-week block is complete.</p>}
+        </div>
+        <div className="flex flex-col justify-between gap-3 p-4">
+          <span className="section-label">Current form</span>
+          <div><span className={`text-4xl font-bold tabular-nums ${form.className}`}>{Math.round(currentForm)}</span><p className={`mt-1 text-sm ${form.className}`}>{form.label}</p></div>
+        </div>
       </Card>
     </section>
 
@@ -222,7 +224,7 @@ export function TrainingDashboard() {
             return <div key={sport} className="flex min-w-0 flex-col items-center gap-1">
               <ProgressRing value={ringValue} goal={goal} size={90} strokeWidth={6} color={meta.color} label={goal > 0 ? "min" : "no plan"} />
               <span className="flex items-center gap-1 text-xs text-muted-foreground"><Icon size={13} />{meta.label}</span>
-              <span className="font-mono text-xs text-muted-foreground">{value} / {goal || "—"} min</span>
+              <span className="text-xs tabular-nums text-muted-foreground">{value} / {goal || "—"} min</span>
             </div>;
           })}
         </div>
@@ -256,7 +258,7 @@ export function TrainingDashboard() {
             <span className="text-xs text-muted-foreground">{day}</span>
             <span aria-label={session ? `${session.title}, ${done ? "done" : past ? "missed" : "planned"}` : "No planned session"} className={`h-2.5 w-2.5 rounded-full ${!session ? "bg-muted" : done ? "bg-success" : past ? "bg-destructive/70" : "border border-primary bg-primary/15"}`} />
             <span className="w-full truncate text-center text-xs text-muted-foreground">{session?.kind === "run" ? "Run" : session?.kind === "gym" ? "Gym" : session?.kind === "mobility" ? "Move" : ""}</span>
-            <span className="font-mono text-xs text-muted-foreground">{date.slice(8)}</span>
+            <span className="text-xs tabular-nums text-muted-foreground">{date.slice(8)}</span>
           </div>)}
         </div>
         <div className="mt-3 flex flex-wrap gap-3 border-t border-border pt-2 text-xs text-muted-foreground"><span><i className="mr-1 inline-block h-2 w-2 rounded-full border border-primary" />planned</span><span><i className="mr-1 inline-block h-2 w-2 rounded-full bg-success" />done</span><span><i className="mr-1 inline-block h-2 w-2 rounded-full bg-destructive/70" />missed</span></div>
@@ -275,7 +277,7 @@ export function TrainingDashboard() {
           return <div key={row.id} className="flex min-w-0 items-center gap-3 px-3 py-3 sm:px-4">
             <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-muted" style={{ color: meta.color }}><Icon size={17} /></span>
             <div className="min-w-0 flex-1"><p className="truncate text-sm font-medium">{row.name}</p><p className="text-xs text-muted-foreground">{new Date(activityDate(row)).toLocaleDateString("en-GB", { day: "numeric", month: "short" })} · {row.distance_m ? `${(row.distance_m / 1000).toFixed(1)} km` : meta.label} · {formatDuration(row.moving_time_s)}{speed ? ` · ${speed}` : ""}</p></div>
-            <div className="w-14 shrink-0"><div className="h-1.5 overflow-hidden rounded-full bg-muted"><span className="block h-full origin-left rounded-full bg-primary" style={{ transform: `scaleX(${Math.min(1, effort / effortMax)})` }} /></div><span className="mt-1 block text-right font-mono text-xs text-muted-foreground">RE {effort}</span></div>
+            <div className="w-14 shrink-0"><div className="h-1.5 overflow-hidden rounded-full bg-muted"><span className="block h-full origin-left rounded-full bg-primary" style={{ transform: `scaleX(${Math.min(1, effort / effortMax)})` }} /></div><span className="mt-1 block text-right text-xs tabular-nums text-muted-foreground">RE {effort}</span></div>
           </div>;
         })}
         {visibleCount < Math.min(activities.length, 30) && <button type="button" onClick={() => setVisibleCount((count) => Math.min(30, count + 10))} className="flex min-h-11 w-full items-center justify-center gap-1 text-sm text-primary transition-transform duration-150 ease-[var(--ease-out-custom)] active:scale-[0.97]">Show more <ChevronDown size={15} /></button>}
@@ -286,7 +288,7 @@ export function TrainingDashboard() {
       <SectionHeader title="Body weight" />
       <Card className="mt-3 flex items-center gap-4 p-4">
         {measurementsLoading ? <Skeleton className="h-10 w-full" /> : weightHistory.length >= 2 ? <>
-          <div className="shrink-0"><span className="font-mono text-2xl font-semibold">{weightHistory.at(-1)?.weight.toFixed(1)} kg</span><p className="text-xs text-muted-foreground">Garmin · {weightHistory.length} weigh-ins</p></div>
+          <div className="shrink-0"><span className="text-2xl font-semibold tabular-nums">{weightHistory.at(-1)?.weight.toFixed(1)} kg</span><p className="text-xs text-muted-foreground">Garmin · {weightHistory.length} weigh-ins</p></div>
           <SparkChart data={weightHistory} index="date" category="weight" className="h-12 flex-1" color="var(--chart-2)" />
         </> : <EmptyState compact icon={CalendarDays} hint="Garmin weight history will appear when measurements are available." />}
       </Card>
