@@ -24,6 +24,19 @@ function enc(d: Date): { __date: string } {
   return { __date: d.toISOString() };
 }
 
+/** Grocery tool input ({ items: [{ name, quantity?, unit? }] }) as parsed lines; bad fields are dropped, not guessed. */
+function groceryLines(input: Record<string, unknown>) {
+  const items = Array.isArray(input.items) ? input.items : [];
+  return items.map((raw) => {
+    const item = (raw ?? {}) as { name?: unknown; quantity?: unknown; unit?: unknown };
+    return {
+      name: typeof item.name === "string" ? item.name : "",
+      quantity: typeof item.quantity === "number" ? item.quantity : null,
+      unit: (["unit", "pack", "g", "kg", "ml", "l"] as const).find((u) => u === item.unit) ?? null,
+    };
+  });
+}
+
 function stamps() {
   const now = enc(new Date());
   return { createdAt: now, updatedAt: now };
@@ -144,6 +157,30 @@ export async function executeAppActions(actions: ChatAction[]): Promise<AppActio
               summary: `Failed: complete_task (no match for "${c.title}")`,
               failed: true,
             });
+          }
+          break;
+        }
+        case "add_to_shopping_list": {
+          const { addEntries } = await import("./shopping");
+          const added = addEntries(groceryLines(action.input), "assistant");
+          const aliased = added.filter((a) => a.resolvedVia === "alias").map((a) => `"${a.said}" as ${a.entry.text}`);
+          results.push({
+            tool: action.tool,
+            summary: `Added to the shopping list: ${added.map((a) => a.entry.text).join(", ")}${aliased.length ? ` (read ${aliased.join(", ")})` : ""}`,
+            count: added.length,
+          });
+          break;
+        }
+        case "mark_groceries_bought": {
+          const { buyByName } = await import("./shopping");
+          const outcomes = buyByName(groceryLines(action.input));
+          const done = outcomes.filter((o) => o.ok);
+          const unclear = outcomes.filter((o) => !o.ok);
+          if (done.length) {
+            results.push({ tool: action.tool, summary: `Moved to the pantry: ${done.map((o) => o.item.name + (o.created ? " (new)" : "")).join(", ")}`, count: done.length });
+          }
+          for (const o of unclear) {
+            results.push({ tool: action.tool, summary: `Failed: "${o.name}" could mean ${o.candidates.join(" or ")}. Ask which one, or add "${o.name}" as an alias in Shopping.`, failed: true });
           }
           break;
         }
