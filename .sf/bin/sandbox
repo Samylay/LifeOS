@@ -1,0 +1,171 @@
+#!/usr/bin/env bash
+# LifeOS sandbox: a production build of this worktree, served from a copy of a
+# read-only database snapshot, with no route out of the machine.
+#
+#   .sf/bin/sandbox build     next build inside a network-less, read-only jail
+#   .sf/bin/sandbox start     copy the snapshot, start the server, print the URL
+#   .sf/bin/sandbox doctor    read-only: is this instance ours and worth driving?
+#   .sf/bin/sandbox canary    prove the jail has no network (expects failure inside)
+#   .sf/bin/sandbox outbound  summarise the outbound attempts the guard recorded
+#   .sf/bin/sandbox stop      kill what `start` started (never by process name)
+#
+# Isolation, by layer:
+#   network   bwrap --unshare-net: the server sees only loopback. The host reaches it
+#             through a Unix socket bridge bound to 127.0.0.1:$SF_SANDBOX_PORT.
+#   files     the whole filesystem is read-only; only the run dir is writable;
+#             secrets, the vault, services, backups and the live repo are hidden.
+#   env       env -i: no .env, no tokens. Service URLs keep production shapes so
+#             attempts to reach them are visible in the guard log, and fail.
+#   docker    /run is an empty tmpfs, so /var/run/docker.sock does not exist.
+# Never port 3000, never the live container, never the live database.
+set -euo pipefail
+
+WT="$(cd "$(dirname "$0")/../.." && pwd)"
+APP="$WT/app"
+DATA="${SF_SANDBOX_DATA:-$HOME/apps/lifeos-sf-field-data}"
+PRISTINE="$DATA/pristine/lifeos.db"
+PORT="${SF_SANDBOX_PORT:-3110}"
+CURRENT="$DATA/runs/current"
+NODE_DIR="$(dirname "$(command -v node)")"
+
+die() { echo "sandbox: $*" >&2; exit 1; }
+[ "$PORT" != 3000 ] || die "port 3000 is the live LifeOS. Pick another SF_SANDBOX_PORT."
+
+hide_args() {
+  local d
+  for d in "$HOME/.config" "$HOME/.codex" "$HOME/.claude" "$HOME/.hermes" "$HOME/.ssh" \
+           "$HOME/.gnupg" "$HOME/.local/share" "$HOME/vault" "$HOME/services" "$HOME/backups" \
+           "$HOME/infra" "$HOME/apps/lifeos" "$HOME/git" "$DATA"; do
+    [ -e "$d" ] && printf -- '--tmpfs\0%s\0' "$d"
+  done
+  return 0
+}
+
+JAIL=()
+jail_args() { # sets JAIL to the bwrap command line with <writable-dir> as the only writable path
+  local -a hide=(); mapfile -d '' hide < <(hide_args)
+  JAIL=(bwrap --ro-bind / / --dev /dev --proc /proc --tmpfs /tmp --tmpfs /run
+    --unshare-net --unshare-pid "${hide[@]}" --bind "$1" "$1" --)
+}
+jail() { # jail <writable-dir> [extra bwrap args...] -- cmd...
+  local rw="$1"; shift; local -a extra=()
+  while [ "$#" -gt 0 ] && [ "$1" != "--" ]; do extra+=("$1"); shift; done; shift
+  jail_args "$rw"; unset 'JAIL[-1]'; "${JAIL[@]}" --die-with-parent "${extra[@]}" -- "$@"
+}
+
+assert_no_env_files() {
+  local hits
+  hits="$(find "$1" -name node_modules -prune -o -name '.env*' ! -name '*.example' -print 2>/dev/null | head -5)"
+  [ -z "$hits" ] || die "found env files, refusing: $hits"
+}
+
+cmd_build() {
+  assert_no_env_files "$APP"
+  local log="$WT/.sf/sandbox/.build.log"
+  echo "sandbox: building in a network-less jail (log: $log)"
+  # Next infers the workspace root from the outermost lockfile. A stray
+  # ~/package-lock.json would nest server.js; mask it inside the jail only.
+  local -a mask=()
+  for f in "$HOME/package-lock.json" "$HOME/package.json"; do [ -e "$f" ] && mask+=(--ro-bind /dev/null "$f"); done
+  rm -rf "$APP/.next"
+  jail "$APP" "${mask[@]}" -- env -i PATH="$NODE_DIR:/usr/bin:/bin" HOME="$APP/.next/home" \
+    NEXT_TELEMETRY_DISABLED=1 NODE_ENV=production LIFEOS_DB_PATH="$APP/.next/home/build.db" \
+    sh -c 'mkdir -p "$HOME" && cd "'"$APP"'" && npx next build' >"$log" 2>&1 || { tail -30 "$log"; die "build failed"; }
+  local sa="$APP/.next/standalone"
+  [ -f "$sa/server.js" ] || die "server.js is not at the standalone root; Next picked another workspace root"
+  cp -r "$APP/.next/static" "$sa/.next/static"
+  [ -d "$APP/public" ] && cp -r "$APP/public" "$sa/public"
+  rm -rf "$sa/node_modules/better-sqlite3" && cp -r "$APP/node_modules/better-sqlite3" "$sa/node_modules/better-sqlite3"
+  rm -rf "$sa/data"
+  assert_no_env_files "$sa"
+  git -C "$WT" rev-parse HEAD > "$sa/.sf-build-sha"
+  echo "sandbox: build OK at $(cat "$sa/.sf-build-sha")"
+}
+
+cmd_start() {
+  [ -f "$APP/.next/standalone/server.js" ] || die "no build. Run: .sf/bin/sandbox build"
+  [ -r "$PRISTINE" ] || die "no snapshot at $PRISTINE"
+  if ss -ltn | grep -q ":$PORT "; then die "port $PORT is busy. Run doctor or stop first."; fi
+  local run="$DATA/runs/$(date +%Y%m%dT%H%M%S)"
+  mkdir -p "$run"/{home,vault,voice-audio,teach-audio,goals} && chmod 700 "$run"
+  cp "$PRISTINE" "$run/lifeos.db" && chmod 600 "$run/lifeos.db"
+  rm -rf "$run/server" && cp -r "$APP/.next/standalone" "$run/server"
+  assert_no_env_files "$run/server"
+  cp "$WT/.sf/sandbox/outbound-guard.cjs" "$WT/.sf/sandbox/bridge.mjs" "$run/"
+  : > "$run/outbound.jsonl"
+  local inner_port=3100
+  jail_args "$run"
+  setsid env -i PATH="$NODE_DIR:/usr/bin:/bin" HOME="$run/home" TZ=Europe/Paris \
+    NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 PORT=$inner_port HOSTNAME=127.0.0.1 \
+    LIFEOS_DB_PATH="$run/lifeos.db" KB_PATH="$run/vault" KB_UID="$(id -u)" KB_GID="$(id -g)" \
+    VOICE_AUDIO_DIR="$run/voice-audio" TEACH_AUDIO_DIR="$run/teach-audio" GOALS_DIR="$run/goals" \
+    BRIEF_OUT="$run/brief.json" BRIEF_TZ=Europe/Paris DOCKER_SOCK=/nonexistent FEED_RETIRED=1 \
+    HERMES_STATUS=/nonexistent/status.json OBJECTIVES_DIR=/nonexistent GEN_PROVIDER=codex \
+    CODEX_BRIDGE_URL=http://host.docker.internal:11435/generate \
+    OLLAMA_BASE_URL=http://host.docker.internal:11434 PROM_URL=http://prometheus:9090 \
+    WHISPER_URL=http://host.docker.internal:8091 CRAWL4AI_URL=http://crawl4ai:11235 \
+    SF_OUTBOUND_LOG="$run/outbound.jsonl" NODE_OPTIONS="--require $run/outbound-guard.cjs" \
+    "${JAIL[@]}" sh -c "cd '$run/server' && (node '$run/bridge.mjs' inner '$run/sock' $inner_port >'$run/bridge-inner.log' 2>&1 &) && exec node server.js" \
+    >"$run/server.log" 2>&1 &
+  local jail_pid=$!
+  setsid node "$WT/.sf/sandbox/bridge.mjs" outer "$run/sock" "$PORT" >"$run/bridge.log" 2>&1 &
+  local bridge_pid=$!
+  printf '{"run":"%s","jailPid":%s,"bridgePid":%s,"port":%s,"sha":"%s"}\n' \
+    "$run" "$jail_pid" "$bridge_pid" "$PORT" "$(cat "$APP/.next/standalone/.sf-build-sha")" > "$run/run.json"
+  ln -sfn "$run" "$CURRENT"
+  for _ in $(seq 1 60); do
+    if [ "$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:$PORT/" || true)" = 200 ]; then
+      echo "sandbox: ready at http://127.0.0.1:$PORT (run $run)"; return 0
+    fi
+    sleep 1
+  done
+  tail -20 "$run/server.log"; cmd_stop; die "server did not answer 200 on / within 60 s"
+}
+
+cmd_stop() {
+  [ -f "$CURRENT/run.json" ] || { echo "sandbox: nothing running"; return 0; }
+  local j b
+  j="$(node -p "require('$CURRENT/run.json').jailPid")"; b="$(node -p "require('$CURRENT/run.json').bridgePid")"
+  for p in "$b" "$j"; do kill -TERM -- "-$p" 2>/dev/null || kill -TERM "$p" 2>/dev/null || true; done
+  sleep 1
+  for p in "$b" "$j"; do kill -KILL -- "-$p" 2>/dev/null || true; done
+  rm -rf "$CURRENT/server" "$CURRENT/sock"
+  echo "sandbox: stopped $(readlink "$CURRENT"); evidence kept (outbound.jsonl, server.log, lifeos.db)"
+}
+
+cmd_doctor() {
+  [ -f "$CURRENT/run.json" ] || die "no run. Start one."
+  local j; j="$(node -p "require('$CURRENT/run.json').jailPid")"
+  kill -0 "$j" 2>/dev/null || die "jail pid $j is gone"
+  local b; b="$(node -p "require('$CURRENT/run.json').bridgePid")"
+  ss -ltnp 2>/dev/null | grep ":$PORT " | grep -q "pid=$b," || die "port $PORT is not held by our bridge (pid $b)"
+  local code; code="$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:$PORT/")"
+  [ "$code" = 200 ] || die "GET / returned $code"
+  grep -q guard-loaded "$CURRENT/outbound.jsonl" || die "outbound guard is not loaded"
+  echo "sandbox doctor: OK run=$(readlink "$CURRENT") sha=$(node -p "require('$CURRENT/run.json').sha.slice(0,7)") port=$PORT GET/=200 guard=loaded"
+}
+
+cmd_canary() {
+  local dir; dir="$(mktemp -d)"
+  if jail "$dir" -- "$NODE_DIR/node" -e "fetch('https://example.com').then(()=>process.exit(0),e=>{console.log('blocked:',e.cause?.code||e.message);process.exit(7)})"; then
+    rm -rf "$dir"; die "CANARY FAILED: the jail reached the internet"
+  fi
+  rm -rf "$dir"; echo "sandbox canary: OK, outbound fetch from inside the jail failed"
+}
+
+cmd_outbound() {
+  local f="${1:-$CURRENT/outbound.jsonl}"
+  node -e '
+    const lines = require("fs").readFileSync(process.argv[1], "utf8").trim().split("\n").filter(Boolean).map(JSON.parse);
+    const counts = {};
+    for (const l of lines) if (l.kind !== "guard-loaded") { const k = l.kind + " " + l.target; counts[k] = (counts[k] || 0) + 1; }
+    console.log(`guard loads: ${lines.filter(l => l.kind === "guard-loaded").length}, outbound attempts: ${lines.length - lines.filter(l => l.kind === "guard-loaded").length}`);
+    for (const [k, n] of Object.entries(counts).sort((a, b) => b[1] - a[1])) console.log(`${String(n).padStart(5)}  ${k}`);
+  ' "$f"
+}
+
+case "${1:-}" in
+  build) cmd_build ;; start) cmd_start ;; stop) cmd_stop ;; doctor) cmd_doctor ;;
+  canary) cmd_canary ;; outbound) shift; cmd_outbound "$@" ;;
+  *) sed -n '2,9p' "$0"; exit 2 ;;
+esac
