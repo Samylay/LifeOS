@@ -24,6 +24,21 @@ const FEATURES = {
   habits: { route: "/settings/habits", heading: "Habits" },
   saved: { route: "/saved", heading: "Saved" },
   teach: { route: "/knowledge/teach", heading: "Teach" },
+  // A habit whose `history` is not an array (the generic data API accepts any shape)
+  // must not take down the pages that list habits. Field-test finding HI-1.
+  "habits-malformed": {
+    route: "/settings/habits", heading: "Habits",
+    async before() {
+      const res = await fetch(`${BASE}/api/data/users/local/habits`, { method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ name: PROBE, frequency: "daily", status: "active", streak: 1, history: {} }) });
+      return (await res.json()).id;
+    },
+    async act(p, check) {
+      const res = await p.go("/");
+      check("Today still renders with a malformed habit", await p.page.getByRole("heading", { level: 1, name: "Today" }).first().waitFor({ timeout: 8000 }).then(() => true, () => false), String(res?.status()));
+    },
+    async after(id) { if (id) await fetch(`${BASE}/api/data/users/local/habits/${encodeURIComponent(id)}`, { method: "DELETE" }); },
+  },
   shopping: {
     route: "/shopping", heading: "Shopping",
     async act(p, check) {
@@ -54,7 +69,9 @@ async function runJourney(name, viewportName) {
   const p = await startPersona(`verify-lifeos/${name}-${viewportName}`, { viewport: VIEWPORTS[viewportName] });
   const checks = [];
   const check = (what, ok, detail = "") => checks.push({ what, ok: Boolean(ok), detail });
+  let seeded;
   try {
+    if (f.before) seeded = await f.before();
     const res = await p.go(f.route);
     check(`GET ${f.route} is 200`, res?.status() === 200, String(res?.status()));
     const h1 = p.page.getByRole("heading", { level: 1, name: f.heading });
@@ -66,6 +83,7 @@ async function runJourney(name, viewportName) {
   } catch (e) {
     check("journey ran without throwing", false, String(e.message).split("\n")[0]);
   } finally {
+    if (f.after) await f.after(seeded).catch(() => {});
     const own5xx = p.journal.badResponses.filter((r) => r.status >= 500 && !OFFLINE_5XX.some((re) => re.test(r.url)));
     check("no 5xx from the app", own5xx.length === 0, own5xx.map((r) => `${r.status} ${r.url.replace(BASE, "")}`).join(", "));
     check("no uncaught page error", p.journal.pageErrors.length === 0, p.journal.pageErrors.map((e) => e.message).join(" | ").slice(0, 200));

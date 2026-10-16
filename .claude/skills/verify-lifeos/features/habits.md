@@ -5,6 +5,7 @@ Habit definitions and history.
 ## Sub-features
 
 - `habits-render`
+- `habits-malformed` a habit with a non-array history must not crash Today or Habits (finding HI-1)
 - `habits-toggle` a check-in persists
 
 ## How to get to it (user POV)
