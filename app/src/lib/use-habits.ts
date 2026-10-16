@@ -4,7 +4,7 @@ import { useCallback, useMemo } from "react";
 import { useCollection } from "./use-collection";
 import type { Habit, AreaId } from "./types";
 import { notifyWrite } from "./local-db";
-import { scheduledToggle, sortHabits } from "./habit-schedule";
+import { parseHabit, scheduledToggle, sortHabits } from "./habit-schedule";
 
 export interface HabitWithArea extends Habit {
   area?: AreaId;
@@ -32,7 +32,7 @@ export function toggledHabitState(
 export function useHabits() {
   const { items, loading, error } =
     useCollection<HabitWithArea>("habits", { fallbackDates: [] });
-  const habits = useMemo(() => sortHabits(items), [items]);
+  const habits = useMemo(() => sortHabits(items.map(parseHabit)), [items]);
 
   const write = useCallback(async (method: string, id?: string, data?: unknown) => {
     const path = `users/local/habits${id ? `/${encodeURIComponent(id)}` : ""}`;

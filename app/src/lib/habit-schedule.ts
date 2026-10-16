@@ -13,6 +13,24 @@ export function habitEdit(name: string, schedule: "daily" | "weekly" | "custom",
   return { name: trimmed, frequency: schedule === "weekly" ? "weekly" : "daily", daysOfWeek: schedule === "custom" ? unique : [] };
 }
 
+type HabitEntry = Habit["history"][number];
+
+/**
+ * Habits come from the generic data API, which stores any JSON. Parse them here,
+ * at the read boundary, so a malformed document shows as a habit with no history
+ * instead of crashing every page that lists habits.
+ */
+export function parseHabit<T extends Habit>(doc: T): T {
+  const raw: unknown = doc.history;
+  const valid = Array.isArray(raw)
+    ? raw.filter((entry): entry is HabitEntry =>
+        !!entry && typeof entry === "object" && typeof (entry as HabitEntry).date === "string" && typeof (entry as HabitEntry).completed === "boolean")
+    : [];
+  const history = Array.isArray(raw) && valid.length === raw.length ? (raw as HabitEntry[]) : valid;
+  const streak = typeof doc.streak === "number" && Number.isFinite(doc.streak) ? doc.streak : 0;
+  return history === raw && streak === doc.streak ? doc : { ...doc, history, streak };
+}
+
 export function sortHabits<T extends Habit>(habits: T[]): T[] {
   return habits.map((habit, index) => ({ habit: { ...habit, order: habit.order ?? index }, index }))
     .sort((a, b) => (a.habit.order ?? a.index) - (b.habit.order ?? b.index) || a.index - b.index)
