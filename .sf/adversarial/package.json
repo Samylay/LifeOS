@@ -1,0 +1,11 @@
+{
+  "name": "lifeos-sf-adversarial",
+  "private": true,
+  "type": "module",
+  "description": "Adversarial persona suite and verify-lifeos driver for the LifeOS sandbox (SF field test).",
+  "scripts": {},
+  "devDependencies": {
+    "@ast-grep/cli": "^0.39.5",
+    "playwright-core": "^1.56.1"
+  }
+}
