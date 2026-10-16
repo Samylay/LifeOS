@@ -1,0 +1,10 @@
+repo: https://github.com/cursor/plugins
+commit: cdb3c41c9f2f6d41f050e3dc25e15e325493d499
+folder: pstack/skills (+ pstack/agents/poteto-agent.md)
+version: 0.15.25
+vendored-to: .claude/skills/ and .claude/agents/poteto-agent.md
+committed: no. .claude/ is gitignored except project skills; restore with .sf/bin/pstack-fetch
+license: MIT (Lauren Tan), copied to .claude/skills/PSTACK-LICENSE
+checksums: .sf/pstack.sha256 (paths relative to .claude/); .sf/bin/pstack-check proves the bytes
+same-bytes-as: arm v3 pin 99743e9 for every skill file (diff of the two manifests is empty)
+not-vendored: pstack/agents/comment-sicko.md (classifier denied, field-test D4)

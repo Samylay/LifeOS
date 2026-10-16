@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# Proves the vendored pstack is byte-identical to the pin: every manifest file matches,
+# and no extra file sits inside a vendored skill folder. Exit 1 names the drift.
+set -euo pipefail
+export LC_ALL=C
+cd "$(dirname "$0")/../../.claude"
+manifest=../.sf/pstack.sha256
+[ -d skills/poteto-mode ] || { echo "pstack-check: not vendored here. Run .sf/bin/pstack-fetch" >&2; exit 1; }
+sha256sum --quiet -c "$manifest" || { echo "pstack-check: vendored files differ from the pin" >&2; exit 1; }
+dirs=$(awk '{print $2}' "$manifest" | awk -F/ '$1=="skills" && NF>2 {print $1"/"$2}' | sort -u)
+extra=$(comm -13 <(awk '{print $2}' "$manifest" | sort) <(find $dirs -type f | sort))
+[ -z "$extra" ] || { echo "pstack-check: files not in the pin: $extra" >&2; exit 1; }
+echo "pstack-check: OK $(wc -l < "$manifest") files at $(awk '/^commit:/{print substr($2,1,7)}' ../.sf/PSTACK_PIN)"

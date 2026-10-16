@@ -3,5 +3,12 @@ node_modules/
 # wayfinder local-markdown tracker (private; never push to public remote)
 .scratch/
 
-# Local Claude Code session state (permissions, worktrees) — never commit
-.claude/
+# Local Claude Code session state (permissions, worktrees) and the vendored pstack
+# copy (restore with .sf/bin/pstack-fetch) are never committed. Project skills are.
+.claude/*
+!.claude/skills/
+.claude/skills/*
+!.claude/skills/verify-lifeos/
+
+# SF sandbox build log
+.sf/sandbox/.build.log

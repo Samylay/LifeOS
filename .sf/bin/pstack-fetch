@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# Restores the vendored pstack from the pinned upstream commit, then runs pstack-check.
+set -euo pipefail
+root="$(cd "$(dirname "$0")/../.." && pwd)"
+commit=$(awk '/^commit:/{print $2}' "$root/.sf/PSTACK_PIN")
+tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
+git -C "$tmp" init -q && git -C "$tmp" remote add origin https://github.com/cursor/plugins.git
+git -C "$tmp" fetch -q --depth 1 --filter=blob:none origin "$commit"
+git -C "$tmp" sparse-checkout set pstack >/dev/null 2>&1 || true
+git -C "$tmp" checkout -q FETCH_HEAD -- pstack/skills pstack/agents/poteto-agent.md pstack/LICENSE
+mkdir -p "$root/.claude/skills" "$root/.claude/agents"
+cp -r "$tmp/pstack/skills/." "$root/.claude/skills/"
+cp "$tmp/pstack/agents/poteto-agent.md" "$root/.claude/agents/"
+cp "$tmp/pstack/LICENSE" "$root/.claude/skills/PSTACK-LICENSE"
+"$root/.sf/bin/pstack-check"
