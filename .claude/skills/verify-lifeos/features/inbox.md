@@ -7,6 +7,7 @@ Decision cards from triage: approve an action, undo it, give short feedback.
 - `inbox-render` the card stack or the empty state
 - `inbox-approve` approving a card performs its action
 - `inbox-undo` undo reverses our own artifact
+- `inbox-shortcuts` Ctrl, Cmd and Alt combos never record a verdict; plain `d` defers (finding CU-03, desktop only)
 
 ## How to get to it (user POV)
 

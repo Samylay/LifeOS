@@ -39,6 +39,24 @@ const FEATURES = {
     },
     async after(id) { if (id) await fetch(`${BASE}/api/data/users/local/habits/${encodeURIComponent(id)}`, { method: "DELETE" }); },
   },
+  // Browser and OS shortcuts (Ctrl+A, Ctrl+X, Cmd+A, Alt+X) must never record an
+  // Inbox verdict; the plain single-key shortcut still must. Finding CU-03.
+  "inbox-shortcuts": {
+    route: "/decide?tab=agents", heading: "Inbox", only: "desktop", // shortcuts exist from 1024 px up
+    async act(p, check) {
+      const posts = [];
+      p.page.on("request", (r) => { if (r.method() !== "GET" && /\/api\/(decide|triage|proposals|workflows)/.test(r.url())) posts.push(r.url().replace(BASE, "")); });
+      const cards = await p.page.getByRole("button", { name: /^Approve/ }).count();
+      check("an agent card is selected (precondition)", cards > 0, `${cards} approve buttons`);
+      await p.page.locator("main").click({ position: { x: 5, y: 5 } }).catch(() => {});
+      for (const combo of ["Control+a", "Control+x", "Meta+a", "Alt+x", "Control+d"]) await p.page.keyboard.press(combo);
+      await p.page.waitForTimeout(800);
+      check("modifier shortcuts record no verdict", posts.length === 0, posts.join(", "));
+      await p.page.keyboard.press("d");
+      await p.page.waitForTimeout(800);
+      check("plain d still defers the selected card", posts.length === 1, posts.join(", "));
+    },
+  },
   shopping: {
     route: "/shopping", heading: "Shopping",
     async act(p, check) {
@@ -113,6 +131,7 @@ if (!names[0] || names.some((n) => !FEATURES[n])) { console.error(`unknown featu
 
 const results = [];
 for (const v of viewports) for (const n of names) {
+  if (FEATURES[n].only && FEATURES[n].only !== v) { console.log(`N/A ${n} ${v} (exists only at ${FEATURES[n].only} width; not counted)`); continue; }
   const r = await runJourney(n, v);
   results.push(r);
   console.log(`${r.pass ? "PASS" : "FAIL"} ${n} ${v}${r.pass ? "" : "  " + r.checks.filter((c) => !c.ok).map((c) => `${c.what} (${c.detail})`).join("; ")}`);
