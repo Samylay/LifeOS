@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Prints the verdict for the current product SHA. Commits that touch only bookkeeping
+# Prints the verdict for the current product SHA (or the commit given as $1). Commits that touch only bookkeeping
 # files (.sf/ledger.tsv, .sf/verdicts/, .sf/REPORT.md, .sf/LOG.md) do not void a verdict;
 # any other change does (pstack: a new SHA voids the row).
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 bookkeeping='^(\.sf/(ledger\.tsv|verdicts/.*|LOG\.md))$'
-sha=$(git rev-parse HEAD)
+sha=$(git rev-parse "${1:-HEAD}")
 while :; do
   changed=$(git diff-tree --no-commit-id --name-only -r "$sha")
   if [ -n "$changed" ] && ! echo "$changed" | grep -Eqv "$bookkeeping"; then
