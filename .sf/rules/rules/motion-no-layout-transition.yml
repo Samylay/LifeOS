@@ -1,0 +1,7 @@
+id: motion-no-layout-transition
+language: tsx
+severity: error
+message: "Animating layout properties causes reflow (interaction-craft rule 1). Animate transform, opacity, clip-path or filter: use scaleX/scaleY, translate, or clip-path: inset()."
+rule:
+  kind: string_fragment
+  regex: 'transition-\[[^\]]*(width|height|top|left|right|bottom|margin|padding)[^\]]*\]|(^|[\s:])transition-(width|height|spacing|inset)(\s|$)'

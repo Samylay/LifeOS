@@ -1,0 +1,7 @@
+id: motion-no-scale-zero
+language: tsx
+severity: error
+message: "Never enter from scale(0) (interaction-craft rule 4). Start at scale-90 or scale-95 with opacity-0."
+rule:
+  kind: string_fragment
+  regex: '(^|[\s:])scale-0(\s|$)'

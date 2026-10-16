@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+# SF deterministic rules (ast-grep motion rules from interaction-craft, CSS comment check).
+# 1) app/src must have zero findings. 2) every fixture in .sf/rules/fixtures/EXPECT must
+# make its rule fire, which proves each rule fails on a real past mistake (or a doctrine case).
+set -uo pipefail
+root="$(cd "$(dirname "$0")/../.." && pwd)"; R="$root/.sf/rules"
+SG="$root/.sf/adversarial/node_modules/@ast-grep/cli-linux-x64-gnu/ast-grep"
+[ -x "$SG" ] || { echo "rules: ast-grep missing. Run: (cd .sf/adversarial && npm ci)" >&2; exit 2; }
+fail=0
+mapfile -t css < <(find "$root/app/src" -name '*.css')
+out=$("$SG" scan -c "$R/sgconfig.yml" "$root/app/src" 2>&1 || true); n=$(grep -c '^error\[' <<<"$out")
+[ "$n" -eq 0 ] || { echo "$out"; fail=1; }
+node "$R/css-comment-check.mjs" "${css[@]}" || fail=1
+echo "rules: app/src findings: ast-grep $n, css-comment $(node "$R/css-comment-check.mjs" "${css[@]}" | wc -l)"
+ok=0; total=0
+while IFS=$'\t' read -r file rule; do
+  [[ -z "$file" || "$file" == \#* ]] && continue; total=$((total+1))
+  if [ "$rule" = css-comment-terminator ]; then
+    node "$R/css-comment-check.mjs" "$R/fixtures/$file" >/dev/null && { echo "rules: FIXTURE NOT CAUGHT $file ($rule)"; fail=1; continue; }
+  else
+    hit=$("$SG" scan --no-ignore hidden -c "$R/sgconfig.yml" "$R/fixtures/$file" 2>&1 || true)
+    grep -q "^error\[$rule\]" <<<"$hit" || { echo "rules: FIXTURE NOT CAUGHT $file ($rule)"; fail=1; continue; }
+  fi
+  ok=$((ok+1))
+done < "$R/fixtures/EXPECT"
+echo "rules: fixtures caught $ok/$total"
+exit $fail

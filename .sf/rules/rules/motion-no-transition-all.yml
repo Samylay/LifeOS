@@ -1,0 +1,8 @@
+id: motion-no-transition-all
+language: tsx
+severity: error
+message: "transition-all is banned (interaction-craft rule 9). Transition only what moves: `transition-[transform,opacity] duration-150` or `transition-colors`."
+note: "Source: ~/.agents/skills/interaction-craft rule 9. Past mistake: 399e6bd (T37 capture drawer) and af10eca (shadcn foundation), removed by 16bca66."
+rule:
+  kind: string_fragment
+  regex: '(^|[\s:])transition-all(\s|$)'

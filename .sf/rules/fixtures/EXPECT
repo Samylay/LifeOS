@@ -1,0 +1,9 @@
+# fixture file<TAB>rule that must fire. Real past mistakes unless marked doctrine.
+af10eca-progress.tsx	motion-no-transition-all
+af10eca-button.tsx	motion-no-transition-all
+af10eca-globals.excerpt.css	css-comment-terminator
+0f85874-globals.excerpt.css	css-comment-terminator
+doctrine-motion.tsx	motion-duration-cap
+doctrine-motion.tsx	motion-no-layout-transition
+doctrine-motion.tsx	motion-no-scale-zero
+doctrine-motion.css	css-no-transition-all

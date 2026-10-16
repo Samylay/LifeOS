@@ -1,0 +1,8 @@
+id: motion-duration-cap
+language: tsx
+severity: error
+message: "UI motion over 500 ms (interaction-craft: daily UI 150-250 ms, drawers and pages at most 500 ms). Use duration-150, duration-200 or var(--dur-*)."
+note: "Past mistake: duration-700 in af10eca and b86fde9, removed by 16bca66."
+rule:
+  kind: string_fragment
+  regex: '(^|[\s:])duration-(50[1-9]|5[1-9][0-9]|[6-9][0-9]{2}|[1-9][0-9]{3,})(\s|$)'

@@ -1,0 +1,7 @@
+id: css-no-transition-all
+language: css
+severity: error
+message: "`transition: all` is banned (interaction-craft rule 9). List the properties: `transition: transform var(--dur-base) var(--ease-out-custom), opacity ...`."
+rule:
+  kind: declaration
+  regex: '^transition(-property)?\s*:\s*all\b'

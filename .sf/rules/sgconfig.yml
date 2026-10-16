@@ -1,0 +1,4 @@
+# ast-grep rules for LifeOS. Run: .sf/bin/rules (wired into verify:all).
+ruleDirs: [rules]
+testConfigs:
+  - testDir: tests
