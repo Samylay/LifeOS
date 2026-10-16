@@ -57,6 +57,25 @@ const FEATURES = {
       check("plain d still defers the selected card", posts.length === 1, posts.join(", "));
     },
   },
+  // Adding a learning goal is idempotent: a triple click, or the same topic proposal
+  // accepted three times, leaves one queued topic. Findings CU-04 and CU-06.
+  "teach-add-once": {
+    route: "/knowledge/teach", heading: "Teach", only: "desktop", // the phone path is a drawer with the same handler
+    async act(p, check) {
+      const topics = async (name) => (await (await fetch(`${BASE}/api/teach`)).json()).topics.filter((t) => t.topic === name).length;
+      const name = `${PROBE} goal ${Date.now()}`;
+      await p.page.getByLabel("Add learning topic").click();
+      await p.page.getByRole("textbox", { name: "Topic" }).fill(name);
+      await p.page.getByRole("textbox", { name: "Mission" }).fill("synthetic mission");
+      await p.page.getByRole("button", { name: "Add to queue" }).click({ clickCount: 3, delay: 5 });
+      await p.page.waitForTimeout(1500);
+      check("a triple click on Add to queue queues one topic", (await topics(name)) === 1, `${await topics(name)} topics`);
+      const tag = `zz${Date.now()}`;
+      const post = () => fetch(`${BASE}/api/proposals/verdict`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ id: `topic:${tag}`, action: "accept", mission: "synthetic mission" }) });
+      const statuses = (await Promise.all([post(), post(), post()])).map((r) => r.status);
+      check("accepting one topic proposal three times queues one topic", (await topics(`Learn about ${tag}`)) === 1, `${await topics(`Learn about ${tag}`)} topics, statuses ${statuses}`);
+    },
+  },
   shopping: {
     route: "/shopping", heading: "Shopping",
     async act(p, check) {

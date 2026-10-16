@@ -5,6 +5,7 @@ Teaching sessions on saved topics.
 ## Sub-features
 
 - `teach-render`
+- `teach-add-once` a triple click on Add to queue, or three accepts of one topic proposal, leave one topic (findings CU-04, CU-06; desktop)
 
 ## How to get to it (user POV)
 
