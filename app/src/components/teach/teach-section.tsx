@@ -81,6 +81,7 @@ export function TeachSection() {
   const [adding, setAdding] = useState(false);
   const [newTopic, setNewTopic] = useState("");
   const [newMission, setNewMission] = useState("");
+  const [addBusy, setAddBusy] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [pickingId, setPickingId] = useState<string | null>(null);
   const [draftMissions, setDraftMissions] = useState<Record<string, string>>({});
@@ -124,6 +125,8 @@ export function TeachSection() {
       toast("A topic needs a mission — why do you want this?", "error");
       return;
     }
+    if (addBusy) return;
+    setAddBusy(true);
     try {
       await post({ action: "addTopic", topic: newTopic, mission: newMission });
       setNewTopic("");
@@ -133,6 +136,8 @@ export function TeachSection() {
       load();
     } catch (e) {
       toast(e instanceof Error ? e.message : "couldn't add topic", "error");
+    } finally {
+      setAddBusy(false);
     }
   };
 
@@ -243,7 +248,7 @@ export function TeachSection() {
           <Button
             size="sm"
             onClick={add}
-            disabled={!newTopic.trim() || !newMission.trim()}
+            disabled={addBusy || !newTopic.trim() || !newMission.trim()}
             className="text-xs"
           >
             Add to queue
@@ -283,7 +288,7 @@ export function TeachSection() {
             <Button
               size="sm"
               onClick={add}
-              disabled={!newTopic.trim() || !newMission.trim()}
+              disabled={addBusy || !newTopic.trim() || !newMission.trim()}
               className="w-full text-xs active:scale-[0.97] transition-transform duration-150"
             >
               Add to queue

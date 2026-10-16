@@ -133,6 +133,13 @@ export function getTopic(topicId: string): TeachTopic | null {
 }
 
 /** mission is REQUIRED (map 06 — a topic cannot exist without a why). */
+/** The identity of a queued topic request: topic and mission (trimmed, case-folded,
+ *  inner spaces collapsed) and the sorted tags. */
+function topicKey(topic: string, mission: string, tags: string[]): string {
+  const norm = (s: string) => s.trim().replace(/\s+/g, " ").toLowerCase();
+  return JSON.stringify([norm(topic), norm(mission), [...tags].map(norm).sort()]);
+}
+
 export function addTopic(
   topic: string,
   mission: string,
@@ -141,6 +148,14 @@ export function addTopic(
 ): string {
   const m = mission.trim();
   if (!m) throw new Error("mission is required");
+  // Idempotent: a double tap, a retried request or a re-accepted proposal (same
+  // topic, mission and tags) must not queue a second copy, because topics cannot be
+  // deleted (findings CU-04, CU-06). better-sqlite3 is synchronous, so this read and
+  // the create below cannot interleave.
+  const key = topicKey(topic, m, tags);
+  const queued = listDocs(TOPICS, { where: [["status", "==", "queued"]] })
+    .find((t) => topicKey(String(t.topic ?? ""), String(t.mission ?? ""), Array.isArray(t.tags) ? t.tags.map(String) : []) === key);
+  if (queued) return queued.id;
   return createDoc(TOPICS, {
     topic,
     mission: m,
