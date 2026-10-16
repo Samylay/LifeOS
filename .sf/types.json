@@ -1,0 +1,11 @@
+{
+  "_roots": {
+    "repo": ".claude/skills",
+    "global": "~/.agents/skills"
+  },
+  "base": ["poteto-mode@repo", "correct@repo", "architect@repo", "create-verification-skill@repo", "maintain-verification-skill@repo"],
+  "surface:web-app": ["verify-*@repo", "interaction-craft@global", "frontend-design@global"],
+  "stack:nextjs": ["typescript-best-practices@repo"],
+  "stack:react": ["tdd@repo"],
+  "stack:sqlite": []
+}

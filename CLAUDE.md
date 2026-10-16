@@ -30,3 +30,27 @@ Issues and specs live as local markdown under `.scratch/<feature-slug>/`. See `d
 ### Domain docs
 
 Single-context: root `CONTEXT.md` + `docs/adr/`. See `docs/agents/domain.md`.
+
+## Software Factory (SF)
+
+sf-types: surface:web-app, stack:nextjs, stack:react, stack:sqlite
+
+- `.sf/bin/sf-types` lists the skills these types load (`--check` fails when one is missing). Vocabulary: SF ticket 11.
+- Gate: `cd app && npm run verify:all`. It is the only definition of green. A unit is done when it passes, and a non-author verdict row in `.sf/ledger.tsv` names the commit (`.sf/bin/ledger-check`).
+- Sandbox for any run of the app by an agent: `.sf/bin/sandbox` (no network, snapshot copy, never port 3000). Drive it with the `verify-lifeos` skill.
+- Before a unit of work, write a brief from `.sf/briefs/TEMPLATE.md`. Product calls go through `.sf/playbooks/plan.md`.
+- pstack is vendored at a pin, not committed: `.sf/bin/pstack-fetch`, then `.sf/bin/pstack-check`.
+
+### Rule table (rule, then what enforces it)
+
+| Rule | Enforced by |
+|---|---|
+| No `transition-all`, in TSX or CSS | `.sf/bin/rules` (ast-grep `motion-no-transition-all`, `css-no-transition-all`), fixtures from af10eca |
+| Motion at most 500 ms | `.sf/bin/rules` (`motion-duration-cap`) |
+| Animate only transform, opacity, clip-path, filter | `.sf/bin/rules` (`motion-no-layout-transition`) |
+| Never enter from `scale-0` | `.sf/bin/rules` (`motion-no-scale-zero`) |
+| No `*/` inside CSS comment text | `.sf/bin/rules` (css comment check), fixtures from af10eca and 0f85874 |
+| The suite is green before "done" | `npm run verify:all` (tests stage) |
+| Vendored pstack is unedited | `.sf/bin/pstack-check` |
+| Page headers have no kicker or description | `PageHeader` has no such props (type level) |
+| Press feedback, reduced-motion block, optimistic UI | prose only (judgment), see Interaction & motion above |

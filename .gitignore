@@ -12,3 +12,6 @@ node_modules/
 
 # SF sandbox build log
 .sf/sandbox/.build.log
+.sf/sandbox/.native22/
+.sf/adversarial/node_modules/
+.sf/.verify/

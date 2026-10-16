@@ -2,12 +2,16 @@
 # LifeOS sandbox: a production build of this worktree, served from a copy of a
 # read-only database snapshot, with no route out of the machine.
 #
+#   .sf/bin/sandbox native    once: install better-sqlite3 for the host Node 22
 #   .sf/bin/sandbox build     next build inside a network-less, read-only jail
 #   .sf/bin/sandbox start     copy the snapshot, start the server, print the URL
 #   .sf/bin/sandbox doctor    read-only: is this instance ours and worth driving?
 #   .sf/bin/sandbox canary    prove the jail has no network (expects failure inside)
 #   .sf/bin/sandbox outbound  summarise the outbound attempts the guard recorded
 #   .sf/bin/sandbox stop      kill what `start` started (never by process name)
+#
+# Several instances can run side by side: set SF_SANDBOX_NAME and SF_SANDBOX_PORT.
+# Each gets its own copy of the snapshot, so personas never share state.
 #
 # Isolation, by layer:
 #   network   bwrap --unshare-net: the server sees only loopback. The host reaches it
@@ -25,8 +29,13 @@ APP="$WT/app"
 DATA="${SF_SANDBOX_DATA:-$HOME/apps/lifeos-sf-field-data}"
 PRISTINE="$DATA/pristine/lifeos.db"
 PORT="${SF_SANDBOX_PORT:-3110}"
-CURRENT="$DATA/runs/current"
+NAME="${SF_SANDBOX_NAME:-main}"
+CURRENT="$DATA/runs/current-$NAME"
 NODE_DIR="$(dirname "$(command -v node)")"
+# Production runs node:22 (Dockerfile). The server runs on the host's Node 22 with a
+# better-sqlite3 built for it (.sf/sandbox/.native22, made by `sandbox native`).
+RUN_NODE_DIR="${SF_SANDBOX_NODE_DIR:-/usr/bin}"
+NATIVE22="$WT/.sf/sandbox/.native22/node_modules"
 
 die() { echo "sandbox: $*" >&2; exit 1; }
 [ "$PORT" != 3000 ] || die "port 3000 is the live LifeOS. Pick another SF_SANDBOX_PORT."
@@ -86,16 +95,18 @@ cmd_start() {
   [ -f "$APP/.next/standalone/server.js" ] || die "no build. Run: .sf/bin/sandbox build"
   [ -r "$PRISTINE" ] || die "no snapshot at $PRISTINE"
   if ss -ltn | grep -q ":$PORT "; then die "port $PORT is busy. Run doctor or stop first."; fi
-  local run="$DATA/runs/$(date +%Y%m%dT%H%M%S)"
+  local run="$DATA/runs/$(date +%Y%m%dT%H%M%S)-$NAME"
   mkdir -p "$run"/{home,vault,voice-audio,teach-audio,goals} && chmod 700 "$run"
   cp "$PRISTINE" "$run/lifeos.db" && chmod 600 "$run/lifeos.db"
   rm -rf "$run/server" && cp -r "$APP/.next/standalone" "$run/server"
   assert_no_env_files "$run/server"
+  [ -d "$NATIVE22/better-sqlite3" ] || die "no Node 22 better-sqlite3. Run: .sf/bin/sandbox native"
+  for m in better-sqlite3 bindings file-uri-to-path; do rm -rf "$run/server/node_modules/$m"; cp -r "$NATIVE22/$m" "$run/server/node_modules/$m"; done
   cp "$WT/.sf/sandbox/outbound-guard.cjs" "$WT/.sf/sandbox/bridge.mjs" "$run/"
   : > "$run/outbound.jsonl"
   local inner_port=3100
   jail_args "$run"
-  setsid env -i PATH="$NODE_DIR:/usr/bin:/bin" HOME="$run/home" TZ=Europe/Paris \
+  setsid env -i PATH="$RUN_NODE_DIR:/usr/bin:/bin" HOME="$run/home" TZ=Europe/Paris \
     NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 PORT=$inner_port HOSTNAME=127.0.0.1 \
     LIFEOS_DB_PATH="$run/lifeos.db" KB_PATH="$run/vault" KB_UID="$(id -u)" KB_GID="$(id -g)" \
     VOICE_AUDIO_DIR="$run/voice-audio" TEACH_AUDIO_DIR="$run/teach-audio" GOALS_DIR="$run/goals" \
@@ -123,6 +134,8 @@ cmd_start() {
 }
 
 cmd_stop() {
+  # A stop with no name once killed another agent's instance (field test 1). Be explicit.
+  [ -n "${SF_SANDBOX_NAME:-}" ] || die "stop needs SF_SANDBOX_NAME (the instance you started). Running: $(ls "$DATA/runs" | sed -n 's/^current-//p' | tr '\n' ' ')"
   [ -f "$CURRENT/run.json" ] || { echo "sandbox: nothing running"; return 0; }
   local j b
   j="$(node -p "require('$CURRENT/run.json').jailPid")"; b="$(node -p "require('$CURRENT/run.json').bridgePid")"
@@ -145,6 +158,12 @@ cmd_doctor() {
   echo "sandbox doctor: OK run=$(readlink "$CURRENT") sha=$(node -p "require('$CURRENT/run.json').sha.slice(0,7)") port=$PORT GET/=200 guard=loaded"
 }
 
+cmd_native() {
+  mkdir -p "$WT/.sf/sandbox/.native22" && cd "$WT/.sf/sandbox/.native22"
+  echo '{"private":true,"allowScripts":{"better-sqlite3@11.10.0":true}}' > package.json
+  PATH="$RUN_NODE_DIR:/usr/bin:/bin" npm i --no-audit --no-fund better-sqlite3@11.10.0
+}
+
 cmd_canary() {
   local dir; dir="$(mktemp -d)"
   if jail "$dir" -- "$NODE_DIR/node" -e "fetch('https://example.com').then(()=>process.exit(0),e=>{console.log('blocked:',e.cause?.code||e.message);process.exit(7)})"; then
@@ -165,7 +184,7 @@ cmd_outbound() {
 }
 
 case "${1:-}" in
-  build) cmd_build ;; start) cmd_start ;; stop) cmd_stop ;; doctor) cmd_doctor ;;
+  build) cmd_build ;; native) cmd_native ;; start) cmd_start ;; stop) cmd_stop ;; doctor) cmd_doctor ;;
   canary) cmd_canary ;; outbound) shift; cmd_outbound "$@" ;;
-  *) sed -n '2,9p' "$0"; exit 2 ;;
+  *) sed -n '2,10p' "$0"; exit 2 ;;
 esac

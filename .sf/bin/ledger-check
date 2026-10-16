@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# Prints the verdict for the current product SHA. Commits that touch only bookkeeping
+# files (.sf/ledger.tsv, .sf/verdicts/, .sf/REPORT.md, .sf/LOG.md) do not void a verdict;
+# any other change does (pstack: a new SHA voids the row).
+set -euo pipefail
+cd "$(dirname "$0")/../.."
+bookkeeping='^(\.sf/(ledger\.tsv|verdicts/.*|LOG\.md))$'
+sha=$(git rev-parse HEAD)
+while :; do
+  changed=$(git diff-tree --no-commit-id --name-only -r "$sha")
+  if [ -n "$changed" ] && ! echo "$changed" | grep -Eqv "$bookkeeping"; then
+    sha=$(git rev-parse "$sha^")
+  else
+    break
+  fi
+done
+short=$(git rev-parse --short "$sha")
+if [ -n "$(git status --porcelain)" ]; then echo "ledger-check: working tree is dirty; commit first." >&2; exit 2; fi
+row=$(awk -F'\t' -v s="$short" '$1==s' .sf/ledger.tsv | tail -1)
+if [ -z "$row" ]; then echo "ledger-check: no verdict for product SHA $short" >&2; exit 1; fi
+echo "$row"
+verdict=$(echo "$row" | cut -f4); tier=$(echo "$row" | cut -f3)
+case "$verdict" in PASS|PASS+NOTES) ;; *) echo "ledger-check: verdict $verdict is not a pass" >&2; exit 1;; esac
+case "$tier" in live-verified|test-verified) ;; *) echo "ledger-check: tier $tier is below test-verified" >&2; exit 1;; esac
+echo "ledger-check: $short $verdict $tier"

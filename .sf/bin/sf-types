@@ -1,0 +1,55 @@
+#!/usr/bin/env node
+// Resolves the `sf-types:` line in AGENTS.md to the skills each type loads (SF ticket 11, option A, thin).
+// Usage: .sf/bin/sf-types [--check] [--json]
+const fs = require('node:fs');
+const path = require('node:path');
+const os = require('node:os');
+
+const repo = path.resolve(__dirname, '..', '..');
+const args = new Set(process.argv.slice(2));
+const agents = fs.readFileSync(path.join(repo, 'AGENTS.md'), 'utf8');
+const line = agents.split('\n').find((l) => /^sf-types:/.test(l.trim()));
+if (!line) {
+  console.error('sf-types: no `sf-types:` line in AGENTS.md. Add one, for example `sf-types: surface:web-app, stack:nextjs`.');
+  process.exit(2);
+}
+const declared = line.trim().slice('sf-types:'.length).split(',').map((t) => t.trim()).filter(Boolean);
+const registry = JSON.parse(fs.readFileSync(path.join(repo, '.sf', 'types.json'), 'utf8'));
+const unknown = declared.filter((t) => !registry[t] === undefined || t.startsWith('_'));
+if (unknown.length) {
+  console.error(`sf-types: unknown type(s) ${unknown.join(', ')}. Known: ${Object.keys(registry).filter((k) => !['base', '_roots'].includes(k)).join(', ')}. Add the type to .sf/types.json.`);
+  process.exit(2);
+}
+
+const rootMap = Object.fromEntries(
+  Object.entries(registry._roots).map(([k, v]) => [k, path.resolve(repo, v.replace(/^~/, os.homedir()))]),
+);
+
+function resolve(spec) {
+  const [name, rootKey] = spec.split('@');
+  const root = rootMap[rootKey];
+  if (!root) throw new Error(`sf-types: ${spec} names unknown root "${rootKey}". Known roots: ${Object.keys(rootMap).join(', ')}.`);
+  if (!fs.existsSync(root)) return [];
+  const names = name.endsWith('*')
+    ? fs.readdirSync(root).filter((d) => d.startsWith(name.slice(0, -1)))
+    : [name];
+  return names.map((n) => path.join(root, n, 'SKILL.md')).filter((p) => fs.existsSync(p));
+}
+
+const rows = [];
+for (const type of ['base', ...declared]) {
+  for (const skill of registry[type]) {
+    const hits = resolve(skill);
+    if (hits.length === 0) rows.push({ type, skill: skill.split('@')[0], path: null });
+    for (const p of hits) rows.push({ type, skill: path.basename(path.dirname(p)), path: p });
+  }
+}
+
+if (args.has('--json')) console.log(JSON.stringify({ declared, skills: rows }, null, 2));
+else for (const r of rows) console.log(`${r.type}\t${r.skill}\t${r.path ?? 'MISSING'}`);
+
+const missing = rows.filter((r) => !r.path);
+if (args.has('--check') && missing.length) {
+  console.error(`sf-types: ${missing.length} skill(s) not found: ${missing.map((m) => m.skill).join(', ')}. Install them or fix .sf/types.json.`);
+  process.exit(1);
+}
