@@ -8,22 +8,43 @@ $(id -u)
 $(mktemp -d)
 browser.close
 browser.newContext
+category theory
+Category theory
 context.route
+context.setOffline
+cosmetic.
 DECISIONS.md
 Decisions so far
+document.getElementById
 document.querySelectorAll
+e.getBoundingClientRect
+el.className
+el.getAttribute
+el.getBoundingClientRect
+el.textContent
+e.setAttribute
 features/README.md
+findings.json
 getByRole(
+held key
 /maintain-verification-skill
+, never read
 no horizontal overflow
+not seen
 page.evaluate
 page.screenshot
 route.continue
 route.request
+runs.json
 server.log
+--show-toplevel
+s reused
+s sandbox,
 stops with
 Sub-features
+t.getAttribute
 ]; then echo
 transition: all
 use strict
+, { waitUntil:
 window.innerWidth

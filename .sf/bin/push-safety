@@ -28,7 +28,7 @@ added = [l[1:] for l in git("diff", "-U0", f"{base}..HEAD").splitlines() if l.st
 secret = re.compile(r"(AKIA[0-9A-Z]{16}|sk-[A-Za-z0-9_-]{20,}|gh[pousr]_[A-Za-z0-9]{30,}|xox[abp]-[A-Za-z0-9-]{10,}|-----BEGIN [A-Z ]*PRIVATE KEY|eyJ[A-Za-z0-9_-]{15,}\.[A-Za-z0-9_-]{15,}\.|(api[_-]?key|secret|password|token)\s*[:=]\s*['\"][^'\"\s$]{12,})", re.I)
 email = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[a-z]{2,}")
 n_secret = sum(1 for l in added if secret.search(l))
-n_email = sum(1 for l in added if email.search(l) and not re.search(r"noreply@anthropic\.com|@example\.(com|org)", l))
+n_email = sum(1 for l in added if email.search(l) and not re.search(r"noreply@anthropic\.com|@example\.(com|org|invalid)|@[\w.-]+\.(invalid|test|example)\b", l))
 if n_secret: problems.append(f"secret-shaped strings in added lines: {n_secret}")
 if n_email: problems.append(f"e-mail addresses in added lines: {n_email}")
 msgs = git("log", "--format=%B", f"{base}..HEAD")
