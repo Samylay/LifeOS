@@ -7,3 +7,4 @@ doctrine-motion.tsx	motion-duration-cap
 doctrine-motion.tsx	motion-no-layout-transition
 doctrine-motion.tsx	motion-no-scale-zero
 doctrine-motion.css	css-no-transition-all
+ca829e0-decide-onkey.tsx	page-shortcut-helper

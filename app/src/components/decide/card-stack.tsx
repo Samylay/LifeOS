@@ -19,6 +19,7 @@
 //   (use-gesture swipe.distance 50px) AND the flick direction matches the
 //   displacement sign. Velocity is measured over the last ≤120ms of motion,
 //   not the whole gesture. Everything else springs back.
+import { pageShortcut } from "@/lib/keyboard";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Check, Loader2, Mic, Square } from "lucide-react";
 import { toast } from "sonner";
@@ -186,11 +187,11 @@ export function CardStack<T extends { id: string }>({
       // Typing in a field (e.g. the proposal mission textarea) must never
       // fire a verdict.
       const t = e.target as HTMLElement | null;
-      if (e.defaultPrevented || e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
-      if (document.querySelector('[role="dialog"]')) return;
-      if (t && t.closest("input, textarea, select, button, summary, a, [contenteditable], [role=tab]")) return;
-      if (e.key === "ArrowRight") decide(top, swipeRightId, "right");
-      else if (e.key === "ArrowLeft") decide(top, swipeLeftId, "left");
+      const key = pageShortcut(e);
+      if (key === null || e.shiftKey) return;
+      if (t && t.closest("button, summary, a, [contenteditable], [role=tab]")) return;
+      if (key === "ArrowRight") decide(top, swipeRightId, "right");
+      else if (key === "ArrowLeft") decide(top, swipeLeftId, "left");
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);

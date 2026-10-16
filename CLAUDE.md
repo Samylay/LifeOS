@@ -50,6 +50,7 @@ sf-types: surface:web-app, stack:nextjs, stack:react, stack:sqlite
 | Animate only transform, opacity, clip-path, filter | `.sf/bin/rules` (`motion-no-layout-transition`) |
 | Never enter from `scale-0` | `.sf/bin/rules` (`motion-no-scale-zero`) |
 | No `*/` inside CSS comment text | `.sf/bin/rules` (css comment check), fixtures from af10eca and 0f85874 |
+| Single-key page shortcuts go through `pageShortcut()` (no Ctrl/Cmd/Alt, no repeats) | `.sf/bin/rules` (ast-grep `page-shortcut-helper`), fixture from ca829e0 |
 | The suite is green before "done" | `npm run verify:all` (tests stage) |
 | Vendored pstack is unedited | `.sf/bin/pstack-check` |
 | Page headers have no kicker or description | `PageHeader` has no such props (type level) |

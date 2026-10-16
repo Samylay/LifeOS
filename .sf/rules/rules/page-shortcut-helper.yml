@@ -1,0 +1,13 @@
+id: page-shortcut-helper
+language: tsx
+severity: error
+message: "Single-key page shortcut read from event.key. Use `pageShortcut(event)` from @/lib/keyboard, which ignores Ctrl/Cmd/Alt combos, key repeats, text fields and dialogs."
+note: "Past mistake: app/src/app/decide/page.tsx before the CU-03 fix, where Ctrl+A recorded Approve and Ctrl+X recorded Reject."
+ignores: ["**/lib/keyboard.ts"]
+rule:
+  any:
+    - pattern: $E.key === $S
+    - pattern: $E.key == $S
+constraints:
+  S:
+    regex: '^["''][a-zA-Z]["'']$'
