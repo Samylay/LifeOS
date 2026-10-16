@@ -1,0 +1,64 @@
+#!/usr/bin/env python3
+"""Push-safety scan for a public remote. Checks every commit in BASE..HEAD (default
+master..HEAD) and fails on: database or snapshot files, env files, binaries over 1 MB,
+secret-shaped strings in added lines, e-mail addresses outside commit trailers, and any
+added string of 8+ characters that also occurs in the database snapshot (personal data).
+Usage: .sf/bin/push-safety [BASE] [--snapshot PATH] [--show-own-hits].
+Prints counts only. --show-own-hits prints the matching strings from OUR diff (never
+snapshot text) so a human can review them into .sf/push-safety.allow."""
+import os, re, sqlite3, subprocess, sys
+
+args = [a for a in sys.argv[1:] if not a.startswith("--")]
+base = args[0] if args else "master"
+snap = os.path.expanduser("~/apps/lifeos-sf-field-data/pristine/lifeos.db")
+if "--snapshot" in sys.argv: snap = sys.argv[sys.argv.index("--snapshot") + 1]
+git = lambda *a: subprocess.run(["git", *a], capture_output=True, text=True, check=True).stdout
+
+commits = git("rev-list", f"{base}..HEAD").split()
+files = sorted(set(git("diff", "--name-only", f"{base}..HEAD").split()))
+problems = []
+bad_name = re.compile(r"(\.db|\.sqlite3?|\.db-(wal|shm)|\.env(\..*)?|\.pem|\.key|lifeos-sf-field-data/.*)$")
+for f in files:
+    if bad_name.search(f) and not f.endswith(".example"): problems.append(f"forbidden file type: {f}")
+for line in git("diff", "--numstat", f"{base}..HEAD").splitlines():
+    a, d, f = line.split("\t")
+    if a == "-" and os.path.exists(f) and os.path.getsize(f) > 1_000_000: problems.append(f"binary over 1 MB: {f}")
+
+added = [l[1:] for l in git("diff", "-U0", f"{base}..HEAD").splitlines() if l.startswith("+") and not l.startswith("+++")]
+secret = re.compile(r"(AKIA[0-9A-Z]{16}|sk-[A-Za-z0-9_-]{20,}|gh[pousr]_[A-Za-z0-9]{30,}|xox[abp]-[A-Za-z0-9-]{10,}|-----BEGIN [A-Z ]*PRIVATE KEY|eyJ[A-Za-z0-9_-]{15,}\.[A-Za-z0-9_-]{15,}\.|(api[_-]?key|secret|password|token)\s*[:=]\s*['\"][^'\"\s$]{12,})", re.I)
+email = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[a-z]{2,}")
+n_secret = sum(1 for l in added if secret.search(l))
+n_email = sum(1 for l in added if email.search(l) and not re.search(r"noreply@anthropic\.com|@example\.(com|org)", l))
+if n_secret: problems.append(f"secret-shaped strings in added lines: {n_secret}")
+if n_email: problems.append(f"e-mail addresses in added lines: {n_email}")
+msgs = git("log", "--format=%B", f"{base}..HEAD")
+if secret.search(msgs): problems.append("secret-shaped string in a commit message")
+
+literals = set()
+for l in added:
+    for m in re.findall(r"[\"'`]([^\"'`]{8,120})[\"'`]", l): literals.add(m.strip())
+    for m in re.findall(r"\b[\w.-]{12,}\b", l): literals.add(m)
+hits = 0
+if os.path.exists(snap):
+    db = sqlite3.connect(f"file:{snap}?mode=ro&immutable=1", uri=True)
+    corpus = "\n".join(r[0] for r in db.execute("select data from docs"))
+    verbose = "--show-own-hits" in sys.argv  # prints only strings from OUR diff, never snapshot text
+    # Strings already public on BASE are not new leaks. Strings a human reviewed as plain
+    # code or doc vocabulary live in .sf/push-safety.allow (one per line).
+    public = git("grep", "-hI", "-e", ".", base, "--", ".")
+    allow_path = os.path.join(git("rev-parse", "--show-toplevel").strip(), ".sf/push-safety.allow")
+    allow = set(open(allow_path).read().splitlines()) if os.path.exists(allow_path) else set()
+    common = re.compile(r"^(users/local/|https?://|[a-z]+(-[a-z]+)*$|[a-z]+([A-Z][a-z]+)+$|[\d\s.:/-]+$)")
+    for s in literals:
+        if len(s) < 8 or common.search(s) or s in allow or s in public: continue
+        if s in corpus:
+            hits += 1
+            if verbose: print(f"  own string found in snapshot: {s!r}")
+    if hits: problems.append(f"added strings that also occur in the snapshot data: {hits} (inspect locally, never print)")
+else:
+    problems.append(f"snapshot not found at {snap}: personal-data check not run (a gap, not a pass)")
+
+print(f"push-safety: {len(commits)} commits, {len(files)} files, {len(added)} added lines, {len(literals)} literals checked against the snapshot")
+for p in problems: print(f"  FAIL {p}")
+print("push-safety: " + ("PASS" if not problems else "FAIL"))
+sys.exit(1 if problems else 0)

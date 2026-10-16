@@ -1,0 +1,29 @@
+# Reviewed: plain code or doc vocabulary from our own diff that also occurs somewhere in the snapshot.
+# One string per line. Reviewer and date in the commit that adds each line.
+| grep -q
+$(dirname
+$HOME/.claude
+$HOME/.codex
+$(id -u)
+$(mktemp -d)
+browser.close
+browser.newContext
+context.route
+DECISIONS.md
+Decisions so far
+document.querySelectorAll
+features/README.md
+getByRole(
+/maintain-verification-skill
+no horizontal overflow
+page.evaluate
+page.screenshot
+route.continue
+route.request
+server.log
+stops with
+Sub-features
+]; then echo
+transition: all
+use strict
+window.innerWidth
