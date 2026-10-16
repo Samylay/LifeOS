@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+# verify:all, the only definition of green for LifeOS (SF). Runs every stage even after a
+# failure, prints one line per stage, exits 1 if any stage failed. Never weakened to pass.
+set -uo pipefail
+root="$(cd "$(dirname "$0")/../.." && pwd)"; cd "$root/app"
+logdir="${SF_VERIFY_LOGS:-$root/.sf/.verify}"; mkdir -p "$logdir"
+declare -a results=(); failed=0
+stage() { # stage <name> <command...>
+  local name="$1"; shift; local t0=$SECONDS
+  if "$@" >"$logdir/$name.log" 2>&1; then results+=("PASS $name ($((SECONDS-t0))s)")
+  else results+=("FAIL $name ($((SECONDS-t0))s): $(tail -3 "$logdir/$name.log" | tr '\n' ' ' | cut -c1-200)"); failed=1; fi
+}
+gate_ui() {
+  export SF_SANDBOX_NAME=gate SF_SANDBOX_PORT="${SF_GATE_PORT:-3140}" SF_BASE_URL="http://127.0.0.1:${SF_GATE_PORT:-3140}"
+  "$root/.sf/bin/sandbox" stop >/dev/null 2>&1 || true
+  "$root/.sf/bin/sandbox" build && "$root/.sf/bin/sandbox" start && "$root/.sf/bin/sandbox" doctor || { "$root/.sf/bin/sandbox" stop; return 1; }
+  local rc=0
+  node "$root/.claude/skills/verify-lifeos/drive.mjs" --all --viewport both || rc=1
+  node "$root/.claude/skills/verify-lifeos/drive.mjs" --self-test || rc=1
+  "$root/.sf/bin/sandbox" outbound; "$root/.sf/bin/sandbox" stop
+  return $rc
+}
+stage typecheck npx tsc --noEmit
+stage lint npx eslint .
+stage tests npx vitest run
+stage routes-inventory node scripts/gen-inventory.mjs --check
+stage pstack "$root/.sf/bin/pstack-check"
+stage sf-types "$root/.sf/bin/sf-types" --check
+stage rules "$root/.sf/bin/rules"
+stage canary "$root/.sf/bin/sandbox" canary
+stage verify-lifeos gate_ui
+echo "verify:all at $(git -C "$root" rev-parse --short HEAD)$(git -C "$root" diff --quiet HEAD || echo ' (dirty tree)')"
+printf '  %s\n' "${results[@]}"
+grep -E "^(PASS|FAIL) " "$logdir/verify-lifeos.log" 2>/dev/null | grep FAIL | sed 's/^/    /'
+grep -E "Tests +[0-9]" "$logdir/tests.log" | sed 's/^ */    tests: /'
+[ $failed -eq 0 ] && echo "verify:all: PASS" || echo "verify:all: FAIL"
+exit $failed

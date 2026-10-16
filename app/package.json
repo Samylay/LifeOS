@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "vitest run"
+    "test": "vitest run",
+    "verify:all": "bash ../.sf/bin/verify-all"
   },
   "dependencies": {
     "@ai-sdk/gateway": "^4.0.87",
